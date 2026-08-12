@@ -1,6 +1,7 @@
 # ADR 0002: The temporal evidence graph
 
-- Status: accepted
+- Status: accepted, amended 2026-08-12 after executing every query against a
+  live node. See [Amendment](#amendment-2026-08-12-what-execution-overturned).
 - Date: 2026-08-12
 - Decider: Vaibhav Lalwani (solo entry)
 - Supersedes: nothing
@@ -32,6 +33,101 @@ pinned commit (see [SOURCE_LOG.md](../SOURCE_LOG.md)):
 
 Designing around these up front is cheaper than discovering them at parse time
 on day six.
+
+## Amendment 2026-08-12: what execution overturned
+
+The eight constraints above were read out of `cypher-compat.md`. Three of them
+are wrong about the running engine, and one workaround in this ADR does not
+parse. All three were found by executing 119 probes against a live node rather
+than by reading further. The original text is left standing above so the
+correction is visible; this section is the authority where they disagree.
+
+Evidence: [../../artifacts/cypher-probe/](../../artifacts/cypher-probe/), three
+rounds, every request and response recorded.
+
+**1. `UNWIND` is a vertex-upsert construct only. It cannot write edges.**
+
+The bullet above says batch writes are `UNWIND $rows AS row`, without
+qualification. Six separate attempts to batch edges that way were rejected with
+one message:
+
+```
+UNWIND vertex upsert requires MERGE by id followed by SET
+```
+
+Edges are written one statement per edge, which is the form that does work:
+
+```cypher
+MERGE (a {id: 2000000000002})-[:SUPERSEDES]->(b {id: 2000000000001})
+```
+
+Cost: ingest is one round trip per edge. For a corpus of this size that is
+acceptable, and it is a throughput property, not a modelling one. Nothing in the
+data model changes.
+
+**2. Vertex upsert is `MERGE` on id followed by `SET`, but only inside `UNWIND`.**
+
+A bare `MERGE (c {id: 2000000000001}) SET c:Claim` is rejected twice over:
+
+```
+MERGE with following clauses is not executable in Query engine
+only one-hop edge patterns are executable in Query engine MERGE
+```
+
+Outside `UNWIND`, `MERGE` creates edges and nothing else. The working vertex
+upsert, including the single-vertex case, is:
+
+```cypher
+UNWIND $rows AS row MERGE (c {id: row.id}) SET c:Claim, c.predicate = row.predicate
+```
+
+The label goes in the `SET`, never in the `MERGE` pattern, and there must be
+exactly one label:
+
+```
+UNWIND vertex upsert MERGE pattern matches only id; apply labels with SET
+UNWIND vertex upsert requires exactly one SET label
+```
+
+**3. `count()` over a binding does not parse, so the abstention workaround below
+had to change.**
+
+The workaround table said "`OPTIONAL MATCH` for the inbound `SUPERSEDES` plus
+`count()`". `count(newer)` is rejected:
+
+```
+RETURN currently supports <binding>.<property> or count(*)
+```
+
+Only `count(*)` and `<binding>.<property>` are accepted. The abstention query
+therefore projects the superseder's id and treats `null` as "current":
+
+```cypher
+MATCH (c:Claim)-[:ABOUT]->(e {id: $entity})
+OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c)
+RETURN c.id AS id, c.object_text AS txt, newer.id AS superseded_by
+```
+
+Executed against three claims where the first is superseded, this returns
+`superseded_by = 2000000000002` on the January claim and `{"type": "null"}` on
+the other two. That is the check "is this claim current" described under
+[Relationship types](#relationship-types), unchanged in meaning, expressed
+differently.
+
+**Two further engine rules that constrain query construction, not the model:**
+
+- `WITH` must carry every binding currently in scope. Dropping one is rejected
+  with `WITH must pass through every in-scope binding in Query engine`.
+- A node-only `MATCH` needs a predicate. `MATCH (c) RETURN ...` is rejected with
+  `node-only MATCH requires an id, label, or property predicate`. In practice
+  every query here has a label or an id, so this costs nothing.
+
+**What survived unchanged.** Bounded `*1..3` traversal, two- and three-hop
+patterns, `algo.SPpaths` / `algo.SSpaths` / `algo.MSpaths` returning whole paths
+with node properties, `STARTS WITH`, `ORDER BY ... DESC LIMIT 1`, `DISTINCT`,
+per-request `consistency: "strong"` and `timeout_ms`, and idempotent re-`MERGE`.
+Every query this ADR depends on has now been run and checked against the rows it
+must return, not merely accepted by the parser.
 
 ## Decision
 
@@ -103,8 +199,8 @@ entire pitch is not lying.
 
 | Wanted | Not available | Used instead |
 |---|---|---|
-| "claims with no superseding edge" | `IS NULL` | `OPTIONAL MATCH` for the inbound `SUPERSEDES` plus `count()`, which is 0 when absent |
-| "claim id in this set" | `IN` | `UNWIND $rows` batch form, or `algo.MSpaths` with `sourceValues` |
+| "claims with no superseding edge" | `IS NULL` | `OPTIONAL MATCH` for the inbound `SUPERSEDES`, projecting `newer.id`, which comes back `null` when absent. The `count()` form originally written here does not parse; see the [Amendment](#amendment-2026-08-12-what-execution-overturned) |
+| "claim id in this set" | `IN` | `algo.MSpaths` with `sourceValues`, verified returning 2 paths. The `UNWIND $rows` half of this row applies to vertex upsert only; see the [Amendment](#amendment-2026-08-12-what-execution-overturned) |
 | "latest claim" | `max()` | `ORDER BY ... DESC LIMIT 1` |
 | "text search" | `CONTAINS` | Lexical candidate selection happens outside HydraDB; the graph resolves structure, not substrings |
 

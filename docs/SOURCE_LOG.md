@@ -58,9 +58,13 @@ Facts taken from those files that the build depends on:
   `algo.MSpaths`, not from plain `MATCH`. Source: `cypher-compat.md`, `README.md`.
 - Batch writes use `UNWIND $rows AS row` with a parameter holding a list of
   maps, and only through the client transport (Bolt/HTTP), not the in-process
-  shard API. Source: `cypher-compat.md`.
+  shard API. Source: `cypher-compat.md`. **Incomplete as stated: see
+  [Corrected by execution](#corrected-by-execution) below. `UNWIND` writes
+  vertices and refuses edges.**
 - A vertex upsert must be `MERGE` on id followed by `SET`. Folding extra
   properties into the `MERGE` pattern is rejected. Source: `cypher-compat.md`.
+  **Incomplete as stated: that form only parses inside `UNWIND`. See
+  [Corrected by execution](#corrected-by-execution).**
 - Local dev node listens on Bolt 17687, HTTP 18443, admin 19091 under the
   AGENTS.md recipe (the README recipe uses 7687/8443/9090). Source: `AGENTS.md`.
 - `RUST_MIN_STACK=33554432` is required on every platform or the node aborts on
@@ -101,6 +105,34 @@ Two consequences for the build:
 - `read_epoch` and `bookmark` come back on every read. They are the engine's own
   statement of which snapshot answered, which makes them the honest content of
   the HydraDB Proof screen.
+
+### Corrected by execution
+
+The source above is upstream's own documentation, and it is accurate about what
+the engine refuses. It is incomplete about what the engine accepts, in ways that
+only showed up when the queries were run. 119 probes across three rounds, all
+recorded in [../artifacts/cypher-probe/](../artifacts/cypher-probe/README.md),
+on 2026-08-12 against the running node.
+
+| What the documentation implied | What the engine did |
+|---|---|
+| `UNWIND $rows AS row` is the batch write form | It is the batch **vertex upsert** form. Six attempts to batch edges with it were rejected: `UNWIND vertex upsert requires MERGE by id followed by SET`. Edges are one statement each. |
+| Vertex upsert is `MERGE` on id then `SET` | Only inside `UNWIND`. A bare `MERGE (c {id: X}) SET c:Claim` is rejected twice: `MERGE with following clauses is not executable in Query engine`, then `only one-hop edge patterns are executable in Query engine MERGE`. |
+| Aggregates include `count` | `count(*)` only. `count(<binding>)` is rejected: `RETURN currently supports <binding>.<property> or count(*)`. |
+| Not documented at all | `WITH` must pass through every in-scope binding. Dropping one is rejected. |
+| Not documented at all | A node-only `MATCH` needs an id, a label, or a property predicate. Bare `MATCH (c)` is rejected. |
+
+Confirmed by execution exactly as documented, so the documentation earned its
+place: `IN`, `CONTAINS`, `ENDS WITH`, `IS NULL`, `RETURN *`, unbounded `*`,
+undirected patterns, multi-type relationship patterns, and more than one
+statement per request are all rejected, each with a specific message.
+
+One encoding detail that appears in no document and matters for the client.
+Top-level row values are tagged `{"type": "string", "value": "March"}`, snake
+case, with `value` absent when the type is `null`. Node properties **inside** an
+`algo.*` path value use a different tagging: `{"String": "March"}`,
+`{"Integer": 20250210}`, capitalised. The adapter needs both decoders. Captured
+in [`path-value-shape.json`](../artifacts/cypher-probe/path-value-shape.json).
 
 ## Hack Hydra 2026 rules
 

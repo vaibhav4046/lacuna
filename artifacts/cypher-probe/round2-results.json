@@ -1,0 +1,1732 @@
+[
+  {
+    "probe": "V01",
+    "category": "encoding",
+    "what": "OPTIONAL MATCH null encoding, absent side",
+    "query": "MATCH (c {id: 2000000000003}) OPTIONAL MATCH (c)-[:SUPERSEDES]->(old) RETURN c.id AS id, old.id AS superseded",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 82.5,
+    "response": {
+      "query_id": "http-query-183",
+      "columns": [
+        "id",
+        "superseded"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "V02",
+    "category": "encoding",
+    "what": "parameter round trip",
+    "query": "MATCH (c {id: $cid}) RETURN c.object_text AS txt",
+    "parameters": {
+      "cid": 2000000000002
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 7.2,
+    "response": {
+      "query_id": "http-query-184",
+      "columns": [
+        "txt"
+      ],
+      "rows": [
+        [
+          {
+            "type": "string",
+            "value": "March"
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "V03",
+    "category": "encoding",
+    "what": "collect() list encoding",
+    "query": "MATCH (c) RETURN collect(c.id) AS ids",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 7.9,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: node-only MATCH requires an id, label, or property predicate\"}}"
+    }
+  },
+  {
+    "probe": "W01",
+    "category": "write",
+    "what": "MERGE alone, no following clause",
+    "query": "MERGE (c {id: 2000000000001})",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 4.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: only one-hop edge patterns are executable in Query engine MERGE\"}}"
+    }
+  },
+  {
+    "probe": "W02",
+    "category": "write",
+    "what": "MERGE alone with a label in the pattern",
+    "query": "MERGE (c:Claim {id: 9000000000002})",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.3,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: only one-hop edge patterns are executable in Query engine MERGE\"}}"
+    }
+  },
+  {
+    "probe": "W03",
+    "category": "write",
+    "what": "MATCH then SET as its own statement",
+    "query": "MATCH (c {id: 2000000000001}) SET c.predicate = 'launch_date'",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 45.2,
+    "response": {
+      "query_id": "http-query-188",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "W04",
+    "category": "write",
+    "what": "UNWIND upsert: MERGE on id, label via SET",
+    "query": "UNWIND $rows AS row MERGE (c {id: row.id}) SET c:Claim, c.predicate = row.predicate, c.object_text = row.object_text, c.valid_from = row.valid_from, c.tx_time = row.tx_time, c.polarity = row.polarity, c.canonical_key = row.canonical_key",
+    "parameters": {
+      "rows": [
+        {
+          "id": 2000000000001,
+          "predicate": "launch_date",
+          "object_text": "January",
+          "valid_from": 20250101,
+          "tx_time": 20250110,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|January"
+        },
+        {
+          "id": 2000000000002,
+          "predicate": "launch_date",
+          "object_text": "March",
+          "valid_from": 20250101,
+          "tx_time": 20250210,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|March"
+        },
+        {
+          "id": 2000000000003,
+          "predicate": "launch_date",
+          "object_text": "April",
+          "valid_from": 20250101,
+          "tx_time": 20250215,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|April"
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 53.0,
+    "response": {
+      "query_id": "http-query-189",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "W05",
+    "category": "write",
+    "what": "UNWIND upsert, EvidenceSpan",
+    "query": "UNWIND $rows AS row MERGE (s {id: row.id}) SET s:EvidenceSpan, s.message_id = row.message_id, s.start = row.start, s.end = row.end, s.text_hash = row.text_hash, s.text = row.text",
+    "parameters": {
+      "rows": [
+        {
+          "id": 3000000000001,
+          "message_id": 4000000000001,
+          "start": 0,
+          "end": 42,
+          "text_hash": "a1",
+          "text": "the launch is in January"
+        },
+        {
+          "id": 3000000000002,
+          "message_id": 4000000000002,
+          "start": 0,
+          "end": 38,
+          "text_hash": "b2",
+          "text": "correction, launch moved to March"
+        },
+        {
+          "id": 3000000000003,
+          "message_id": 4000000000002,
+          "start": 39,
+          "end": 80,
+          "text_hash": "c3",
+          "text": "someone else said April"
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 10.1,
+    "response": {
+      "query_id": "http-query-190",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "W06",
+    "category": "write",
+    "what": "UNWIND upsert, Entity",
+    "query": "UNWIND $rows AS row MERGE (e {id: row.id}) SET e:Entity, e.name = row.name, e.kind = row.kind",
+    "parameters": {
+      "rows": [
+        {
+          "id": 1000000000001,
+          "name": "Project Atlas launch",
+          "kind": "event"
+        },
+        {
+          "id": 1000000000002,
+          "name": "Project Atlas",
+          "kind": "project"
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 8.0,
+    "response": {
+      "query_id": "http-query-191",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "W07",
+    "category": "write",
+    "what": "UNWIND upsert, Session and Message",
+    "query": "UNWIND $rows AS row MERGE (m {id: row.id}) SET m:Message, m.session_id = row.session_id, m.role = row.role, m.ts = row.ts, m.seq = row.seq",
+    "parameters": {
+      "rows": [
+        {
+          "id": 4000000000001,
+          "session_id": 5000000000001,
+          "role": "user",
+          "ts": 20250110,
+          "seq": 1
+        },
+        {
+          "id": 4000000000002,
+          "session_id": 5000000000001,
+          "role": "user",
+          "ts": 20250210,
+          "seq": 2
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 7.6,
+    "response": {
+      "query_id": "http-query-192",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "W08",
+    "category": "write",
+    "what": "UNWIND upsert, Session",
+    "query": "UNWIND $rows AS row MERGE (s {id: row.id}) SET s:Session, s.session_key = row.session_key, s.started_at = row.started_at, s.seq = row.seq",
+    "parameters": {
+      "rows": [
+        {
+          "id": 5000000000001,
+          "session_key": "sess-1",
+          "started_at": 20250110,
+          "seq": 1
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 7.4,
+    "response": {
+      "query_id": "http-query-193",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "W09",
+    "category": "write",
+    "what": "one-hop edge MERGE, literal ids",
+    "query": "MERGE (a {id: 2000000000002})-[:SUPERSEDES]->(b {id: 2000000000001})",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 65.9,
+    "response": {
+      "query_id": "http-query-194",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "W10",
+    "category": "write",
+    "what": "UNWIND one-hop edge MERGE",
+    "query": "UNWIND $rows AS row MERGE (a {id: row.src})-[:SUPPORTS]->(b {id: row.dst})",
+    "parameters": {
+      "rows": [
+        {
+          "src": 3000000000001,
+          "dst": 2000000000001
+        },
+        {
+          "src": 3000000000002,
+          "dst": 2000000000002
+        },
+        {
+          "src": 3000000000003,
+          "dst": 2000000000003
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 5.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires MERGE by id followed by SET\"}}"
+    }
+  },
+  {
+    "probe": "W11",
+    "category": "write",
+    "what": "UNWIND one-hop edge MERGE, ABOUT",
+    "query": "UNWIND $rows AS row MERGE (c {id: row.src})-[:ABOUT]->(e {id: row.dst})",
+    "parameters": {
+      "rows": [
+        {
+          "src": 2000000000001,
+          "dst": 1000000000001
+        },
+        {
+          "src": 2000000000002,
+          "dst": 1000000000001
+        },
+        {
+          "src": 2000000000003,
+          "dst": 1000000000001
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.3,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires MERGE by id followed by SET\"}}"
+    }
+  },
+  {
+    "probe": "W12",
+    "category": "write",
+    "what": "UNWIND one-hop edge MERGE, MENTIONS",
+    "query": "UNWIND $rows AS row MERGE (c {id: row.src})-[:MENTIONS]->(e {id: row.dst})",
+    "parameters": {
+      "rows": [
+        {
+          "src": 2000000000001,
+          "dst": 1000000000002
+        },
+        {
+          "src": 2000000000002,
+          "dst": 1000000000002
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 3.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires MERGE by id followed by SET\"}}"
+    }
+  },
+  {
+    "probe": "W13",
+    "category": "write",
+    "what": "UNWIND one-hop edge MERGE, CONTAINS",
+    "query": "UNWIND $rows AS row MERGE (s {id: row.src})-[:CONTAINS]->(m {id: row.dst})",
+    "parameters": {
+      "rows": [
+        {
+          "src": 5000000000001,
+          "dst": 4000000000001
+        },
+        {
+          "src": 5000000000001,
+          "dst": 4000000000002
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires MERGE by id followed by SET\"}}"
+    }
+  },
+  {
+    "probe": "W14",
+    "category": "write",
+    "what": "UNWIND one-hop edge MERGE, HAS_SPAN",
+    "query": "UNWIND $rows AS row MERGE (m {id: row.src})-[:HAS_SPAN]->(s {id: row.dst})",
+    "parameters": {
+      "rows": [
+        {
+          "src": 4000000000001,
+          "dst": 3000000000001
+        },
+        {
+          "src": 4000000000002,
+          "dst": 3000000000002
+        },
+        {
+          "src": 4000000000002,
+          "dst": 3000000000003
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires MERGE by id followed by SET\"}}"
+    }
+  },
+  {
+    "probe": "W15",
+    "category": "write",
+    "what": "UNWIND one-hop edge MERGE, CONTRADICTS",
+    "query": "UNWIND $rows AS row MERGE (a {id: row.src})-[:CONTRADICTS]->(b {id: row.dst})",
+    "parameters": {
+      "rows": [
+        {
+          "src": 2000000000003,
+          "dst": 2000000000002
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 3.9,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires MERGE by id followed by SET\"}}"
+    }
+  },
+  {
+    "probe": "W16",
+    "category": "write",
+    "what": "re-running the same UNWIND upsert is idempotent",
+    "query": "UNWIND $rows AS row MERGE (c {id: row.id}) SET c:Claim, c.predicate = row.predicate, c.object_text = row.object_text, c.valid_from = row.valid_from, c.tx_time = row.tx_time, c.polarity = row.polarity, c.canonical_key = row.canonical_key",
+    "parameters": {
+      "rows": [
+        {
+          "id": 2000000000001,
+          "predicate": "launch_date",
+          "object_text": "January",
+          "valid_from": 20250101,
+          "tx_time": 20250110,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|January"
+        },
+        {
+          "id": 2000000000002,
+          "predicate": "launch_date",
+          "object_text": "March",
+          "valid_from": 20250101,
+          "tx_time": 20250210,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|March"
+        },
+        {
+          "id": 2000000000003,
+          "predicate": "launch_date",
+          "object_text": "April",
+          "valid_from": 20250101,
+          "tx_time": 20250215,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|April"
+        }
+      ]
+    },
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 11.7,
+    "response": {
+      "query_id": "http-query-201",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "W17",
+    "category": "write",
+    "what": "UNWIND batch SET on existing nodes",
+    "query": "UNWIND $rows AS row MATCH (c {id: row.id}) SET c.checked = row.checked",
+    "parameters": {
+      "rows": [
+        {
+          "id": 2000000000001,
+          "checked": 1
+        }
+      ]
+    },
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 8.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND MATCH must end in RETURN or DELETE\"}}"
+    }
+  },
+  {
+    "probe": "Q01",
+    "category": "read",
+    "what": "all claims about the launch entity",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN c.id AS id, c.object_text AS txt, c.tx_time AS tx",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 212.6,
+    "response": {
+      "query_id": "http-query-203",
+      "columns": [
+        "id",
+        "txt",
+        "tx"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "string",
+            "value": "January"
+          },
+          {
+            "type": "integer",
+            "value": 20250110
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "string",
+            "value": "March"
+          },
+          {
+            "type": "integer",
+            "value": 20250210
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "string",
+            "value": "April"
+          },
+          {
+            "type": "integer",
+            "value": 20250215
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q02",
+    "category": "read",
+    "what": "count(*) instead of count(binding)",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN count(*) AS n",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 12.6,
+    "response": {
+      "query_id": "http-query-204",
+      "columns": [
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": 3
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q03",
+    "category": "substitute",
+    "what": "CURRENT CLAIM: OPTIONAL MATCH, superseder projected",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.object_text AS txt, newer.id AS superseded_by",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 19.3,
+    "response": {
+      "query_id": "http-query-205",
+      "columns": [
+        "id",
+        "txt",
+        "superseded_by"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "string",
+            "value": "January"
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "string",
+            "value": "March"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "string",
+            "value": "April"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q04",
+    "category": "substitute",
+    "what": "CURRENT CLAIM with count(*) in the aggregate",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, count(*) AS n",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 17.8,
+    "response": {
+      "query_id": "http-query-206",
+      "columns": [
+        "id",
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "integer",
+            "value": 1
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "integer",
+            "value": 1
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "integer",
+            "value": 1
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q05",
+    "category": "read",
+    "what": "the revision chain, bounded variable length",
+    "query": "MATCH (a {id: 2000000000002})-[:SUPERSEDES*1..3]->(b) RETURN b.id AS id",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 5.2,
+    "response": {
+      "query_id": "http-query-207",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q06",
+    "category": "read",
+    "what": "two-hop: entity to claim to mentioned entity",
+    "query": "MATCH (e {id: 1000000000001})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, o.id AS other",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 7.5,
+    "response": {
+      "query_id": "http-query-208",
+      "columns": [
+        "claim",
+        "other"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "vertex_id",
+            "value": 1000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "vertex_id",
+            "value": 1000000000002
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q07",
+    "category": "read",
+    "what": "three-hop: span to claim to entity",
+    "query": "MATCH (s:EvidenceSpan)-[:SUPPORTS]->(c)-[:ABOUT]->(e {id: 1000000000001}) RETURN s.id AS span, s.text AS txt, c.id AS claim",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 13.4,
+    "response": {
+      "query_id": "http-query-209",
+      "columns": [
+        "span",
+        "txt",
+        "claim"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000001
+          },
+          {
+            "type": "string",
+            "value": "the launch is in January"
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000002
+          },
+          {
+            "type": "string",
+            "value": "correction, launch moved to March"
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000003
+          },
+          {
+            "type": "string",
+            "value": "someone else said April"
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q08",
+    "category": "read",
+    "what": "WITH carrying every in-scope binding",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) WITH c, e RETURN c.id AS id",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 98.2,
+    "response": {
+      "query_id": "http-query-210",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q09",
+    "category": "substitute",
+    "what": "ORDER BY tx_time DESC LIMIT 1 as max()",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN c.id AS id, c.tx_time AS tx ORDER BY c.tx_time DESC LIMIT 1",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 5.1,
+    "response": {
+      "query_id": "http-query-211",
+      "columns": [
+        "id",
+        "tx"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "integer",
+            "value": 20250215
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q10",
+    "category": "read",
+    "what": "contradiction detection",
+    "query": "MATCH (a:Claim)-[:CONTRADICTS]->(b:Claim) RETURN a.id AS a, b.id AS b",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 10.3,
+    "response": {
+      "query_id": "http-query-212",
+      "columns": [
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q11",
+    "category": "read",
+    "what": "provenance: every span supporting one claim",
+    "query": "MATCH (s)-[:SUPPORTS]->(c {id: 2000000000002}) RETURN s.id AS span, s.text AS txt",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 6.8,
+    "response": {
+      "query_id": "http-query-213",
+      "columns": [
+        "span",
+        "txt"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000002
+          },
+          {
+            "type": "string",
+            "value": "correction, launch moved to March"
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q12",
+    "category": "read",
+    "what": "STARTS WITH over real data",
+    "query": "MATCH (c:Claim) WHERE c.canonical_key STARTS WITH 'claim|launch_date' RETURN c.id AS id, c.object_text AS txt",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 5.4,
+    "response": {
+      "query_id": "http-query-214",
+      "columns": [
+        "id",
+        "txt"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "string",
+            "value": "January"
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "string",
+            "value": "March"
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "string",
+            "value": "April"
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q13",
+    "category": "read",
+    "what": "bitemporal filter: tx_time window",
+    "query": "MATCH (c:Claim) WHERE c.tx_time > 20250115 AND c.tx_time < 20250301 RETURN c.id AS id, c.tx_time AS tx",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 8.7,
+    "response": {
+      "query_id": "http-query-215",
+      "columns": [
+        "id",
+        "tx"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "integer",
+            "value": 20250210
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "integer",
+            "value": 20250215
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q14",
+    "category": "read",
+    "what": "algo.SPpaths over real data",
+    "query": "CALL algo.SPpaths({sourceNode: 3000000000002, targetNode: 1000000000001, relTypes: ['SUPPORTS','ABOUT'], relDirection: 'outgoing', maxLen: 4, pathCount: 1}) YIELD path RETURN path",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 8.6,
+    "response": {
+      "query_id": "http-query-216",
+      "columns": [
+        "path"
+      ],
+      "rows": [
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 3000000000002,
+                  "labels": [
+                    "EvidenceSpan"
+                  ],
+                  "properties": {
+                    "end": {
+                      "Integer": 38
+                    },
+                    "message_id": {
+                      "Integer": 4000000000002
+                    },
+                    "start": {
+                      "Integer": 0
+                    },
+                    "text": {
+                      "String": "correction, launch moved to March"
+                    },
+                    "text_hash": {
+                      "String": "b2"
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000002,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|March"
+                    },
+                    "object_text": {
+                      "String": "March"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250210
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 1000000000001,
+                  "labels": [
+                    "Entity"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "String": "event"
+                    },
+                    "name": {
+                      "String": "Project Atlas launch"
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPPORTS",
+                  "src": 3000000000002,
+                  "dst": 2000000000002,
+                  "properties": {}
+                },
+                {
+                  "id": null,
+                  "edge_type": "ABOUT",
+                  "src": 2000000000002,
+                  "dst": 1000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q15",
+    "category": "read",
+    "what": "algo.SSpaths over real data",
+    "query": "CALL algo.SSpaths({sourceNode: 2000000000002, relTypes: ['SUPERSEDES'], relDirection: 'outgoing', maxLen: 3, resultLimit: 10}) YIELD path RETURN path",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 5.1,
+    "response": {
+      "query_id": "http-query-217",
+      "columns": [
+        "path"
+      ],
+      "rows": [
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 2000000000002,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|March"
+                    },
+                    "object_text": {
+                      "String": "March"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250210
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000001,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|January"
+                    },
+                    "object_text": {
+                      "String": "January"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250110
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPERSEDES",
+                  "src": 2000000000002,
+                  "dst": 2000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q16",
+    "category": "substitute",
+    "what": "algo.MSpaths sourceValues as the IN substitute",
+    "query": "CALL algo.MSpaths({sourceLabel: 'EvidenceSpan', sourceProperty: 'text_hash', sourceValues: ['a1','b2'], targetLabel: 'Entity', targetProperty: 'kind', targetValues: ['event'], relTypes: ['SUPPORTS','ABOUT'], relDirection: 'outgoing', maxLen: 4, pathCount: 1, resultLimit: 10}) YIELD path RETURN path",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 10.2,
+    "response": {
+      "query_id": "http-query-218",
+      "columns": [
+        "path"
+      ],
+      "rows": [
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 3000000000001,
+                  "labels": [
+                    "EvidenceSpan"
+                  ],
+                  "properties": {
+                    "end": {
+                      "Integer": 42
+                    },
+                    "message_id": {
+                      "Integer": 4000000000001
+                    },
+                    "start": {
+                      "Integer": 0
+                    },
+                    "text": {
+                      "String": "the launch is in January"
+                    },
+                    "text_hash": {
+                      "String": "a1"
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000001,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|January"
+                    },
+                    "object_text": {
+                      "String": "January"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250110
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 1000000000001,
+                  "labels": [
+                    "Entity"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "String": "event"
+                    },
+                    "name": {
+                      "String": "Project Atlas launch"
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPPORTS",
+                  "src": 3000000000001,
+                  "dst": 2000000000001,
+                  "properties": {}
+                },
+                {
+                  "id": null,
+                  "edge_type": "ABOUT",
+                  "src": 2000000000001,
+                  "dst": 1000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          }
+        ],
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 3000000000002,
+                  "labels": [
+                    "EvidenceSpan"
+                  ],
+                  "properties": {
+                    "end": {
+                      "Integer": 38
+                    },
+                    "message_id": {
+                      "Integer": 4000000000002
+                    },
+                    "start": {
+                      "Integer": 0
+                    },
+                    "text": {
+                      "String": "correction, launch moved to March"
+                    },
+                    "text_hash": {
+                      "String": "b2"
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000002,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|March"
+                    },
+                    "object_text": {
+                      "String": "March"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250210
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 1000000000001,
+                  "labels": [
+                    "Entity"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "String": "event"
+                    },
+                    "name": {
+                      "String": "Project Atlas launch"
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPPORTS",
+                  "src": 3000000000002,
+                  "dst": 2000000000002,
+                  "properties": {}
+                },
+                {
+                  "id": null,
+                  "edge_type": "ABOUT",
+                  "src": 2000000000002,
+                  "dst": 1000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q17",
+    "category": "read",
+    "what": "path procedure yielding weight and cost",
+    "query": "CALL algo.SPpaths({sourceNode: 3000000000002, targetNode: 1000000000001, relTypes: ['SUPPORTS','ABOUT'], relDirection: 'outgoing', maxLen: 4, pathCount: 1}) YIELD path, pathWeight, pathCost RETURN path, pathWeight, pathCost",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 8.6,
+    "response": {
+      "query_id": "http-query-219",
+      "columns": [
+        "path",
+        "pathWeight",
+        "pathCost"
+      ],
+      "rows": [
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 3000000000002,
+                  "labels": [
+                    "EvidenceSpan"
+                  ],
+                  "properties": {
+                    "end": {
+                      "Integer": 38
+                    },
+                    "message_id": {
+                      "Integer": 4000000000002
+                    },
+                    "start": {
+                      "Integer": 0
+                    },
+                    "text": {
+                      "String": "correction, launch moved to March"
+                    },
+                    "text_hash": {
+                      "String": "b2"
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000002,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|March"
+                    },
+                    "object_text": {
+                      "String": "March"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250210
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 1000000000001,
+                  "labels": [
+                    "Entity"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "String": "event"
+                    },
+                    "name": {
+                      "String": "Project Atlas launch"
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPPORTS",
+                  "src": 3000000000002,
+                  "dst": 2000000000002,
+                  "properties": {}
+                },
+                {
+                  "id": null,
+                  "edge_type": "ABOUT",
+                  "src": 2000000000002,
+                  "dst": 1000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          },
+          {
+            "type": "integer",
+            "value": 2
+          },
+          {
+            "type": "integer",
+            "value": 0
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  },
+  {
+    "probe": "Q18",
+    "category": "read",
+    "what": "strong consistency over real data",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN count(*) AS n",
+    "parameters": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 71.5,
+    "response": {
+      "query_id": "http-query-220",
+      "columns": [
+        "n"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": 3
+          }
+        ]
+      ],
+      "read_epoch": 37,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:37"
+    }
+  }
+]

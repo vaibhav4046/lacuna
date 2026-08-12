@@ -127,3 +127,27 @@ Fine for a smoke test, useless for a demo. Lacuna's own node points at a
 persistent directory so a seeded corpus survives between sessions. The upstream
 recipe is not modified; the environment variables it reads are simply pointed
 somewhere that lasts.
+
+### D-011: Ingest writes vertices in batches and edges one at a time
+
+Not a preference. The engine rejects every other arrangement, and this was
+established by running 119 queries against it rather than by reading further.
+Evidence: [artifacts/cypher-probe/](artifacts/cypher-probe/README.md).
+
+`UNWIND $rows AS row MERGE (c {id: row.id}) SET c:Label, ...` is the only vertex
+upsert that parses, and it is also the only use of `UNWIND` that parses. Batching
+edges through it fails with `UNWIND vertex upsert requires MERGE by id followed
+by SET`. Edges go one per request, as
+`MERGE (a {id: X})-[:TYPE]->(b {id: Y})`, which is verified working and verified
+idempotent.
+
+So ingestion is two phases: all vertices for a transcript in a handful of
+batched upserts, then one round trip per edge. For the demo corpus that is a
+few hundred round trips over loopback, which is a throughput cost and not a
+correctness one. If it becomes the bottleneck the fallback is Bolt on `:17687`,
+already verified working against the same node, where round trips are cheaper.
+
+The alternative was to reshape the data model so it needed fewer edges. Rejected
+outright: the edges are the product. A memory layer that stores fewer
+relationships to make its own ingest faster has optimised away the thing it
+exists to do.

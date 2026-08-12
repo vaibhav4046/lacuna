@@ -1,0 +1,86 @@
+{
+  "type": "path",
+  "value": {
+    "nodes": [
+      {
+        "id": 3000000000002,
+        "labels": [
+          "EvidenceSpan"
+        ],
+        "properties": {
+          "end": {
+            "Integer": 38
+          },
+          "message_id": {
+            "Integer": 4000000000002
+          },
+          "start": {
+            "Integer": 0
+          },
+          "text": {
+            "String": "correction, launch moved to March"
+          },
+          "text_hash": {
+            "String": "b2"
+          }
+        }
+      },
+      {
+        "id": 2000000000002,
+        "labels": [
+          "Claim"
+        ],
+        "properties": {
+          "canonical_key": {
+            "String": "claim|launch_date|March"
+          },
+          "object_text": {
+            "String": "March"
+          },
+          "polarity": {
+            "Integer": 1
+          },
+          "predicate": {
+            "String": "launch_date"
+          },
+          "tx_time": {
+            "Integer": 20250210
+          },
+          "valid_from": {
+            "Integer": 20250101
+          }
+        }
+      },
+      {
+        "id": 1000000000001,
+        "labels": [
+          "Entity"
+        ],
+        "properties": {
+          "kind": {
+            "String": "event"
+          },
+          "name": {
+            "String": "Project Atlas launch"
+          }
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "id": null,
+        "edge_type": "SUPPORTS",
+        "src": 3000000000002,
+        "dst": 2000000000002,
+        "properties": {}
+      },
+      {
+        "id": null,
+        "edge_type": "ABOUT",
+        "src": 2000000000002,
+        "dst": 1000000000001,
+        "properties": {}
+      }
+    ]
+  }
+}

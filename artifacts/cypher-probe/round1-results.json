@@ -1,0 +1,1525 @@
+[
+  {
+    "probe": "R01",
+    "category": "required",
+    "what": "MERGE on id then SET, with a label",
+    "query": "MERGE (c:Claim {id: 2000000000001}) SET c.predicate = 'launch_date', c.object_text = 'January', c.valid_from = 20250101, c.tx_time = 20250110, c.polarity = 1, c.canonical_key = 'claim|launch_date|January'",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 1047.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: MERGE with following clauses is not executable in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "R02",
+    "category": "required",
+    "what": "MERGE on id then SET, no label",
+    "query": "MERGE (e {id: 1000000000001}) SET e.name = 'Project Atlas launch', e.kind = 'event'",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 6.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: MERGE with following clauses is not executable in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "R03",
+    "category": "required",
+    "what": "MERGE folding a non-id property into the pattern",
+    "query": "MERGE (x {id: 9000000000001, name: 'should be rejected'})",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 5.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: only one-hop edge patterns are executable in Query engine MERGE\"}}"
+    }
+  },
+  {
+    "probe": "R04",
+    "category": "required",
+    "what": "UNWIND $rows AS row batch vertex upsert (HTTP params)",
+    "query": "UNWIND $rows AS row MERGE (c:Claim {id: row.id}) SET c.predicate = row.predicate, c.object_text = row.object_text, c.valid_from = row.valid_from, c.tx_time = row.tx_time, c.polarity = row.polarity, c.canonical_key = row.canonical_key",
+    "parameters": {
+      "rows": [
+        {
+          "id": 2000000000002,
+          "predicate": "launch_date",
+          "object_text": "March",
+          "valid_from": 20250101,
+          "tx_time": 20250210,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|March"
+        },
+        {
+          "id": 2000000000003,
+          "predicate": "launch_date",
+          "object_text": "April",
+          "valid_from": 20250101,
+          "tx_time": 20250215,
+          "polarity": 1,
+          "canonical_key": "claim|launch_date|April"
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 25.1,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert MERGE pattern matches only id; apply labels with SET\"}}"
+    }
+  },
+  {
+    "probe": "R05",
+    "category": "required",
+    "what": "UNWIND batch upsert, second label",
+    "query": "UNWIND $rows AS row MERGE (s:EvidenceSpan {id: row.id}) SET s.message_id = row.message_id, s.start = row.start, s.end = row.end, s.text_hash = row.text_hash, s.text = row.text",
+    "parameters": {
+      "rows": [
+        {
+          "id": 3000000000001,
+          "message_id": 4000000000001,
+          "start": 0,
+          "end": 42,
+          "text_hash": "a1",
+          "text": "the launch is in January"
+        },
+        {
+          "id": 3000000000002,
+          "message_id": 4000000000002,
+          "start": 0,
+          "end": 38,
+          "text_hash": "b2",
+          "text": "correction, launch moved to March"
+        },
+        {
+          "id": 3000000000003,
+          "message_id": 4000000000002,
+          "start": 39,
+          "end": 80,
+          "text_hash": "c3",
+          "text": "someone else said April"
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 8.3,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert MERGE pattern matches only id; apply labels with SET\"}}"
+    }
+  },
+  {
+    "probe": "R06",
+    "category": "required",
+    "what": "UNWIND batch upsert, no label in pattern",
+    "query": "UNWIND $rows AS row MERGE (n {id: row.id}) SET n.k = row.k, n.v = row.v",
+    "parameters": {
+      "rows": [
+        {
+          "id": 5000000000001,
+          "label": "Session",
+          "k": "session_key",
+          "v": "sess-1"
+        },
+        {
+          "id": 4000000000001,
+          "label": "Message",
+          "k": "role",
+          "v": "user"
+        },
+        {
+          "id": 4000000000002,
+          "label": "Message",
+          "k": "role",
+          "v": "user"
+        },
+        {
+          "id": 1000000000002,
+          "label": "Entity",
+          "k": "name",
+          "v": "Project Atlas"
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 121.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND vertex upsert requires exactly one SET label\"}}"
+    }
+  },
+  {
+    "probe": "R07",
+    "category": "required",
+    "what": "edge via two MATCH clauses then MERGE",
+    "query": "MATCH (a {id: 2000000000002}) MATCH (b {id: 2000000000001}) MERGE (a)-[:SUPERSEDES]->(b)",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 5.4,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: write query is not executable by the mutation engine\"}}"
+    }
+  },
+  {
+    "probe": "R08",
+    "category": "required",
+    "what": "edge via comma-separated MATCH patterns",
+    "query": "MATCH (a {id: 2000000000003}), (b {id: 2000000000002}) MERGE (a)-[:CONTRADICTS]->(b)",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: write query is not executable by the mutation engine\"}}"
+    }
+  },
+  {
+    "probe": "R09",
+    "category": "required",
+    "what": "UNWIND batch edge creation",
+    "query": "UNWIND $rows AS row MATCH (s {id: row.src}) MATCH (c {id: row.dst}) MERGE (s)-[:SUPPORTS]->(c)",
+    "parameters": {
+      "rows": [
+        {
+          "src": 3000000000001,
+          "dst": 2000000000001
+        },
+        {
+          "src": 3000000000002,
+          "dst": 2000000000002
+        },
+        {
+          "src": 3000000000003,
+          "dst": 2000000000003
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 7.3,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND MATCH must end in RETURN or DELETE\"}}"
+    }
+  },
+  {
+    "probe": "R10",
+    "category": "required",
+    "what": "UNWIND batch edge creation, ABOUT",
+    "query": "UNWIND $rows AS row MATCH (c {id: row.src}) MATCH (e {id: row.dst}) MERGE (c)-[:ABOUT]->(e)",
+    "parameters": {
+      "rows": [
+        {
+          "src": 2000000000001,
+          "dst": 1000000000001
+        },
+        {
+          "src": 2000000000002,
+          "dst": 1000000000001
+        },
+        {
+          "src": 2000000000003,
+          "dst": 1000000000001
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 12.1,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND MATCH must end in RETURN or DELETE\"}}"
+    }
+  },
+  {
+    "probe": "R11",
+    "category": "required",
+    "what": "UNWIND batch edge creation, MENTIONS",
+    "query": "UNWIND $rows AS row MATCH (c {id: row.src}) MATCH (e {id: row.dst}) MERGE (c)-[:MENTIONS]->(e)",
+    "parameters": {
+      "rows": [
+        {
+          "src": 2000000000001,
+          "dst": 1000000000002
+        },
+        {
+          "src": 2000000000002,
+          "dst": 1000000000002
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND MATCH must end in RETURN or DELETE\"}}"
+    }
+  },
+  {
+    "probe": "R12",
+    "category": "required",
+    "what": "UNWIND batch edge creation, CONTAINS",
+    "query": "UNWIND $rows AS row MATCH (s {id: row.src}) MATCH (m {id: row.dst}) MERGE (s)-[:CONTAINS]->(m)",
+    "parameters": {
+      "rows": [
+        {
+          "src": 5000000000001,
+          "dst": 4000000000001
+        },
+        {
+          "src": 5000000000001,
+          "dst": 4000000000002
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.3,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND MATCH must end in RETURN or DELETE\"}}"
+    }
+  },
+  {
+    "probe": "R13",
+    "category": "required",
+    "what": "UNWIND batch edge creation, HAS_SPAN",
+    "query": "UNWIND $rows AS row MATCH (m {id: row.src}) MATCH (s {id: row.dst}) MERGE (m)-[:HAS_SPAN]->(s)",
+    "parameters": {
+      "rows": [
+        {
+          "src": 4000000000001,
+          "dst": 3000000000001
+        },
+        {
+          "src": 4000000000002,
+          "dst": 3000000000002
+        },
+        {
+          "src": 4000000000002,
+          "dst": 3000000000003
+        }
+      ]
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.4,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: UNWIND MATCH must end in RETURN or DELETE\"}}"
+    }
+  },
+  {
+    "probe": "R14",
+    "category": "required",
+    "what": "directed single-type match projecting properties",
+    "query": "MATCH (c)-[:ABOUT]->(e {id: 1000000000001}) RETURN c.id AS id, c.object_text AS txt, c.tx_time AS tx",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 489.8,
+    "response": {
+      "query_id": "http-query-149",
+      "columns": [
+        "id",
+        "txt",
+        "tx"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "string",
+            "value": "January"
+          },
+          {
+            "type": "integer",
+            "value": 20250110
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "string",
+            "value": "March"
+          },
+          {
+            "type": "integer",
+            "value": 20250210
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "string",
+            "value": "April"
+          },
+          {
+            "type": "integer",
+            "value": 20250215
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R15",
+    "category": "required",
+    "what": "label filter in MATCH",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 48.3,
+    "response": {
+      "query_id": "http-query-150",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R16",
+    "category": "required",
+    "what": "parameter in a plain (non-UNWIND) query",
+    "query": "MATCH (c {id: $cid}) RETURN c.object_text AS txt",
+    "parameters": {
+      "cid": 2000000000002
+    },
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 8.7,
+    "response": {
+      "query_id": "http-query-151",
+      "columns": [
+        "txt"
+      ],
+      "rows": [
+        [
+          {
+            "type": "string",
+            "value": "March"
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R17",
+    "category": "required",
+    "what": "bounded variable-length traversal *1..3",
+    "query": "MATCH (a {id: 2000000000002})-[:SUPERSEDES*1..3]->(b) RETURN b.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 26.0,
+    "response": {
+      "query_id": "http-query-152",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R18",
+    "category": "required",
+    "what": "two-hop pattern in one MATCH",
+    "query": "MATCH (e {id: 1000000000001})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, o.id AS other",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 36.1,
+    "response": {
+      "query_id": "http-query-153",
+      "columns": [
+        "claim",
+        "other"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          },
+          {
+            "type": "vertex_id",
+            "value": 1000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "vertex_id",
+            "value": 1000000000002
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R19",
+    "category": "required",
+    "what": "three-hop pattern, span to entity",
+    "query": "MATCH (s:EvidenceSpan)-[:SUPPORTS]->(c)-[:ABOUT]->(e {id: 1000000000001}) RETURN s.id AS span, c.id AS claim",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 15.8,
+    "response": {
+      "query_id": "http-query-154",
+      "columns": [
+        "span",
+        "claim"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000001
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000002
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 3000000000003
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R20",
+    "category": "substitute",
+    "what": "OPTIONAL MATCH + count()=0 for 'no inbound SUPERSEDES'",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.object_text AS txt, count(newer) AS superseded_by",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 3.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: property values support integer, float, boolean, and string literals\"}}"
+    }
+  },
+  {
+    "probe": "R21",
+    "category": "substitute",
+    "what": "ORDER BY DESC LIMIT 1 instead of max()",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN c.id AS id, c.tx_time AS tx ORDER BY c.tx_time DESC LIMIT 1",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 13.2,
+    "response": {
+      "query_id": "http-query-156",
+      "columns": [
+        "id",
+        "tx"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "integer",
+            "value": 20250215
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R22",
+    "category": "required",
+    "what": "count() aggregate",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN count(c) AS n",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.9,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: property values support integer, float, boolean, and string literals\"}}"
+    }
+  },
+  {
+    "probe": "R23",
+    "category": "required",
+    "what": "collect() aggregate",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN collect(c.id) AS ids",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 10.3,
+    "response": {
+      "query_id": "http-query-158",
+      "columns": [
+        "ids"
+      ],
+      "rows": [
+        [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "vertex_id",
+                "value": 2000000000001
+              },
+              {
+                "type": "vertex_id",
+                "value": 2000000000002
+              },
+              {
+                "type": "vertex_id",
+                "value": 2000000000003
+              }
+            ]
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R24",
+    "category": "required",
+    "what": "WHERE with comparison operators",
+    "query": "MATCH (c:Claim) WHERE c.tx_time > 20250115 RETURN c.id AS id, c.tx_time AS tx",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 13.0,
+    "response": {
+      "query_id": "http-query-159",
+      "columns": [
+        "id",
+        "tx"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          },
+          {
+            "type": "integer",
+            "value": 20250210
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "integer",
+            "value": 20250215
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R25",
+    "category": "required",
+    "what": "WHERE with STARTS WITH",
+    "query": "MATCH (c:Claim) WHERE c.canonical_key STARTS WITH 'claim|launch_date' RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 151.1,
+    "response": {
+      "query_id": "http-query-160",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R26",
+    "category": "required",
+    "what": "WHERE combining two predicates with AND",
+    "query": "MATCH (c:Claim) WHERE c.tx_time > 20250101 AND c.polarity = 1 RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 5.7,
+    "response": {
+      "query_id": "http-query-161",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R27",
+    "category": "required",
+    "what": "WITH as pass-through",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) WITH c RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 2.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: WITH must pass through every in-scope binding in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "R28",
+    "category": "required",
+    "what": "DISTINCT",
+    "query": "MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN DISTINCT c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 7.1,
+    "response": {
+      "query_id": "http-query-163",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R29",
+    "category": "required",
+    "what": "OPTIONAL MATCH returning the absent side",
+    "query": "MATCH (c {id: 2000000000003}) OPTIONAL MATCH (c)-[:SUPERSEDES]->(old) RETURN c.id AS id, old.id AS superseded",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 5.0,
+    "response": {
+      "query_id": "http-query-164",
+      "columns": [
+        "id",
+        "superseded"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          },
+          {
+            "type": "null"
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R30",
+    "category": "required",
+    "what": "algo.SPpaths sourceNode/targetNode",
+    "query": "CALL algo.SPpaths({sourceNode: 3000000000002, targetNode: 1000000000001, relTypes: ['SUPPORTS','ABOUT'], relDirection: 'outgoing', maxLen: 4, pathCount: 1}) YIELD path RETURN path",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 34.1,
+    "response": {
+      "query_id": "http-query-165",
+      "columns": [
+        "path"
+      ],
+      "rows": [
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 3000000000002,
+                  "labels": [
+                    "EvidenceSpan"
+                  ],
+                  "properties": {
+                    "end": {
+                      "Integer": 38
+                    },
+                    "message_id": {
+                      "Integer": 4000000000002
+                    },
+                    "start": {
+                      "Integer": 0
+                    },
+                    "text": {
+                      "String": "correction, launch moved to March"
+                    },
+                    "text_hash": {
+                      "String": "b2"
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000002,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|March"
+                    },
+                    "object_text": {
+                      "String": "March"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250210
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 1000000000001,
+                  "labels": [
+                    "Entity"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "String": "event"
+                    },
+                    "name": {
+                      "String": "Project Atlas launch"
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPPORTS",
+                  "src": 3000000000002,
+                  "dst": 2000000000002,
+                  "properties": {}
+                },
+                {
+                  "id": null,
+                  "edge_type": "ABOUT",
+                  "src": 2000000000002,
+                  "dst": 1000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R31",
+    "category": "substitute",
+    "what": "algo.MSpaths sourceValues instead of IN",
+    "query": "CALL algo.MSpaths({sourceLabel: 'EvidenceSpan', sourceProperty: 'text_hash', sourceValues: ['a1','b2'], targetLabel: 'Entity', targetProperty: 'k', targetValues: ['name'], relTypes: ['SUPPORTS','ABOUT'], relDirection: 'outgoing', maxLen: 4, pathCount: 1, resultLimit: 10}) YIELD path RETURN path",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 13.8,
+    "response": {
+      "query_id": "http-query-166",
+      "columns": [
+        "path"
+      ],
+      "rows": [],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R32",
+    "category": "required",
+    "what": "algo.SSpaths single source",
+    "query": "CALL algo.SSpaths({sourceNode: 2000000000002, relTypes: ['SUPERSEDES'], relDirection: 'outgoing', maxLen: 3, resultLimit: 10}) YIELD path RETURN path",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 9.9,
+    "response": {
+      "query_id": "http-query-167",
+      "columns": [
+        "path"
+      ],
+      "rows": [
+        [
+          {
+            "type": "path",
+            "value": {
+              "nodes": [
+                {
+                  "id": 2000000000002,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|March"
+                    },
+                    "object_text": {
+                      "String": "March"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250210
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                },
+                {
+                  "id": 2000000000001,
+                  "labels": [
+                    "Claim"
+                  ],
+                  "properties": {
+                    "canonical_key": {
+                      "String": "claim|launch_date|January"
+                    },
+                    "object_text": {
+                      "String": "January"
+                    },
+                    "polarity": {
+                      "Integer": 1
+                    },
+                    "predicate": {
+                      "String": "launch_date"
+                    },
+                    "tx_time": {
+                      "Integer": 20250110
+                    },
+                    "valid_from": {
+                      "Integer": 20250101
+                    }
+                  }
+                }
+              ],
+              "relationships": [
+                {
+                  "id": null,
+                  "edge_type": "SUPERSEDES",
+                  "src": 2000000000002,
+                  "dst": 2000000000001,
+                  "properties": {}
+                }
+              ]
+            }
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R33",
+    "category": "required",
+    "what": "consistency: strong",
+    "query": "MATCH (c {id: 2000000000002}) RETURN c.id AS id",
+    "parameters": null,
+    "consistency": "strong",
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 19.5,
+    "response": {
+      "query_id": "http-query-168",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R34",
+    "category": "required",
+    "what": "timeout_ms accepted",
+    "query": "MATCH (c {id: 2000000000002}) RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": 5000,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 4.8,
+    "response": {
+      "query_id": "http-query-169",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R35",
+    "category": "required",
+    "what": "EXPLAIN a read",
+    "query": "EXPLAIN MATCH (c:Claim)-[:ABOUT]->(e {id: 1000000000001}) RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 200,
+    "accepted": true,
+    "verdict": "PASS",
+    "elapsed_ms": 7.3,
+    "response": {
+      "query_id": "http-query-170",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 36,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:36"
+    }
+  },
+  {
+    "probe": "R36",
+    "category": "required",
+    "what": "idempotent re-MERGE is a no-op that still commits",
+    "query": "MERGE (c:Claim {id: 2000000000001}) SET c.predicate = 'launch_date'",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "accept",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "FAIL",
+    "elapsed_ms": 6.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: MERGE with following clauses is not executable in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "N01",
+    "category": "negative",
+    "what": "IN",
+    "query": "MATCH (c:Claim) WHERE c.id IN [1,2] RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 3.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: WHERE currently supports boolean combinations of property comparisons\"}}"
+    }
+  },
+  {
+    "probe": "N02",
+    "category": "negative",
+    "what": "CONTAINS",
+    "query": "MATCH (c:Claim) WHERE c.object_text CONTAINS 'arch' RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 7.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: WHERE currently supports boolean combinations of property comparisons\"}}"
+    }
+  },
+  {
+    "probe": "N03",
+    "category": "negative",
+    "what": "IS NULL",
+    "query": "MATCH (c:Claim) WHERE c.object_text IS NULL RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.8,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: WHERE currently supports boolean combinations of property comparisons\"}}"
+    }
+  },
+  {
+    "probe": "N04",
+    "category": "negative",
+    "what": "RETURN *",
+    "query": "MATCH (c:Claim) RETURN *",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.4,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: RETURN * is not executable in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "N05",
+    "category": "negative",
+    "what": "unbounded variable length",
+    "query": "MATCH (a {id: 2000000000002})-[:SUPERSEDES*]->(b) RETURN b.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: unbounded variable-length MATCH requires an explicit max hop\"}}"
+    }
+  },
+  {
+    "probe": "N06",
+    "category": "negative",
+    "what": "max() aggregate",
+    "query": "MATCH (c:Claim) RETURN max(c.tx_time) AS latest",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.3,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: RETURN currently supports <binding>.<property> or count(*)\"}}"
+    }
+  },
+  {
+    "probe": "N07",
+    "category": "negative",
+    "what": "undirected pattern",
+    "query": "MATCH (a {id: 2000000000002})-[:SUPERSEDES]-(b) RETURN b.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 6.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: undirected relationships are not executable in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "N08",
+    "category": "negative",
+    "what": "two statements in one request",
+    "query": "MATCH (c:Claim) RETURN c.id AS id; MATCH (e:Entity) RETURN e.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 3.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: query transport requires exactly one Cypher statement\"}}"
+    }
+  },
+  {
+    "probe": "N09",
+    "category": "negative",
+    "what": "multi-type relationship pattern",
+    "query": "MATCH (a {id: 2000000000002})-[:SUPERSEDES|CONTRADICTS]->(b) RETURN b.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: relationship pattern must have exactly one type in Query engine\"}}"
+    }
+  },
+  {
+    "probe": "N10",
+    "category": "negative",
+    "what": "ENDS WITH",
+    "query": "MATCH (c:Claim) WHERE c.object_text ENDS WITH 'ch' RETURN c.id AS id",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.1,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: WHERE currently supports boolean combinations of property comparisons\"}}"
+    }
+  },
+  {
+    "probe": "N11",
+    "category": "negative",
+    "what": "OPTIONAL MATCH inside a mutation",
+    "query": "MATCH (c {id: 2000000000002}) OPTIONAL MATCH (c)-[:SUPERSEDES]->(o) SET c.checked = 1",
+    "parameters": null,
+    "consistency": null,
+    "timeout_ms": null,
+    "expected": "reject",
+    "http_status": 400,
+    "accepted": false,
+    "verdict": "PASS",
+    "elapsed_ms": 2.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: OPTIONAL MATCH mutations are not executable in Query engine\"}}"
+    }
+  }
+]

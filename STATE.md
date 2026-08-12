@@ -35,10 +35,19 @@ What exists right now. Updated as things change, and never ahead of them.
   Both transports work against the same node. This is the upstream pass
   condition, not a port check.
 
+- The Cypher subset probed with 119 executed queries across three rounds, with
+  every request and response committed to
+  [artifacts/cypher-probe/](artifacts/cypher-probe/README.md). Round three ends
+  34 of 34 passing, and its reads assert on exact row values rather than on the
+  query being accepted. Every construct ADR 0002 depends on either works or has
+  a working substitute that was also executed. Three statements in that ADR
+  turned out to be wrong about the running engine and are corrected in its
+  amendment, with the original text left visible.
+
 ## In progress
 
-- The HydraDB client adapter and its contract tests, which is where the open
-  question below gets settled.
+- The HydraDB client adapter and its contract tests, now written against forms
+  that are known to execute rather than against the compatibility document.
 
 ## Not built yet
 
@@ -83,10 +92,18 @@ rather than remembered. Lacuna's own HydraDB data directory will not live in
 
 ## Open questions
 
-- Whether the supported Cypher subset expresses every query
-  [ADR 0002](docs/adr/0002-temporal-evidence-graph.md) assumes. Being settled on
-  day 2 by executing each one against a live node, because it is the assumption
-  the whole design rests on.
+- ~~Whether the supported Cypher subset expresses every query
+  [ADR 0002](docs/adr/0002-temporal-evidence-graph.md) assumes.~~ **Settled
+  2026-08-12** by executing all of them. It does, with two changes to how, not
+  to what: edges are written one statement each because `UNWIND` upserts
+  vertices only, and the "is this claim current" check projects the superseder's
+  id instead of counting, because `count(<binding>)` does not parse. Evidence in
+  [artifacts/cypher-probe/](artifacts/cypher-probe/README.md).
+
+- Whether one HTTP round trip per edge is fast enough at demo corpus size. It is
+  a throughput question with a measurable answer, and it gets measured when the
+  ingestion pipeline exists rather than guessed at now. If it is too slow the
+  fallback is Bolt, which is already verified working against the same node.
 
 ## Needs the owner
 

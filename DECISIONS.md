@@ -170,9 +170,16 @@ two stops depending on having parsed page one's response correctly.
 It also gives every request a client-side correlation id for free, which is worth
 having in a system whose whole output is "here is why I answered that".
 
+Round six checked the length, because every executed example until then used a
+short id such as `"H2"` and this scheme mints 43 characters. `P05` sent
+`lacuna-3f2b9c1e-5d47-4a80-9e6c-1b2a7d4e8f01`, got it echoed back unchanged, and
+`P06` followed the cursor it issued.
+
 `next_cursor` is treated as opaque. It presents as a small per-node counter, and
 in round five six unrelated paged queries were handed 11 through 16 in sequence.
-Nothing is inferred from the value and nothing is constructed from it.
+Round six put a number on how little it means: the same query over the same three
+vertices was handed 25 on one execution and 32 on the next. Nothing is inferred
+from the value and nothing is constructed from it.
 
 Recorded because round four concluded from a single failed request that HydraDB
 could not page at all, and that was wrong. The full correction is in
@@ -196,3 +203,51 @@ answering `consistency: "strong"` the read would probably have seen the write
 anyway. Probe `B02` shows the bookmark is accepted and the row comes back. It
 does not prove the bookmark caused it, and no test on this deployment can. It is
 carried because it is free, correct, and the mechanism the engine names.
+
+### D-014: Every id crosses the wire as a parameter, never as query text
+
+Rounds two and three only ever wrote edges with integer literals, so the only
+proven way to create one was to build the statement around the ids. Every
+implementation of that is a string being assembled from values, which is the
+shape of the oldest injection bug there is, and defending it would have meant an
+integer guard in front of the query builder plus a note in
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) explaining why that guard is
+sufficient.
+
+Round six asked whether that was necessary. `MERGE (a {id: $src})-[:TYPE]->(b
+{id: $dst})` is accepted with both endpoints as parameters, and `P04` reads the
+edge back through a separate statement to show it landed rather than being
+parsed and dropped.
+
+So `src/hydra/queries.ts` builds no query text from data. Labels and edge types
+are still interpolated, because HydraDB does not parameterise them, and those go
+through `identifiers.ts`, which accepts an allowlisted character set and refuses
+everything else. Ids, properties and values are parameters.
+
+The rule is worth stating as a rule rather than a habit: if a value came from
+outside the process it is a parameter, and if it cannot be a parameter it is
+validated against an allowlist before it is interpolated.
+
+### D-015: The contract tests fail when HydraDB is absent, and never skip
+
+`tests/contract/hydra.contract.test.ts` runs against a live node with nothing
+mocked. If no node answers, `beforeAll` throws and the suite goes red.
+
+The usual convention is the opposite, which is to detect the missing dependency
+and skip. That convention is wrong for this project specifically. The one claim
+Lacuna has to survive is that HydraDB is doing the work, and a suite that turns
+itself off when the database is missing is a suite that reports green while
+proving nothing about the database. A judge running `npm run test:contract`
+without a node should see a failure that says the node is missing, not thirteen
+passes.
+
+The unit tests are separate and run anywhere: `HydraClient` takes its `fetch` as
+a constructor option, so they hand it a function that returns canned `Response`
+objects and assert on the exact bytes the client tried to send. `npm test` runs
+those. `npm run test:contract` is the one that needs the engine.
+
+Consequence, which was not free: the contract suite writes to the graph, so it
+has to be idempotent against a persistent store. Every id it writes is seeded in
+`beforeAll` and every count asserts against that fixed set, so the second run
+sees the same graph as the first. Verified by running it twice in a row rather
+than by reasoning about it.

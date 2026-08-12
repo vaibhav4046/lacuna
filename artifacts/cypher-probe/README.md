@@ -2,7 +2,7 @@
 
 [PLAN.md](../../PLAN.md) names the riskiest assumption in this project: "does
 HydraDB's Cypher subset actually express the queries this design needs". This
-directory is the answer, produced by executing 156 probes against a live node
+directory is the answer, produced by executing 162 probes against a live node
 instead of reading the compatibility document again.
 
 Captured 2026-08-12 against HydraDB `v0.1.1` (commit
@@ -23,9 +23,10 @@ including the engine's own rejection text.
 | `round3.py`, `round3-results.json` | 34 probes, **34 pass, 0 fail**. Edges written one statement at a time, then every read checked against the exact rows it must return. |
 | `round4.py`, `round4-results.json` | 13 probes, **12 pass, 1 fail**. Value encodings the client has to decode, and the access controls [SECURITY.md](../../SECURITY.md) claims. The one failure was mine, not the engine's. |
 | `round5.py`, `round5-results.json` | 24 probes, **24 pass, 0 fail**. Round four's failure taken apart, then the question it raised: a cursor is a small integer, so can it be used as a way past the token. |
+| `round6.py`, `round6-results.json` | 6 probes, **6 pass, 0 fail**. Two questions the TypeScript client's shape depended on, asked once the client existed and the answers had somewhere to go. |
 | `path-value-shape.json` | One `algo.SPpaths` result in full, kept because the property encoding inside a path differs from the encoding everywhere else. |
 
-## Why there are five rounds and not one
+## Why there are six rounds and not one
 
 Round one failed on writes and that was the useful part. HydraDB's rejections
 name the accepted form rather than just refusing, so each error was an
@@ -50,6 +51,13 @@ added the security claims, because a control named in a threat model and never
 executed is a wish.
 
 Round five exists because round four got something wrong. See below.
+
+Round six is the odd one out. Rounds one to five were run before any client
+code existed, so they asked what the engine supports. Round six was run while
+`src/hydra/queries.ts` was being written, and it asks two much narrower
+questions that only appear once you are deciding what the client actually
+sends. Six probes rather than thirty, because by then most of the surface was
+already settled.
 
 ## The round four mistake, which is the most useful record here
 
@@ -135,6 +143,48 @@ proven-necessary.
 parsed, because `deadbeef` unhexes to bytes that are not text. `B04` was written
 afterwards to ask the question `B03` was supposed to ask.
 
+## Round six: can an id be a parameter, and how long can a query_id be
+
+Two questions, both of which decide something in the client rather than
+something in the model.
+
+**One: does a `MERGE` edge pattern take parameters.** Every edge written in
+rounds two and three used integer literals, so the only proven way to write an
+edge was to build the query text around the ids. That is the shape of a string
+concatenation bug waiting to happen, and it would have had to be written into
+the client with an integer guard around it.
+
+| Probe | Query | Result |
+|---|---|---|
+| `P02` | `MERGE (a {id: $src})-[:PROBE_EDGE]->(b {id: $dst})` | **200** |
+| `P03` | the same edge with integer literals, as a control | **200** |
+| `P04` | `MATCH (a {id: $src})-[:PROBE_EDGE]->(b) RETURN b.tag AS tag` | **200**, one row, `{"type": "string", "value": "b"}` |
+
+`P02` on its own would only have proven the query parses. `P04` is the probe
+that matters: it reads the edge back through a different statement and gets the
+tag of the vertex on the far end. The edge landed. So `mergeEdge` in
+`src/hydra/queries.ts` passes `$src` and `$dst` as parameters and no id is ever
+concatenated into query text.
+
+**Two: is a UUID-length `query_id` usable.** [D-012](../../DECISIONS.md) has the
+client minting its own, and every executed example up to that point used a short
+one such as `"H2"`. A `lacuna-` prefix and a UUID is 43 characters.
+
+| Probe | Request | Result |
+|---|---|---|
+| `P05` | `query_id: "lacuna-3f2b9c1e-5d47-4a80-9e6c-1b2a7d4e8f01"`, `page_size: 2` | **200**, 2 rows, id echoed back unchanged, `next_cursor: 32` |
+| `P06` | that cursor under the same 43-character id | **200**, the third row, `next_cursor: null` |
+
+Accepted, echoed verbatim, and it scopes a followable cursor. D-012 works as
+written.
+
+`P05` also settles something by accident. Its first execution returned
+`next_cursor: 25` and the committed re-run returned `32`, for the same query
+over the same three `:Claim` vertices. That is independent support for round
+five's conclusion that the value is a per-node counter and not a row offset,
+and it is why the client treats a cursor as an opaque token to hand back rather
+than a number to reason about.
+
 ## What this changed in the design
 
 Three statements in [ADR 0002](../../docs/adr/0002-temporal-evidence-graph.md)
@@ -150,9 +200,10 @@ text left visible. In short:
 None of this changed the data model. It changed the number of round trips at
 ingest and the text of two queries.
 
-Rounds four and five changed the client rather than the model: two value decoders
-instead of one, a `query_id` on every request, and a bookmark carried from ingest
-into the read that follows it.
+Rounds four, five and six changed the client rather than the model: two value
+decoders instead of one, a `query_id` on every request, a bookmark carried from
+ingest into the read that follows it, and parameterised endpoints on every edge
+write so no id is ever pasted into a query string.
 
 ## Reproducing this
 
@@ -172,6 +223,12 @@ Round five is order-dependent on rounds one to three, because it pages over the
 three `:Claim` vertices they create. `C01` asserts that full result up front, so
 if the graph is not in the expected state the round fails loudly at its first
 probe rather than quietly paging over the wrong thing.
+
+Round six is idempotent and partly order-dependent for the same reason. `P01` to
+`P04` seed and read their own two `:ProbeSix` vertices, so they stand alone.
+`P05` and `P06` page over the `:Claim` vertices from rounds one to three, so
+those two need the earlier rounds to have run. Their `next_cursor` values will
+not match the committed ones and are not supposed to.
 
 The scripts are stdlib-only Python and take the token from `HYDRA_TOKEN`. An
 earlier version had the upstream development placeholder token written into the

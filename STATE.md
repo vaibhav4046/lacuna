@@ -35,7 +35,7 @@ What exists right now. Updated as things change, and never ahead of them.
   Both transports work against the same node. This is the upstream pass
   condition, not a port check.
 
-- The Cypher subset probed with 156 executed queries across five rounds, with
+- The Cypher subset probed with 162 executed queries across six rounds, with
   every request and response committed to
   [artifacts/cypher-probe/](artifacts/cypher-probe/README.md). Round three ends
   34 of 34 passing, and its reads assert on exact row values rather than on the
@@ -66,22 +66,69 @@ What exists right now. Updated as things change, and never ahead of them.
   mistake and the correction are kept in the evidence directory rather than
   tidied away.
 
+- Round six settled the last two questions the client's shape depended on, once
+  there was a client to shape. A `MERGE` edge pattern takes its endpoints as
+  parameters, proven by reading the edge back through a separate statement, so
+  no id is ever concatenated into query text. And a 43-character client-minted
+  `query_id` is accepted, echoed unchanged, and scopes a followable cursor.
+
+- **The HydraDB client adapter exists and is executed against the real engine.**
+  `src/hydra/` holds config loading, an injection boundary for identifiers, a
+  statement builder, both value decoders, the typed error hierarchy, the HTTP
+  client and the query builders. Two suites:
+
+  - `npm test` runs 84 unit cases across 6 files against an injected fake
+    transport, asserting on the exact request bytes and on every decode and
+    guard path
+  - `npm run test:contract` runs 13 cases against the live node with nothing
+    mocked, and fails rather than skips when no node answers
+
+  Real output, captured 2026-08-12, contract run twice back to back against the
+  same persistent store:
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run tests/unit
+   Test Files  6 passed (6)
+        Tests  84 passed (84)
+     Duration  1.71s
+  UNIT_EXIT=0
+
+  > vitest run tests/contract
+   Test Files  1 passed (1)
+        Tests  13 passed (13)
+     Start at  22:47:52
+     Duration  915ms
+  CONTRACT_EXIT=0
+
+  > vitest run tests/contract
+   Test Files  1 passed (1)
+        Tests  13 passed (13)
+     Start at  22:48:03
+     Duration  884ms
+  CONTRACT_RERUN_EXIT=0
+  ```
+
+  The second run is the point of the second run: the suite writes to the graph,
+  so it seeds every id it will write up front and asserts counts against that
+  fixed set. Idempotence is demonstrated rather than asserted.
+
 ## In progress
 
-- The HydraDB client adapter and its contract tests, now written against forms
-  that are known to execute rather than against the compatibility document.
+- Nothing. The adapter was the open item and it is finished.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
-- No application code
-- No HydraDB client adapter
+- No application code above the HydraDB adapter
 - No ingestion pipeline
 - No demo corpus
 - No retrieval or abstention logic
 - No user interface
-- No tests
+- No CI
 - No benchmark harness, and therefore no numbers of any kind
 - No screenshots
 - No deployment

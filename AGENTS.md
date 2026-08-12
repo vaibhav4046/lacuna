@@ -18,11 +18,20 @@ thesis.
 ```
 docs/            Design records, source log, threat model, rules matrix
 docs/adr/        Architecture decision records, numbered, immutable once accepted
-artifacts/       Real captured output: rules text, HydraDB responses, runs
+artifacts/       Real captured output: rules text, HydraDB responses, probe runs
+src/hydra/       The HydraDB client. Nothing above it depends on HTTP details
+tests/unit/      Injected fake transport. Runs anywhere, no database
+tests/contract/  Live node, nothing mocked. Fails when no node answers
 ```
 
-Application code, the benchmark harness and tests land as they are built. This
-section gets updated when they do, not before.
+`src/hydra/` is the only place that knows HydraDB is spoken to over HTTP.
+Config and its refusal to send a bearer token in cleartext to a remote host live
+in `config.ts`; the identifier allowlist that is the client's injection boundary
+lives in `identifiers.ts`; the two value decoders live in `values.ts`; the query
+builders live in `queries.ts` and build no query text from data.
+
+The rest of the application, the benchmark harness and the interface land as
+they are built. This section gets updated when they do, not before.
 
 ## Rules of the build
 

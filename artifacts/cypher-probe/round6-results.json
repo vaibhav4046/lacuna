@@ -1,0 +1,196 @@
+[
+  {
+    "probe": "P01",
+    "what": "seed two ProbeSix vertices",
+    "request": {
+      "cell_id": "cell-0",
+      "query": "UNWIND $rows AS row MERGE (n {id: row.id}) SET n:ProbeSix, n.tag = row.tag",
+      "consistency": "strong",
+      "timeout_ms": 5000,
+      "parameters": {
+        "rows": [
+          {
+            "id": 9100000000001,
+            "tag": "a"
+          },
+          {
+            "id": 9100000000002,
+            "tag": "b"
+          }
+        ]
+      }
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "epoch=None",
+    "engine_message": null,
+    "elapsed_ms": 28.1,
+    "response": {
+      "query_id": "http-query-307",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:81"
+    }
+  },
+  {
+    "probe": "P02",
+    "what": "MERGE edge with $src and $dst parameters",
+    "request": {
+      "cell_id": "cell-0",
+      "query": "MERGE (a {id: $src})-[:PROBE_EDGE]->(b {id: $dst})",
+      "consistency": "strong",
+      "timeout_ms": 5000,
+      "parameters": {
+        "src": 9100000000001,
+        "dst": 9100000000002
+      }
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "accepted",
+    "engine_message": null,
+    "elapsed_ms": 9.3,
+    "response": {
+      "query_id": "http-query-308",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:82"
+    }
+  },
+  {
+    "probe": "P03",
+    "what": "MERGE edge with integer literals (control)",
+    "request": {
+      "cell_id": "cell-0",
+      "query": "MERGE (a {id: 9100000000001})-[:PROBE_EDGE_LIT]->(b {id: 9100000000002})",
+      "consistency": "strong",
+      "timeout_ms": 5000
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "accepted",
+    "engine_message": null,
+    "elapsed_ms": 7.4,
+    "response": {
+      "query_id": "http-query-309",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:83"
+    }
+  },
+  {
+    "probe": "P04",
+    "what": "read back the parameterised edge",
+    "request": {
+      "cell_id": "cell-0",
+      "query": "MATCH (a {id: $src})-[:PROBE_EDGE]->(b) RETURN b.tag AS tag",
+      "consistency": "strong",
+      "timeout_ms": 5000,
+      "parameters": {
+        "src": 9100000000001
+      }
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "edge present",
+    "engine_message": null,
+    "elapsed_ms": 10.8,
+    "response": {
+      "query_id": "http-query-310",
+      "columns": [
+        "tag"
+      ],
+      "rows": [
+        [
+          {
+            "type": "string",
+            "value": "b"
+          }
+        ]
+      ],
+      "read_epoch": 83,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:83"
+    }
+  },
+  {
+    "probe": "P05",
+    "what": "43-char client query_id, page_size 2",
+    "request": {
+      "cell_id": "cell-0",
+      "query": "MATCH (c:Claim) RETURN c.id AS id",
+      "consistency": "strong",
+      "timeout_ms": 5000,
+      "query_id": "lacuna-3f2b9c1e-5d47-4a80-9e6c-1b2a7d4e8f01",
+      "page_size": 2
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "echoed=True cursor=32",
+    "engine_message": null,
+    "elapsed_ms": 6.5,
+    "response": {
+      "query_id": "lacuna-3f2b9c1e-5d47-4a80-9e6c-1b2a7d4e8f01",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 83,
+      "next_cursor": 32,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:83"
+    }
+  },
+  {
+    "probe": "P06",
+    "what": "follow the cursor under the same long query_id",
+    "request": {
+      "cell_id": "cell-0",
+      "query": "MATCH (c:Claim) RETURN c.id AS id",
+      "consistency": "strong",
+      "timeout_ms": 5000,
+      "query_id": "lacuna-3f2b9c1e-5d47-4a80-9e6c-1b2a7d4e8f01",
+      "cursor": 32
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "rows=1 cursor=None",
+    "engine_message": null,
+    "elapsed_ms": 1.2,
+    "response": {
+      "query_id": "lacuna-3f2b9c1e-5d47-4a80-9e6c-1b2a7d4e8f01",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 83,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:83"
+    }
+  }
+]

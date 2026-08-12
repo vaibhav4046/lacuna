@@ -81,7 +81,10 @@ What exists right now. Updated as things change, and never ahead of them.
     transport, asserting on the exact request bytes and on every decode and
     guard path
   - `npm run test:contract` runs 13 cases against the live node with nothing
-    mocked, and fails rather than skips when no node answers
+    mocked, and fails rather than skips when no node answers. Both halves
+    executed with the node stopped: unit 84 passed and exit 0, contract
+    `Test Files 1 failed (1)` on `ECONNREFUSED 127.0.0.1:18443` and exit 1.
+    Output and one misleading line in it are in [D-015](DECISIONS.md)
 
   Real output, captured 2026-08-12, contract run twice back to back against the
   same persistent store:

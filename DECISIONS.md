@@ -293,6 +293,31 @@ a constructor option, so they hand it a function that returns canned `Response`
 objects and assert on the exact bytes the client tried to send. `npm test` runs
 those. `npm run test:contract` is the one that needs the engine.
 
+Both halves of that were executed rather than asserted, by stopping the node and
+running each suite against nothing:
+
+```
+> vitest run tests/unit            (node stopped, no listener on 18443)
+ Test Files  6 passed (6)
+      Tests  84 passed (84)
+UNIT_NO_DB_EXIT=0
+
+> vitest run tests/contract        (node stopped, no listener on 18443)
+Caused by: HydraTransportError: request failed before a response arrived
+(http://127.0.0.1:18443/v1/graphs/default/query)
+Caused by: Error: connect ECONNREFUSED 127.0.0.1:18443
+ Test Files  1 failed (1)
+      Tests  13 skipped (13)
+CONTRACT_NO_DB_EXIT=1
+```
+
+One wrinkle in that output is worth naming before it misleads someone, including
+a future reader of this file. Vitest prints `Tests 13 skipped (13)`, because
+`beforeAll` threw and the individual cases never got the chance to run. The
+suite did not skip. `Test Files 1 failed (1)`, the exit code is 1, and the
+reason printed is `ECONNREFUSED 127.0.0.1:18443`. The line to read is the file
+line and the exit code, not the case count.
+
 Consequence, which was not free: the contract suite writes to the graph, so it
 has to be idempotent against a persistent store. Every id it writes is seeded in
 `beforeAll` and every count asserts against that fixed set, so the second run

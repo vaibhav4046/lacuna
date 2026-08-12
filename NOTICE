@@ -1,0 +1,20 @@
+Lacuna
+Copyright 2026 Vaibhav Lalwani
+
+This product includes software developed for the Hack Hydra 2026 hackathon,
+Track 03.
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file for the
+full license text.
+
+--------------------------------------------------------------------------------
+
+Lacuna requires a running HydraDB instance. HydraDB is a separate work,
+distributed under the GNU Affero General Public License version 3, and is
+available from:
+
+    https://github.com/hydra-db/hydradb
+
+HydraDB is not included in, bundled with, or derived from this distribution.
+Lacuna communicates with an unmodified HydraDB server over its documented HTTP
+query API. See THIRD_PARTY.md for details.

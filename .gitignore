@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Environment. Only .env.example is committed, and it holds no real values.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Secrets, in any shape. Belt and braces on top of the rule above.
+*.pem
+*.key
+*_rsa
+*.p12
+auth-token
+**/auth-token
+
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Local HydraDB state. Never committed: it is a database, not source.
+.hydradb/
+.lacuna-store/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Local scratch. Anything a developer wants to keep out of the tree.
+/scratch/
+/tmp/

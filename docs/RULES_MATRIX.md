@@ -1,0 +1,116 @@
+# Rules matrix
+
+Every published Hack Hydra requirement, mapped to where this repository
+satisfies it and how that can be checked. Source text captured verbatim at
+[`artifacts/rules/hackhydra-rules-2026-08-12.txt`](../artifacts/rules/hackhydra-rules-2026-08-12.txt)
+(https://hackhydra.hydradb.com, retrieved 2026-08-12, HTTP 200, 18804 chars).
+
+Status values: `done`, `in progress`, `pending`, `blocked`.
+
+## Hard deadlines
+
+| Item | Value |
+|---|---|
+| Build window opens | 2026-08-12 |
+| Official close | 2026-08-20, 11:59 PM PT |
+| Internal target | 2026-08-19, 21:00 Europe/London |
+| Winners announced | 2026-08-24 |
+
+The internal target exists so the official deadline is a buffer, not the plan.
+
+## Eligibility and disqualification
+
+The rules list seven disqualification triggers. Each one, and what prevents it
+here.
+
+| Trigger | Prevention | Status |
+|---|---|---|
+| Work started before August 12, 2026 | Fresh repository, `git init` on 2026-08-12. No pre-hackathon code, assets, or history imported from any prior project. Full history is inspectable and unmodified | done |
+| Missing or private GitHub repository | Public repo required before submission. Not yet created; needs owner approval, tracked in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) | pending |
+| No open-source license in the repository | `LICENSE`, canonical Apache-2.0 text fetched from apache.org | done |
+| Missing demo video | 3 minutes or less, recorded near the end of the build | pending |
+| HydraDB not used meaningfully | HydraDB is the storage and traversal engine for the evidence graph. Retrieval is a bounded graph traversal executed by HydraDB, not a client-side filter. See ADR 0002 and the HydraDB Proof screen | in progress |
+| Submitted after the deadline | Internal target is a full day early | pending |
+| Breaking the rules or code of conduct | This matrix | in progress |
+
+## Repository content requirements
+
+The rules name eight things the repository must contain.
+
+| Requirement | Where | Status |
+|---|---|---|
+| Complete source code for the submitted project | whole repo | in progress |
+| No participant-authored commits before August 12, 2026 | `git log` | done |
+| A clear README | [`README.md`](../README.md) | in progress |
+| Setup and run instructions | `README.md`, quickstart section | pending |
+| An explanation of how HydraDB is used | `README.md` plus [`docs/HYDRADB_INTEGRATION.md`](HYDRADB_INTEGRATION.md) | pending |
+| Required environment or dependency information | `.env.example`, README prerequisites | pending |
+| Attribution for third-party libraries, APIs, datasets, open-source code | [`THIRD_PARTY.md`](../THIRD_PARTY.md), [`SOURCE_LOG.md`](SOURCE_LOG.md) | in progress |
+| An open-source license | `LICENSE` | done |
+
+## Submission (three parts, all required)
+
+| Part | Content | Status |
+|---|---|---|
+| Official form | Project name, short description, problem, what was built, deployed link, how it uses the HydraDB OS repo, tech stack, team members and contributions, repo link, video link | pending |
+| Demo video | 3 minutes or less. Must cover the problem, what was built, a working demo, how the HydraDB repo is used and why it matters. Viewable without requesting access | pending |
+| Public GitHub repository | See table above | pending |
+
+Anything past the 3-minute mark may not be reviewed, so the video is cut to
+time, not trimmed to it.
+
+## Track 03, verbatim requirements
+
+> Build an agent memory layer for cross session continuity. It has to process
+> chat histories spanning 30 to 40 sessions and 115,000 tokens per question.
+>
+> The system has to synthesize facts across sessions, keep chronological order
+> and track information that was later overwritten. Long context models drop 30
+> to 60% in accuracy here, and they mostly fail at abstention: knowing when the
+> answer simply is not in the history and saying so instead of inventing one.
+
+| Track requirement | How Lacuna addresses it | Status |
+|---|---|---|
+| Cross-session continuity | Sessions are first-class nodes; claims link to the session and message span they came from | in progress |
+| 30-40 sessions, 115k tokens per question | Retrieval never loads the full history. It resolves a bounded traversal and returns only the spans on the proof path | in progress |
+| Synthesize facts across sessions | Multi-hop traversal over `SUPPORTS` / `MENTIONS` / `CONFIRMS` edges via HydraDB path procedures | in progress |
+| Keep chronological order | Bitemporal model: valid time and transaction time on every claim | in progress |
+| Track information later overwritten | Non-destructive revision. Corrections add `SUPERSEDES` edges; superseded claims stay queryable and visible in the timeline | in progress |
+| Abstention | Proof-carrying abstention with a machine-readable reason code, required vs observed evidence, and a next best action | in progress |
+
+Named datasets are LongMemEval, LongMemEval V2 and BEAM. FAQ item 13 confirms
+they are not mandatory: "You may use your own datasets or other public datasets,
+provided you disclose them in your README." Both paths are used here, and both
+are disclosed.
+
+## Judging criteria
+
+Five published criteria, plus what the rules say a strong submission has.
+
+| Criterion | What Lacuna leans on |
+|---|---|
+| Technical execution | Working end-to-end product, real tests, measured numbers, no mocks in the demo path |
+| Use of HydraDB and graph-native approaches | The retrieval advantage comes from graph traversal that a vector index cannot express. Provable by ablation, not by assertion |
+| Product completeness and usability | A developer product someone can run, not a benchmark script with a chart |
+| Quality of results | Measured comparison against lexical and vector baselines, reported honestly including where Lacuna loses |
+| Originality | Proof-carrying abstention and a queryable "what changed" timeline |
+
+> We care about working, thoughtful products, not just benchmark scores.
+
+A strong submission is stated to have: a functional product or demo, real
+ingestion and retrieval workflows, a clear use case, and a thoughtful technical
+implementation. All four are treated as requirements here, not as nice to have.
+
+## Also noted
+
+- Teams of 1 to 4. This is a solo entry.
+- One track per submission. This project enters Track 03 only.
+- Existing libraries, frameworks, APIs, public datasets and AI coding assistants
+  are explicitly allowed. Original project work must still be created during the
+  event, which it is.
+- Upstream commit history of dependencies does not count against the entry
+  (FAQ 17). HydraDB is consumed as a separate service and is not vendored, so
+  this does not arise.
+- "Open your repo, video and demo links yourself before you submit. Broken links
+  are the most common way people lose." A link check is part of the final
+  pre-submission pass.

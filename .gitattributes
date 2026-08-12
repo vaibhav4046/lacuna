@@ -1,0 +1,18 @@
+# This repository is developed on Windows and judged on whatever the judge runs.
+# Normalise to LF in the index so a clone on Linux or macOS gets clean files and
+# diffs never show a whole file changed because of line endings.
+* text=auto eol=lf
+
+# Binary, never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.gif binary
+*.mp4 binary
+*.webm binary
+*.pdf binary
+*.ico binary
+*.woff binary
+*.woff2 binary

@@ -115,6 +115,50 @@ What exists right now. Updated as things change, and never ahead of them.
   so it seeds every id it will write up front and asserts counts against that
   fixed set. Idempotence is demonstrated rather than asserted.
 
+- **The node runs from a persistent directory and survives a restart.** It lives
+  at `/var/lib/lacuna/hydradb`, started and stopped by
+  [scripts/hydra-node.sh](scripts/hydra-node.sh), which is upstream's step 7
+  with three paths moved and the `rm -rf` removed. See
+  [D-010](DECISIONS.md). The store from the probe rounds was copied out of
+  `/tmp/sgk-local` rather than recreated, and checked rather than trusted:
+
+  ```
+  src_files=116 dst_files=116
+  src_bytes=87986 dst_bytes=87986
+  CHECKSUMS=identical (116 files)
+  ```
+
+  Then stopped and started again to prove the point of the exercise:
+
+  ```
+  stopped pid 1615 after 1s
+  --- PORTS AFTER STOP ---
+  (no listeners)
+  --- START AGAIN ---
+  ready after 1s, pid 1711
+  ```
+
+  and the graph read back over HTTP on the far side of that restart, the three
+  `:Claim` vertices from rounds one to three and the round six edge:
+
+  ```
+  200 {"query_id":"restart-1","columns":["id"],"rows":[[{"type":"vertex_id","value":2000000000001}],[{"type":"vertex_id","value":2000000000002}],[{"type":"vertex_id","value":2000000000003}]],"read_epoch":99,...}
+  200 {"query_id":"restart-2","columns":["tag"],"rows":[[{"type":"string","value":"b"}]],"read_epoch":99,...}
+  ```
+
+  ```
+  > vitest run tests/contract
+   Test Files  1 passed (1)
+        Tests  13 passed (13)
+     Start at  22:59:57
+     Duration  941ms
+  CONTRACT_POST_RESTART_EXIT=0
+  ```
+
+  The node's auth token is now 48 random hex characters minted by the script
+  into `/var/lib/lacuna/hydradb/auth-token`, not upstream's documented
+  placeholder. The placeholder answers `401 unauthenticated` here.
+
 ## In progress
 
 - Nothing. The adapter was the open item and it is finished.
@@ -136,7 +180,7 @@ Everything else. Named explicitly so no reader has to guess:
 
 ## Known environment deviations
 
-Two, recorded because reproducibility depends on them.
+Three, recorded because reproducibility depends on them.
 
 **`just` shebang recipes fail under WSL2.** `just 1.58.0` writes shebang recipe
 scripts into `$XDG_RUNTIME_DIR/just/`, and WSL mounts `/run/user/0` as tmpfs with
@@ -156,8 +200,25 @@ created during step 5, were gone by the time step 8 ran roughly fifteen minutes
 later. This is not a surprise so much as a confirmation: upstream already says
 the `/tmp/sgk-*` paths are disposable and that anything meant to be kept belongs
 elsewhere. The consequence for this project is concrete, so it is written down
-rather than remembered. Lacuna's own HydraDB data directory will not live in
-`/tmp`, because a demo whose store evaporates between sessions is not a demo.
+rather than remembered. Handled: Lacuna's HydraDB data directory is
+`/var/lib/lacuna/hydradb`, the store was moved there with checksums rather than
+recreated, and the node has since been stopped and restarted with the graph
+intact. See [D-010](DECISIONS.md) and the persistent-node entry above.
+
+**SlateDB's garbage collector logs an error every minute against a local object
+store, and it is not ours.** Twice per collection cycle, at `ERROR` level, from
+`slatedb::garbage_collector` line 399:
+
+```
+error collecting garbage [resource=Manifest, error=ObjectStoreError(NotImplemented { operation: "`put_opts` with mode `PutMode::Update`", implementer: "LocalFileSystem(file:///var/lib/lacuna/hydradb/store)" })]
+```
+
+`resource=Compactions` produces the same thing. It is SlateDB refusing a
+conditional put against the `LocalFileSystem` backend, which is the backend
+`CLOUD_PROVIDER=local` selects, so it fires on the upstream recipe as well and
+followed the store to its new path unchanged. Writes, reads, restart and the
+contract suite are all unaffected. Recorded here so nobody spends an evening
+debugging Lacuna over a line HydraDB prints on its own.
 
 ## Open questions
 

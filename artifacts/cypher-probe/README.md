@@ -207,12 +207,21 @@ write so no id is ever pasted into a query string.
 
 ## Reproducing this
 
-The node must be running per upstream `AGENTS.md` steps 3 to 8. Then, with the
-token in the environment rather than in the file:
+These rounds were captured against a node launched by upstream `AGENTS.md`
+steps 3 to 8, which puts its store in `/tmp/sgk-local`. That node no longer
+exists. Its store was moved to `/var/lib/lacuna/hydradb` and the node is now
+started by [`scripts/hydra-node.sh`](../../scripts/hydra-node.sh), which is the
+same launch block with three paths changed. See
+[D-010](../../DECISIONS.md). Either node reproduces these rounds; the second one
+is still there tomorrow.
 
 ```bash
-HYDRA_TOKEN="$GRAPH_AUTH_TOKEN" python3 round3.py
+scripts/hydra-node.sh start
+HYDRA_TOKEN="$(sudo cat /var/lib/lacuna/hydradb/auth-token)" python3 round3.py
 ```
+
+The token file is `0600` and outside the repository. Under upstream's recipe the
+same value is in `$GRAPH_AUTH_TOKEN`.
 
 Round three is idempotent. Every write is a `MERGE`, and the last section
 re-runs all fourteen edges and re-counts to prove it: `I01` and `I02` assert the

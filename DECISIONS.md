@@ -123,10 +123,57 @@ The upstream local recipe puts everything under `/tmp/sgk-local`, and says
 plainly that those paths are disposable. This machine confirmed it: the step 5
 virtualenv and env file were gone fifteen minutes later.
 
-Fine for a smoke test, useless for a demo. Lacuna's own node points at a
-persistent directory so a seeded corpus survives between sessions. The upstream
-recipe is not modified; the environment variables it reads are simply pointed
-somewhere that lasts.
+Fine for a smoke test, useless for a demo. The node Lacuna talks to now runs
+from `/var/lib/lacuna/hydradb`, driven by
+[scripts/hydra-node.sh](scripts/hydra-node.sh).
+
+Nothing in the HydraDB repository is modified. The script is upstream's step 7
+block with three environment variables pointed somewhere that lasts, and one
+line removed:
+
+| Variable | Upstream | Here |
+|---|---|---|
+| `LOCAL_PATH` | `/tmp/sgk-local/store` | `/var/lib/lacuna/hydradb/store` |
+| `GRAPH_AUTH_TOKEN_FILE` | `/tmp/sgk-local/auth-token` | `/var/lib/lacuna/hydradb/auth-token` |
+| `GRAPH_DATA_CACHE_DIR` | `/tmp/sgk-local/cache` | `/var/lib/lacuna/hydradb/cache` |
+
+The removed line is upstream's `rm -rf "$ROOT"`, because resetting the store is
+the opposite of what this script is for. There is deliberately no build step in
+it either: upstream's step 6 builds `target/debug/graph-node` and knows how, and
+inventing a second `cargo` invocation is exactly what `AGENTS.md` forbids. The
+script refuses to start if the binary is absent.
+
+The existing store was **moved, not rebuilt**. 116 files copied out of
+`/tmp/sgk-local/store`, then compared file by file: 116 files and 87986 bytes on
+both sides, and every sha256 identical. The 162 probe rounds are the corpus the
+client tests assert against, so re-running them to recreate the graph would have
+thrown away the evidence trail for no reason.
+
+The long-lived node also gets a real token. Upstream ships a documented
+placeholder for a throwaway loopback node, which is correct for a smoke test and
+wrong for something that stays up for a week, so the script mints 48 hex
+characters from `/dev/urandom` on first start and writes it `0600` outside the
+repository. It is never printed. The old placeholder now answers `401
+unauthenticated` against this node, which is how that is known rather than
+assumed.
+
+Verified by stopping the node and starting it again, then reading the graph
+back: the three `:Claim` vertices from rounds one to three and the
+`:PROBE_EDGE` from round six both come back, and `npm run test:contract` passes
+13 of 13 against the restarted node. Surviving a process restart is the claim,
+so a process restart is the test.
+
+Two operational facts fell out of doing this, both of which cost time and are
+written down so they cost it once:
+
+- **`kill -0` answers yes to a zombie.** A node started under `nohup` from a
+  shell that is still alive leaves a `Z+` process behind when it exits. Observed
+  here: pid 423 reported alive by `kill -0`, state `Z+`, with nothing listening
+  on 17687, 18443 or 19091. The script therefore checks `ps -o stat=` as well.
+- **Graceful shutdown takes about thirty seconds.** SIGTERM is followed by
+  garbage collector shutdown, db close and checkpoint deletion before `graph
+  node stopped` reaches the log. A 30 second stop timeout was tight enough to
+  fire on a shutdown that was working correctly. It is 120 seconds now.
 
 ### D-011: Ingest writes vertices in batches and edges one at a time
 

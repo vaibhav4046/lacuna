@@ -19,10 +19,16 @@ thesis.
 docs/            Design records, source log, threat model, rules matrix
 docs/adr/        Architecture decision records, numbered, immutable once accepted
 artifacts/       Real captured output: rules text, HydraDB responses, probe runs
+scripts/         Operating the local HydraDB node. No HydraDB source, no build
 src/hydra/       The HydraDB client. Nothing above it depends on HTTP details
 tests/unit/      Injected fake transport. Runs anywhere, no database
 tests/contract/  Live node, nothing mocked. Fails when no node answers
 ```
+
+`scripts/hydra-node.sh` starts, stops and inspects that node. It is upstream's
+own launch block with three paths moved out of `/tmp` so the graph survives, and
+it builds nothing: the binary comes from upstream's build step or the script
+refuses to start. See [D-010](DECISIONS.md).
 
 `src/hydra/` is the only place that knows HydraDB is spoken to over HTTP.
 Config and its refusal to send a bearer token in cleartext to a remote host live

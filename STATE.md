@@ -35,7 +35,7 @@ What exists right now. Updated as things change, and never ahead of them.
   Both transports work against the same node. This is the upstream pass
   condition, not a port check.
 
-- The Cypher subset probed with 119 executed queries across three rounds, with
+- The Cypher subset probed with 156 executed queries across five rounds, with
   every request and response committed to
   [artifacts/cypher-probe/](artifacts/cypher-probe/README.md). Round three ends
   34 of 34 passing, and its reads assert on exact row values rather than on the
@@ -43,6 +43,28 @@ What exists right now. Updated as things change, and never ahead of them.
   a working substitute that was also executed. Three statements in that ADR
   turned out to be wrong about the running engine and are corrected in its
   amendment, with the original text left visible.
+
+- The wire encodings the client has to decode, settled in round four. Top-level
+  row values are tagged `{"type": ..., "value": ...}` in snake case; node
+  properties inside a `path` value are tagged differently, capitalised, as
+  `{"String": ...}` and `{"Integer": ...}`. The adapter needs both decoders, and
+  that is now a known requirement rather than a bug waiting to happen.
+
+- Nine access and resource controls executed against the running node rather than
+  asserted, listed with their status codes and the engine's own messages in
+  [SECURITY.md](SECURITY.md) and mapped to threats T2, T4, T5 and T9 in
+  [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Wrong token 401, absent token
+  401, foreign namespace 403, absent namespace header 400, two statements in one
+  request refused, `timeout_ms: 1` enforced at 408 in 4.2ms, `page_size` bounding
+  the result, cursors refusing to act as capabilities, bookmarks refusing to
+  cross a namespace.
+
+- Round four also produced the most useful failure so far. It concluded from one
+  refused request that HydraDB could not page. Round five showed the request was
+  malformed, not the engine: cursors are scoped to a `query_id` that the client
+  has to send. The wrong conclusion never reached the threat model, and both the
+  mistake and the correction are kept in the evidence directory rather than
+  tidied away.
 
 ## In progress
 
@@ -104,6 +126,13 @@ rather than remembered. Lacuna's own HydraDB data directory will not live in
   a throughput question with a measurable answer, and it gets measured when the
   ingestion pipeline exists rather than guessed at now. If it is too slow the
   fallback is Bolt, which is already verified working against the same node.
+
+- Whether a paged read is a snapshot. `read_epoch` cannot be pinned by the
+  client, so a multi-page read cannot be forced to see one consistent state, and
+  whether the server holds one behind the cursor was not established. Untested
+  because the test is not deterministic on a graph this small. Lacuna's reads are
+  bounded and mostly fit one page, so this is a question to answer before any
+  claim about consistency, not a blocker.
 
 ## Needs the owner
 

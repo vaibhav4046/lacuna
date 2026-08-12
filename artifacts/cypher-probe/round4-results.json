@@ -1,0 +1,292 @@
+[
+  {
+    "probe": "S01",
+    "what": "seed a vertex with bool, float, negative int",
+    "expectation": "accepted",
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "ok",
+    "elapsed_ms": 1276.7,
+    "response": {
+      "query_id": "http-query-270",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:66"
+    }
+  },
+  {
+    "probe": "V10",
+    "what": "boolean, float, negative int, string tags",
+    "expectation": "each value carries a type tag",
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "tags=['boolean', 'float', 'signed_integer', 'string']",
+    "elapsed_ms": 349.4,
+    "response": {
+      "query_id": "http-query-271",
+      "columns": [
+        "f",
+        "r",
+        "o",
+        "l"
+      ],
+      "rows": [
+        [
+          {
+            "type": "boolean",
+            "value": true
+          },
+          {
+            "type": "float",
+            "value": 0.75
+          },
+          {
+            "type": "signed_integer",
+            "value": -42
+          },
+          {
+            "type": "string",
+            "value": "scratch"
+          }
+        ]
+      ],
+      "read_epoch": 66,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:66"
+    }
+  },
+  {
+    "probe": "V11",
+    "what": "collect() in RETURN over a labelled match",
+    "expectation": "settles the list encoding, or names the refusal",
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "rows=[[{\"type\": \"list\", \"value\": [{\"type\": \"vertex_id\", \"value\": 2000000000",
+    "elapsed_ms": 37.6,
+    "response": {
+      "query_id": "http-query-272",
+      "columns": [
+        "ids"
+      ],
+      "rows": [
+        [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "vertex_id",
+                "value": 2000000000001
+              },
+              {
+                "type": "vertex_id",
+                "value": 2000000000002
+              },
+              {
+                "type": "vertex_id",
+                "value": 2000000000003
+              }
+            ]
+          }
+        ]
+      ],
+      "read_epoch": 66,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:66"
+    }
+  },
+  {
+    "probe": "V12",
+    "what": "count(*) beside a property in one RETURN",
+    "expectation": "either works or names the refusal",
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "rows=[[{\"type\": \"integer\", \"value\": 1}, {\"type\": \"vertex_id\", \"va",
+    "elapsed_ms": 5.8,
+    "response": {
+      "query_id": "http-query-273",
+      "columns": [
+        "n",
+        "i"
+      ],
+      "rows": [
+        [
+          {
+            "type": "integer",
+            "value": 1
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": 1
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "integer",
+            "value": 1
+          },
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 66,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:66"
+    }
+  },
+  {
+    "probe": "L01",
+    "what": "page_size caps rows and returns a cursor",
+    "expectation": "2 rows of 3, next_cursor present",
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "rows=2 next_cursor=set",
+    "elapsed_ms": 93.3,
+    "response": {
+      "query_id": "http-query-274",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 66,
+      "next_cursor": 1,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:66"
+    }
+  },
+  {
+    "probe": "L02",
+    "what": "cursor returns the remainder",
+    "expectation": "the third row",
+    "http_status": 400,
+    "verdict": "FAIL",
+    "note": "rows=-1",
+    "elapsed_ms": 174.7,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: result cursor does not belong to this query request\"}}"
+    }
+  },
+  {
+    "probe": "T01",
+    "what": "timeout_ms=1 is honoured or the query simply wins",
+    "expectation": "no hang, no 500",
+    "http_status": 408,
+    "verdict": "PASS",
+    "note": "status=408 in 4.2ms",
+    "elapsed_ms": 4.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"query_timeout\",\"message\":\"cypher_match_pipeline exceeded query timeout after 1 ms; limit is 1 ms\"}}"
+    }
+  },
+  {
+    "probe": "X01",
+    "what": "baseline: correct token and namespace reads the claim",
+    "expectation": "1 row",
+    "http_status": 200,
+    "verdict": "PASS",
+    "note": "rows=1",
+    "elapsed_ms": 3.9,
+    "response": {
+      "query_id": "http-query-277",
+      "columns": [
+        "t"
+      ],
+      "rows": [
+        [
+          {
+            "type": "string",
+            "value": "January"
+          }
+        ]
+      ],
+      "read_epoch": 66,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:66"
+    }
+  },
+  {
+    "probe": "X02",
+    "what": "wrong bearer token is refused",
+    "expectation": "401 or 403, never 200",
+    "http_status": 401,
+    "verdict": "PASS",
+    "note": "status=401",
+    "elapsed_ms": 10.4,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"valid bearer authentication is required\"}}"
+    }
+  },
+  {
+    "probe": "X03",
+    "what": "missing Authorization header is refused",
+    "expectation": "401 or 403, never 200",
+    "http_status": 401,
+    "verdict": "PASS",
+    "note": "status=401",
+    "elapsed_ms": 3.1,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"valid bearer authentication is required\"}}"
+    }
+  },
+  {
+    "probe": "X04",
+    "what": "another namespace cannot read this one's data",
+    "expectation": "0 rows or an error, never the claim text",
+    "http_status": 403,
+    "verdict": "PASS",
+    "note": "status=403, no data",
+    "elapsed_ms": 48.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"permission_denied\",\"message\":\"principal bearer principal is not authorized to read graph scope other-tenant/graphs/default\"}}"
+    }
+  },
+  {
+    "probe": "X05",
+    "what": "absent namespace header does not default into 'local'",
+    "expectation": "0 rows or an error, never the claim text",
+    "http_status": 400,
+    "verdict": "PASS",
+    "note": "status=400 rows=null",
+    "elapsed_ms": 1.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"missing_namespace\",\"message\":\"x-graph-namespace header is required\"}}"
+    }
+  },
+  {
+    "probe": "X06",
+    "what": "two statements in one request are refused",
+    "expectation": "rejected, so statement injection has no second statement",
+    "http_status": 400,
+    "verdict": "PASS",
+    "note": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not ",
+    "elapsed_ms": 2.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"OpenCypher query is not supported yet: query transport requires exactly one Cypher statement\"}}"
+    }
+  }
+]

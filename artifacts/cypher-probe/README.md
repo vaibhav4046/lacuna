@@ -2,7 +2,7 @@
 
 [PLAN.md](../../PLAN.md) names the riskiest assumption in this project: "does
 HydraDB's Cypher subset actually express the queries this design needs". This
-directory is the answer, produced by executing 119 probes against a live node
+directory is the answer, produced by executing 156 probes against a live node
 instead of reading the compatibility document again.
 
 Captured 2026-08-12 against HydraDB `v0.1.1` (commit
@@ -21,9 +21,11 @@ including the engine's own rejection text.
 | `round1.py`, `round1-results.json` | 47 probes, **31 pass, 16 fail**. First contact. Every read that did not depend on missing data passed; every single write path was rejected. |
 | `round2.py`, `round2-results.json` | 38 probes, **29 pass, 9 fail**. The forms round one's error messages named, executed. The write path is recovered here. |
 | `round3.py`, `round3-results.json` | 34 probes, **34 pass, 0 fail**. Edges written one statement at a time, then every read checked against the exact rows it must return. |
+| `round4.py`, `round4-results.json` | 13 probes, **12 pass, 1 fail**. Value encodings the client has to decode, and the access controls [SECURITY.md](../../SECURITY.md) claims. The one failure was mine, not the engine's. |
+| `round5.py`, `round5-results.json` | 24 probes, **24 pass, 0 fail**. Round four's failure taken apart, then the question it raised: a cursor is a small integer, so can it be used as a way past the token. |
 | `path-value-shape.json` | One `algo.SPpaths` result in full, kept because the property encoding inside a path differs from the encoding everywhere else. |
 
-## Why there are three rounds and not one
+## Why there are five rounds and not one
 
 Round one failed on writes and that was the useful part. HydraDB's rejections
 name the accepted form rather than just refusing, so each error was an
@@ -43,8 +45,95 @@ and specifically January, March and April; the superseded claim naming
 bounded traversal returning exactly the one superseded claim. A probe that
 returns the right number of wrong rows fails.
 
-Round three ends `0 failed`. Rounds one and two are kept because a record that
-only shows the working version is not evidence, it is a demo.
+Round four moved from "does it parse" to "what comes back on the wire", and
+added the security claims, because a control named in a threat model and never
+executed is a wish.
+
+Round five exists because round four got something wrong. See below.
+
+## The round four mistake, which is the most useful record here
+
+Round four probe `L02` sent a `page_size`, got back two rows of three and a
+`next_cursor`, sent that cursor on the next request, and was refused:
+
+```
+ClientProtocol query is not supported yet: result cursor does not belong to this query request
+```
+
+The obvious reading is that server-side paging is unfinished in `v0.1.1`. That
+reading was wrong, and it was one commit away from being written into
+[docs/THREAT_MODEL.md](../../docs/THREAT_MODEL.md) as a limitation of HydraDB.
+
+The request body carries a `query_id` field. The cursor is scoped to it, and
+`L02` did not send one. Round five executes all three readings of that error and
+the contract falls out immediately:
+
+| Probe | Request | Result |
+|---|---|---|
+| `H1a` | `page_size: 2`, no `query_id` | 200, 2 rows of 3, `next_cursor: 11`, server-assigned `query_id: "http-query-286"` |
+| `H1b` | cursor, **no** `query_id` | 400 `result cursor does not belong to this query request` |
+| `H1c` | cursor **plus** the server's `query_id` | 200, the third row, `next_cursor: null` |
+| `H2a`/`H2b` | client-chosen `query_id` on both requests | 200 then 200, pages correctly |
+
+So paging works, and the "limitation" was a malformed request. The finding that
+survives is a different and smaller one, recorded in
+[D-012](../../DECISIONS.md): the client must mint and carry its own `query_id`.
+
+`next_cursor` is a per-node counter, not a row offset. Across round five it was
+handed out as 11, 12, 13, 14, 15, 16 for six unrelated paged queries. Nothing may
+be inferred from its value and nothing may be constructed from it.
+
+## Can a cursor be used as a way in
+
+It is a small integer, it is server-side state, and it addresses rows. That is
+worth six probes rather than an assumption.
+
+| Probe | Attack | Result |
+|---|---|---|
+| `X11` | valid cursor and `query_id`, different `X-Graph-Namespace` | **403** `principal bearer principal is not authorized to read graph scope other-tenant/graphs/default` |
+| `X12` | valid cursor and `query_id`, wrong bearer token | **401** `valid bearer authentication is required` |
+| `X13` | valid cursor and `query_id`, no `Authorization` header | **401** `valid bearer authentication is required` |
+| `X14` | guessed cursor under a fresh `query_id` | **400** `result cursor is unknown or expired` |
+| `X16` | correct cursor and `query_id`, different query text | **400** `result cursor does not belong to this query request` |
+| `X17b` | a **live** cursor replayed under a different `query_id`, identical query text | **400** `result cursor does not belong to this query request` |
+
+Authentication and namespace authorisation are both evaluated before the cursor
+is looked at, and the cursor is bound to the `query_id` and the query text
+together, not to either alone. A cursor on its own carries no authority.
+
+## bookmark, and the one thing round five could not prove
+
+`H3b` tried to pin a read to a previous `read_epoch` and the engine answered with
+the mechanism instead:
+
+```
+HTTP query is not supported yet: read_epoch is not a storage snapshot selector; use bookmark for causal reads
+```
+
+Which sent round five looking at `bookmark`, and it turns out to matter for this
+project more than paging does:
+
+- `B01`: a **write** returns a bookmark. The response is
+  `{"query_id": "http-query-296", "columns": [], "rows": [], "read_epoch": null, "next_cursor": null, "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"}`.
+  The hex fields decode to `local`, `default`, `cell-0`, and the tail is the
+  epoch. Writes carry a bookmark and a null `read_epoch`; reads carry both.
+- `B02`: passing that bookmark on the next read returns the row just written.
+- `B04`: a well-formed bookmark naming another namespace is refused with
+  `graph scope mismatch: expected local/graphs/default cell cell-0, received other-tenant/graphs/default cell cell-0`.
+  A bookmark is scoped, so it is not a capability that travels.
+
+What round five did **not** establish: that the bookmark is what made the write
+visible in `B02`. This is a single node answering `consistency: "strong"`, so the
+read would very likely have seen the write anyway. `B02` proves the bookmark is
+accepted and the data is there. It does not isolate the bookmark as the cause,
+and it cannot on this deployment. Recorded as accepted-and-useful rather than
+proven-necessary.
+
+`B03` is kept as a smaller result than its first name suggested. It sends
+`sgk:1:deadbeef:deadbeef:deadbeef:999999` and gets
+`invalid bookmark: namespace is not UTF-8`, which only proves the bookmark is
+parsed, because `deadbeef` unhexes to bytes that are not text. `B04` was written
+afterwards to ask the question `B03` was supposed to ask.
 
 ## What this changed in the design
 
@@ -61,6 +150,10 @@ text left visible. In short:
 None of this changed the data model. It changed the number of round trips at
 ingest and the text of two queries.
 
+Rounds four and five changed the client rather than the model: two value decoders
+instead of one, a `query_id` on every request, and a bookmark carried from ingest
+into the read that follows it.
+
 ## Reproducing this
 
 The node must be running per upstream `AGENTS.md` steps 3 to 8. Then, with the
@@ -72,12 +165,18 @@ HYDRA_TOKEN="$GRAPH_AUTH_TOKEN" python3 round3.py
 
 Round three is idempotent. Every write is a `MERGE`, and the last section
 re-runs all fourteen edges and re-counts to prove it: `I01` and `I02` assert the
-graph is unchanged after the second pass.
+graph is unchanged after the second pass. Rounds four and five are idempotent for
+the same reason: their only writes are `MERGE` by fixed id.
 
-The three scripts are stdlib-only Python and take the token from `HYDRA_TOKEN`.
-An earlier version had the upstream development placeholder token written into
-the source. That is a documented placeholder for a loopback node with TLS
-disabled and not a secret, but a literal shaped like a credential does not
-belong in a repository, so it was replaced with an environment read and all
-three rounds were re-run to confirm the committed scripts are the ones that
-produced the committed results.
+Round five is order-dependent on rounds one to three, because it pages over the
+three `:Claim` vertices they create. `C01` asserts that full result up front, so
+if the graph is not in the expected state the round fails loudly at its first
+probe rather than quietly paging over the wrong thing.
+
+The scripts are stdlib-only Python and take the token from `HYDRA_TOKEN`. An
+earlier version had the upstream development placeholder token written into the
+source. That is a documented placeholder for a loopback node with TLS disabled
+and not a secret, but a literal shaped like a credential does not belong in a
+repository, so it was replaced with an environment read and all rounds were
+re-run to confirm the committed scripts are the ones that produced the committed
+results.

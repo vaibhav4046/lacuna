@@ -1,0 +1,719 @@
+[
+  {
+    "probe": "C01",
+    "what": "unpaged, so the whole result is known",
+    "request_extra": {},
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002,
+      2000000000003
+    ],
+    "note": "ids=[2000000000001, 2000000000002, 2000000000003]",
+    "next_cursor": null,
+    "query_id": "http-query-292",
+    "engine_message": null,
+    "elapsed_ms": 20.5,
+    "response": {
+      "query_id": "http-query-292",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H1a",
+    "what": "page one, no query_id sent",
+    "request_extra": {
+      "page_size": 2
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "ids=[2000000000001, 2000000000002] next_cursor=18 query_id=http-query-293",
+    "next_cursor": 18,
+    "query_id": "http-query-293",
+    "engine_message": null,
+    "elapsed_ms": 2.0,
+    "response": {
+      "query_id": "http-query-293",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 18,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H1b",
+    "what": "page two, cursor WITHOUT query_id",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 18
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: ClientProtocol query is not supported yet: result cursor does not belong to this query request",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "ClientProtocol query is not supported yet: result cursor does not belong to this query request",
+    "elapsed_ms": 1.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: result cursor does not belong to this query request\"}}"
+    }
+  },
+  {
+    "probe": "H1c",
+    "what": "page two, cursor WITH server query_id",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 18,
+      "query_id": "http-query-293"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000003
+    ],
+    "note": "ids=[2000000000003] next_cursor=None",
+    "next_cursor": null,
+    "query_id": "http-query-293",
+    "engine_message": null,
+    "elapsed_ms": 0.9,
+    "response": {
+      "query_id": "http-query-293",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H2a",
+    "what": "page one, client-chosen query_id",
+    "request_extra": {
+      "page_size": 2,
+      "query_id": "lacuna-r5-client-chosen"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "ids=[2000000000001, 2000000000002] next_cursor=19 query_id=lacuna-r5-client-chosen",
+    "next_cursor": 19,
+    "query_id": "lacuna-r5-client-chosen",
+    "engine_message": null,
+    "elapsed_ms": 2.6,
+    "response": {
+      "query_id": "lacuna-r5-client-chosen",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 19,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H2b",
+    "what": "page two, same client query_id",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 19,
+      "query_id": "lacuna-r5-client-chosen"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000003
+    ],
+    "note": "ids=[2000000000003]",
+    "next_cursor": null,
+    "query_id": "lacuna-r5-client-chosen",
+    "engine_message": null,
+    "elapsed_ms": 0.9,
+    "response": {
+      "query_id": "lacuna-r5-client-chosen",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H3a",
+    "what": "page one, before pinning read_epoch",
+    "request_extra": {
+      "page_size": 2,
+      "query_id": "lacuna-r5-epoch"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "next_cursor=20",
+    "next_cursor": 20,
+    "query_id": "lacuna-r5-epoch",
+    "engine_message": null,
+    "elapsed_ms": 2.4,
+    "response": {
+      "query_id": "lacuna-r5-epoch",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 20,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H3b",
+    "what": "page two, echoing read_epoch back",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 20,
+      "query_id": "lacuna-r5-epoch",
+      "read_epoch": 67
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: HTTP query is not supported yet: read_epoch is not a storage snapshot selector; use bookmark for causal reads",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "HTTP query is not supported yet: read_epoch is not a storage snapshot selector; use bookmark for causal reads",
+    "elapsed_ms": 0.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"HTTP query is not supported yet: read_epoch is not a storage snapshot selector; use bookmark for causal reads\"}}"
+    }
+  },
+  {
+    "probe": "H4a",
+    "what": "page one, before pinning bookmark",
+    "request_extra": {
+      "page_size": 2,
+      "query_id": "lacuna-r5-bookmark"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "next_cursor=21",
+    "next_cursor": 21,
+    "query_id": "lacuna-r5-bookmark",
+    "engine_message": null,
+    "elapsed_ms": 2.8,
+    "response": {
+      "query_id": "lacuna-r5-bookmark",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 21,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "H4b",
+    "what": "page two, echoing bookmark back",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 21,
+      "query_id": "lacuna-r5-bookmark",
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000003
+    ],
+    "note": "accepted",
+    "next_cursor": null,
+    "query_id": "lacuna-r5-bookmark",
+    "engine_message": null,
+    "elapsed_ms": 1.0,
+    "response": {
+      "query_id": "lacuna-r5-bookmark",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000003
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "X10",
+    "what": "page one, the cursor about to be stolen",
+    "request_extra": {
+      "page_size": 2,
+      "query_id": "lacuna-r5-theft"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "next_cursor=22",
+    "next_cursor": 22,
+    "query_id": "lacuna-r5-theft",
+    "engine_message": null,
+    "elapsed_ms": 1.9,
+    "response": {
+      "query_id": "lacuna-r5-theft",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 22,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "X11",
+    "what": "same cursor and query_id, other namespace",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 22,
+      "query_id": "lacuna-r5-theft"
+    },
+    "http_status": 403,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "no data: principal bearer principal is not authorized to read graph scope other-tenant/graphs/default",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "principal bearer principal is not authorized to read graph scope other-tenant/graphs/default",
+    "elapsed_ms": 0.9,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"permission_denied\",\"message\":\"principal bearer principal is not authorized to read graph scope other-tenant/graphs/default\"}}"
+    }
+  },
+  {
+    "probe": "X12",
+    "what": "same cursor and query_id, wrong bearer token",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 22,
+      "query_id": "lacuna-r5-theft"
+    },
+    "http_status": 401,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused status=401",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "valid bearer authentication is required",
+    "elapsed_ms": 0.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"valid bearer authentication is required\"}}"
+    }
+  },
+  {
+    "probe": "X13",
+    "what": "same cursor and query_id, no Authorization",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 22,
+      "query_id": "lacuna-r5-theft"
+    },
+    "http_status": 401,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused status=401",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "valid bearer authentication is required",
+    "elapsed_ms": 0.5,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"valid bearer authentication is required\"}}"
+    }
+  },
+  {
+    "probe": "X14",
+    "what": "guessed cursor under a fresh query_id",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 1,
+      "query_id": "lacuna-r5-guess"
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: ClientProtocol query is not supported yet: result cursor is unknown or expired",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "ClientProtocol query is not supported yet: result cursor is unknown or expired",
+    "elapsed_ms": 1.0,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: result cursor is unknown or expired\"}}"
+    }
+  },
+  {
+    "probe": "X15",
+    "what": "page one over :Claim",
+    "request_extra": {
+      "page_size": 2,
+      "query_id": "lacuna-r5-swap"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "next_cursor=23",
+    "next_cursor": 23,
+    "query_id": "lacuna-r5-swap",
+    "engine_message": null,
+    "elapsed_ms": 2.0,
+    "response": {
+      "query_id": "lacuna-r5-swap",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 23,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "X16",
+    "what": "same query_id and cursor, DIFFERENT query text",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 23,
+      "query_id": "lacuna-r5-swap"
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: ClientProtocol query is not supported yet: result cursor does not belong to this query request",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "ClientProtocol query is not supported yet: result cursor does not belong to this query request",
+    "elapsed_ms": 1.0,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: result cursor does not belong to this query request\"}}"
+    }
+  },
+  {
+    "probe": "X17a",
+    "what": "page one under query_id A",
+    "request_extra": {
+      "page_size": 2,
+      "query_id": "lacuna-r5-live-a"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      2000000000001,
+      2000000000002
+    ],
+    "note": "next_cursor=24",
+    "next_cursor": 24,
+    "query_id": "lacuna-r5-live-a",
+    "engine_message": null,
+    "elapsed_ms": 2.0,
+    "response": {
+      "query_id": "lacuna-r5-live-a",
+      "columns": [
+        "id"
+      ],
+      "rows": [
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000001
+          }
+        ],
+        [
+          {
+            "type": "vertex_id",
+            "value": 2000000000002
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": 24,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "X17b",
+    "what": "A's live cursor replayed under query_id B, same text",
+    "request_extra": {
+      "page_size": 2,
+      "cursor": 24,
+      "query_id": "lacuna-r5-live-b"
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: ClientProtocol query is not supported yet: result cursor does not belong to this query request",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "ClientProtocol query is not supported yet: result cursor does not belong to this query request",
+    "elapsed_ms": 1.0,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: result cursor does not belong to this query request\"}}"
+    }
+  },
+  {
+    "probe": "B00",
+    "what": "write with no parameters, to see the failure shape",
+    "request_extra": {},
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: missing OpenCypher query parameter $rows",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "missing OpenCypher query parameter $rows",
+    "elapsed_ms": 1.2,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"missing OpenCypher query parameter $rows\"}}"
+    }
+  },
+  {
+    "probe": "B01",
+    "what": "does a WRITE hand back a bookmark",
+    "request_extra": {
+      "write": true
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "bookmark='sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67' read_epoch=None",
+    "next_cursor": null,
+    "query_id": "http-query-296",
+    "engine_message": null,
+    "elapsed_ms": 4.9,
+    "response": {
+      "query_id": "http-query-296",
+      "columns": [],
+      "rows": [],
+      "read_epoch": null,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "B02",
+    "what": "read back passing the write's bookmark",
+    "request_extra": {
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    },
+    "http_status": 200,
+    "verdict": "PASS",
+    "row_ids": [
+      "bookmark probe"
+    ],
+    "note": "rows=[[{\"type\": \"string\", \"value\": \"bookmark probe\"}]]",
+    "next_cursor": null,
+    "query_id": "http-query-297",
+    "engine_message": null,
+    "elapsed_ms": 2.4,
+    "response": {
+      "query_id": "http-query-297",
+      "columns": [
+        "note"
+      ],
+      "rows": [
+        [
+          {
+            "type": "string",
+            "value": "bookmark probe"
+          }
+        ]
+      ],
+      "read_epoch": 67,
+      "next_cursor": null,
+      "bookmark": "sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:67"
+    }
+  },
+  {
+    "probe": "B03",
+    "what": "a malformed bookmark is rejected",
+    "request_extra": {
+      "bookmark": "sgk:1:deadbeef:deadbeef:deadbeef:999999"
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: ClientProtocol query is not supported yet: invalid bookmark: namespace is not UTF-8",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "ClientProtocol query is not supported yet: invalid bookmark: namespace is not UTF-8",
+    "elapsed_ms": 0.6,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"ClientProtocol query is not supported yet: invalid bookmark: namespace is not UTF-8\"}}"
+    }
+  },
+  {
+    "probe": "B04",
+    "what": "a well-formed bookmark naming another namespace",
+    "request_extra": {
+      "bookmark": "sgk:1:6f746865722d74656e616e74:64656661756c74:63656c6c2d30:66"
+    },
+    "http_status": 400,
+    "verdict": "PASS",
+    "row_ids": [],
+    "note": "refused: graph scope mismatch: expected local/graphs/default cell cell-0, received other-tenant/graphs/default cell cell-0",
+    "next_cursor": null,
+    "query_id": null,
+    "engine_message": "graph scope mismatch: expected local/graphs/default cell cell-0, received other-tenant/graphs/default cell cell-0",
+    "elapsed_ms": 1.0,
+    "response": {
+      "_error": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"graph scope mismatch: expected local/graphs/default cell cell-0, received other-tenant/graphs/default cell cell-0\"}}"
+    }
+  }
+]

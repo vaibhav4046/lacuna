@@ -151,3 +151,48 @@ The alternative was to reshape the data model so it needed fewer edges. Rejected
 outright: the edges are the product. A memory layer that stores fewer
 relationships to make its own ingest faster has optimised away the thing it
 exists to do.
+
+### D-012: The client mints its own `query_id` on every request
+
+HydraDB's HTTP request body has a `query_id` field. Sending nothing is legal and
+the server assigns one, which is what the first probes did.
+
+Paging does not work that way. `next_cursor` is scoped to the `query_id` and the
+query text together, so page two has to arrive carrying both. Verified in round
+five: cursor without `query_id` is refused, cursor with the server's own
+`query_id` returns the remainder, and a live cursor replayed under a different
+`query_id` with identical query text is refused as well.
+
+So Lacuna generates a `query_id` per logical query and sends it on the first
+request rather than reading one back and echoing it. Same round trips, and page
+two stops depending on having parsed page one's response correctly.
+
+It also gives every request a client-side correlation id for free, which is worth
+having in a system whose whole output is "here is why I answered that".
+
+`next_cursor` is treated as opaque. It presents as a small per-node counter, and
+in round five six unrelated paged queries were handed 11 through 16 in sequence.
+Nothing is inferred from the value and nothing is constructed from it.
+
+Recorded because round four concluded from a single failed request that HydraDB
+could not page at all, and that was wrong. The full correction is in
+[artifacts/cypher-probe/](artifacts/cypher-probe/README.md).
+
+### D-013: Reads that follow an ingest carry the write's bookmark
+
+Every HydraDB write returns a `bookmark`, a scoped string encoding namespace,
+graph, cell and epoch. Passing it on a later read is the engine's own answer to
+causal consistency: it said so when a client-supplied `read_epoch` was rejected
+with `read_epoch is not a storage snapshot selector; use bookmark for causal
+reads`.
+
+Lacuna threads it through: ingest returns the bookmark to the caller, and the
+retrieval that follows sends it. The failure this prevents is specific and would
+be humiliating in a demo, which is abstaining with `NO_RELEVANT_MEMORY` on a
+transcript that was accepted two seconds earlier.
+
+The honest caveat, which is repeated wherever this is claimed: on a single node
+answering `consistency: "strong"` the read would probably have seen the write
+anyway. Probe `B02` shows the bookmark is accepted and the row comes back. It
+does not prove the bookmark caused it, and no test on this deployment can. It is
+carried because it is free, correct, and the mechanism the engine names.

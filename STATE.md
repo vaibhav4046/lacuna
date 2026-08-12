@@ -2,7 +2,7 @@
 
 What exists right now. Updated as things change, and never ahead of them.
 
-**Last updated: 2026-08-12**
+**Last updated: 2026-08-13**
 
 ## Built and verified
 
@@ -162,17 +162,57 @@ What exists right now. Updated as things change, and never ahead of them.
   into `/var/lib/lacuna/hydradb/auth-token`, not upstream's documented
   placeholder. The placeholder answers `401 unauthenticated` here.
 
+- **The demo corpus exists, is generated from a seed, and has been measured.**
+  `src/corpus/` builds the whole history deterministically: `mulberry32`, no
+  `Math.random`, no `Date.now`, a fixed epoch. The gold questions come out of the
+  same pass that plans the claims. Real output, 2026-08-13:
+
+  ```
+  corpus stats: {"sessions":72,"messages":5268,"claims":118,"characters":469578,"estimatedTokens":117395}
+  ```
+
+  Roughly 117k estimated tokens across 72 sessions, which is the point: the
+  history does not fit in one model context, so a system that answers correctly
+  had to retrieve rather than read everything. The first generation came out at
+  48 sessions and 78,072 estimated tokens, which was not enough to stand behind
+  that claim, so the session count went up and the run was repeated. See
+  [D-016](DECISIONS.md).
+
+  All five abstention reasons are carried by the structure of the data rather
+  than by the wording of the questions, and the properties the evaluation depends
+  on are executed rather than asserted. `unconnected` and `multi_hop` are the
+  same question with a different subject substituted in, checked by stripping the
+  subject out of both and comparing. The `multi_hop` answer never appears in any
+  message that names the service it is reached through. `never_stated` pairs have
+  zero claims while both halves are used heavily elsewhere. Out of scope names
+  appear in no message at all. Every evidence span slices back to its exact
+  quote, and every correction is positioned and timestamped after what it
+  corrects.
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run
+   Test Files  9 passed (9)
+        Tests  135 passed (135)
+     Duration  4.74s
+  TESTALL_EXIT=0
+  ```
+
+  135 cases: 84 adapter unit, 27 corpus, 11 id, 13 contract against the live
+  node.
+
 ## In progress
 
-- Nothing. The adapter was the open item and it is finished.
+- Nothing. The corpus was the open item and it is finished.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
 - No application code above the HydraDB adapter
-- No ingestion pipeline
-- No demo corpus
+- No ingestion pipeline, so the corpus has never been written to HydraDB
 - No retrieval or abstention logic
 - No user interface
 - No CI

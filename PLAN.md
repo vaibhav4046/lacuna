@@ -107,6 +107,12 @@ for.
 - Any LLM call in the critical path of the demo. The claims are about retrieval
   and abstention. A generated answer on top would make the demo harder to verify
   and easier to doubt.
+- Claim extraction from arbitrary natural language. The demo corpus ships its
+  claims as annotations, generated alongside the text that states them. An
+  extractor in front of the pipeline would put a fallible component between the
+  input and every number in the benchmark, and the benchmark would then be
+  measuring the extractor. The thesis is about what a memory does with claims
+  once it has them. See [D-016](DECISIONS.md).
 - A multi-tenant deployment story.
 - An ingestion connector for real chat products.
 

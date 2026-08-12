@@ -87,3 +87,43 @@ Collision risk is handled explicitly rather than assumed away. See
 [docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) maps every published requirement to
 where it is satisfied and its current status. Disqualification is the single
 largest risk in a hackathon and it is entirely avoidable by checking a list.
+
+### D-009: Keep the name "Lacuna", having checked what it collides with
+
+A lacuna is a gap, and specifically a missing portion of a manuscript. The whole
+differentiator here is knowing what is missing, so the name is doing real work
+rather than sounding nice.
+
+It is also not remotely unique. Checked on 2026-08-12:
+
+| Where | What is there |
+|---|---|
+| PyPI `lacuna` | `witlox/lacuna`, 3 releases, latest 2026-01-20. "Privacy-aware query classification and routing for RAG systems" |
+| crates.io `lacuna` | v0.0.0 placeholder, 16 downloads, regulatory gap analysis CLI |
+| npm `lacuna` | v0.0.0 placeholder, no description |
+| GitHub | Lacuna Expanse (a game, several repos), Lacuna Software (a company), Lacuna Fund (an ML dataset funding initiative), `LACUNA-Chain` (offensive security tooling, 183 stars), a teaching annotation tool |
+
+The PyPI one is the uncomfortable one, because it is RAG-adjacent. It is also
+three releases old with a different purpose: query routing for privacy, not a
+temporal evidence graph.
+
+Kept anyway. A hackathon submission is not a trademark filing, none of the
+judging criteria concern the name, and none of these collisions could make a
+judge think this project is derived from them. What would be indefensible is
+claiming the name is unoccupied, so it is written down here instead. If any part
+of this is ever published as a package it gets a namespaced or suffixed name,
+not a bare `lacuna`.
+
+Recorded because a check that leaves no trace is indistinguishable from a check
+that never happened.
+
+### D-010: HydraDB data lives in a persistent directory, not `/tmp`
+
+The upstream local recipe puts everything under `/tmp/sgk-local`, and says
+plainly that those paths are disposable. This machine confirmed it: the step 5
+virtualenv and env file were gone fifteen minutes later.
+
+Fine for a smoke test, useless for a demo. Lacuna's own node points at a
+persistent directory so a seeded corpus survives between sessions. The upstream
+recipe is not modified; the environment variables it reads are simply pointed
+somewhere that lasts.

@@ -1,0 +1,2 @@
+# TYPE graph_runtime_ready gauge
+graph_runtime_ready 1

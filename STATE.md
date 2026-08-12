@@ -21,11 +21,24 @@ What exists right now. Updated as things change, and never ahead of them.
   Verified present: `libcypher-parser 0.6.2`, `libgraphblas.so.7.4.0`,
   Rust stable, `just 1.58.0`.
 - HydraDB cloned at the pinned commit and `just native-check` passes.
+- HydraDB built from source and running locally. Upstream `AGENTS.md` steps 3
+  through 8 all executed, with the real output committed to
+  [artifacts/hydradb/](artifacts/hydradb/README.md):
+  - `just smoke` printed `graph object-store smoke passed at epoch 10`
+  - `scripts/runtime_smoke.sh` printed `runtime-smoke-ok`
+  - the node serves `/readyz` and reports `graph_runtime_ready 1`
+  - a write over HTTP came back over HTTP as exactly one row,
+    `{"type":"vertex_id","value":2}`, at `read_epoch` 1
+  - the same fact read back over Bolt with the Neo4j Python driver 6.2.0,
+    printing `{'id': 2}`
+
+  Both transports work against the same node. This is the upstream pass
+  condition, not a port check.
 
 ## In progress
 
-- HydraDB local bring-up, upstream `AGENTS.md` steps 3 to 6: object-store smoke,
-  Python Bolt driver, full runtime smoke.
+- The HydraDB client adapter and its contract tests, which is where the open
+  question below gets settled.
 
 ## Not built yet
 
@@ -45,7 +58,7 @@ Everything else. Named explicitly so no reader has to guess:
 
 ## Known environment deviations
 
-One, recorded because reproducibility depends on it.
+Two, recorded because reproducibility depends on them.
 
 **`just` shebang recipes fail under WSL2.** `just 1.58.0` writes shebang recipe
 scripts into `$XDG_RUNTIME_DIR/just/`, and WSL mounts `/run/user/0` as tmpfs with
@@ -59,6 +72,14 @@ Confirmed with `strace`: the `execve` of `/run/user/0/just/just-*/native-check`
 returns `EACCES`. It is neither a HydraDB bug nor a missing dependency. Handled
 without modifying any recipe, by unsetting `XDG_RUNTIME_DIR` or passing
 `just --tempdir`, both of which were tested.
+
+**`/tmp` is cleaned under this distro.** `/tmp/sgk-venv` and `/tmp/sgk-env.sh`,
+created during step 5, were gone by the time step 8 ran roughly fifteen minutes
+later. This is not a surprise so much as a confirmation: upstream already says
+the `/tmp/sgk-*` paths are disposable and that anything meant to be kept belongs
+elsewhere. The consequence for this project is concrete, so it is written down
+rather than remembered. Lacuna's own HydraDB data directory will not live in
+`/tmp`, because a demo whose store evaporates between sessions is not a demo.
 
 ## Open questions
 

@@ -19,8 +19,15 @@ not at whatever `main` happens to be later.
 | Commit subject | Merge pull request #59 from hydra-db/ci/multiarch-container-image |
 | License | AGPL-3.0 |
 | Repo created | 2026-07-03T05:34:15Z |
-| Tagged releases | none at time of access |
+| Tag at this commit | `v0.1.1` (`git describe --tags --exact-match` on the clone) |
+| All tags in repo | `v0.1.0`, `v0.1.1` |
 | Accessed | 2026-08-12 |
+
+An earlier version of this file said there were no tagged releases. That was
+wrong, and the correction is left visible rather than quietly edited out: the
+GitHub API endpoint consulted lists published *Releases*, and this repository has
+tags without Releases attached. The clone settled it. Lacuna is built against
+HydraDB `v0.1.1`.
 
 Files read at that pin, fetched via
 `https://raw.githubusercontent.com/hydra-db/hydradb/02a40025d2d57e97ab2754c8256219cdbfeab379/<path>`:
@@ -62,6 +69,38 @@ Facts taken from those files that the build depends on:
   local-development only. Source: `AGENTS.md`.
 - Read consistency is `causal` (default) or `strong`, set per request. Source:
   `README.md`.
+
+### Read from the HydraDB source, not the prose
+
+The documentation gives a two-field `curl` example and does not spell out the
+rest of the HTTP request body. Rather than guess at field names and discover them
+through 400s, the wire contract was read directly from the pinned source:
+`src/client/http.rs` (the `HttpQueryRequestBody` and `HttpQueryResponseBody`
+structs, around line 283) and `src/client/http/tests.rs` (requests and assertions
+against a live server).
+
+Reading is all that happened. No HydraDB source is copied into this repository,
+so the AGPL boundary described in [../THIRD_PARTY.md](../THIRD_PARTY.md) is
+untouched. What was learned is an interface, and the client that speaks it is
+written from scratch.
+
+Request body accepts: `cell_id` and `query` (both required), then optional
+`query_id`, `parameters`, `bookmark`, `read_epoch`, `timeout_ms`, `page_size`,
+`cursor`, `consistency`.
+
+Response body returns: `query_id`, `columns`, `rows`, `read_epoch`,
+`next_cursor`, `bookmark`. Row values are tagged objects, `{"type": ...,
+"value": ...}`, with the type name in snake case.
+
+Two consequences for the build:
+
+- `timeout_ms` is a per-request server-side timeout that already exists in the
+  protocol. The query-timeout mitigation in
+  [THREAT_MODEL.md](THREAT_MODEL.md) T4 is therefore a matter of setting it, not
+  of building anything.
+- `read_epoch` and `bookmark` come back on every read. They are the engine's own
+  statement of which snapshot answered, which makes them the honest content of
+  the HydraDB Proof screen.
 
 ## Hack Hydra 2026 rules
 

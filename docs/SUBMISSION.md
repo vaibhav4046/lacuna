@@ -143,12 +143,23 @@ The current value is the claim with nothing pointing at it, which is a
 structural question, and the superseded claims stay queryable rather than being
 overwritten. The timeline panel is that DAG.
 
-Abstention is read off the shape of the subgraph. never_stated is no claim on
-the pair, retracted is a terminal claim with negative polarity, contradicted is
-a CONTRADICTS edge with nothing resolving it, unconnected is a subject present
-with no path to the predicate, out_of_scope is no entity at all. A similarity
-index cannot make any of these distinctions, because it has a nearest neighbour
-in every one of those situations.
+Abstention is read off the shape of the subgraph. out_of_scope is no node
+carrying that name at all. never_stated is the entity present with nothing
+stating that predicate. unconnected is the same emptiness reached through a hop,
+where the bridge entity was found and it is the bridge that says nothing.
+retracted is the surviving claim withdrawing the value and putting nothing in
+its place. contradicted is two claims that nothing supersedes giving different
+values, so the disagreement is live rather than resolved.
+
+Worth being exact about that last one, because the obvious guess is wrong: it is
+not read off a CONTRADICTS edge. It is derived from two unsuperseded claims
+disagreeing, which is the distinction between "these two conflict" and "one of
+these replaced the other". A CONTRADICTS query exists in the query module and is
+unit-tested, and it is not called on the answer path. That is stated here for
+the same reason the algo.SPpaths note is.
+
+A similarity index cannot make any of these five distinctions, because it has a
+nearest neighbour in every one of those situations.
 
 Cross-session synthesis is a traversal. "Who is our contact for the vendor
 behind replay-queue" is answered by following MENTIONS from replay-queue to

@@ -633,7 +633,8 @@ What exists right now. Updated as things change, and never ahead of them.
   files. Editing a recorded transcript would have turned evidence of a run into
   a description of one that never happened.
 
-  Real output from the committed run, 2026-08-13, against `ffbe274`:
+  Real output from the committed run, 2026-08-13, against `ffbe274`, which is
+  `bac9d9d` since the identity rewrite in D-050:
 
   ```
   === 3. typecheck ===
@@ -667,6 +668,9 @@ What exists right now. Updated as things change, and never ahead of them.
   the two commits; the one non-markdown difference is an `eval` script alias in
   `package.json` that no step of the run touches. The second transcript is at
   [artifacts/repro/clean-clone-4de1a65.txt](artifacts/repro/clean-clone-4de1a65.txt).
+  Both hashes predate the identity rewrite in D-050 and no longer resolve:
+  `ffbe274` is now `bac9d9d` and `4de1a65` is now `2954b15`. The transcripts keep
+  what they printed.
 
   The two runs disagree on latency by four to six times, 190ms against 1167ms on
   the same first question, and no cause was established. It is not the code,
@@ -731,20 +735,23 @@ Everything else. Named explicitly so no reader has to guess:
 - No demo video recorded. The script is written and checked against the running
   product, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md). Recording is the
   owner's, and it is item 3 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md)
-- Nothing submitted, and the public repository is empty. This moved on
-  2026-08-13 and only halfway. `gh repo create` ran and
-  <https://github.com/vaibhav4046/lacuna> is public with `origin` wired, then
-  `git push -u origin main` was rejected with `GH007`, because every commit
-  carries an email GitHub is configured to keep private. The exit is one account
-  setting the owner owns; the other exit, rewriting the author email across 41
-  commits, is refused on purpose, since an untouched history is the eligibility
-  argument. Item 2 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md) carries the rejection
-  text and the one command that follows the toggle. Readiness is not what is
-  missing: the full-history secret scan, the licence, the eligibility date and
-  the attribution check all passed before the attempt and are listed there with
-  their results. The form answers are drafted at
-  [docs/SUBMISSION.md](docs/SUBMISSION.md), nine of ten fields now knowable, the
-  video link the one real blank
+- Nothing submitted. The repository stopped being the blocker on 2026-08-13:
+  it is public, it holds the code, and the tip `033c1a8` is live at
+  <https://github.com/vaibhav4046/lacuna>. Getting there took two attempts.
+  `gh repo create` succeeded and `git push` was then rejected with `GH007`,
+  because every commit carried an address GitHub is configured to keep private.
+  The exit taken was not the account setting. Every other public repository on
+  this account already commits under the `users.noreply.github.com` address, so
+  publishing the personal one here would have created a new and permanent
+  exposure that existed for no reason except this hackathon. The identity was
+  rewritten across all 42 commits instead, with the commit count, every author
+  and committer date, the messages and the tip's tree hash all verified identical
+  on both sides, and the whole operation written up in D-050 of
+  [DECISIONS.md](DECISIONS.md). GitHub now reports exactly one author address on
+  the repository, the noreply one. What is still missing is the form and the
+  video. The form answers are drafted at
+  [docs/SUBMISSION.md](docs/SUBMISSION.md), and with the repository live the
+  video link is the last blank field
 
 ## Known environment deviations
 

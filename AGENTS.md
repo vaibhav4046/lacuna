@@ -79,7 +79,16 @@ Conventional-commit prefixes: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`
 obvious.
 
 Commit history is a record of when work happened and is never rewritten to look
-like something else.
+like something else. Dates, order, parentage, messages and content stay as they
+were recorded. This repository has had exactly one rewrite, which changed the
+author's email address and nothing else, and it is written up with its before and
+after verification in D-050 of [DECISIONS.md](DECISIONS.md).
+
+Commits are authored as `115102797+vaibhav4046@users.noreply.github.com`. GitHub
+rejects a push carrying an address the account keeps private, and the
+repository-local `user.email` is set to the noreply one so that a machine with a
+different global config does not quietly reintroduce the problem one commit at a
+time.
 
 ## Prose
 

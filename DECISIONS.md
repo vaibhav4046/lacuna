@@ -650,9 +650,12 @@ The correct figure is 5,705, checked twice: the dry run prints it, and summing
 
 It appeared in three places. Two were editable and are now right: D-019 above,
 and a comment in `src/ingest/run.ts`. The third is the message of commit
-`40b6da5`, which says "5,642 vertices in 15 batches and 5,693 edges" and stays
-wrong, because rewriting history to correct it would be worse than the error.
-This record is the correction.
+`e7df5f2`, written as `40b6da5` before the identity rewrite in D-050, which says
+"5,642 vertices in 15 batches and 5,693 edges" and stays wrong, because rewriting
+a commit message to correct it would be worse than the error. The identity
+rewrite that later changed every hash in this repository did not touch a single
+message, so the wrong number is still sitting there. This record is the
+correction.
 
 The code was never wrong. `plan.counts` is computed from the edges the plan
 actually holds, and the contract test diffs live counts against it. Only the prose
@@ -1223,3 +1226,82 @@ whose coverage they would have to go and read the workflow to establish.
 Revisit if the node ever ships as a container upstream. At that point the
 workflow becomes honest and cheap at the same time, and this entry becomes
 wrong, which is the condition for changing it.
+
+### D-050: The author identity was rewritten across all 42 commits, and nothing else was
+
+`git push` came back with `GH007`. GitHub refused to publish commits carrying an
+address the account keeps private, which is the correct behaviour and not a bug
+to be worked around. Two exits existed. Publish the address, or stop putting it
+in the commits.
+
+The deciding fact is not about this repository. Every other public repository on
+this account already commits under
+`115102797+vaibhav4046@users.noreply.github.com`. The personal address appears in
+none of them. Clearing `GH007` by flipping the account setting would therefore
+have created a new and permanent exposure that exists for no reason except this
+hackathon, in the author field of 42 commits, on a repository built to be cloned.
+Turning the setting back afterwards does not retract it.
+
+So the identity moved instead. `git filter-repo --mailmap` mapped both identities
+in the history to one:
+
+```
+<the personal address, deliberately not reproduced here>
+    -> Vaibhav Lalwani <115102797+vaibhav4046@users.noreply.github.com>
+root <root@vaibhav.localdomain>
+    -> Vaibhav Lalwani <115102797+vaibhav4046@users.noreply.github.com>
+```
+
+The address on the left is not written out anywhere in this repository, and that
+is not an oversight. Printing it in the document explaining why it was kept out of
+the author fields would have republished it in the body of the same repository and
+made the whole operation pointless. It is the address `git config user.email`
+returns on the machine this was built on, which is enough for anyone who needs to
+reproduce the mapping and is nothing to anyone who does not.
+
+**What did not change, each checked rather than assumed:**
+
+- 42 commits before, 42 after.
+- All 42 author dates and all 42 committer dates byte identical. The full
+  `%ad|%cd|%s` listing was captured before the rewrite and diffed against the
+  listing after. The diff is empty.
+- The first commit is still `2026-08-12 21:22:04 +0100`, which is the eligibility
+  evidence and the one date that would have mattered if it had drifted.
+- Commit messages untouched. `--mailmap` rewrites identity headers and nothing
+  else.
+- The tip's tree is `1e6dd98a3c46d8abed1331b2c735cef9d7cc8bab` on both sides of
+  the rewrite. Identical tree means not one byte of file content moved.
+- Order and parentage unchanged.
+
+**What it cost:** every hash changed, so any SHA written down before this entry
+no longer resolves. The ones cited in this repository:
+
+| Before | After | What cites it |
+|---|---|---|
+| `8eb5c38` | `d27fb89` | The first commit, the eligibility date |
+| `45d3f16` | `1d3a326` | The commit made from a root shell in WSL |
+| `ffbe274` | `bac9d9d` | `artifacts/repro/clean-clone-2026-08-13.txt` |
+| `4de1a65` | `2954b15` | `artifacts/repro/clean-clone-4de1a65.txt` |
+| `40b6da5` | `e7df5f2` | D-025, for the edge count its message gets wrong |
+| `ad25911` | `033c1a8` | The tip at the moment of the rewrite |
+
+**The two reproduction transcripts were not edited.** They print `HEAD ffbe274`
+and `HEAD 4de1a65` and they still do. They are unedited machine output, and
+rewriting recorded output so it agrees with a history that did not exist when the
+run happened is the precise act this repository spends its documentation
+refusing. The transcripts keep the hashes they recorded, and
+[artifacts/repro/README.md](artifacts/repro/README.md) carries the mapping so a
+reader who tries `git show ffbe274` and gets nothing has the answer next to the
+file rather than three documents away.
+
+**`.mailmap` is retired.** It existed to map `root <root@vaibhav.localdomain>` to
+its author without rewriting the commit. That identity no longer occurs, so the
+file mapped nothing. Its comment also argued against rewriting history, which
+would have left this repository shipping a document contradicting what it did.
+
+**Against the rule in [AGENTS.md](AGENTS.md).** That rule says history is never
+rewritten to look like something else, and it still holds. Dates, order,
+messages, parentage and content all survive verbatim, and every one of those was
+checked. What changed is which address the author is reachable at. That is a
+contact detail, not a claim about when work happened or who did it, and the
+rewrite is recorded here in full rather than left for a judge to discover.

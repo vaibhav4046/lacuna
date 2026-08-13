@@ -7,10 +7,9 @@ quoted from the rules as captured on 2026-08-12 in
 to 259. No character limits are stated, so these are written to be read rather
 than to fit a counter.
 
-**One field cannot be filled yet**, the video link, and one more is written but
-must not be pasted yet: the repository URL exists and is public, and the push
-into it was rejected, so the link currently resolves to an empty repository.
-Both are marked below and both are blocked on you, not on the work.
+**One field cannot be filled yet**, the video link. It is marked below, and it is
+blocked on you rather than on the work. The other nine are ready to paste,
+including the repository link, which went live on 2026-08-13.
 
 Every number in this draft came out of a real run. Where a claim is softer than
 it sounds, the draft says so, because the repository says so and a form that
@@ -228,23 +227,21 @@ wants a GitHub username, it is the account that owns the repository in field 9.
 https://github.com/vaibhav4046/lacuna
 ```
 
-**Correct, and not yet true.** That URL is live and public as of 2026-08-13 and
-the repository behind it is empty, because `git push` came back with `GH007` and
-the code is still only on the machine. Do not paste this field until the push
-has landed. A judge who follows a submitted link to an empty repository has
-learned something worse than a judge who finds no link at all.
+**Live, public, and holding the code** as of 2026-08-13. The remote tip is
+`033c1a8`, `git ls-remote` agrees with the local `HEAD`, and the GitHub API
+reports `private: false`. This was the one blocker with a disqualification
+attached, since a missing or private repository is on the rules' list of seven
+triggers, and it is closed.
 
-This is item 2 in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md), it is the one blocker
-with a disqualification attached, since a missing or private repository is on
-the rules' list of seven triggers, and it is now one account setting plus one
-`git push` away. Verify before pasting:
+Check it again anyway, in a logged-out browser, on the day you submit. The rules
+say broken links are the most common way entrants lose, and a link that worked a
+week ago is not evidence about a link today.
 
 ```bash
 git ls-remote --heads https://github.com/vaibhav4046/lacuna
 ```
 
-A line ending in `refs/heads/main` means the push landed. No output means it did
-not.
+A line ending in `refs/heads/main` means the push is still there.
 
 ## 10. Demo video link
 

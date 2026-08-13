@@ -129,8 +129,7 @@ returns flat scalar columns for that reason, and the decode layer in
 where `MATCH (c)` with no constraint is not.
 
 Designing against the real subset on day two rather than discovering it at
-runtime on day five is the reason there is no rewrite in this repository's
-history.
+runtime on day five is the reason the query layer never had to be rewritten.
 
 ## What is not used
 

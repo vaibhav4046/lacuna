@@ -27,70 +27,40 @@ Status values: `open`, `done`, `dropped`.
 
 ## 2. Push to the public repository
 
-- **Status:** open. The repository now exists. The push does not.
-- **Where it stands:** on your approval, `gh repo create` ran on 2026-08-13 and
-  succeeded. <https://github.com/vaibhav4046/lacuna> is public, `origin` is wired
-  for fetch and push, and the repository is empty. The push that follows it was
-  rejected:
+- **Status:** done, 2026-08-13.
+- **Where it landed:** <https://github.com/vaibhav4046/lacuna> is public and
+  holds the code. The remote tip is `033c1a8`, `git ls-remote` agrees with the
+  local `HEAD`, and the GitHub API reports the repository as `private: false`.
+- **What it took.** `gh repo create` succeeded, then `git push` was rejected:
 
   ```
   remote: error: GH007: Your push would publish a private email address.
-  remote: You can make your email public or disable this protection by visiting:
-  remote: https://github.com/settings/emails
    ! [remote rejected] main -> main (push declined due to email privacy restrictions)
   ```
 
-  That is the failure this item predicted below before anything was attempted, so
-  the diagnosis is already written and confirmed rather than guessed.
-- **Why it needs you:** the fix is one toggle at
-  <https://github.com/settings/emails>, and it is on your account, not in this
-  repository. Two reasons it stays yours. The `gh` token here holds `gist`,
-  `read:org`, `repo` and `workflow`; `gh api user/emails` returns
-  `This API operation needs the "user" scope`, and granting that scope is a
-  browser login approval. More to the point, clearing `GH007` publishes
-  `lalwanivaibhav079@gmail.com` in the author field of all 41 commits, in public,
-  permanently, on a repository that will be cloned. That is a privacy decision
-  about your own address and not an implementation detail to be decided for you.
-- **What to do:** turn off "Keep my email addresses private", or the "Block
-  command line pushes that expose my email" toggle under it, then:
-
-  ```bash
-  git push -u origin main
-  ```
-
-  Run it from `D:\project\lacuna`. Nothing else is pending. Turning the setting
-  back on afterwards does not retract the published address, so treat it as
-  one-way.
-- **The other exit stays closed.** Rewriting the author email across 41 commits
-  would also clear `GH007` and it is not being done. The eligibility argument here
-  rests on a history nobody touched, [STATE.md](STATE.md) and the
-  [README](README.md) both say so in as many words, and rewriting every hash the
-  night before a submission is exactly the shape of the thing a judge is entitled
-  to be suspicious of. A cosmetic push error is not worth spending that.
-- **Publication safety, cleared on 2026-08-13 before the attempt.** Nothing below
-  is a reason to hesitate, and each was run rather than assumed:
-  - 257 blobs across all 38 commits scanned for tokens, private keys and AWS
-    keys. Zero hits. The working tree scan is separate and also zero across 135
-    files.
+  Two exits existed and the account setting was not the one taken. Every other
+  public repository on this account already commits under
+  `115102797+vaibhav4046@users.noreply.github.com`, and the personal address
+  appears in none of them, so clearing `GH007` by publishing it would have created
+  a new and permanent exposure that existed for no reason except this hackathon.
+  The identity was rewritten across all 42 commits instead. Dates, messages,
+  parentage and file content were all verified byte identical on both sides, the
+  first commit is still `2026-08-12 21:22:04 +0100`, and the full record with its
+  checks is D-050 in [DECISIONS.md](DECISIONS.md). GitHub now reports exactly one
+  author address on the repository, the noreply one.
+- **Nothing here needs you any more.** The one thing worth knowing is that hashes
+  cited in the documentation moved, and D-050 carries the before and after map.
+- **Publication safety, cleared before the push and still true.** Each was run
+  rather than assumed:
+  - 257 blobs across all commits scanned for tokens, private keys and AWS keys.
+    Zero hits. The working tree scan is separate and also zero.
   - `.env.example` is the only environment file tracked, and `.gitignore` covers
     `.env`, `.env.local`, `*.pem`, `*.key` and the local database directories.
-  - `LICENSE` is Apache-2.0 and committed, which is one of the seven
-    disqualification triggers closed.
-  - First commit is `2026-08-12 21:22:04 +0100`, inside the eligibility window,
-    which closes a second trigger. Nothing in history predates kickoff and no
-    history was rewritten.
+  - `LICENSE` is Apache-2.0 and committed, which closes one of the seven
+    disqualification triggers.
+  - First commit is inside the eligibility window, which closes a second, and the
+    rewrite preserved that date exactly.
   - Zero Claude or Anthropic attribution anywhere in author fields or messages.
-  - 186 relative links across 24 markdown files resolve. 610 tests pass.
-- **Note on commit email, now confirmed by the push rather than predicted:** every
-  commit already made carries the personal Gmail address that `git config
-  user.email` returns on this machine. Switching the repo-local email to the
-  `users.noreply.github.com` address does not clear `GH007`, because that only
-  changes commits made afterwards and `GH007` is raised against the commits inside
-  the push. Worth stating explicitly because it is the obvious first thing to try
-  and it cannot work.
-- **Deadline pressure:** the repo is public but empty, which is worse than not
-  existing if a judge finds it. It has to hold the code before submission. It does
-  not have to hold it today.
 
 ## 3. Demo video
 
@@ -113,11 +83,10 @@ Status values: `open`, `done`, `dropped`.
   confirmation to make.
 - **What you get from me:** delivered, at [docs/SUBMISSION.md](docs/SUBMISSION.md).
   All ten fields the form asks for, written out and checked against the code
-  rather than from memory, plus a pre-submit checklist. Nine are ready to paste.
-  The repository link is now known, <https://github.com/vaibhav4046/lacuna>, but
-  do not paste it until item 2 has actually pushed, because right now that URL
-  resolves to an empty repository and a judge following it early sees nothing.
-  The video link (item 3) is the one genuine blank.
+  rather than from memory, plus a pre-submit checklist. Nine are ready to paste,
+  including the repository link, which is now live as well as written:
+  <https://github.com/vaibhav4046/lacuna>. The video link (item 3) is the one
+  remaining blank.
 - **Deadline:** 2026-08-20, 11:59 PM PT. Internal target is 2026-08-19, 21:00
   Europe/London.
 
@@ -137,7 +106,9 @@ Status values: `open`, `done`, `dropped`.
 
 ## Resolved
 
-Nothing yet.
+- **Publishing the repository**, 2026-08-13. Kept as item 2 above rather than
+  moved down here, because the route it took is worth reading once and moving it
+  would renumber every link pointing at items 3 to 5.
 
 ---
 

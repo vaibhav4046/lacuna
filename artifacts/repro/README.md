@@ -9,7 +9,18 @@ questions. Two runs are recorded here, both unedited:
 | Transcript | Commit | Why it is kept |
 |---|---|---|
 | [`clean-clone-2026-08-13.txt`](clean-clone-2026-08-13.txt) | `ffbe274`, 29 commits | The first run at the full 568-test suite |
-| [`clean-clone-4de1a65.txt`](clean-clone-4de1a65.txt) | `4de1a65`, 40 commits | The tip, which is what a judge actually clones |
+| [`clean-clone-4de1a65.txt`](clean-clone-4de1a65.txt) | `4de1a65`, 40 commits | The tip at the time, which is what a judge actually clones |
+
+**Neither hash resolves any more, and both transcripts still print them.** After
+these runs were recorded, the author's email address was rewritten across every
+commit so that a private address would not be published, which changed every hash
+in the repository. `ffbe274` is now `bac9d9d`; `4de1a65` is now `2954b15`. The
+reasoning, and the checks proving that dates, messages and file content all came
+through byte identical, are in D-050 of [DECISIONS.md](../../DECISIONS.md).
+
+The transcripts were left exactly as the runs printed them. Editing recorded
+output so that it agrees with a history which did not exist when the run happened
+would destroy the only property that makes a transcript worth committing.
 
 The second exists because the first was going stale in a specific way. Eleven
 commits landed after it, and although all of them were documentation, "all of

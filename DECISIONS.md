@@ -1179,3 +1179,47 @@ Recorded because the failure is worth more than the fix. A harness that can
 report success without running the code under test manufactures evidence, and it
 does it most convincingly when everything it prints is true. The guard is cheap.
 The class of bug is not.
+
+### D-049: No CI workflow ships with this repository, and the reason is not laziness
+
+There is no `.github/workflows`. That is a choice, and it is the kind of choice
+a judge is entitled to read as a gap, so it gets written down rather than left
+to inference.
+
+A GitHub Actions workflow on this repository would run `npm ci`, `npm test` and
+`npm run typecheck`. All three pass, and all three already run here on every
+change. What a workflow adds over that is a green badge, and the badge is the
+problem, because of what it cannot cover.
+
+Three of the thirty-one test files are contract suites, and they are the only
+tests in the repository that prove the Cypher is right. They run every query
+builder against a live HydraDB node and fail if the node is absent, which was a
+deliberate decision recorded earlier: a contract suite that mocks the database
+when the database is missing is a suite that passes hardest exactly when it is
+least entitled to. GitHub's runners have no HydraDB. Making the workflow green
+would mean running the 568 tests that need no database and skipping the 42 that
+carry the actual integration claim.
+
+That produces the worst artifact available: a green check on the front page of
+the repository, next to a README that says the product is proven against a live
+node, where the check covers everything except that. It is the same failure the
+reproduction script had in D-048, promoted to the top of the page and pointed at
+judges.
+
+The alternative is a workflow that builds HydraDB from source in CI. Upstream is
+Rust with object storage, the build was not quick on this machine, and a
+first-attempt CI build of someone else's database, debugged against a runner
+rather than a terminal, is a poor use of the days remaining before the deadline.
+It also risks the outcome this decision exists to avoid, which is a red X sitting
+on the submitted repository because the workflow itself was wrong.
+
+So the reproduction path is a script instead of a badge.
+`artifacts/repro/repro.sh` clones the repository into a directory that has never
+held it, follows the README exactly, starts a node, ingests, and answers
+questions, and its unedited transcript is committed next to it. A judge who
+wants proof runs one file and reads real output, rather than trusting a check
+whose coverage they would have to go and read the workflow to establish.
+
+Revisit if the node ever ships as a container upstream. At that point the
+workflow becomes honest and cheap at the same time, and this entry becomes
+wrong, which is the condition for changing it.

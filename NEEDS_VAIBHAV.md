@@ -25,25 +25,48 @@ Status values: `open`, `done`, `dropped`.
   changes planning.
 - **Blocking?** No, but it is the single cheapest risk reduction available.
 
-## 2. Create the public GitHub repository and push
+## 2. Push to the public repository
 
-- **Status:** open
-- **Why it needs you:** creating a public repository publishes code under your
-  name. That is an outward-facing action and it is yours to approve.
-- **What to do:** you approved this on 2026-08-13 and it was attempted. The
-  sandbox refused the command, so it is two lines in your own terminal:
+- **Status:** open. The repository now exists. The push does not.
+- **Where it stands:** on your approval, `gh repo create` ran on 2026-08-13 and
+  succeeded. <https://github.com/vaibhav4046/lacuna> is public, `origin` is wired
+  for fetch and push, and the repository is empty. The push that follows it was
+  rejected:
+
+  ```
+  remote: error: GH007: Your push would publish a private email address.
+  remote: You can make your email public or disable this protection by visiting:
+  remote: https://github.com/settings/emails
+   ! [remote rejected] main -> main (push declined due to email privacy restrictions)
+  ```
+
+  That is the failure this item predicted below before anything was attempted, so
+  the diagnosis is already written and confirmed rather than guessed.
+- **Why it needs you:** the fix is one toggle at
+  <https://github.com/settings/emails>, and it is on your account, not in this
+  repository. Two reasons it stays yours. The `gh` token here holds `gist`,
+  `read:org`, `repo` and `workflow`; `gh api user/emails` returns
+  `This API operation needs the "user" scope`, and granting that scope is a
+  browser login approval. More to the point, clearing `GH007` publishes
+  `lalwanivaibhav079@gmail.com` in the author field of all 41 commits, in public,
+  permanently, on a repository that will be cloned. That is a privacy decision
+  about your own address and not an implementation detail to be decided for you.
+- **What to do:** turn off "Keep my email addresses private", or the "Block
+  command line pushes that expose my email" toggle under it, then:
 
   ```bash
-  gh repo create vaibhav4046/lacuna --public --source=. --remote=origin
   git push -u origin main
   ```
 
-  Run them from `D:\project\lacuna`. No description flag on purpose: an
-  auto-generated one-liner is worse than the README's first paragraph.
-- **Note on tooling:** `gh` is authenticated as `vaibhav4046` with the `repo`
-  scope, so no credential is missing. The block is the agent sandbox declining to
-  run an outward-facing publish, which is a rule about who presses the button and
-  not a problem with the repository.
+  Run it from `D:\project\lacuna`. Nothing else is pending. Turning the setting
+  back on afterwards does not retract the published address, so treat it as
+  one-way.
+- **The other exit stays closed.** Rewriting the author email across 41 commits
+  would also clear `GH007` and it is not being done. The eligibility argument here
+  rests on a history nobody touched, [STATE.md](STATE.md) and the
+  [README](README.md) both say so in as many words, and rewriting every hash the
+  night before a submission is exactly the shape of the thing a judge is entitled
+  to be suspicious of. A cosmetic push error is not worth spending that.
 - **Publication safety, cleared on 2026-08-13 before the attempt.** Nothing below
   is a reason to hesitate, and each was run rather than assumed:
   - 257 blobs across all 38 commits scanned for tokens, private keys and AWS
@@ -58,18 +81,16 @@ Status values: `open`, `done`, `dropped`.
     history was rewritten.
   - Zero Claude or Anthropic attribution anywhere in author fields or messages.
   - 186 relative links across 24 markdown files resolve. 610 tests pass.
-- **Note on commit email, corrected:** every commit already made carries the
-  personal Gmail address that `git config user.email` returns on this machine. If
-  "Block command line pushes that expose my email" is on for the GitHub account,
-  the push is rejected with `GH007`, and switching the repo-local email to the
-  `users.noreply.github.com` address will not clear it, because that only changes
-  commits made afterwards and `GH007` is raised against the commits in the push.
-  The two ways out are turning that setting off for the account, or rewriting the
-  author email across the existing history. The second is off the table under the
-  build rules, so this is a setting on your account and it is your call. It has
-  not been tested here, because testing it means pushing.
-- **Deadline pressure:** the repo must be public and reachable without a
-  permission request before submission. It does not have to be public today.
+- **Note on commit email, now confirmed by the push rather than predicted:** every
+  commit already made carries the personal Gmail address that `git config
+  user.email` returns on this machine. Switching the repo-local email to the
+  `users.noreply.github.com` address does not clear `GH007`, because that only
+  changes commits made afterwards and `GH007` is raised against the commits inside
+  the push. Worth stating explicitly because it is the obvious first thing to try
+  and it cannot work.
+- **Deadline pressure:** the repo is public but empty, which is worse than not
+  existing if a judge finds it. It has to hold the code before submission. It does
+  not have to hold it today.
 
 ## 3. Demo video
 
@@ -92,9 +113,11 @@ Status values: `open`, `done`, `dropped`.
   confirmation to make.
 - **What you get from me:** delivered, at [docs/SUBMISSION.md](docs/SUBMISSION.md).
   All ten fields the form asks for, written out and checked against the code
-  rather than from memory, plus a pre-submit checklist. Eight are ready to paste.
-  Two are blanks only you can fill, and both are items on this list: the
-  repository link (item 2) and the video link (item 3).
+  rather than from memory, plus a pre-submit checklist. Nine are ready to paste.
+  The repository link is now known, <https://github.com/vaibhav4046/lacuna>, but
+  do not paste it until item 2 has actually pushed, because right now that URL
+  resolves to an empty repository and a judge following it early sees nothing.
+  The video link (item 3) is the one genuine blank.
 - **Deadline:** 2026-08-20, 11:59 PM PT. Internal target is 2026-08-19, 21:00
   Europe/London.
 

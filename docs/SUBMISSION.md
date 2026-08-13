@@ -7,8 +7,10 @@ quoted from the rules as captured on 2026-08-12 in
 to 259. No character limits are stated, so these are written to be read rather
 than to fit a counter.
 
-**Two fields cannot be filled yet** and both are blocked on you, not on the
-work: the repository link and the video link. They are marked below.
+**One field cannot be filled yet**, the video link, and one more is written but
+must not be pasted yet: the repository URL exists and is public, and the push
+into it was rejected, so the link currently resolves to an empty repository.
+Both are marked below and both are blocked on you, not on the work.
 
 Every number in this draft came out of a real run. Where a claim is softer than
 it sounds, the draft says so, because the repository says so and a form that
@@ -223,14 +225,26 @@ wants a GitHub username, it is the account that owns the repository in field 9.
 ## 9. GitHub repository link
 
 ```
-BLOCKED. The repository is not public yet.
+https://github.com/vaibhav4046/lacuna
 ```
 
-This is item 2 in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) and it is the one
-blocker with a disqualification attached: a missing or private repository is on
-the rules' list of seven triggers. `gh` is authenticated with `repo` scope, so
-creating and pushing is one approval from you, with the `GH007` email caveat
-written up in that file.
+**Correct, and not yet true.** That URL is live and public as of 2026-08-13 and
+the repository behind it is empty, because `git push` came back with `GH007` and
+the code is still only on the machine. Do not paste this field until the push
+has landed. A judge who follows a submitted link to an empty repository has
+learned something worse than a judge who finds no link at all.
+
+This is item 2 in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md), it is the one blocker
+with a disqualification attached, since a missing or private repository is on
+the rules' list of seven triggers, and it is now one account setting plus one
+`git push` away. Verify before pasting:
+
+```bash
+git ls-remote --heads https://github.com/vaibhav4046/lacuna
+```
+
+A line ending in `refs/heads/main` means the push landed. No output means it did
+not.
 
 ## 10. Demo video link
 

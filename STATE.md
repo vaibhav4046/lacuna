@@ -731,14 +731,20 @@ Everything else. Named explicitly so no reader has to guess:
 - No demo video recorded. The script is written and checked against the running
   product, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md). Recording is the
   owner's, and it is item 3 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md)
-- Nothing submitted, and no public repository. The form answers are drafted at
-  [docs/SUBMISSION.md](docs/SUBMISSION.md), eight of ten fields ready to paste
-  and two blocked on the owner. Publication was attempted on 2026-08-13 and the
-  sandbox declined to run `gh repo create`, so what is missing is the button
-  press and not the readiness: the full-history secret scan, the licence, the
-  eligibility date and the attribution check all passed first, and they are
-  listed with their results in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md) so none of
-  them has to be redone
+- Nothing submitted, and the public repository is empty. This moved on
+  2026-08-13 and only halfway. `gh repo create` ran and
+  <https://github.com/vaibhav4046/lacuna> is public with `origin` wired, then
+  `git push -u origin main` was rejected with `GH007`, because every commit
+  carries an email GitHub is configured to keep private. The exit is one account
+  setting the owner owns; the other exit, rewriting the author email across 41
+  commits, is refused on purpose, since an untouched history is the eligibility
+  argument. Item 2 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md) carries the rejection
+  text and the one command that follows the toggle. Readiness is not what is
+  missing: the full-history secret scan, the licence, the eligibility date and
+  the attribution check all passed before the attempt and are listed there with
+  their results. The form answers are drafted at
+  [docs/SUBMISSION.md](docs/SUBMISSION.md), nine of ten fields now knowable, the
+  video link the one real blank
 
 ## Known environment deviations
 

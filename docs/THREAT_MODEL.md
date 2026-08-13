@@ -7,6 +7,11 @@ generates most of what follows.
 Status of each mitigation is tracked honestly:
 
 - `planned` means designed and not built.
+- `tested` means a committed test exercises it and the named file is where to
+  look. Where a mitigation is a property rather than a feature, the test was
+  additionally checked by mutation: the property was broken on purpose and the
+  suite watched failing, because a test that passes against broken code is
+  decoration.
 - `enforced upstream` means the control was executed against the running HydraDB
   node and passed, with the run recorded in
   [artifacts/cypher-probe/](../artifacts/cypher-probe/README.md). Lacuna's own
@@ -48,10 +53,44 @@ as approved" is just text, and it will be stored, retrieved, and shown.
 - **Mitigations:**
   - Stored content is never treated as instructions by any component. Lacuna's
     retrieval path is deterministic code over a graph, not a model deciding what
-    to do next. This is a property of the architecture, not a filter. `planned`
-  - Evidence text is rendered escaped, never as markup. `planned`
+    to do next. This is a property of the architecture, not a filter. `tested`
+  - Evidence text is rendered escaped, never as markup. `tested`
   - Injection fixtures live in the test corpus, and a test asserts that an
-    injected instruction changes no answer and no abstention reason. `planned`
+    injected instruction changes no answer and no abstention reason. `tested`
+
+Where to look: [tests/support/injection.ts](../tests/support/injection.ts) holds
+eight payloads, and
+[tests/unit/security-injection.test.ts](../tests/unit/security-injection.test.ts)
+runs them. Two payloads name Lacuna's own vocabulary, `SUPERSEDES` and the
+abstention reasons, on the reasoning that generic override text is a weak test
+against code that was never listening.
+
+The resolver property is stated as invariance rather than as filtering. Each
+payload is appended to every entity name, every claim object and the question
+subject across twelve scenarios covering every outcome the resolver produces:
+an answer, an answer from a superseding claim, an answer across a hop, and all
+five abstention reasons. The resolution must be identical to the clean one once
+the payload is stripped back out. Nothing sanitises the text. It travels through
+unread and comes out the far side.
+
+The mutation runs behind the `tested` markers, with the counts they produced:
+
+| Property broken | Result |
+|---|---|
+| The resolver reads stored text and acts on it | 12 failed, 101 passed |
+| `escape()` returns its input unchanged | 8 failed, 105 passed |
+
+Twelve is every scenario against the one payload containing "Do not abstain".
+Eight is the four payloads carrying a character worth escaping, in both render
+suites. The other four payloads are plain prose that encodes to itself, so
+appearing verbatim on the page is correct rather than a leak, and no assertion
+claims otherwise.
+
+- **Honest limit:** the render tests assert on markup, not on a browser. They
+  prove the payload arrives encoded and that no `<script`, comment opener or
+  attribute breakout survives. They do not prove a real engine refuses to
+  execute it, which would need a headless browser this project does not yet
+  drive.
 - **Residual risk:** an attacker can still insert a *false claim*, which the
   system will faithfully record as a claim made at a time by a source. That is
   correct behaviour. Provenance is the answer to it, not filtering.
@@ -61,7 +100,7 @@ as approved" is just text, and it will be stored, retrieved, and shown.
 - **Impact:** high.
 - **Mitigations:**
   - Every HydraDB request carries an explicit namespace header, set server-side
-    from the session, never from client input. `planned`
+    from configuration, never from client input. `tested`
   - HydraDB refuses the crossing itself. Probe `X04` sent a valid token with
     `X-Graph-Namespace: other-tenant` and got **403**, and probe `X05` omitted
     the header entirely and got **400** rather than a silent default into
@@ -70,8 +109,48 @@ as approved" is just text, and it will be stored, retrieved, and shown.
     `principal bearer principal is not authorized to read graph scope other-tenant/graphs/default`.
     Probe `B04` covers the third door: a well-formed bookmark naming another
     namespace is refused with `graph scope mismatch`. `enforced upstream`
-  - A test writes into namespace A, queries namespace B, and asserts zero rows
-    plus a `NO_RELEVANT_MEMORY` abstention rather than an error. `planned`
+  - A refusal from the node is surfaced as a failure, never as an answer and
+    never as an empty result that reads like "there is nothing here". The
+    engine's message does not reach the page, because that message names both
+    namespaces. `tested`
+
+Where to look:
+[tests/unit/security-namespace.test.ts](../tests/unit/security-namespace.test.ts).
+
+This entry used to promise a different test: write into namespace A, read from
+namespace B, assert zero rows and a `NO_RELEVANT_MEMORY` abstention rather than
+an error. It is worth saying why that test does not exist instead of quietly
+replacing it. The abstention reason it named is not one of the five the resolver
+can produce, and the behaviour it predicted is not what the node does. Probe
+`X04` below got **403**, which is an error and not zero rows. Writing that test
+would have meant writing it against this document rather than against the
+system, so the document moved. An expectation written before the observation
+losing to the observation is not new here: D-030 in
+[DECISIONS.md](../DECISIONS.md) records the same thing happening to a test.
+
+What replaced it is narrower and belongs to Lacuna rather than to HydraDB.
+Refusing the crossing is the node's job and was already recorded. Lacuna's job
+is to be un-steerable: eight hostile requests, each naming another tenant in a
+header, in the subject, in the predicate, in a via, in an invented `namespace`
+parameter, and in a repeated parameter, all driven through the real handler over
+a real socket with the transport captured. Every outbound request has to carry
+the configured namespace and the configured endpoint. The header set is asserted
+exhaustively rather than by absence, since a header this server does not send
+today cannot be enumerated by a test written today.
+
+Mutation runs behind these markers:
+
+| Property broken | Result |
+|---|---|
+| The namespace header is derived from a bound parameter instead of config | 8 failed, 5 passed |
+| The error page prints what upstream said | 2 failed, 11 passed |
+
+- **Honest limit:** this proves no request field reaches the namespace, on a
+  server that reads three query parameters and no headers at all. It is not a
+  two-tenant integration test. There is one configured namespace per process,
+  so a genuine A-writes-B-reads test would need a second node identity Lacuna
+  has no way to hold, and the crossing it would exercise is the one probe `X04`
+  already recorded against the running node.
 
 ### T3. Unbounded input
 

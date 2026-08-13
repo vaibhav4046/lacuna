@@ -1,0 +1,1190 @@
+[
+  {
+    "id": "q-stable-01",
+    "kind": "stable",
+    "text": "When does Meridian launch?",
+    "subject": "Meridian",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "answer \"25 July 2026\"",
+    "actual": "answer \"25 July 2026\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Meridian\" as a project with 2 claims about it.",
+      "Read 1 \"launch_date\" claim about \"Meridian\".",
+      "One current claim stands: \"25 July 2026\", stated 2025-01-16T09:54:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 200.9,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-02",
+    "kind": "stable",
+    "text": "Which region does Ostara run in?",
+    "subject": "Ostara",
+    "predicate": "region",
+    "via": null,
+    "expected": "answer \"Singapore\"",
+    "actual": "answer \"Singapore\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Ostara\" as a project with 3 claims about it.",
+      "Read 1 \"region\" claim about \"Ostara\".",
+      "One current claim stands: \"Singapore\", stated 2025-04-28T11:36:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 132.7,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-03",
+    "kind": "stable",
+    "text": "When is the migration window for Vireo?",
+    "subject": "Vireo",
+    "predicate": "migration_window",
+    "via": null,
+    "expected": "answer \"the weekend of 16 October 2025\"",
+    "actual": "answer \"the weekend of 16 October 2025\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Vireo\" as a project with 3 claims about it.",
+      "Read 1 \"migration_window\" claim about \"Vireo\".",
+      "One current claim stands: \"the weekend of 16 October 2025\", stated 2025-04-08T12:06:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 153.4,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-04",
+    "kind": "stable",
+    "text": "Who is the beta partner for Cindermark?",
+    "subject": "Cindermark",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "answer \"Stonecrop\"",
+    "actual": "answer \"Stonecrop\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Cindermark\" as a project with 3 claims about it.",
+      "Read 1 \"beta_partner\" claim about \"Cindermark\".",
+      "One current claim stands: \"Stonecrop\", stated 2025-02-09T11:06:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 133.7,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-05",
+    "kind": "stable",
+    "text": "What budget code does Halcyon bill to?",
+    "subject": "Halcyon",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "answer \"BC-7365\"",
+    "actual": "answer \"BC-7365\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Halcyon\" as a project with 2 claims about it.",
+      "Read 1 \"budget_code\" claim about \"Halcyon\".",
+      "One current claim stands: \"BC-7365\", stated 2025-04-16T10:36:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 142.8,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-06",
+    "kind": "stable",
+    "text": "Who is the beta partner for Larkspur?",
+    "subject": "Larkspur",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "answer \"Northfold\"",
+    "actual": "answer \"Northfold\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Larkspur\" as a project with 3 claims about it.",
+      "Read 1 \"beta_partner\" claim about \"Larkspur\".",
+      "One current claim stands: \"Northfold\", stated 2025-01-16T11:42:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 156.4,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-07",
+    "kind": "stable",
+    "text": "When is the migration window for Ninebark?",
+    "subject": "Ninebark",
+    "predicate": "migration_window",
+    "via": null,
+    "expected": "answer \"the weekend of 28 February 2025\"",
+    "actual": "answer \"the weekend of 28 February 2025\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Ninebark\" as a project with 2 claims about it.",
+      "Read 1 \"migration_window\" claim about \"Ninebark\".",
+      "One current claim stands: \"the weekend of 28 February 2025\", stated 2025-04-26T09:42:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 138.4,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-08",
+    "kind": "stable",
+    "text": "Which region does Quillon run in?",
+    "subject": "Quillon",
+    "predicate": "region",
+    "via": null,
+    "expected": "answer \"Frankfurt\"",
+    "actual": "answer \"Frankfurt\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Quillon\" as a project with 1 claim about it.",
+      "Read 1 \"region\" claim about \"Quillon\".",
+      "One current claim stands: \"Frankfurt\", stated 2025-04-12T12:18:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 124.3,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-09",
+    "kind": "stable",
+    "text": "What budget code does Saltmarsh bill to?",
+    "subject": "Saltmarsh",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "answer \"BC-2337\"",
+    "actual": "answer \"BC-2337\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Saltmarsh\" as a project with 1 claim about it.",
+      "Read 1 \"budget_code\" claim about \"Saltmarsh\".",
+      "One current claim stands: \"BC-2337\", stated 2025-04-06T09:12:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 120.2,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-10",
+    "kind": "stable",
+    "text": "What budget code does Thornfield bill to?",
+    "subject": "Thornfield",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "answer \"BC-7665\"",
+    "actual": "answer \"BC-7665\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Thornfield\" as a project with 1 claim about it.",
+      "Read 1 \"budget_code\" claim about \"Thornfield\".",
+      "One current claim stands: \"BC-7665\", stated 2025-02-21T12:00:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 120.4,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-11",
+    "kind": "stable",
+    "text": "Who owns Wrenfield?",
+    "subject": "Wrenfield",
+    "predicate": "owner",
+    "via": null,
+    "expected": "answer \"Mei Lin Chow\"",
+    "actual": "answer \"Mei Lin Chow\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Wrenfield\" as a project with 1 claim about it.",
+      "Read 1 \"owner\" claim about \"Wrenfield\".",
+      "One current claim stands: \"Mei Lin Chow\", stated 2025-02-21T11:54:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 120.4,
+    "queries": 4
+  },
+  {
+    "id": "q-stable-12",
+    "kind": "stable",
+    "text": "When does Ashgrove launch?",
+    "subject": "Ashgrove",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "answer \"14 November 2025\"",
+    "actual": "answer \"14 November 2025\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"Ashgrove\" as a project with 2 claims about it.",
+      "Read 1 \"launch_date\" claim about \"Ashgrove\".",
+      "One current claim stands: \"14 November 2025\", stated 2025-03-01T09:18:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 123.2,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-01",
+    "kind": "revised",
+    "text": "Who is the beta partner for Bellwether?",
+    "subject": "Bellwether",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "answer \"Halverd\"",
+    "actual": "answer \"Halverd\"",
+    "verdict": "correct",
+    "explanation": "This replaced 2 earlier values and nothing has superseded it.",
+    "trace": [
+      "Found \"Bellwether\" as a project with 4 claims about it.",
+      "Read 3 \"beta_partner\" claims about \"Bellwether\", 2 of them superseded.",
+      "One current claim stands: \"Halverd\", stated 2025-03-11T10:12:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 145.1,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-02",
+    "kind": "revised",
+    "text": "Who owns Coppice?",
+    "subject": "Coppice",
+    "predicate": "owner",
+    "via": null,
+    "expected": "answer \"Priya Raman\"",
+    "actual": "answer \"Priya Raman\"",
+    "verdict": "correct",
+    "explanation": "This replaced 2 earlier values and nothing has superseded it.",
+    "trace": [
+      "Found \"Coppice\" as a project with 3 claims about it.",
+      "Read 3 \"owner\" claims about \"Coppice\", 2 of them superseded.",
+      "One current claim stands: \"Priya Raman\", stated 2025-03-09T11:24:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 169.9,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-03",
+    "kind": "revised",
+    "text": "When does Dovetail launch?",
+    "subject": "Dovetail",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "answer \"11 December 2025\"",
+    "actual": "answer \"11 December 2025\"",
+    "verdict": "correct",
+    "explanation": "This replaced 1 earlier value and nothing has superseded it.",
+    "trace": [
+      "Found \"Dovetail\" as a project with 3 claims about it.",
+      "Read 2 \"launch_date\" claims about \"Dovetail\", 1 of them superseded.",
+      "One current claim stands: \"11 December 2025\", stated 2025-01-28T10:18:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 145.3,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-04",
+    "kind": "revised",
+    "text": "When is the migration window for Everstone?",
+    "subject": "Everstone",
+    "predicate": "migration_window",
+    "via": null,
+    "expected": "answer \"the weekend of 3 January 2026\"",
+    "actual": "answer \"the weekend of 3 January 2026\"",
+    "verdict": "correct",
+    "explanation": "This replaced 1 earlier value and nothing has superseded it.",
+    "trace": [
+      "Found \"Everstone\" as a project with 2 claims about it.",
+      "Read 2 \"migration_window\" claims about \"Everstone\", 1 of them superseded.",
+      "One current claim stands: \"the weekend of 3 January 2026\", stated 2025-04-28T09:18:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 120.8,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-05",
+    "kind": "revised",
+    "text": "Who is the beta partner for Foxglove?",
+    "subject": "Foxglove",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "answer \"Stonecrop\"",
+    "actual": "answer \"Stonecrop\"",
+    "verdict": "correct",
+    "explanation": "This replaced 1 earlier value and nothing has superseded it.",
+    "trace": [
+      "Found \"Foxglove\" as a project with 2 claims about it.",
+      "Read 2 \"beta_partner\" claims about \"Foxglove\", 1 of them superseded.",
+      "One current claim stands: \"Stonecrop\", stated 2025-01-26T10:48:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 134.3,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-06",
+    "kind": "revised",
+    "text": "What budget code does Gallowtree bill to?",
+    "subject": "Gallowtree",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "answer \"BC-2688\"",
+    "actual": "answer \"BC-2688\"",
+    "verdict": "correct",
+    "explanation": "This replaced 1 earlier value and nothing has superseded it.",
+    "trace": [
+      "Found \"Gallowtree\" as a project with 3 claims about it.",
+      "Read 2 \"budget_code\" claims about \"Gallowtree\", 1 of them superseded.",
+      "One current claim stands: \"BC-2688\", stated 2025-01-18T09:42:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 137.1,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-07",
+    "kind": "revised",
+    "text": "What budget code does Harrowfield bill to?",
+    "subject": "Harrowfield",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "answer \"BC-6228\"",
+    "actual": "answer \"BC-6228\"",
+    "verdict": "correct",
+    "explanation": "This replaced 1 earlier value and nothing has superseded it.",
+    "trace": [
+      "Found \"Harrowfield\" as a project with 4 claims about it.",
+      "Read 2 \"budget_code\" claims about \"Harrowfield\", 1 of them superseded.",
+      "One current claim stands: \"BC-6228\", stated 2025-03-11T11:18:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 136.1,
+    "queries": 4
+  },
+  {
+    "id": "q-revised-08",
+    "kind": "revised",
+    "text": "Who is the beta partner for Inkwell?",
+    "subject": "Inkwell",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "answer \"Ironwick\"",
+    "actual": "answer \"Ironwick\"",
+    "verdict": "correct",
+    "explanation": "This replaced 1 earlier value and nothing has superseded it.",
+    "trace": [
+      "Found \"Inkwell\" as a project with 2 claims about it.",
+      "Read 2 \"beta_partner\" claims about \"Inkwell\", 1 of them superseded.",
+      "One current claim stands: \"Ironwick\", stated 2025-04-12T12:54:00.000Z."
+    ],
+    "citations": 1,
+    "ms": 131.5,
+    "queries": 4
+  },
+  {
+    "id": "q-retracted-01",
+    "kind": "retracted",
+    "text": "When does Junco launch?",
+    "subject": "Junco",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "abstain retracted",
+    "actual": "abstain retracted",
+    "verdict": "correct",
+    "explanation": "No answer given, because this was stated and later withdrawn, and nothing replaced it.",
+    "trace": [
+      "Found \"Junco\" as a project with 3 claims about it.",
+      "Read 2 \"launch_date\" claims about \"Junco\", 1 of them superseded.",
+      "The current claim withdraws the earlier value and puts nothing in its place."
+    ],
+    "citations": 2,
+    "ms": 195.6,
+    "queries": 5
+  },
+  {
+    "id": "q-retracted-02",
+    "kind": "retracted",
+    "text": "Who is the beta partner for Kestrel?",
+    "subject": "Kestrel",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "abstain retracted",
+    "actual": "abstain retracted",
+    "verdict": "correct",
+    "explanation": "No answer given, because this was stated and later withdrawn, and nothing replaced it.",
+    "trace": [
+      "Found \"Kestrel\" as a project with 3 claims about it.",
+      "Read 2 \"beta_partner\" claims about \"Kestrel\", 1 of them superseded.",
+      "The current claim withdraws the earlier value and puts nothing in its place."
+    ],
+    "citations": 2,
+    "ms": 179.4,
+    "queries": 5
+  },
+  {
+    "id": "q-retracted-03",
+    "kind": "retracted",
+    "text": "When does Lowbank launch?",
+    "subject": "Lowbank",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "abstain retracted",
+    "actual": "abstain retracted",
+    "verdict": "correct",
+    "explanation": "No answer given, because this was stated and later withdrawn, and nothing replaced it.",
+    "trace": [
+      "Found \"Lowbank\" as a project with 3 claims about it.",
+      "Read 2 \"launch_date\" claims about \"Lowbank\", 1 of them superseded.",
+      "The current claim withdraws the earlier value and puts nothing in its place."
+    ],
+    "citations": 2,
+    "ms": 186.3,
+    "queries": 5
+  },
+  {
+    "id": "q-retracted-04",
+    "kind": "retracted",
+    "text": "Who owns Marrowdale?",
+    "subject": "Marrowdale",
+    "predicate": "owner",
+    "via": null,
+    "expected": "abstain retracted",
+    "actual": "abstain retracted",
+    "verdict": "correct",
+    "explanation": "No answer given, because this was stated and later withdrawn, and nothing replaced it.",
+    "trace": [
+      "Found \"Marrowdale\" as a project with 2 claims about it.",
+      "Read 2 \"owner\" claims about \"Marrowdale\", 1 of them superseded.",
+      "The current claim withdraws the earlier value and puts nothing in its place."
+    ],
+    "citations": 2,
+    "ms": 166.1,
+    "queries": 5
+  },
+  {
+    "id": "q-retracted-05",
+    "kind": "retracted",
+    "text": "What is the status of ledger-api?",
+    "subject": "ledger-api",
+    "predicate": "status",
+    "via": null,
+    "expected": "abstain retracted",
+    "actual": "abstain retracted",
+    "verdict": "correct",
+    "explanation": "No answer given, because this was stated and later withdrawn, and nothing replaced it.",
+    "trace": [
+      "Found \"ledger-api\" as a service with 3 claims about it.",
+      "Read 2 \"status\" claims about \"ledger-api\", 1 of them superseded.",
+      "The current claim withdraws the earlier value and puts nothing in its place."
+    ],
+    "citations": 2,
+    "ms": 192.1,
+    "queries": 5
+  },
+  {
+    "id": "q-retracted-06",
+    "kind": "retracted",
+    "text": "Who owns ingest-worker?",
+    "subject": "ingest-worker",
+    "predicate": "owner",
+    "via": null,
+    "expected": "abstain retracted",
+    "actual": "abstain retracted",
+    "verdict": "correct",
+    "explanation": "No answer given, because this was stated and later withdrawn, and nothing replaced it.",
+    "trace": [
+      "Found \"ingest-worker\" as a service with 2 claims about it.",
+      "Read 2 \"owner\" claims about \"ingest-worker\", 1 of them superseded.",
+      "The current claim withdraws the earlier value and puts nothing in its place."
+    ],
+    "citations": 2,
+    "ms": 170.7,
+    "queries": 5
+  },
+  {
+    "id": "q-contradicted-01",
+    "kind": "contradicted",
+    "text": "What budget code does notify-relay bill to?",
+    "subject": "notify-relay",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "abstain contradicted",
+    "actual": "abstain contradicted",
+    "verdict": "correct",
+    "explanation": "No answer given, because the sessions disagree and nothing resolves the disagreement.",
+    "trace": [
+      "Found \"notify-relay\" as a service with 3 claims about it.",
+      "Read 2 \"budget_code\" claims about \"notify-relay\".",
+      "Two current claims disagree: \"BC-9699\" and \"BC-6530\". Nothing supersedes either."
+    ],
+    "citations": 2,
+    "ms": 186.1,
+    "queries": 5
+  },
+  {
+    "id": "q-contradicted-02",
+    "kind": "contradicted",
+    "text": "How long is an on-call rotation for tenant-router?",
+    "subject": "tenant-router",
+    "predicate": "on_call_length",
+    "via": null,
+    "expected": "abstain contradicted",
+    "actual": "abstain contradicted",
+    "verdict": "correct",
+    "explanation": "No answer given, because the sessions disagree and nothing resolves the disagreement.",
+    "trace": [
+      "Found \"tenant-router\" as a service with 2 claims about it.",
+      "Read 2 \"on_call_length\" claims about \"tenant-router\".",
+      "Two current claims disagree: \"14 days\" and \"7 days\". Nothing supersedes either."
+    ],
+    "citations": 2,
+    "ms": 150.2,
+    "queries": 5
+  },
+  {
+    "id": "q-contradicted-03",
+    "kind": "contradicted",
+    "text": "What is the status of audit-sink?",
+    "subject": "audit-sink",
+    "predicate": "status",
+    "via": null,
+    "expected": "abstain contradicted",
+    "actual": "abstain contradicted",
+    "verdict": "correct",
+    "explanation": "No answer given, because the sessions disagree and nothing resolves the disagreement.",
+    "trace": [
+      "Found \"audit-sink\" as a service with 2 claims about it.",
+      "Read 2 \"status\" claims about \"audit-sink\".",
+      "Two current claims disagree: \"paused\" and \"in review\". Nothing supersedes either."
+    ],
+    "citations": 2,
+    "ms": 180.4,
+    "queries": 5
+  },
+  {
+    "id": "q-contradicted-04",
+    "kind": "contradicted",
+    "text": "When is the migration window for media-thumbs?",
+    "subject": "media-thumbs",
+    "predicate": "migration_window",
+    "via": null,
+    "expected": "abstain contradicted",
+    "actual": "abstain contradicted",
+    "verdict": "correct",
+    "explanation": "No answer given, because the sessions disagree and nothing resolves the disagreement.",
+    "trace": [
+      "Found \"media-thumbs\" as a service with 3 claims about it.",
+      "Read 2 \"migration_window\" claims about \"media-thumbs\".",
+      "Two current claims disagree: \"the weekend of 9 February 2026\" and \"the weekend of 1 April 2025\". Nothing supersedes either."
+    ],
+    "citations": 2,
+    "ms": 186.7,
+    "queries": 5
+  },
+  {
+    "id": "q-contradicted-05",
+    "kind": "contradicted",
+    "text": "Which region does search-shard run in?",
+    "subject": "search-shard",
+    "predicate": "region",
+    "via": null,
+    "expected": "abstain contradicted",
+    "actual": "abstain contradicted",
+    "verdict": "correct",
+    "explanation": "No answer given, because the sessions disagree and nothing resolves the disagreement.",
+    "trace": [
+      "Found \"search-shard\" as a service with 3 claims about it.",
+      "Read 2 \"region\" claims about \"search-shard\".",
+      "Two current claims disagree: \"Frankfurt\" and \"Toronto\". Nothing supersedes either."
+    ],
+    "citations": 2,
+    "ms": 180,
+    "queries": 5
+  },
+  {
+    "id": "q-contradicted-06",
+    "kind": "contradicted",
+    "text": "Who maintains the runbook for billing-gate?",
+    "subject": "billing-gate",
+    "predicate": "runbook_owner",
+    "via": null,
+    "expected": "abstain contradicted",
+    "actual": "abstain contradicted",
+    "verdict": "correct",
+    "explanation": "No answer given, because the sessions disagree and nothing resolves the disagreement.",
+    "trace": [
+      "Found \"billing-gate\" as a service with 3 claims about it.",
+      "Read 2 \"runbook_owner\" claims about \"billing-gate\".",
+      "Two current claims disagree: \"Rasmus Berg\" and \"Priya Raman\". Nothing supersedes either."
+    ],
+    "citations": 2,
+    "ms": 187.8,
+    "queries": 5
+  },
+  {
+    "id": "q-multi_hop-01",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind replay-queue?",
+    "subject": "replay-queue",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Farah Haddad\"",
+    "actual": "answer \"Farah Haddad\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"replay-queue\" as a service with 2 claims about it.",
+      "Followed \"vendor\" from \"replay-queue\" to \"Northfold\".",
+      "Read 1 \"contact\" claim about \"Northfold\".",
+      "One current claim stands: \"Farah Haddad\", stated 2025-03-23T09:18:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 281.7,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-02",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind schema-guard?",
+    "subject": "schema-guard",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Hiroshi Tanabe\"",
+    "actual": "answer \"Hiroshi Tanabe\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"schema-guard\" as a service with 2 claims about it.",
+      "Followed \"vendor\" from \"schema-guard\" to \"Baycross\".",
+      "Read 1 \"contact\" claim about \"Baycross\".",
+      "One current claim stands: \"Hiroshi Tanabe\", stated 2025-02-13T09:18:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 259.1,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-03",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind quota-broker?",
+    "subject": "quota-broker",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Priya Raman\"",
+    "actual": "answer \"Priya Raman\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"quota-broker\" as a service with 2 claims about it.",
+      "Followed \"vendor\" from \"quota-broker\" to \"Emberline\".",
+      "Read 1 \"contact\" claim about \"Emberline\".",
+      "One current claim stands: \"Priya Raman\", stated 2025-02-09T10:48:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 295.2,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-04",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind trace-collector?",
+    "subject": "trace-collector",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Daniel Okafor\"",
+    "actual": "answer \"Daniel Okafor\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"trace-collector\" as a service with 1 claim about it.",
+      "Followed \"vendor\" from \"trace-collector\" to \"Grovewell\".",
+      "Read 1 \"contact\" claim about \"Grovewell\".",
+      "One current claim stands: \"Daniel Okafor\", stated 2025-03-31T12:48:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 284.9,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-05",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind session-mint?",
+    "subject": "session-mint",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Yara Bekele\"",
+    "actual": "answer \"Yara Bekele\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"session-mint\" as a service with 3 claims about it.",
+      "Followed \"vendor\" from \"session-mint\" to \"Halverd\".",
+      "Read 1 \"contact\" claim about \"Halverd\".",
+      "One current claim stands: \"Yara Bekele\", stated 2025-04-22T11:36:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 285.3,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-06",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind export-runner?",
+    "subject": "export-runner",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Tomas Herrera\"",
+    "actual": "answer \"Tomas Herrera\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"export-runner\" as a service with 1 claim about it.",
+      "Followed \"vendor\" from \"export-runner\" to \"Ironwick\".",
+      "Read 1 \"contact\" claim about \"Ironwick\".",
+      "One current claim stands: \"Tomas Herrera\", stated 2025-03-03T11:00:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 258.3,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-07",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind edge-cache?",
+    "subject": "edge-cache",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Lucas Duarte\"",
+    "actual": "answer \"Lucas Duarte\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"edge-cache\" as a service with 2 claims about it.",
+      "Followed \"vendor\" from \"edge-cache\" to \"Kingsloe\".",
+      "Read 1 \"contact\" claim about \"Kingsloe\".",
+      "One current claim stands: \"Lucas Duarte\", stated 2025-03-17T09:24:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 261.6,
+    "queries": 8
+  },
+  {
+    "id": "q-multi_hop-08",
+    "kind": "multi_hop",
+    "text": "Who is our contact for the vendor behind dead-letter-sweeper?",
+    "subject": "dead-letter-sweeper",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "answer \"Anneke Vos\"",
+    "actual": "answer \"Anneke Vos\"",
+    "verdict": "correct",
+    "explanation": "Stated once and never contradicted or withdrawn.",
+    "trace": [
+      "Found \"dead-letter-sweeper\" as a service with 3 claims about it.",
+      "Followed \"vendor\" from \"dead-letter-sweeper\" to \"Lathefield\".",
+      "Read 1 \"contact\" claim about \"Lathefield\".",
+      "One current claim stands: \"Anneke Vos\", stated 2025-05-04T11:54:00.000Z."
+    ],
+    "citations": 2,
+    "ms": 319.7,
+    "queries": 8
+  },
+  {
+    "id": "q-unconnected-01",
+    "kind": "unconnected",
+    "text": "Who is our contact for the vendor behind Meridian?",
+    "subject": "Meridian",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "abstain unconnected",
+    "actual": "abstain unconnected",
+    "verdict": "correct",
+    "explanation": "No answer given, because the pieces exist but the link between them was never stated.",
+    "trace": [
+      "Found \"Meridian\" as a project with 2 claims about it.",
+      "Followed \"vendor\" from \"Meridian\" to \"Millbrace\".",
+      "\"Millbrace\" is in the graph, but nothing states its \"contact\"."
+    ],
+    "citations": 1,
+    "ms": 262.1,
+    "queries": 7
+  },
+  {
+    "id": "q-unconnected-02",
+    "kind": "unconnected",
+    "text": "Who is our contact for the vendor behind Ostara?",
+    "subject": "Ostara",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "abstain unconnected",
+    "actual": "abstain unconnected",
+    "verdict": "correct",
+    "explanation": "No answer given, because the pieces exist but the link between them was never stated.",
+    "trace": [
+      "Found \"Ostara\" as a project with 3 claims about it.",
+      "Followed \"vendor\" from \"Ostara\" to \"Netherby\".",
+      "\"Netherby\" is in the graph, but nothing states its \"contact\"."
+    ],
+    "citations": 1,
+    "ms": 251.2,
+    "queries": 7
+  },
+  {
+    "id": "q-unconnected-03",
+    "kind": "unconnected",
+    "text": "Who is our contact for the vendor behind Vireo?",
+    "subject": "Vireo",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "abstain unconnected",
+    "actual": "abstain unconnected",
+    "verdict": "correct",
+    "explanation": "No answer given, because the pieces exist but the link between them was never stated.",
+    "trace": [
+      "Found \"Vireo\" as a project with 3 claims about it.",
+      "Followed \"vendor\" from \"Vireo\" to \"Pellmoor\".",
+      "\"Pellmoor\" is in the graph, but nothing states its \"contact\"."
+    ],
+    "citations": 1,
+    "ms": 231.2,
+    "queries": 7
+  },
+  {
+    "id": "q-unconnected-04",
+    "kind": "unconnected",
+    "text": "Who is our contact for the vendor behind Cindermark?",
+    "subject": "Cindermark",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "abstain unconnected",
+    "actual": "abstain unconnected",
+    "verdict": "correct",
+    "explanation": "No answer given, because the pieces exist but the link between them was never stated.",
+    "trace": [
+      "Found \"Cindermark\" as a project with 3 claims about it.",
+      "Followed \"vendor\" from \"Cindermark\" to \"Quarrenden\".",
+      "\"Quarrenden\" is in the graph, but nothing states its \"contact\"."
+    ],
+    "citations": 1,
+    "ms": 243.4,
+    "queries": 7
+  },
+  {
+    "id": "q-unconnected-05",
+    "kind": "unconnected",
+    "text": "Who is our contact for the vendor behind Halcyon?",
+    "subject": "Halcyon",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "abstain unconnected",
+    "actual": "abstain unconnected",
+    "verdict": "correct",
+    "explanation": "No answer given, because the pieces exist but the link between them was never stated.",
+    "trace": [
+      "Found \"Halcyon\" as a project with 2 claims about it.",
+      "Followed \"vendor\" from \"Halcyon\" to \"Rushmere\".",
+      "\"Rushmere\" is in the graph, but nothing states its \"contact\"."
+    ],
+    "citations": 1,
+    "ms": 227.5,
+    "queries": 7
+  },
+  {
+    "id": "q-unconnected-06",
+    "kind": "unconnected",
+    "text": "Who is our contact for the vendor behind Larkspur?",
+    "subject": "Larkspur",
+    "predicate": "contact",
+    "via": "vendor",
+    "expected": "abstain unconnected",
+    "actual": "abstain unconnected",
+    "verdict": "correct",
+    "explanation": "No answer given, because the pieces exist but the link between them was never stated.",
+    "trace": [
+      "Found \"Larkspur\" as a project with 3 claims about it.",
+      "Followed \"vendor\" from \"Larkspur\" to \"Stonecrop\".",
+      "\"Stonecrop\" is in the graph, but nothing states its \"contact\"."
+    ],
+    "citations": 1,
+    "ms": 245,
+    "queries": 7
+  },
+  {
+    "id": "q-never_stated-01",
+    "kind": "never_stated",
+    "text": "When is the migration window for Meridian?",
+    "subject": "Meridian",
+    "predicate": "migration_window",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Meridian\" as a project with 2 claims about it.",
+      "Nothing states a \"migration_window\" for \"Meridian\"."
+    ],
+    "citations": 0,
+    "ms": 115.2,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-02",
+    "kind": "never_stated",
+    "text": "When is the migration window for Ostara?",
+    "subject": "Ostara",
+    "predicate": "migration_window",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Ostara\" as a project with 3 claims about it.",
+      "Nothing states a \"migration_window\" for \"Ostara\"."
+    ],
+    "citations": 0,
+    "ms": 133.7,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-03",
+    "kind": "never_stated",
+    "text": "Who owns Vireo?",
+    "subject": "Vireo",
+    "predicate": "owner",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Vireo\" as a project with 3 claims about it.",
+      "Nothing states a \"owner\" for \"Vireo\"."
+    ],
+    "citations": 0,
+    "ms": 138.9,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-04",
+    "kind": "never_stated",
+    "text": "What is the status of Cindermark?",
+    "subject": "Cindermark",
+    "predicate": "status",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Cindermark\" as a project with 3 claims about it.",
+      "Nothing states a \"status\" for \"Cindermark\"."
+    ],
+    "citations": 0,
+    "ms": 114.5,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-05",
+    "kind": "never_stated",
+    "text": "When does Halcyon launch?",
+    "subject": "Halcyon",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Halcyon\" as a project with 2 claims about it.",
+      "Nothing states a \"launch_date\" for \"Halcyon\"."
+    ],
+    "citations": 0,
+    "ms": 94.8,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-06",
+    "kind": "never_stated",
+    "text": "What is the status of Larkspur?",
+    "subject": "Larkspur",
+    "predicate": "status",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Larkspur\" as a project with 3 claims about it.",
+      "Nothing states a \"status\" for \"Larkspur\"."
+    ],
+    "citations": 0,
+    "ms": 110.5,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-07",
+    "kind": "never_stated",
+    "text": "What budget code does Ninebark bill to?",
+    "subject": "Ninebark",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Ninebark\" as a project with 2 claims about it.",
+      "Nothing states a \"budget_code\" for \"Ninebark\"."
+    ],
+    "citations": 0,
+    "ms": 107.4,
+    "queries": 3
+  },
+  {
+    "id": "q-never_stated-08",
+    "kind": "never_stated",
+    "text": "What budget code does Quillon bill to?",
+    "subject": "Quillon",
+    "predicate": "budget_code",
+    "via": null,
+    "expected": "abstain never_stated",
+    "actual": "abstain never_stated",
+    "verdict": "correct",
+    "explanation": "No answer given, because nothing in the sessions ever stated this.",
+    "trace": [
+      "Found \"Quillon\" as a project with 1 claim about it.",
+      "Nothing states a \"budget_code\" for \"Quillon\"."
+    ],
+    "citations": 0,
+    "ms": 125.9,
+    "queries": 3
+  },
+  {
+    "id": "q-out_of_scope-01",
+    "kind": "out_of_scope",
+    "text": "When does Redshank launch?",
+    "subject": "Redshank",
+    "predicate": "launch_date",
+    "via": null,
+    "expected": "abstain out_of_scope",
+    "actual": "abstain out_of_scope",
+    "verdict": "correct",
+    "explanation": "No answer given, because this subject never appears in the sessions at all.",
+    "trace": [
+      "Looked for an entity named \"Redshank\". No node carries that name."
+    ],
+    "citations": 0,
+    "ms": 50.2,
+    "queries": 1
+  },
+  {
+    "id": "q-out_of_scope-02",
+    "kind": "out_of_scope",
+    "text": "Who owns Windrose?",
+    "subject": "Windrose",
+    "predicate": "owner",
+    "via": null,
+    "expected": "abstain out_of_scope",
+    "actual": "abstain out_of_scope",
+    "verdict": "correct",
+    "explanation": "No answer given, because this subject never appears in the sessions at all.",
+    "trace": [
+      "Looked for an entity named \"Windrose\". No node carries that name."
+    ],
+    "citations": 0,
+    "ms": 51.4,
+    "queries": 1
+  },
+  {
+    "id": "q-out_of_scope-03",
+    "kind": "out_of_scope",
+    "text": "Who owns Yarrowmere?",
+    "subject": "Yarrowmere",
+    "predicate": "owner",
+    "via": null,
+    "expected": "abstain out_of_scope",
+    "actual": "abstain out_of_scope",
+    "verdict": "correct",
+    "explanation": "No answer given, because this subject never appears in the sessions at all.",
+    "trace": [
+      "Looked for an entity named \"Yarrowmere\". No node carries that name."
+    ],
+    "citations": 0,
+    "ms": 56.7,
+    "queries": 1
+  },
+  {
+    "id": "q-out_of_scope-04",
+    "kind": "out_of_scope",
+    "text": "Who is the beta partner for Zephyrgate?",
+    "subject": "Zephyrgate",
+    "predicate": "beta_partner",
+    "via": null,
+    "expected": "abstain out_of_scope",
+    "actual": "abstain out_of_scope",
+    "verdict": "correct",
+    "explanation": "No answer given, because this subject never appears in the sessions at all.",
+    "trace": [
+      "Looked for an entity named \"Zephyrgate\". No node carries that name."
+    ],
+    "citations": 0,
+    "ms": 44,
+    "queries": 1
+  },
+  {
+    "id": "q-out_of_scope-05",
+    "kind": "out_of_scope",
+    "text": "Who owns Brackenhall?",
+    "subject": "Brackenhall",
+    "predicate": "owner",
+    "via": null,
+    "expected": "abstain out_of_scope",
+    "actual": "abstain out_of_scope",
+    "verdict": "correct",
+    "explanation": "No answer given, because this subject never appears in the sessions at all.",
+    "trace": [
+      "Looked for an entity named \"Brackenhall\". No node carries that name."
+    ],
+    "citations": 0,
+    "ms": 43.3,
+    "queries": 1
+  },
+  {
+    "id": "q-out_of_scope-06",
+    "kind": "out_of_scope",
+    "text": "Which region does Duskmoor run in?",
+    "subject": "Duskmoor",
+    "predicate": "region",
+    "via": null,
+    "expected": "abstain out_of_scope",
+    "actual": "abstain out_of_scope",
+    "verdict": "correct",
+    "explanation": "No answer given, because this subject never appears in the sessions at all.",
+    "trace": [
+      "Looked for an entity named \"Duskmoor\". No node carries that name."
+    ],
+    "citations": 0,
+    "ms": 56.5,
+    "queries": 1
+  }
+]

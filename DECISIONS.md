@@ -658,3 +658,146 @@ The code was never wrong. `plan.counts` is computed from the edges the plan
 actually holds, and the contract test diffs live counts against it. Only the prose
 had a stale number in it, which is exactly the kind of thing a project claiming to
 be about not lying should write down rather than quietly fix.
+
+### D-026: A question is a structure, and the parser may read nothing but the text
+
+`RetrievalQuestion` is `{ subject, predicate, via }`. `parseVia` pulls the
+relation out of a hop question and returns `null` for a direct one, and that is
+the entire natural language surface. No synonym table, no embedding, no model.
+
+The reason is not simplicity. It is that the evaluation has to mean something.
+Two of the sixty gold questions are these:
+
+```
+Who is our contact for the vendor behind replay-queue?
+Who is our contact for the vendor behind Meridian?
+```
+
+One is answerable and one is not, and nothing in either sentence says which. If
+the parser could see the answer, or could be tuned until it saw the answer, the
+`multi_hop` and `unconnected` scores would be measuring the parser. Both parse
+to the same predicate and the same relation, a unit test asserts that equality
+directly, and a contract test asserts it again against the live node before
+checking that the graph separates them. The distinction has nowhere to come from
+except the edges.
+
+The cost is that the parser is narrow. It handles the shapes the corpus uses and
+would need work for anything else. That is the honest trade and it is stated here
+rather than hidden behind a demo that only ever types the sentences it likes.
+
+### D-027: The subject is resolved by name through the graph, never derived client side
+
+Ingest assigns vertex ids from a hash, so the client could compute an id for a
+name without asking. It does not. `entityByName` runs a parameterised match and
+zero rows is the answer `out_of_scope`.
+
+Deriving the id locally would make a question about a name the graph has never
+held indistinguishable from a question about a name whose ingest failed. Both
+would produce an id, one query, and an empty result that looks like an absence of
+claims rather than an absence of the entity. Asking costs one query, which is the
+cheapest question in the system, and it is the query that separates "never
+mentioned" from "mentioned, nothing said".
+
+It also keeps the id derivation on one side of the wire. If ingest changes how it
+hashes, retrieval does not silently start missing.
+
+### D-028: One function chooses the hop target, and disagreeing with it is a crash
+
+`selectHopTarget` is called twice per hop question: once by the fetcher, to know
+which entity to load, and once by the resolver, to know which entity it is
+answering about. Two call sites, one function, no second implementation.
+
+If the resolver's choice does not match the bridge the view carries, it throws
+`RetrievalConsistencyError` rather than answering. That is not defensive noise on
+an impossible branch. It is the one failure that would produce a confident answer
+citing the wrong node, which is the exact failure this product exists to refuse,
+and a crash is the correct response to it.
+
+Four outcomes, all four tested: `none` becomes `never_stated`, `retracted` stays
+`retracted`, `ambiguous` becomes `contradicted` before any hop is attempted, and
+`one` hops.
+
+### D-029: The decision procedure is ordered, and the order is the product
+
+`resolve` runs a fixed sequence and returns at the first thing that settles it:
+
+1. No entity by that name. `out_of_scope`.
+2. Hop requested: no relation stated, withdrawn, or stated two ways. `never_stated`, `retracted`, `contradicted`.
+3. No claims on the predicate. `unconnected` if a hop landed, `never_stated` if not.
+4. Claims exist: all superseded, or the survivor is a withdrawal. `retracted`.
+5. Two current claims with different values. `contradicted`.
+6. One value stands. Answer it.
+
+The order matters more than any individual rule. Checking for contradiction
+before checking for supersession would report disagreement between a value and
+the value that replaced it, which is a revision and not a disagreement at all.
+Checking supersession before the hop would answer about the wrong entity. Every
+step also appends a line to `trace`, so the screens do not reconstruct the
+reasoning afterwards. They print the path that was actually taken.
+
+### D-030: An abstention after a hop still cites the hop
+
+`never_stated` and `out_of_scope` cite nothing, because nothing was found.
+`unconnected` cites exactly one claim: the step it took to get there.
+
+This looked wrong enough that a contract test was written asserting all three
+absences quote nothing, and it failed against the live node:
+
+```
+AssertionError: expected [ { claimId: 4025327511019719, …(9) } ] to deeply equal []
++     "quote": "Meridian is supplied by Millbrace.",
++     "sessionTitle": "Payments operations check-in",
+```
+
+The test was wrong and the behaviour is right. "Meridian is supplied by
+Millbrace, and nothing states a contact for Millbrace" is a different and far
+more useful finding than "no". It tells the reader where to go and ask. The
+absence is at the far end of the hop, and the near end is a real fact with a real
+quotation behind it, so it gets quoted. Suppressing it would have made the
+system less honest, not more.
+
+The test is now split in two and both halves pass.
+
+### D-031: Abstention is the positive class, and the evaluation runs one question at a time
+
+`scripts/evaluate.ts` scores precision, recall and F1 with abstention as the
+positive class, not answering. A system that answers everything is the failure
+mode being measured, so the metric has to make that failure visible rather than
+average it away. The report also prints the four failure shapes separately, and
+`false_answer`, an answer given where nothing supports one, is the one that
+matters. It is reported on its own line whatever the headline says.
+
+The sixty questions run sequentially. Running them concurrently would finish
+sooner and would turn every latency number into a measurement of contention
+instead of the query path. Percentiles are nearest-rank with no interpolation, so
+every printed latency is an observation that actually happened rather than an
+average of two that did.
+
+### D-032: The evaluation prints what it does not prove, in the artifact itself
+
+The full sweep scores 60 of 60, run twice. The first run was p50 197.6ms, p95
+318.9ms, max 379.5ms. The second is the one in
+[artifacts/eval/report.txt](artifacts/eval/report.txt) and is quoted here so the
+record and the artifact cannot drift apart:
+
+```
+Questions        60
+Exact correct    60  (100.0%)
+Unsupported answers  0  (0.0% of all questions)
+  p50   145.3ms
+  p95   284.9ms
+  max   319.7ms
+  total 276 queries
+```
+
+A bare 100% would read as a product claim it cannot support. The corpus is
+generated, and the graph is built from the same annotations the questions are
+scored against, so a perfect score says the structure survives the round trip:
+revision, retraction and disagreement are still distinguishable after ingestion,
+and the resolver reads them the way the corpus wrote them. It is a correctness
+check on the pipeline. It is not evidence that the approach beats anything.
+
+That paragraph is printed into `artifacts/eval/report.txt` by the script, not
+just written here, so the number cannot travel without its caveat attached. The
+comparison against recency, lexical, vector and hybrid retrieval is a separate
+harness on the same corpus. That is where an advantage has to be earned.

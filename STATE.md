@@ -272,17 +272,78 @@ What exists right now. Updated as things change, and never ahead of them.
   `ingest-run`, and 7 of the contract cases, which ingest a fixture corpus twice
   against the live node and diff the counts rather than trusting the report.
 
+- **Retrieval and abstention exist, and answer the sixty gold questions against
+  the live graph.** `src/retrieval/` is eight files: the question structure and
+  its parser, the read query builders, the row decoders, the fetcher, the
+  decision procedure, the typed errors, the shared types and the entry point.
+  `scripts/ask.ts` asks one question and prints the whole path it took.
+  `scripts/evaluate.ts` asks all sixty and writes its raw output to
+  [artifacts/eval/](artifacts/eval/report.txt).
+
+  The decision procedure is ordered and returns at the first thing that settles
+  the question, with every step appended to a trace the screens will print rather
+  than reconstruct. The order is in [D-029](DECISIONS.md). The parser reads the
+  question text and nothing else, which is what makes the `multi_hop` and
+  `unconnected` scores mean anything: both questions parse identically and only
+  the graph separates them, asserted in a unit test and again against the live
+  node. See [D-026](DECISIONS.md).
+
+  Real output, 2026-08-13, node up, unedited in
+  [artifacts/eval/test-run-2026-08-13.txt](artifacts/eval/test-run-2026-08-13.txt):
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run tests/unit
+   Test Files  14 passed (14)
+        Tests  242 passed (242)
+     Duration  5.37s
+  UNIT_EXIT=0
+
+  > vitest run tests/contract
+   Test Files  3 passed (3)
+        Tests  40 passed (40)
+     Duration  37.20s
+  CONTRACT_EXIT=0
+
+  > vitest run
+   Test Files  17 passed (17)
+        Tests  282 passed (282)
+     Duration  44.42s
+  TESTALL_EXIT=0
+  ```
+
+  Retrieval contributes 77 of the unit cases across four files and 20 of the
+  contract cases. The contract suite fails rather than skips when the node is
+  empty, because an empty graph returns `out_of_scope` for everything, which
+  would turn every abstention case green for the wrong reason.
+
+  The full sweep scores 60 of 60 with zero unsupported answers and abstention
+  precision, recall and F1 all 1.000, at p50 145.3ms and p95 284.9ms across 276
+  queries. **That number is a correctness check on the pipeline and nothing
+  more.** The corpus is generated and the graph is built from the same
+  annotations the questions are scored against, so a perfect score says revision,
+  retraction and disagreement survive ingestion and are still distinguishable
+  afterwards. It is not evidence that this beats anything. The script prints that
+  caveat into the report itself so the number cannot travel without it. See
+  [D-032](DECISIONS.md).
+
+  One contract assertion was written wrong and failed against the live node: it
+  claimed all three absence reasons quote nothing, and `unconnected` quotes the
+  hop it took. The behaviour is right and the test was corrected rather than the
+  code, with the reasoning in [D-030](DECISIONS.md).
+
 ## In progress
 
-- Nothing. Ingestion was the open item and it is finished. Retrieval and
-  abstention are next, and no line of either exists yet.
+- Nothing. Retrieval and abstention were the open item and they are finished.
+  The four screens are next, and no line of any of them exists yet.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
-- No application code above the adapter and the ingest layer
-- No retrieval or abstention logic
+- No application code above the adapter, the ingest layer and retrieval
 - No user interface
 - No CI
 - No benchmark harness, and therefore no numbers of any kind

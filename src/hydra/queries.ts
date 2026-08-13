@@ -98,6 +98,37 @@ export function mergeEdge(edgeType: string, srcId: number, dstId: number): Prepa
 }
 
 /**
+ * Every vertex carrying one label, with its id and stored canonical key.
+ *
+ * A label on its own counts as a predicate here. The engine's usual refusal for
+ * a node-only MATCH ("MATCH without a predicate is not executable") does not
+ * apply, which was checked against a live node rather than assumed. A label with
+ * no nodes returns zero rows rather than an error, so this is also the shape a
+ * first ingest against an empty graph reads.
+ */
+export function verticesByLabel(label: string): PreparedQuery {
+  const name = assertIdentifier(label, 'vertex label');
+  return {
+    cypher: `MATCH (n:${name}) RETURN n.id AS id, n.key AS key`,
+    parameters: {},
+  };
+}
+
+/**
+ * Removes one vertex and every edge attached to it.
+ *
+ * DETACH is not optional: a bare `DELETE n` is rejected with HTTP 400. Used by
+ * the contract tests to clean up after themselves, not by ingestion, which only
+ * ever merges.
+ */
+export function detachDeleteVertex(id: number): PreparedQuery {
+  return {
+    cypher: 'MATCH (n {id: $id}) DETACH DELETE n',
+    parameters: { id: assertVertexId(id, 'id') },
+  };
+}
+
+/**
  * Reads one property off one vertex.
  *
  * RETURN is restricted: "RETURN currently supports <binding>.<property> or

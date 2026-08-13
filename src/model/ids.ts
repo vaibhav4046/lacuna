@@ -99,6 +99,11 @@ export class IdRegistry {
     return this.#keysById.get(id);
   }
 
+  /** Every id this registry handed out, with the key it was derived from. */
+  entries(): IterableIterator<readonly [number, string]> {
+    return this.#keysById.entries();
+  }
+
   get size(): number {
     return this.#keysById.size;
   }

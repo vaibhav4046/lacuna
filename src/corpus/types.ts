@@ -110,6 +110,18 @@ export interface GoldQuestion {
   readonly expected: ExpectedAnswer;
 }
 
+/**
+ * What sort of thing an entity is. This is an annotation, of the same kind as
+ * the claim annotations: the corpus knows, because it drew the name from a
+ * pool, and ingestion would otherwise have to guess from sentence position.
+ */
+export type EntityKind = 'project' | 'service' | 'vendor' | 'person';
+
+export interface CorpusEntity {
+  readonly name: string;
+  readonly kind: EntityKind;
+}
+
 export interface CorpusStats {
   readonly sessions: number;
   readonly messages: number;
@@ -126,5 +138,7 @@ export interface Corpus {
   readonly seed: string;
   readonly sessions: readonly Session[];
   readonly questions: readonly GoldQuestion[];
+  /** Every entity the claims touch, and nothing the claims do not touch. */
+  readonly entities: readonly CorpusEntity[];
   readonly stats: CorpusStats;
 }

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { HydraGuardError } from '../../src/hydra/errors';
-import { mergeEdge, upsertVertices, vertexProperty } from '../../src/hydra/queries';
+import {
+  detachDeleteVertex,
+  mergeEdge,
+  upsertVertices,
+  verticesByLabel,
+  vertexProperty,
+} from '../../src/hydra/queries';
 
 describe('upsertVertices', () => {
   it('builds the one form the engine accepts', () => {
@@ -94,6 +100,33 @@ describe('mergeEdge', () => {
   it('refuses non-integer endpoint ids', () => {
     expect(() => mergeEdge('SUPPORTS', 1.5, 2)).toThrowError(/srcId must be/);
     expect(() => mergeEdge('SUPPORTS', 1, -2)).toThrowError(/dstId must be/);
+  });
+});
+
+describe('verticesByLabel', () => {
+  it('builds the read the collision check runs before writing', () => {
+    const q = verticesByLabel('Message');
+    expect(q.cypher).toBe('MATCH (n:Message) RETURN n.id AS id, n.key AS key');
+    expect(q.parameters).toEqual({});
+  });
+
+  it('refuses a label that is not a safe identifier', () => {
+    expect(() => verticesByLabel('Message) RETURN n.token AS id //'))
+      .toThrowError(HydraGuardError);
+  });
+});
+
+describe('detachDeleteVertex', () => {
+  it('builds a parameterised delete, with DETACH, which is not optional', () => {
+    const q = detachDeleteVertex(2000000000001);
+    expect(q.cypher).toBe('MATCH (n {id: $id}) DETACH DELETE n');
+    expect(q.parameters).toEqual({ id: 2000000000001 });
+  });
+
+  it('refuses an id that is not a non-negative safe integer', () => {
+    expect(() => detachDeleteVertex(-1)).toThrowError(/id must be/);
+    expect(() => detachDeleteVertex(1.5)).toThrowError(/id must be/);
+    expect(() => detachDeleteVertex(Number.MAX_SAFE_INTEGER + 2)).toThrowError(/id must be/);
   });
 });
 

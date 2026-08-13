@@ -459,6 +459,50 @@ td.value { font-size: 1rem; }
 
 .state.gone { color: var(--mark); }
 
+/* ---- evidence pages ----------------------------------------------------- */
+
+/* The product's own row, marked rather than moved, so it stays in rank order. */
+tr.ours td { background: var(--mark-wash); }
+tr.ours td.mono { color: var(--mark); }
+
+/* Wide tables scroll inside the panel instead of widening the page. */
+.scroll { overflow-x: auto; }
+.scroll table { min-width: 36rem; }
+
+code { font-family: var(--mono); font-size: 0.9em; color: var(--mark); overflow-wrap: anywhere; }
+
+.tally {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1px;
+  margin: 0 0 1.75rem;
+  border: 1px solid var(--rule-faint);
+  background: var(--rule-faint);
+}
+
+.tally > div { padding: 1rem 1.1rem 0.9rem; background: var(--paper-raised); }
+
+.tally b {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-lede);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.tally .mark b { color: var(--mark); }
+
+.tally span {
+  display: block;
+  margin-top: 0.45rem;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 /* ---- query proof -------------------------------------------------------- */
 
 .query { padding: 1.1rem 0; border-bottom: 1px solid var(--rule-faint); }
@@ -532,6 +576,18 @@ td.value { font-size: 1rem; }
 }
 
 .foot a { border-bottom-color: var(--rule-faint); }
+
+/* The only navigation on the site, in the footer because every page is a
+   destination rather than a step and none of them needs a chrome bar. */
+.ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  margin: 0 0 1rem;
+  font-size: var(--t-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 
 /* ---- print -------------------------------------------------------------- */
 

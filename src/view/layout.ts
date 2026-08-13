@@ -96,6 +96,9 @@ export function page(options: PageOptions): string {
 <div class="doc">
 ${options.body}
 <footer class="foot full">
+<nav class="ways" aria-label="Pages">
+<a href="/">Ask</a><a href="/bench">Benchmark</a><a href="/hydradb">Database</a><a href="/interface">Interface</a>
+</nav>
 <p>Lacuna. ${PROMISE}</p>
 <p>This page ships no JavaScript. Every sentence on it is either a fixed
 template or a quotation carried out of the graph.</p>

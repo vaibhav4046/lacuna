@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { HydraClient } from '../../src/hydra/client';
 import type { HydraConfig } from '../../src/hydra/config';
+import { loadArtifacts } from '../../src/report/load';
 import { FixedWindow } from '../../src/server/ratelimit';
 import { createHandler } from '../../src/server/server';
 import type { CorpusFacts, Example } from '../../src/view/home';
@@ -142,6 +143,7 @@ async function start(upstream: () => Response = emptyPage): Promise<Harness> {
     node: NODE,
     examples: [EXAMPLE],
     facts: FACTS,
+    artifacts: loadArtifacts(),
     limiter: new FixedWindow({ limit: 1_000, windowMs: 1_000, maxKeys: 8 }),
     log: (): void => {},
   });

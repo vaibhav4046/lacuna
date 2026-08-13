@@ -58,6 +58,21 @@ export class FixedWindow {
     return this.#buckets.size;
   }
 
+  /**
+   * The configured bounds, readable because a page states them.
+   *
+   * The interface page prints the limit a request is actually measured against,
+   * and the only way for that to stay true is for it to come from the object
+   * doing the measuring rather than from a second copy of the number.
+   */
+  get limit(): number {
+    return this.#limit;
+  }
+
+  get windowMs(): number {
+    return this.#windowMs;
+  }
+
   check(key: string, now: number): RateLimitVerdict {
     const existing = this.#buckets.get(key);
 

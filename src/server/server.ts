@@ -2,9 +2,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { HydraClient } from '../hydra/client';
 import { HydraError } from '../hydra/errors';
-import { ask, buildQuestion, RetrievalError } from '../retrieval/index';
+import type { Artifacts } from '../report/load';
+import { ask, buildQuestion, MAX_TERM_CHARS, RetrievalError } from '../retrieval/index';
+import { arenaPage } from '../view/arena';
 import { askPage } from '../view/ask';
 import { homePage, type CorpusFacts, type Example } from '../view/home';
+import { hydradbPage } from '../view/hydradb';
+import { integrationPage, type ServiceLimits } from '../view/integration';
 import { CONTENT_SECURITY_POLICY, FAVICON } from '../view/layout';
 import { noticePage, type Notice } from '../view/notice';
 import type { NodeIdentity } from '../view/proof';
@@ -12,7 +16,7 @@ import { STYLESHEET } from '../view/style';
 import { FixedWindow } from './ratelimit';
 
 /**
- * The whole product surface: two pages, one stylesheet, one icon.
+ * The whole product surface: five pages, one stylesheet, one icon.
  *
  * Everything is a GET. There is no POST endpoint, no JSON body parser and no
  * upload path, so the entire input surface of this server is a URL, and the
@@ -22,8 +26,10 @@ import { FixedWindow } from './ratelimit';
  * a chat box that posts free text to a model, would have had an input surface
  * nobody could describe in a sentence.
  *
- * The home page is rendered once at construction, because it is a pure function
- * of a seeded corpus and cannot change while the process runs.
+ * Four of the five pages are rendered once at construction. Each is a pure
+ * function of a seeded corpus, of a committed artifact file, or of the limits
+ * this server itself enforces, and none of those can change while the process
+ * runs. Only the answer page depends on the request.
  */
 
 /**
@@ -41,6 +47,8 @@ export interface ServerOptions {
   readonly node: NodeIdentity;
   readonly examples: readonly Example[];
   readonly facts: CorpusFacts;
+  /** The committed benchmark run and HydraDB capture, already parsed. */
+  readonly artifacts: Artifacts;
   readonly limiter: FixedWindow;
   /** Injected so a test can drive the limiter without touching the clock. */
   readonly now?: () => number;
@@ -75,8 +83,9 @@ const NOTICES = {
     title: 'Not found',
     heading: 'There is no page here',
     lines: [
-      'This server has two pages: the question form, and the answer to one question. '
-      + 'Anything else is a typed URL or a stale link.',
+      'This server has five pages: the question form, the answer to one question, '
+      + 'the benchmark, the database evidence and the interface. Anything else is a '
+      + 'typed URL or a stale link.',
     ],
   },
   methodNotAllowed: {
@@ -175,6 +184,26 @@ export function createHandler(options: ServerOptions): Handler {
   const log = options.log ?? ((line: string) => process.stdout.write(`${line}\n`));
 
   const home = Buffer.from(homePage(options.examples, options.facts), 'utf8');
+  const bench = Buffer.from(arenaPage(options.artifacts.bench), 'utf8');
+  const database = Buffer.from(hydradbPage(options.artifacts.hydra, node), 'utf8');
+
+  /**
+   * The bounds the interface page prints, taken from the objects that apply
+   * them rather than retyped, so the documented limit and the enforced one
+   * cannot drift apart.
+   */
+  const limits: ServiceLimits = {
+    termChars: MAX_TERM_CHARS,
+    urlChars: MAX_URL_CHARS,
+    queryTimeoutMs: QUERY_TIMEOUT_MS,
+    rateLimit: limiter.limit,
+    rateWindowMs: limiter.windowMs,
+  };
+  // Sorted by status, because the table is a list of codes rather than a record
+  // of the order the routes happen to check them in.
+  const statuses = Object.values(NOTICES).sort((left, right) => left.code - right.code);
+  const contract = Buffer.from(integrationPage(limits, statuses), 'utf8');
+
   const notices = new Map<NoticeName, Buffer>();
   for (const [name, notice] of Object.entries(NOTICES)) {
     notices.set(name as NoticeName, Buffer.from(noticePage(notice), 'utf8'));
@@ -230,6 +259,18 @@ export function createHandler(options: ServerOptions): Handler {
     }
     if (url.pathname === '/') {
       send(request, response, 200, HTML, home, { 'cache-control': 'no-store' });
+      return;
+    }
+    if (url.pathname === '/bench') {
+      send(request, response, 200, HTML, bench, { 'cache-control': 'no-store' });
+      return;
+    }
+    if (url.pathname === '/hydradb') {
+      send(request, response, 200, HTML, database, { 'cache-control': 'no-store' });
+      return;
+    }
+    if (url.pathname === '/interface') {
+      send(request, response, 200, HTML, contract, { 'cache-control': 'no-store' });
       return;
     }
     if (url.pathname !== '/ask') {

@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { HydraClient } from '../../src/hydra/client';
 import type { HydraConfig } from '../../src/hydra/config';
+import { lacuna } from '../../src/report/bench';
+import { type Artifacts, loadArtifacts } from '../../src/report/load';
 import { FixedWindow } from '../../src/server/ratelimit';
 import { createHandler, MAX_URL_CHARS } from '../../src/server/server';
 import type { CorpusFacts, Example } from '../../src/view/home';
@@ -57,6 +59,16 @@ const FACTS: CorpusFacts = {
   seed: 'lacuna-demo-v1',
 };
 
+/**
+ * The committed artifacts, read once for the whole file.
+ *
+ * These are the same files the running server reads. Using them here rather
+ * than a fixture means the evidence pages in these tests are rendered from the
+ * bytes that ship, so a benchmark file that stops parsing fails a test rather
+ * than a demo.
+ */
+const ARTIFACTS: Artifacts = loadArtifacts();
+
 /** Structurally the client's own `FetchLike`, which is not exported. */
 type Upstream = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -108,6 +120,7 @@ async function start(options: HarnessOptions = {}): Promise<Harness> {
     node: NODE,
     examples: [EXAMPLE],
     facts: FACTS,
+    artifacts: ARTIFACTS,
     limiter: options.limiter ?? new FixedWindow({ limit: 100, windowMs: 1_000, maxKeys: 8 }),
     log: (line: string): void => {
       logs.push(line);
@@ -213,6 +226,126 @@ describe('the static files', () => {
   });
 });
 
+/**
+ * The three pages that exist to be checked rather than to answer a question.
+ *
+ * Their contents are asserted in tests/unit/view-evidence.test.ts against the
+ * artifacts they are rendered from. What is left for this file is the part that
+ * only shows up over a socket: that they are reachable, that they carry the same
+ * headers as the pages that do touch the graph, and that serving them costs the
+ * node nothing. The last one is the reason they are rendered at start up. A
+ * judge reloading the evidence should not be able to spend the demo's budget.
+ */
+describe('the evidence pages', () => {
+  const EVIDENCE = ['/bench', '/hydradb', '/interface'] as const;
+
+  for (const route of EVIDENCE) {
+    it(`serves ${route} with the headers of the rest of the site`, async () => {
+      const harness = await start();
+      const response = await fetch(`${harness.origin}${route}`);
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(response.headers.get('x-frame-options')).toBe('DENY');
+      expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+      expect(response.headers.get('content-security-policy')).toContain("default-src 'none'");
+
+      expect(body).not.toContain(CONFIG.token);
+      expect(body).not.toContain(CONFIG.baseUrl);
+      expect(harness.upstreamCalls).toHaveLength(0);
+    });
+
+    it(`serves ${route} to a HEAD with the headers and none of the bytes`, async () => {
+      const harness = await start();
+      const head = await fetch(`${harness.origin}${route}`, { method: 'HEAD' });
+
+      expect(head.status).toBe(200);
+      expect(head.headers.get('content-type')).toBe('text/html; charset=utf-8');
+      expect(await head.text()).toBe('');
+      expect(Number(head.headers.get('content-length'))).toBeGreaterThan(0);
+    });
+  }
+
+  it('prints the committed run rather than a number written into the page', async () => {
+    const harness = await start();
+    const body = await (await fetch(`${harness.origin}/bench`)).text();
+    const ours = lacuna(ARTIFACTS.bench);
+
+    expect(ours).toBeDefined();
+    expect(body).toContain(`${ours!.correct}/${ours!.total}`);
+    expect(body).toContain(ARTIFACTS.bench.seed);
+  });
+
+  it('prints the commit the node evidence was captured against', async () => {
+    const harness = await start();
+    const body = await (await fetch(`${harness.origin}/hydradb`)).text();
+
+    expect(body).toContain(ARTIFACTS.hydra.provenance.commit);
+  });
+
+  it('documents every refusal this server actually emits', async () => {
+    const emitted = new Set<number>();
+    const plain = await start();
+
+    emitted.add((await fetch(`${plain.origin}/admin`)).status);
+    emitted.add((await fetch(plain.origin, { method: 'POST' })).status);
+    emitted.add((await fetch(
+      `${plain.origin}/ask?subject=${'a'.repeat(MAX_URL_CHARS + 100)}&predicate=x`,
+    )).status);
+    emitted.add((await fetch(`${plain.origin}/ask?subject=Meridian`)).status);
+    emitted.add((await fetch(`${plain.origin}/ask?subject=%00&predicate=vendor`)).status);
+
+    // Prints a line to stderr, the same as the 502 test above.
+    const unreachable = await start({
+      upstream: () => Promise.reject(new Error('connect ECONNREFUSED')),
+    });
+    emitted.add((await fetch(
+      `${unreachable.origin}/ask?subject=Meridian&predicate=launch_date`,
+    )).status);
+
+    const broken = await start({
+      upstream: () => Promise.resolve(new Response(
+        JSON.stringify({
+          query_id: 'test-query',
+          columns: ['id', 'kind'],
+          rows: [
+            [{ type: 'integer', value: 1 }, { type: 'string', value: 'product' }],
+            [{ type: 'integer', value: 2 }, { type: 'string', value: 'product' }],
+          ],
+          read_epoch: 7,
+          next_cursor: null,
+          bookmark: null,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )),
+    });
+    emitted.add((await fetch(
+      `${broken.origin}/ask?subject=Meridian&predicate=launch_date`,
+    )).status);
+
+    const throttled = await start({
+      limiter: new FixedWindow({ limit: 1, windowMs: 1_000, maxKeys: 4 }),
+      now: () => 0,
+    });
+    await (await fetch(throttled.origin)).text();
+    emitted.add((await fetch(throttled.origin)).status);
+
+    const page = await (await fetch(`${plain.origin}/interface`)).text();
+
+    // The interface page publishes the full list of statuses this server can
+    // return. Driving each one and then looking for it in the served table is
+    // what stops that list from becoming a description of an older server: a new
+    // refusal has to be documented before this passes.
+    expect([...emitted].sort()).toEqual([400, 404, 405, 414, 429, 500, 502]);
+    for (const status of emitted) {
+      expect(page).toContain(`<td class="num mono">${status}</td>`);
+    }
+  });
+});
+
 describe('the refusals', () => {
   it('refuses a method that implies a write', async () => {
     const harness = await start();
@@ -223,7 +356,7 @@ describe('the refusals', () => {
     expect(await response.text()).toContain('This server only reads');
   });
 
-  it('has nothing at a path that is not one of the two pages', async () => {
+  it('has nothing at a path that is not one of the five pages', async () => {
     const harness = await start();
     const response = await fetch(`${harness.origin}/admin`);
 

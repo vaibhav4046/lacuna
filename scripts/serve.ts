@@ -3,13 +3,14 @@ import { fileURLToPath } from 'node:url';
 
 import { HydraClient } from '../src/hydra/client';
 import { loadHydraConfig } from '../src/hydra/config';
+import { loadArtifacts } from '../src/report/load';
 import { buildDemo } from '../src/server/examples';
 import { FixedWindow } from '../src/server/ratelimit';
 import { createHandler } from '../src/server/server';
 import { describeNode } from '../src/view/proof';
 
 /**
- * Serves the two pages against a running HydraDB node.
+ * Serves the site against a running HydraDB node.
  *
  *   npm run serve
  *   PORT=8080 npm run serve
@@ -35,12 +36,16 @@ function port(): number {
 
 const config = loadHydraConfig();
 const demo = buildDemo();
+// Read once, here, so a missing or malformed artifact fails at start up with a
+// path in the message rather than on the first request for an evidence page.
+const artifacts = loadArtifacts();
 
 const server = createServer(createHandler({
   client: new HydraClient(config),
   node: describeNode(config),
   examples: demo.examples,
   facts: demo.facts,
+  artifacts,
   // One page load is three requests, so this is roughly forty page loads a
   // minute from one address: generous for a reader, a ceiling for a script.
   limiter: new FixedWindow({ limit: 120, windowMs: 60_000, maxKeys: 4_096 }),

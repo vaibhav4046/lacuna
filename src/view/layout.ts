@@ -1,0 +1,135 @@
+import { html, markup, type Html, type Renderable } from './html';
+
+/**
+ * The document shell every page is poured into.
+ *
+ * There is one shell rather than one per route because the two routes are the
+ * same document at different lengths, and because the security properties of a
+ * page live in its head. Putting the head in one place means the policy below
+ * is the policy on every response rather than the policy on the pages someone
+ * remembered.
+ */
+
+/**
+ * What this page is allowed to do, which is almost nothing.
+ *
+ * `default-src 'none'` is the whole argument: no script, no fetch, no frames,
+ * no workers, no fonts, no media. The three narrow allowances are the
+ * stylesheet, the favicon, and posting the question form back to this origin.
+ * `script-src` is stated separately even though the default already covers it,
+ * because a reader checking this line should not have to know that.
+ *
+ * The page can afford this because it has no client side code at all. Nothing
+ * here degrades without JavaScript, since there is no enhanced version.
+ *
+ * It is sent as a header by the server and mirrored into a meta element, so a
+ * page saved to disk and reopened keeps the same restrictions.
+ */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'none'",
+  "script-src 'none'",
+  "style-src 'self'",
+  "img-src 'self'",
+  "form-action 'self'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+/**
+ * The mark: a ruled line with a piece missing.
+ *
+ * Geometry only, no script, no external reference. The dark ground is
+ * deliberate so it reads against both a light and a dark browser chrome, which
+ * is the one place on screen the page does not control.
+ */
+export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">`
+  + `<rect width="32" height="32" rx="5" fill="#14120e"/>`
+  + `<path d="M5 16h7M20 16h7" stroke="#ece7da" stroke-width="2.75" stroke-linecap="round"/>`
+  + `<circle cx="16" cy="16" r="1.9" fill="#e0724b"/>`
+  + `</svg>\n`;
+
+export const PROMISE = 'Memory that knows what changed, what remains true, '
+  + 'and what was never known.';
+
+export interface PageOptions {
+  readonly title: string;
+  readonly description: string;
+  readonly body: Renderable;
+  /** An extra line in the footer, when the page has something to add there. */
+  readonly note?: Renderable;
+}
+
+export function page(options: PageOptions): string {
+  const document = html`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="${CONTENT_SECURITY_POLICY}">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="${options.description}">
+<title>${options.title}</title>
+<link rel="stylesheet" href="/lacuna.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<div class="doc">
+${options.body}
+<footer class="foot full">
+<p>Lacuna. ${PROMISE}</p>
+<p>This page ships no JavaScript. Every sentence on it is either a fixed
+template or a quotation carried out of the graph.</p>
+${options.note === undefined ? null : html`<p>${options.note}</p>`}
+</footer>
+</div>
+</body>
+</html>
+`;
+  return markup(document);
+}
+
+/** The full masthead, for the page a reader arrives at. */
+export function masthead(): Html {
+  return html`<header class="masthead full">
+<h1 class="wordmark">Lacuna</h1>
+<p class="promise">${PROMISE}</p>
+</header>`;
+}
+
+/** The compact one, for a page that is mostly a result. */
+export function mastheadCompact(subtitle: Renderable): Html {
+  return html`<header class="masthead full">
+<h1 class="wordmark compact"><a href="/">Lacuna</a></h1>
+<p class="promise">${subtitle}</p>
+</header>`;
+}
+
+export interface PanelOptions {
+  /** Its place in the reading order, printed in the margin. */
+  readonly index: number;
+  readonly label: string;
+  readonly heading: string;
+  readonly body: Renderable;
+}
+
+/**
+ * One numbered section with its label in the margin.
+ *
+ * The number is the reading order and the label is what the section is, both of
+ * which belong beside the section rather than inside it. On a narrow screen the
+ * margin has nowhere to go, so the stylesheet moves the label above the
+ * heading; the markup does not change.
+ */
+export function panel(options: PanelOptions): Html {
+  return html`<section class="panel">
+<p class="rail">${String(options.index).padStart(2, '0')}<b>${options.label}</b></p>
+<h2>${options.heading}</h2>
+${options.body}
+</section>`;
+}
+
+/** The rule between two sections, which is a thematic break and is drawn as one. */
+export function separator(): Html {
+  return html`<hr class="sep">`;
+}

@@ -10,6 +10,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "serve": "tsx scripts/serve.ts",
     "ingest": "tsx scripts/ingest.ts",
     "census": "tsx scripts/census.ts",
     "reset": "tsx scripts/reset.ts",

@@ -136,6 +136,9 @@ export function percent(numerator: number, denominator: number): string {
 export function percentile(values: readonly number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  const rank = Math.ceil((p / 100) * sorted.length);
-  return sorted[Math.min(rank, sorted.length) - 1]!;
+  // Clamped at both ends: p0 has rank zero, and reading position -1 would hand
+  // back undefined as a number. The harness only ever asks for p50 and p95, so
+  // this changes no reported figure, it removes a way to get a wrong one.
+  const rank = Math.max(1, Math.min(Math.ceil((p / 100) * sorted.length), sorted.length));
+  return sorted[rank - 1]!;
 }

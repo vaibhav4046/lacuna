@@ -52,9 +52,11 @@ Status values: `open`, `done`, `dropped`.
 - **Status:** open
 - **Why it needs you:** it is your face and voice, and uploading it publishes
   content.
-- **What you get from me:** a shot-by-shot script cut to under 3 minutes, the
-  exact screens in order, and the seeded demo state so every take shows the same
-  data. Recording and upload are yours.
+- **What you get from me:** delivered, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md).
+  Eight shots cut to 2:49, the exact screens and URLs in order, the narration
+  written to a measured 158 seconds at 150 words per minute, the commands that
+  put the graph in the state every take needs, and a ranked cut list if a take
+  runs long. Recording and upload are yours.
 - **Hard constraint from the rules:** 3 minutes or less, and "anything past the
   3-minute mark may not be reviewed". Judges must be able to watch it without
   requesting access, so unlisted YouTube is fine, Drive-with-permissions is not.

@@ -705,10 +705,18 @@ What exists right now. Updated as things change, and never ahead of them.
 
 Everything else. Named explicitly so no reader has to guess:
 
-- No CI
+- No CI. Decided, not skipped: [DECISIONS.md](DECISIONS.md) D-049. GitHub's
+  runners have no HydraDB, so a green workflow would cover the 568 tests that
+  need no database and exclude the 42 that carry the integration claim, which is
+  a badge whose coverage is the opposite of what the README promises
 - No deployment. HydraDB runs in WSL2 on this machine and is not reachable from
   a hosted frontend, so this is an open question and not a task
-- No demo video
+- No demo video recorded. The script is written and checked against the running
+  product, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md). Recording is the
+  owner's, and it is item 3 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md)
+- Nothing submitted, and no public repository. The form answers are drafted at
+  [docs/SUBMISSION.md](docs/SUBMISSION.md), eight of ten fields ready to paste
+  and two blocked on the owner
 
 ## Known environment deviations
 

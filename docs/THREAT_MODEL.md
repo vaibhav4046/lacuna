@@ -320,10 +320,12 @@ arrives on a real response over a real socket, alongside `nosniff`, `DENY` and
     not installed at all by `npm ci --omit=dev`. Reported rather than buried:
     they are real advisories with no upgrade path, and the reason they are
     tolerable is their location, not their severity. `tested`
-  - Dependency audit in CI. There is no CI, so this stays `planned` rather than
-    being quietly upgraded on the strength of the run above. A command run by
-    hand on one machine on one day is not the same control as one that runs on
-    every push, and the difference is the whole point of the marker.
+  - Dependency audit in CI. There is no CI, and that is a recorded decision
+    rather than an omission: [../DECISIONS.md](../DECISIONS.md) D-049. So this
+    stays `planned` rather than being quietly upgraded on the strength of the run
+    above. A command run by hand on one machine on one day is not the same
+    control as one that runs on every push, and the difference is the whole point
+    of the marker.
 
 ### T9. Result handles used as capabilities
 

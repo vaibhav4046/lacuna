@@ -26,9 +26,24 @@ export function words(identifier: string): string {
   return identifier.replace(/_/g, ' ');
 }
 
-/** Milliseconds, at the resolution the number was measured to. */
+/**
+ * Milliseconds, at the resolution the number was measured to.
+ *
+ * A tenth of a millisecond, which is what `round` in src/retrieval/fetch.ts
+ * stores every measurement at. Rounding again here is not belt and braces: a
+ * sum of tenths is not a tenth in binary, so a panel that adds eight reads
+ * together gets 448.4000000000003 out of eight clean numbers. Printing that
+ * claims a resolution the clock was never read at, on a page whose whole
+ * argument is that its figures are measurements rather than assertions.
+ *
+ * Values that need no decimal keep none, so a read that took 66 ms says so.
+ */
+export function roundMs(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 export function ms(value: number): string {
-  return `${value} ms`;
+  return `${roundMs(value)} ms`;
 }
 
 /** A lower case clause from the model layer, said as a sentence on its own. */

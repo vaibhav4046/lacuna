@@ -1079,3 +1079,71 @@ this server's own fault. All three are exercised over a socket in
 `tests/unit/server-routes.test.ts`, including a graph that answers with two
 entities under one name, which is a 500 because it is neither the visitor's
 fault nor the transport's.
+
+### D-046: The meta copy of the policy drops the one directive it cannot carry
+
+Every page load printed this to the console:
+
+```
+Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element.
+```
+
+The policy is sent twice on purpose. The header is what the browser enforces on
+a served page, and the meta element is what survives when someone saves the page
+to disk and opens it again, which is a thing that happens to a demo. Two
+deliveries of one policy, so the saved copy is as locked down as the served one.
+
+`frame-ancestors` is the one directive that cannot be delivered that way. It was
+in both, so it did nothing in the meta element and said so, out loud, on a page
+whose entire claim is that it can be trusted about what it is doing. An error in
+the console of an evidence page is not cosmetic. It is the first thing a careful
+reader opens.
+
+So `DIRECTIVES` is private, `CONTENT_SECURITY_POLICY` joins all of it for the
+header, and `META_CONTENT_SECURITY_POLICY` filters that one directive out. Two
+exported strings from one array, rather than two literals that would drift the
+first time a directive is added. Framing is still refused, by the header and by
+`x-frame-options` beside it, and the meta copy never claimed to be the thing
+enforcing it.
+
+`tests/unit/view-pages.test.ts` asserts the difference rather than the two
+values: the header minus the meta is exactly `frame-ancestors 'none'`, and the
+meta minus the header is empty. A new directive that reaches one and not the
+other fails that test.
+
+### D-047: A millisecond is printed at the resolution it was measured to
+
+The multi-hop answer page printed this, in the panel that exists to be checked:
+
+```
+8 reads, 11 rows, 448.4000000000003 ms inside the client and 341.5 ms end to end
+```
+
+Every read was clean. `round` in `src/retrieval/fetch.ts` stores each
+measurement at a tenth of a millisecond, and each of the eight printed as a
+tenth two inches above. The proof panel adds them together, and a sum of tenths
+is not a tenth in binary, so eight good numbers produced sixteen significant
+figures of noise.
+
+This is not a display nit. This page argues that its figures are measurements
+rather than assertions, and sixteen figures claims a clock that was never read
+that finely. A judge who notices it has been given a reason to doubt the numbers
+next to it, which are the numbers the whole submission rests on.
+
+Fixed in `ms()` in `src/view/format.ts` rather than at the call site, because
+the call site is not the only place a derived figure will ever be printed. The
+retrieval layer keeps its own rounding: measurement resolution belongs to the
+thing doing the measuring, display resolution to the thing doing the displaying,
+and importing a view formatter into retrieval would be the wrong direction.
+
+The comparison behind the overlap sentence moved with it. `overlapped` now
+compares the two values at the resolution both are printed to, so a page can
+never print two identical figures with a sentence between them explaining that
+one is bigger.
+
+Found by taking screenshots, not by a test. The suite had nothing that summed
+eight tenths, and now it does: `tests/unit/view-format.test.ts` adds up eight
+readings copied off a live answer page, asserts the raw sum is not the number it
+looks like, and asserts the printed form is. The literals in it were run through
+Node before they were written down rather than reasoned about. See
+[artifacts/screens](artifacts/screens/README.md).

@@ -25,7 +25,7 @@ import { html, markup, type Html, type Renderable } from './html';
  * It is sent as a header by the server and mirrored into a meta element, so a
  * page saved to disk and reopened keeps the same restrictions.
  */
-export const CONTENT_SECURITY_POLICY = [
+const DIRECTIVES = [
   "default-src 'none'",
   "script-src 'none'",
   "style-src 'self'",
@@ -33,7 +33,26 @@ export const CONTENT_SECURITY_POLICY = [
   "form-action 'self'",
   "base-uri 'none'",
   "frame-ancestors 'none'",
-].join('; ');
+] as const;
+
+/** The policy the server sends as a header, where every directive applies. */
+export const CONTENT_SECURITY_POLICY = DIRECTIVES.join('; ');
+
+/**
+ * The same policy minus the one directive a meta element cannot carry.
+ *
+ * `frame-ancestors` is ignored when delivered in a meta element, and browsers
+ * say so in the console. Leaving it in bought nothing and printed an error on
+ * every page load, which on a page that exists to be trusted is worse than the
+ * shorter list. Framing is still refused, by `frame-ancestors` in the header
+ * and by `x-frame-options` beside it.
+ *
+ * Both strings are built from one array so the mirror cannot drift from the
+ * policy it mirrors.
+ */
+export const META_CONTENT_SECURITY_POLICY = DIRECTIVES
+  .filter((directive) => !directive.startsWith('frame-ancestors'))
+  .join('; ');
 
 /**
  * The mark: a ruled line with a piece missing.
@@ -65,7 +84,7 @@ export function page(options: PageOptions): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${CONTENT_SECURITY_POLICY}">
+<meta http-equiv="Content-Security-Policy" content="${META_CONTENT_SECURITY_POLICY}">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="${options.description}">

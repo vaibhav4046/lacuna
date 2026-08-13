@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import type { HydraConfig } from '../../src/hydra/config';
 import { buildDemo } from '../../src/server/examples';
 import { askHref, homePage, type CorpusFacts, type Example } from '../../src/view/home';
+import {
+  CONTENT_SECURITY_POLICY,
+  META_CONTENT_SECURITY_POLICY,
+} from '../../src/view/layout';
 import { noticePage } from '../../src/view/notice';
 import { describeNode } from '../../src/view/proof';
 
@@ -54,6 +58,41 @@ describe('askHref', () => {
     const parsed = new URL(href, 'http://lacuna.invalid');
     expect(parsed.searchParams.get('subject')).toBe('a&b=c d');
     expect(parsed.searchParams.get('predicate')).toBe('x?y');
+  });
+});
+
+describe('the content security policy', () => {
+  it('refuses everything by default and allows three narrow things', () => {
+    for (const directive of [
+      "default-src 'none'",
+      "script-src 'none'",
+      "style-src 'self'",
+      "img-src 'self'",
+      "form-action 'self'",
+      "base-uri 'none'",
+    ]) {
+      expect(CONTENT_SECURITY_POLICY).toContain(directive);
+      expect(META_CONTENT_SECURITY_POLICY).toContain(directive);
+    }
+  });
+
+  it('keeps frame-ancestors in the header and drops it from the meta copy', () => {
+    // A meta element ignores this directive and the browser logs an error
+    // saying so. The header is where it is enforced, so that is where it lives.
+    expect(CONTENT_SECURITY_POLICY).toContain("frame-ancestors 'none'");
+    expect(META_CONTENT_SECURITY_POLICY).not.toContain('frame-ancestors');
+  });
+
+  it('differs by that one directive and nothing else', () => {
+    // Said as a difference rather than as two literals, so that adding a
+    // directive to the policy cannot quietly leave the mirror behind.
+    const header = CONTENT_SECURITY_POLICY.split('; ');
+    const meta = META_CONTENT_SECURITY_POLICY.split('; ');
+
+    expect(header.filter((one) => !meta.includes(one))).toEqual([
+      "frame-ancestors 'none'",
+    ]);
+    expect(meta.filter((one) => !header.includes(one))).toEqual([]);
   });
 });
 

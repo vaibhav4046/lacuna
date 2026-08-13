@@ -1,6 +1,6 @@
 import type { HydraConfig } from '../hydra/config';
 import type { Answer, QueryTrace } from '../retrieval/types';
-import { count, ms } from './format';
+import { count, ms, roundMs } from './format';
 import { html, join, type Html } from './html';
 import { panel } from './layout';
 
@@ -153,7 +153,10 @@ const OVERLAP = 'The reads add up to more than the wall clock because the ones t
   + 'not depend on each other are issued together.';
 
 function cost(answer: Answer, rows: number, total: number): Html {
-  const overlapped = total > answer.ms;
+  // Compared at the resolution both numbers are printed to. Two figures that
+  // land on the same tenth must not carry a sentence between them saying one
+  // is larger than the other.
+  const overlapped = roundMs(total) > roundMs(answer.ms);
   return html`<p class="prose">${count(answer.queries.length, 'read')}, ${count(rows, 'row')},
 ${ms(total)} inside the client and ${ms(answer.ms)} end to end.
 ${overlapped ? OVERLAP : null} ${epochs(answer.queries)}</p>`;

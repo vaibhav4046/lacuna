@@ -497,24 +497,51 @@ What exists right now. Updated as things change, and never ahead of them.
   UNIT_EXIT=0
   ```
 
-  What is not done here: no screenshot has been captured from the running
-  server, and nothing has been deployed. Both are listed below.
+  What is not done here: nothing has been deployed. That is listed below.
+
+- **Six captures exist of the running product, and taking them found a bug the
+  suite did not.** Chromium under Playwright pointed at `http://127.0.0.1:3014`,
+  that server reading the live node over HTTP. Home at 1920x1080 and 3840x2160,
+  the revised answer at both extents, the multi-hop answer full page, and the
+  never-stated answer. Every file, its URL and its viewport are in
+  [artifacts/screens/](artifacts/screens/README.md).
+
+  The multi-hop proof panel printed `448.4000000000003 ms inside the client`.
+  Eight reads, each already rounded to a tenth of a millisecond by the retrieval
+  layer, summed into a float and printed sixteen significant figures on the one
+  panel whose argument is that its figures are measurements. Rounding moved to
+  `ms()` in `src/view/format.ts`, the overlap comparison moved with it, and
+  `tests/unit/view-format.test.ts` now sums eight readings copied off a live
+  page. See [D-047](DECISIONS.md).
+
+  The same pass cleared the console error every page load was printing,
+  `Content Security Policy directive 'frame-ancestors' is ignored when delivered
+  via a <meta> element`. The header and the meta mirror now come from one private
+  array, the mirror filters out the one directive it cannot carry, and the test
+  asserts the difference between the two rather than their two values. See
+  [D-046](DECISIONS.md).
+
+  Real output, 2026-08-13, after both fixes:
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run tests/unit
+   Test Files  26 passed (26)
+        Tests  442 passed (442)
+   TESTALL_EXIT=0
+  ```
 
 ## In progress
 
-- Nothing. The screens were the open item and they are built, served and
-  tested. Screenshots are next, and they need a capture path that works on this
-  machine: the in-app browser refuses with "the Browser pane is not displayed,
-  so the page is not compositing frames", so it will be Playwright or headless
-  Chrome offline.
+- Nothing.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
 - No CI
-- No screenshots. The screens exist and are served; nothing has been captured
-  from them at 1920x1080 or 3840x2160
 - No deployment. HydraDB runs in WSL2 on this machine and is not reachable from
   a hosted frontend, so this is an open question and not a task
 - No demo video

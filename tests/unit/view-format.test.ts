@@ -82,6 +82,25 @@ describe('ms', () => {
     expect(ms(25.5)).toBe('25.5 ms');
     expect(ms(0)).toBe('0 ms');
   });
+
+  it('does not print the float error a sum of tenths carries', () => {
+    // The proof panel adds every read on the page together, and a sum of
+    // tenths is not a tenth in binary. A real answer page printed
+    // "448.4000000000003 ms inside the client" out of eight clean readings,
+    // which claims a resolution the clock was never read at.
+    expect(ms(0.1 + 0.2)).toBe('0.3 ms');
+
+    const reads = [61.1, 32.1, 96.8, 34, 44.8, 66, 31.1, 61.5];
+    const total = reads.reduce((sum, one) => sum + one, 0);
+
+    expect(total).not.toBe(427.4);
+    expect(ms(total)).toBe('427.4 ms');
+  });
+
+  it('rounds rather than truncates, so a reading is never quietly reduced', () => {
+    expect(ms(96.75)).toBe('96.8 ms');
+    expect(ms(96.74)).toBe('96.7 ms');
+  });
 });
 
 describe('count', () => {

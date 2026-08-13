@@ -1,5 +1,6 @@
 import type { HydraClient } from '../hydra/client';
 import type { PreparedQuery } from '../hydra/queries';
+import { rowsToObjects } from '../hydra/values';
 import { RetrievalConsistencyError } from './errors';
 import { decodeClaims, decodeEntity, decodeEvidence, decodeMentions, type Row } from './decode';
 import {
@@ -9,7 +10,13 @@ import {
   mentionsFrom,
 } from './queries';
 import { citedClaims, resolve, selectHopTarget } from './resolve';
-import type { Answer, EvidenceRecord, RetrievalQuestion, SubjectView } from './types';
+import type {
+  Answer,
+  EvidenceRecord,
+  QueryTrace,
+  RetrievalQuestion,
+  SubjectView,
+} from './types';
 
 /**
  * Reading the subgraph a question needs, and nothing else.
@@ -32,12 +39,19 @@ export interface AskOptions {
   readonly timeoutMs?: number;
 }
 
-/** Counts round trips so the number reported next to an answer is a measurement. */
-class QueryCounter {
-  #count = 0;
+/**
+ * Keeps every round trip so the cost reported next to an answer is a
+ * measurement a reader can repeat rather than a number to be trusted.
+ *
+ * It reads through `query` rather than `queryObjects` because the read epoch is
+ * on the page and not on the rows, and the epoch is the part that shows which
+ * version of the store an answer was read from.
+ */
+class QueryRecorder {
+  readonly #trips: QueryTrace[] = [];
 
-  get count(): number {
-    return this.#count;
+  get trips(): readonly QueryTrace[] {
+    return this.#trips;
   }
 
   async run(
@@ -45,14 +59,27 @@ class QueryCounter {
     prepared: PreparedQuery,
     timeoutMs: number,
   ): Promise<readonly Row[]> {
-    this.#count += 1;
-    return (await client.queryObjects({ ...prepared, timeoutMs })) as readonly Row[];
+    const started = performance.now();
+    const page = await client.query({ ...prepared, timeoutMs });
+    this.#trips.push({
+      cypher: prepared.cypher,
+      parameters: prepared.parameters,
+      rows: page.rows.length,
+      ms: round(performance.now() - started),
+      readEpoch: page.readEpoch,
+    });
+    return rowsToObjects(page.columns, page.rows) as readonly Row[];
   }
+}
+
+/** One decimal place, which is the resolution a wall clock reading deserves. */
+function round(ms: number): number {
+  return Math.round(ms * 10) / 10;
 }
 
 async function readSubject(
   client: HydraClient,
-  counter: QueryCounter,
+  counter: QueryRecorder,
   name: string,
   timeoutMs: number,
 ): Promise<SubjectView> {
@@ -83,7 +110,7 @@ export async function ask(
   options: AskOptions = {},
 ): Promise<Answer> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_QUERY_TIMEOUT_MS;
-  const counter = new QueryCounter();
+  const counter = new QueryRecorder();
   const started = performance.now();
 
   const subject = await readSubject(client, counter, question.subject, timeoutMs);
@@ -120,9 +147,7 @@ export async function ask(
     question,
     resolution,
     evidence,
-    timing: {
-      ms: Math.round((performance.now() - started) * 10) / 10,
-      queries: counter.count,
-    },
+    queries: counter.trips,
+    ms: round(performance.now() - started),
   };
 }

@@ -27,6 +27,7 @@ export type {
   Mention,
   Outcome,
   Polarity,
+  QueryTrace,
   Resolution,
   RetrievalQuestion,
   SubgraphView,

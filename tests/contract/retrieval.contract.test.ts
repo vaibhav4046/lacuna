@@ -192,20 +192,32 @@ describe('retrieval against the live graph', () => {
 
 describe('cost and guards on the live node', () => {
   it('spends one query on a name the graph does not hold', async () => {
-    const { timing, resolution } = await ask(
+    const { queries, resolution } = await ask(
       client,
       buildQuestion('Redshank', 'launch_date'),
     );
 
     expect(resolution.outcome).toEqual({ type: 'abstain', reason: 'out_of_scope' });
-    expect(timing.queries).toBe(1);
+    expect(queries).toHaveLength(1);
+  });
+
+  it('records the statement it ran, not just that it ran one', async () => {
+    // The proof screen renders these. If they were ever a summary rather than
+    // the statement issued, the screen would be a drawing of a query.
+    const { queries } = await ask(client, buildQuestion('Redshank', 'launch_date'));
+    const trip = queries[0]!;
+
+    expect(trip.cypher).toBe(entityByName('Redshank').cypher);
+    expect(trip.parameters).toEqual(entityByName('Redshank').parameters);
+    expect(trip.rows).toBe(0);
+    expect(trip.ms).toBeGreaterThanOrEqual(0);
   });
 
   it('costs more for a hop than for a direct question', async () => {
     const direct = await askGold(gold('q-stable-01'));
     const hopped = await askGold(gold('q-multi_hop-01'));
 
-    expect(hopped.timing.queries).toBeGreaterThan(direct.timing.queries);
+    expect(hopped.queries.length).toBeGreaterThan(direct.queries.length);
   });
 
   it('treats a name carrying Cypher as a name', async () => {

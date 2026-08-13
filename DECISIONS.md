@@ -955,3 +955,57 @@ network should not be able to hide that it does, but nothing is claimed from
 it beyond the order of magnitude. `STATE.md` quotes both runs rather than the
 flattering one. A judge who reruns the harness will get a third number, and
 should: that is what the column is like.
+
+### D-041: The product surface is server rendered HTML from a plain Node server
+
+The four screens need a stack. This repository has no framework, no bundler,
+and zero runtime dependencies: it is TypeScript run through `tsx` and a client
+that speaks HTTP to HydraDB. Adding React and Vite would make the user
+interface the largest dependency in a project whose argument is that you can
+read the whole thing.
+
+So the surface is `node:http` serving server rendered HTML. No bundler, no
+framework, nothing shipped to the browser but markup and one stylesheet. Three
+reasons beyond taste.
+
+The token stays on the server. HydraDB is reached with a bearer token, and the
+surest way to keep a secret out of a client bundle is to not have a client
+bundle. Nothing the browser receives has been near the token, and that is
+checkable by reading the response rather than by trusting a build step.
+
+Reproduction stays one command. `npm run serve` starts it against the same
+`.env.local` the CLI already uses, so a judge who cloned the repository and ran
+the ingest is one command from the screens, with no install step in between
+that could fail differently on their machine.
+
+And there is no client state worth a framework. Every screen renders one
+`Answer`, which is already an immutable value produced by one function. The
+question form is a GET form, the panels are anchors, and every page works with
+JavaScript disabled. What script there is enhances and never enables.
+
+The cost is real and worth naming: no component model, no hot reload, and HTML
+assembled from template strings, which makes every interpolation an escaping
+decision. That last one is handled by having exactly one way to put text into a
+page and no other.
+
+### D-042: The answer carries the queries it ran, not a count of them
+
+`ask` reported `timing.queries`, a number. A number is an assertion. The
+HydraDB Proof screen exists so the retrieval claim can be checked rather than
+believed, and a screen rendering "6 queries" asks to be believed in exactly the
+way the rest of this project refuses to.
+
+So `Answer` carries the round trips themselves: the statement, its parameters,
+the rows it returned, its wall clock, and the read epoch when the node reports
+one. That is everything a reader needs to run the same statement against their
+own node and get the same rows back.
+
+The count went away rather than sitting alongside the list. Two fields that
+have to agree are a way for them to disagree, and the failure mode here is a
+proof screen labelled with one number above a list of a different length.
+`answer.queries.length` is the count now, and it cannot be wrong.
+
+Nothing in a parameter is a secret. They are entity names, predicates and
+integer ids, the same values the question already contains. The token never
+enters a query; it is a header on the transport, which is the reason any of
+this is publishable.

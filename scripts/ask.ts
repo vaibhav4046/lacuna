@@ -36,7 +36,7 @@ function print(line: string): void {
 }
 
 function show(answer: Answer, text: string | null): void {
-  const { resolution, evidence, timing } = answer;
+  const { resolution, evidence, queries } = answer;
 
   print('');
   if (text !== null) print(`Q  ${text}`);
@@ -83,8 +83,29 @@ function show(answer: Answer, text: string | null): void {
   }
 
   print('');
-  print(`   ${timing.queries} quer${timing.queries === 1 ? 'y' : 'ies'}, ${timing.ms}ms`);
+  print('   What it asked HydraDB');
+  for (const [at, trip] of queries.entries()) {
+    // One line each. The statements are long, and a reader who wants them in
+    // full has the same values on the proof screen and in the source.
+    const epoch = trip.readEpoch === null ? '' : `, epoch ${trip.readEpoch}`;
+    print(
+      `     ${String(at + 1).padStart(2)}. ${first(trip.cypher).padEnd(46)}`
+      + `${String(trip.rows).padStart(4)} row${trip.rows === 1 ? ' ' : 's'}`
+      + `${String(trip.ms).padStart(8)}ms${epoch}`,
+    );
+  }
+
   print('');
+  print(
+    `   ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'}, ${answer.ms}ms`,
+  );
+  print('');
+}
+
+/** The first clause of a statement, which is enough to tell one from another. */
+function first(cypher: string): string {
+  const line = cypher.trim().split('\n')[0]!.trim();
+  return line.length > 44 ? `${line.slice(0, 43)}…` : line;
 }
 
 const client = new HydraClient(loadHydraConfig());

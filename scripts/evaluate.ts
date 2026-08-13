@@ -63,7 +63,7 @@ for (const question of corpus.questions) {
   });
   process.stdout.write(
     `${verdict === 'correct' ? 'ok  ' : 'FAIL'}  ${question.id.padEnd(22)}`
-    + `${String(answer.timing.ms).padStart(7)}ms  ${String(answer.timing.queries).padStart(2)}q  `
+    + `${String(answer.ms).padStart(7)}ms  ${String(answer.queries.length).padStart(2)}q  `
     + `${verdict === 'correct' ? describeOutcome(answer.resolution.outcome) : `${verdict}: got ${describeOutcome(answer.resolution.outcome)}, wanted ${describeExpected(question)}`}\n`,
   );
 }
@@ -75,8 +75,8 @@ const scored: Scored[] = cases.map((c) => ({
 }));
 const metrics = scoreAll(scored);
 
-const latencies = [...cases.map((c) => c.answer.timing.ms)].sort((a, b) => a - b);
-const queries = cases.map((c) => c.answer.timing.queries);
+const latencies = [...cases.map((c) => c.answer.ms)].sort((a, b) => a - b);
+const queries = cases.map((c) => c.answer.queries.length);
 
 const lines: string[] = [];
 const say = (line = ''): void => {
@@ -160,8 +160,8 @@ writeFileSync(
       explanation: c.answer.resolution.explanation,
       trace: c.answer.resolution.trace,
       citations: c.answer.evidence.length,
-      ms: c.answer.timing.ms,
-      queries: c.answer.timing.queries,
+      ms: c.answer.ms,
+      queries: c.answer.queries.length,
     })),
     null,
     2,

@@ -117,11 +117,31 @@ export interface EvidenceRecord {
   readonly sessionTitle: string;
 }
 
+/**
+ * One HydraDB round trip, kept rather than counted.
+ *
+ * The point of holding the statement and its parameters is that the cost of an
+ * answer stops being a number the product asserts and becomes something a
+ * reader can run themselves. Nothing here is a secret: parameters are entity
+ * names, predicates and integer ids, and the bearer token lives on the
+ * transport rather than in a query. See DECISIONS.md D-042.
+ */
+export interface QueryTrace {
+  readonly cypher: string;
+  readonly parameters: Readonly<Record<string, unknown>>;
+  readonly rows: number;
+  readonly ms: number;
+  /** The object store version the read observed, when the node reports one. */
+  readonly readEpoch: number | null;
+}
+
 /** A resolution with the citations for the claims it rests on. */
 export interface Answer {
   readonly question: RetrievalQuestion;
   readonly resolution: Resolution;
   readonly evidence: readonly EvidenceRecord[];
-  /** Wall clock milliseconds spent in HydraDB, and how many round trips it took. */
-  readonly timing: { readonly ms: number; readonly queries: number };
+  /** Every round trip it took, in the order they were issued. */
+  readonly queries: readonly QueryTrace[];
+  /** Wall clock milliseconds, end to end. */
+  readonly ms: number;
 }

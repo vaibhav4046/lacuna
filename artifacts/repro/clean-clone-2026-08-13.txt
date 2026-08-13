@@ -1,0 +1,81 @@
+=== 0. environment ===
+date        2026-08-13T05:35:35Z UTC
+node        v24.12.0
+npm         11.6.2
+os          MINGW64_NT-10.0-26200 3.5.7-463ebcdc.x86_64
+source      /d/project/lacuna
+clone into  /tmp/tmp.a4EW8IRYHM/lacuna-repro
+
+=== 1. git clone into a path that has never held this project ===
+CLONE_EXIT=0
+HEAD        d030408
+commits     25
+tracked     151 files
+untracked   0 (expect 0)
+
+=== 2. npm ci ===
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+NPM_CI_EXIT=0
+
+=== 3. typecheck ===
+TYPECHECK_EXIT=0
+
+=== 4. unit tests ===
+request failed: HydraTransportError: request failed before a response arrived (http://127.0.0.1:18443/v1/graphs/default/query) <- connect ECONNREFUSED
+request failed: RetrievalDecodeError: entity name matched 2 nodes, expected at most one
+
+ Test Files  26 passed (26)
+      Tests  442 passed (442)
+   Start at  06:35:49
+   Duration  9.73s (transform 1.06s, setup 0ms, import 2.79s, tests 2.07s, environment 2ms)
+
+UNIT_EXIT=0
+
+=== 5. config ===
+COPY_EXIT=0
+keys present, values never printed:
+HYDRA_HTTP_URL=<redacted>
+HYDRA_NAMESPACE=<redacted>
+HYDRA_GRAPH=<redacted>
+HYDRA_CELL=<redacted>
+HYDRA_TOKEN=<redacted>
+
+=== 6. serve, reading the live HydraDB node over HTTP ===
+SERVER_UP_EXIT=0
+
+> lacuna@0.0.0 serve
+> tsx scripts/serve.ts
+
+Lacuna on http://127.0.0.1:3016
+
+=== 7. the four demo questions, against the clone ===
+--- /ask?subject=Bellwether&predicate=beta_partner
+    HTTP 200, 9358 bytes
+    This replaced 2 earlier values and nothing has superseded it.
+    4 reads, 10 rows,
+--- /ask?subject=Junco&predicate=launch_date
+    HTTP 200, 10888 bytes
+    5 reads, 7 rows,
+--- /ask?subject=Meridian&predicate=migration_window
+    HTTP 200, 6853 bytes
+    migration window of Meridian: Never stated. | Lacuna
+    Never stated.
+    The graph holds no claim about the migration window of
+--- /ask?subject=replay-queue&predicate=contact&via=vendor
+    HTTP 200, 11678 bytes
+    8 reads, 11 rows,
+
+=== 8. server request log ===
+GET / 200 2ms
+GET /ask 200 206ms
+GET /ask 200 201ms
+GET /ask 200 111ms
+GET /ask 200 272ms
+
+server stopped, port 3016 free again
+
+The clone is at /tmp/tmp.a4EW8IRYHM/lacuna-repro and still holds a copy of your .env.local.
+Delete it when you are done with it.

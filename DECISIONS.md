@@ -1147,3 +1147,35 @@ readings copied off a live answer page, asserts the raw sum is not the number it
 looks like, and asserts the printed form is. The literals in it were run through
 Node before they were written down rather than reasoned about. See
 [artifacts/screens](artifacts/screens/README.md).
+
+### D-048: The reproduction script refuses to run against a port it did not open
+
+`artifacts/repro/repro.sh` clones the repository somewhere clean, installs,
+typechecks, tests, serves, and asks the four demo questions. The point of it is
+that "a judge can run this" is a claim, and claims here get exercised.
+
+The first version of it passed while proving nothing. It stopped the server with
+`kill` on the shell job, but the shell job is npm and npm had spawned node, so
+node outlived it and kept the port. The following run started, could not bind,
+and had its four questions answered by the orphan from the run before. Exit
+codes zero, four HTTP 200s, correct answers on every one, and not a single byte
+of it produced by the build under test.
+
+What gave it away was an empty server log in a section that should have printed
+a startup banner. The requests had succeeded, so the natural reading was that
+the logging was wrong rather than that the whole run was. `netstat` settled it:
+the process holding the port had started ninety seconds before the run that
+claimed to have launched it.
+
+So the script now does three things it did not. It refuses to start if anything
+already answers on the port, instead of allowing a server it did not launch to
+take the questions. It greps the log for its own announcement on its own port
+before believing any answer. And it stops the server by killing whatever owns
+the listening socket rather than the shell job, because the process tree was not
+walkable the way the first attempt assumed: msys `ps` has no `-o`, so the winpid
+lookup returned nothing and `taskkill` was never reached, silently.
+
+Recorded because the failure is worth more than the fix. A harness that can
+report success without running the code under test manufactures evidence, and it
+does it most convincingly when everything it prints is true. The guard is cheap.
+The class of bug is not.

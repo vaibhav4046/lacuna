@@ -6,84 +6,118 @@ for each. Status is what is true today, not what is planned.
 Criteria are quoted from the rules page as captured on 2026-08-12 in
 [artifacts/rules/](artifacts/rules/hackhydra-rules-2026-08-12.txt).
 
-**Last updated: 2026-08-12.** Every row is currently `pending`, because no
-application code exists yet. That is the honest state of a repository on day one.
+**Last updated: 2026-08-13.** Everything marked `done` below has a command in it
+that a judge can run. Three things are not done and are not rows here because
+they are submission mechanics rather than judging criteria: a public repository,
+a demo video, and a hosted URL. Those are tracked in
+[docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
+[NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md).
 
 ## "A strong submission has"
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| A functional product or demo | Ask, Timeline, Evidence Graph and HydraDB Proof screens, run locally | pending |
-| Real ingestion and retrieval workflows | Ingestion pipeline and query planner, exercised end to end by tests | pending |
+| A functional product or demo | `npm run serve`, then ask it something. The answer page is four panels: Answer, Timeline, Subgraph, Proof. Screenshots in [artifacts/screens/](artifacts/screens/README.md) | done |
+| Real ingestion and retrieval workflows | 5,642 vertices and 5,705 edges written to a live node, idempotent on re-run, verified by `npm run census` against the generator's plan. Transcripts in [artifacts/ingest/](artifacts/ingest/README.md) | done |
 | A clear use case | [README](README.md), [ADR 0001](docs/adr/0001-track-and-thesis.md) | done |
-| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md) and the adapter contract tests | in progress |
+| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 568 unit tests plus contract tests against a live node | done |
 
 ## "Judges consider"
 
 ### 01 Technical execution
 
-- **Evidence:** tests that run against a live HydraDB node rather than a mock;
-  ingestion idempotence proved by re-ingesting and diffing; the query planner
-  written against the documented Cypher subset instead of discovering its limits
-  at runtime.
-- **Status:** pending.
+- **Evidence:** three contract suites in [tests/contract/](tests/contract) run
+  every query builder against a live HydraDB node, and a missing node fails them
+  rather than skipping. 568 unit tests, 28 files, no database needed. The query
+  layer was written against the Cypher subset the engine actually implements,
+  discovered by probing it on day two; the refusals are quoted in the source
+  beside the code that works around them.
+- **Status:** done. `npm test` and `npm run test:contract`.
 
 ### 02 Use of HydraDB and graph-native approaches
 
 This is the criterion the whole design is aimed at, and the one most projects
 lose on by using a graph database as a place to put results.
 
-- **Evidence:** the answer path is a traversal. Revision history is
-  `SUPERSEDES` edges, not a version column. Multi-hop questions are resolved by
-  bounded variable-length patterns and `algo.SPpaths`, and the returned proof is
-  the traversal itself. An ablation shows what the same questions do without the
-  graph.
-- **Status:** pending.
+- **Evidence:** the answer path is four graph reads and nothing else, set out in
+  [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md). Revision history is
+  `SUPERSEDES` edges, not a version column, and the current value is the claim
+  with nothing pointing at it. Provenance is a four-hop path fetched in one
+  request, and that path is what the proof panel renders. A question needing a
+  bridge entity is answered by a hop, not by a second search.
+- **Status:** done.
+- **Correction, recorded rather than quietly dropped:** an earlier version of
+  this file claimed `algo.SPpaths` was on the answer path. It is not. The
+  procedure works, was probed successfully against a live node, and those
+  transcripts are committed, but no shipped query calls it: shortest-path needs
+  two known endpoints and a question arrives with one. The traversal that ships
+  is `MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o)` for the hop, and a
+  bounded `[:SUPERSEDES*1..4]` walk for revision chains.
 
 ### 03 Product completeness and usability
 
-- **Evidence:** a README a judge can follow on a clean machine; four screens that
-  each answer a question a developer would actually ask; a seeded demo state so
-  the first run is not empty.
-- **Status:** pending.
+- **Evidence:** a quickstart in the README that a judge can follow on a clean
+  machine, and [artifacts/repro/repro.sh](artifacts/repro/README.md), which
+  clones into a directory that has never held the project and proves the rest.
+  Its transcript is committed unedited. The demo corpus is seeded, so the first
+  run is not an empty box.
+- **Status:** done, except a hosted URL. The demo runs locally because HydraDB
+  runs locally; see [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md).
 
 ### 04 Quality of results
 
-- **Evidence:** abstention precision, recall and F1, false-answer rate, p50 and
-  p95 latency, context tokens, measured against recency-only, lexical, vector and
-  hybrid baselines. Harness in the repository, raw output committed, seeds fixed.
-- **Status:** pending. No number will appear anywhere in this repository before
-  the run that produced it is committed.
+- **Evidence:** [docs/BENCHMARKS.md](docs/BENCHMARKS.md), over
+  [artifacts/bench/report.txt](artifacts/bench/report.txt) and
+  [artifacts/eval/report.txt](artifacts/eval/report.txt). 51 configurations
+  across recency, lexical, vector, hybrid and hybrid-plus-hop retrieval, both
+  reader modes, fixed seed, raw output committed.
+- **Status:** done, and the result is a tie on correctness. Two baseline
+  configurations also score 60/60. What separates them is 15 context tokens
+  against 636 and 1,603, and the fact that both tying configurations are the
+  same four hand-built components reproducing three distinctions the graph holds
+  structurally. Reported that way in the benchmark document because that is what
+  the run said.
 
 ### 05 Originality
 
-- **Evidence:** proof-carrying abstention with structured reason codes. Most
-  memory systems return a low similarity score and let the caller guess.
-  Distinguishing "never known" from "known and superseded" from "contradicted and
-  unresolved" is a structural distinction a similarity index cannot make.
-- **Status:** in progress. The idea is recorded in
-  [ADR 0001](docs/adr/0001-track-and-thesis.md); the implementation is not built.
+- **Evidence:** abstention that carries a reason and a proof. Five codes,
+  `never_stated`, `retracted`, `contradicted`, `unconnected` and
+  `out_of_scope`, each derived from graph structure rather than from a score
+  below a threshold. Distinguishing "never known" from "known and withdrawn"
+  from "known and disputed" is a structural distinction a similarity index
+  cannot make, and the panel shows which one applied and what was searched.
+- **Status:** done. The abstention decision is a pure function over the
+  retrieved subgraph, in `src/retrieval/resolve.ts`, unit tested without a
+  database.
 
 ## Best Use of HydraDB, judged separately
 
 | What they are looking for | Where it shows up | Status |
 |---|---|---|
-| A particularly strong graph data model | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md): bitemporal claims, immutable evidence spans, revision as a DAG | in progress |
-| A novel retrieval or reasoning approach | Abstention derived from graph structure, with a reason code and a proof | pending |
-| An interesting use of relationships, traversal or context | Bounded multi-hop traversal and path procedures on the answer path | pending |
-| A use case hard to pull off with vector or relational approaches | The ablation. If a vector baseline matches Lacuna, that gets reported as the result it is | pending |
+| A particularly strong graph data model | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md): bitemporal claims, immutable evidence spans, revision as a DAG. Loaded and verified by `npm run census` | done |
+| A novel retrieval or reasoning approach | Five-code abstention derived from structure, with the traversal attached as proof | done |
+| An interesting use of relationships, traversal or context | One hop for bridge questions, a bounded variable-length walk for revision chains, and a four-hop provenance pattern fetched in a single request | done |
+| A use case hard to pull off with vector or relational approaches | The ablation in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). A hand-built hybrid pipeline with a hop and a conflict-aware reader did match Lacuna, and that is reported as the result it is, along with what it took to get there | done |
 
 ## The judge's ten minutes
 
-If a judge has ten minutes, this is the intended order:
+1. `npm ci && npm test`. 568 tests, no database required. Five error lines on
+   stderr are error-path tests provoking failures on purpose; the counts
+   underneath are the result, ending `Tests 568 passed (568)`.
+2. Start a node, `npm run ingest && npm run census`. It ends
+   `graph matches the plan exactly`.
+3. `npm run serve`, then the Ask panel on a question whose answer was revised
+   twice. Lacuna returns the current value and says what it replaced.
+4. The same panel on a question the history never answered. It abstains with a
+   reason code, and the proof shows what it searched.
+5. The Proof panel: every statement in full, the parameters it was given, its
+   row count and timing, and the read epoch the node reported, so a judge can
+   run any line of it against their own node.
+6. [docs/BENCHMARKS.md](docs/BENCHMARKS.md), which opens by saying the headline
+   is a tie.
 
-1. `README.md`, run the quickstart, see it work.
-2. The Ask screen: a question whose answer was revised twice. Lacuna returns the
-   current value and shows what it replaced.
-3. The Ask screen again: a question the history never answered. Lacuna abstains
-   with a reason code, and the proof shows what it searched.
-4. The HydraDB Proof panel: the actual Cypher, the actual traversal, the read
-   epoch and bookmark from the real response.
-5. `docs/BENCHMARKS.md` and the committed raw output.
+In one command, against a fresh clone rather than the working copy:
 
-Steps 1 to 5 do not exist yet. When they do, this line goes away.
+```bash
+artifacts/repro/repro.sh
+```

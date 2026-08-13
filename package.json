@@ -15,6 +15,7 @@
     "census": "tsx scripts/census.ts",
     "reset": "tsx scripts/reset.ts",
     "bench": "tsx scripts/benchmark.ts",
+    "eval": "tsx scripts/evaluate.ts",
     "test": "vitest run tests/unit",
     "test:contract": "vitest run tests/contract",
     "test:all": "vitest run"

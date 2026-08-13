@@ -46,9 +46,15 @@ before any screen.
   the server
 - Contract tests that run against a live node and fail loudly if it is absent,
   rather than silently mocking
-- Every query the design needs, executed for real: `MERGE` upsert, `UNWIND`
-  batch write, bounded variable-length traversal, `algo.SPpaths`, the
-  `OPTIONAL MATCH` plus `count()` stand-in for `IS NULL`
+- Every query shape the design might need, executed for real against the node
+  rather than assumed: `MERGE` upsert, `UNWIND` batch write, bounded
+  variable-length traversal, `algo.SPpaths`, the `OPTIONAL MATCH` plus `count()`
+  stand-in for `IS NULL`
+
+  Probing a shape is not the same as shipping it. `algo.SPpaths` worked and is
+  deliberately not on the answer path; see
+  [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md) for what actually
+  ships and why.
 - Anything the subset refuses gets recorded and designed around the same day
 
 ### Day 3, 2026-08-14: ingestion and the demo corpus

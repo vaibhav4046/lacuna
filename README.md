@@ -40,8 +40,10 @@ npm ci
 npm test && npm run typecheck
 ```
 
-Two lines on stderr during the tests are meant to be there. They are error-path
-tests logging the failures they provoked; read the counts underneath.
+Five lines on stderr during the tests are meant to be there: a refused
+connection, an ambiguous entity name, and three 403s from a fixture namespace.
+They are error-path tests logging the failures they provoked on purpose. Read
+the counts underneath, which end `Tests 568 passed (568)`.
 
 **3. Start HydraDB.** Lacuna talks to it as a separate service over its HTTP
 API, so it needs a node of its own, built from

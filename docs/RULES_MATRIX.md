@@ -29,7 +29,7 @@ here.
 | Missing or private GitHub repository | Public repo required before submission. Not yet created; needs owner approval, tracked in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) | pending |
 | No open-source license in the repository | `LICENSE`, canonical Apache-2.0 text fetched from apache.org | done |
 | Missing demo video | 3 minutes or less, recorded near the end of the build | pending |
-| HydraDB not used meaningfully | HydraDB is the storage and traversal engine for the evidence graph. Retrieval is a bounded graph traversal executed by HydraDB, not a client-side filter. See ADR 0002 and the HydraDB Proof screen | in progress |
+| HydraDB not used meaningfully | HydraDB is the storage and traversal engine for the evidence graph. The answer path is four graph reads and no similarity score, itemised in [HYDRADB_INTEGRATION.md](HYDRADB_INTEGRATION.md), executed against a live node by the contract suite. See also ADR 0002 and the HydraDB proof panel | done |
 | Submitted after the deadline | Internal target is a full day early | pending |
 | Breaking the rules or code of conduct | This matrix | in progress |
 
@@ -41,10 +41,10 @@ The rules name eight things the repository must contain.
 |---|---|---|
 | Complete source code for the submitted project | whole repo | in progress |
 | No participant-authored commits before August 12, 2026 | `git log` | done |
-| A clear README | [`README.md`](../README.md) | in progress |
-| Setup and run instructions | `README.md`, quickstart section | pending |
-| An explanation of how HydraDB is used | `README.md` plus [`docs/HYDRADB_INTEGRATION.md`](HYDRADB_INTEGRATION.md) | pending |
-| Required environment or dependency information | `.env.example`, README prerequisites | pending |
+| A clear README | [`README.md`](../README.md) | done |
+| Setup and run instructions | `README.md`, "Running it", six steps, verified from a fresh clone by [`artifacts/repro`](../artifacts/repro/README.md) | done |
+| An explanation of how HydraDB is used | `README.md` plus [`docs/HYDRADB_INTEGRATION.md`](HYDRADB_INTEGRATION.md), which names the four reads on the answer path and what the engine refused | done |
+| Required environment or dependency information | `.env.example` with all five keys, README prerequisites, `engines.node >= 20.11.0` | done |
 | Attribution for third-party libraries, APIs, datasets, open-source code | [`THIRD_PARTY.md`](../THIRD_PARTY.md), [`SOURCE_LOG.md`](SOURCE_LOG.md) | in progress |
 | An open-source license | `LICENSE` | done |
 
@@ -71,12 +71,12 @@ time, not trimmed to it.
 
 | Track requirement | How Lacuna addresses it | Status |
 |---|---|---|
-| Cross-session continuity | Sessions are first-class nodes; claims link to the session and message span they came from | in progress |
-| 30-40 sessions, 115k tokens per question | Retrieval never loads the full history. It resolves a bounded traversal and returns only the spans on the proof path | in progress |
-| Synthesize facts across sessions | Multi-hop traversal over `SUPPORTS` / `MENTIONS` / `CONFIRMS` edges via HydraDB path procedures | in progress |
-| Keep chronological order | Bitemporal model: valid time and transaction time on every claim | in progress |
-| Track information later overwritten | Non-destructive revision. Corrections add `SUPERSEDES` edges; superseded claims stay queryable and visible in the timeline | in progress |
-| Abstention | Proof-carrying abstention with a machine-readable reason code, required vs observed evidence, and a next best action | in progress |
+| Cross-session continuity | Sessions are first-class nodes; claims link to the session and message span they came from, over `(Session)-[:CONTAINS]->(Message)-[:HAS_SPAN]->(Span)-[:SUPPORTS]->(Claim)`. 72 sessions loaded | done |
+| 30-40 sessions, 115k tokens per question | Retrieval never loads the full history. 1 to 8 queries per question over a 117,395-token corpus, mean 15 context tokens handed to the answering step | done |
+| Synthesize facts across sessions | One hop over `MENTIONS` from the claims about the subject, in a single request. No path procedure: see [HYDRADB_INTEGRATION.md](HYDRADB_INTEGRATION.md) for why `algo.SPpaths` is probed and unused | done |
+| Keep chronological order | Bitemporal model: `valid_from` and `tx_time` returned on every claim, and the timeline panel orders on them | done |
+| Track information later overwritten | Non-destructive revision. Corrections add `SUPERSEDES` edges; superseded claims stay queryable and visible in the timeline | done |
+| Abstention | Proof-carrying abstention: one of five machine-readable reason codes, plus the claims considered, the hop taken, and a step-by-step trace of what was searched. It does not suggest a next action | done |
 
 Named datasets are LongMemEval, LongMemEval V2 and BEAM. FAQ item 13 confirms
 they are not mandatory: "You may use your own datasets or other public datasets,
@@ -87,13 +87,17 @@ are disclosed.
 
 Five published criteria, plus what the rules say a strong submission has.
 
+Per-criterion evidence and status live in
+[`JUDGE_SCORECARD.md`](../JUDGE_SCORECARD.md), which is the file a judge should
+open. The summary:
+
 | Criterion | What Lacuna leans on |
 |---|---|
-| Technical execution | Working end-to-end product, real tests, measured numbers, no mocks in the demo path |
-| Use of HydraDB and graph-native approaches | The retrieval advantage comes from graph traversal that a vector index cannot express. Provable by ablation, not by assertion |
-| Product completeness and usability | A developer product someone can run, not a benchmark script with a chart |
-| Quality of results | Measured comparison against lexical and vector baselines, reported honestly including where Lacuna loses |
-| Originality | Proof-carrying abstention and a queryable "what changed" timeline |
+| Technical execution | Working end-to-end product, 568 unit tests plus contract tests against a live node, measured numbers, no mocks in the demo path |
+| Use of HydraDB and graph-native approaches | Four graph reads on the answer path and no similarity score. The traversal is the answer, not a decoration on a ranked list |
+| Product completeness and usability | A developer product someone can run, verified from a fresh clone, not a benchmark script with a chart |
+| Quality of results | Measured against lexical, vector and hybrid baselines over 51 configurations, reported honestly: on correctness it is a tie, and the difference is context size and construction |
+| Originality | Proof-carrying abstention with five structural reason codes, and a queryable "what changed" timeline |
 
 > We care about working, thoughtful products, not just benchmark scores.
 

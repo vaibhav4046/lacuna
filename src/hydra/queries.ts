@@ -24,7 +24,11 @@ export interface VertexUpsert {
   readonly rows: readonly Readonly<Record<string, unknown>>[];
 }
 
-function assertVertexId(value: unknown, role: string): number {
+/**
+ * Exported because retrieval builds its own read shapes and must reject the same
+ * values this file does. Two guards with the same job drift; one does not.
+ */
+export function assertVertexId(value: unknown, role: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new HydraGuardError(
       `${role} must be a non-negative safe integer, got ${JSON.stringify(value)}`,

@@ -25,7 +25,7 @@ part everyone skips.
 ## Running it
 
 Node 20.11 or newer, and a HydraDB node. Steps 1 and 2 need nothing else and are
-worth running on their own: they prove the checkout is complete and that 442
+worth running on their own: they prove the checkout is complete and that 568
 tests pass.
 
 **1. Install.**

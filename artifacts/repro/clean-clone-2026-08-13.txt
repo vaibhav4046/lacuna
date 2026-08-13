@@ -1,16 +1,16 @@
 === 0. environment ===
-date        2026-08-13T05:35:35Z UTC
+date        2026-08-13T06:21:33Z UTC
 node        v24.12.0
 npm         11.6.2
 os          MINGW64_NT-10.0-26200 3.5.7-463ebcdc.x86_64
 source      /d/project/lacuna
-clone into  /tmp/tmp.a4EW8IRYHM/lacuna-repro
+clone into  /tmp/tmp.9EmMGP4lbY/lacuna-repro
 
 === 1. git clone into a path that has never held this project ===
 CLONE_EXIT=0
-HEAD        d030408
-commits     25
-tracked     151 files
+HEAD        ffbe274
+commits     29
+tracked     158 files
 untracked   0 (expect 0)
 
 === 2. npm ci ===
@@ -24,13 +24,13 @@ NPM_CI_EXIT=0
 TYPECHECK_EXIT=0
 
 === 4. unit tests ===
-request failed: HydraTransportError: request failed before a response arrived (http://127.0.0.1:18443/v1/graphs/default/query) <- connect ECONNREFUSED
-request failed: RetrievalDecodeError: entity name matched 2 nodes, expected at most one
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
 
- Test Files  26 passed (26)
-      Tests  442 passed (442)
-   Start at  06:35:49
-   Duration  9.73s (transform 1.06s, setup 0ms, import 2.79s, tests 2.07s, environment 2ms)
+ Test Files  28 passed (28)
+      Tests  568 passed (568)
+   Start at  07:21:47
+   Duration  10.31s (transform 880ms, setup 0ms, import 2.81s, tests 2.21s, environment 2ms)
 
 UNIT_EXIT=0
 
@@ -57,7 +57,7 @@ Lacuna on http://127.0.0.1:3016
     This replaced 2 earlier values and nothing has superseded it.
     4 reads, 10 rows,
 --- /ask?subject=Junco&predicate=launch_date
-    HTTP 200, 10888 bytes
+    HTTP 200, 10884 bytes
     5 reads, 7 rows,
 --- /ask?subject=Meridian&predicate=migration_window
     HTTP 200, 6853 bytes
@@ -65,17 +65,17 @@ Lacuna on http://127.0.0.1:3016
     Never stated.
     The graph holds no claim about the migration window of
 --- /ask?subject=replay-queue&predicate=contact&via=vendor
-    HTTP 200, 11678 bytes
+    HTTP 200, 11680 bytes
     8 reads, 11 rows,
 
 === 8. server request log ===
-GET / 200 2ms
-GET /ask 200 206ms
-GET /ask 200 201ms
-GET /ask 200 111ms
-GET /ask 200 272ms
+GET / 200 1ms
+GET /ask 200 190ms
+GET /ask 200 227ms
+GET /ask 200 137ms
+GET /ask 200 291ms
 
 server stopped, port 3016 free again
 
-The clone is at /tmp/tmp.a4EW8IRYHM/lacuna-repro and still holds a copy of your .env.local.
+The clone is at /tmp/tmp.9EmMGP4lbY/lacuna-repro and still holds a copy of your .env.local.
 Delete it when you are done with it.

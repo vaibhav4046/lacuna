@@ -22,6 +22,78 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
+## Running it
+
+Node 20.11 or newer, and a HydraDB node. Steps 1 and 2 need nothing else and are
+worth running on their own: they prove the checkout is complete and that 442
+tests pass.
+
+**1. Install.**
+
+```bash
+npm ci
+```
+
+**2. Test and typecheck.** Neither needs a database.
+
+```bash
+npm test && npm run typecheck
+```
+
+Two lines on stderr during the tests are meant to be there. They are error-path
+tests logging the failures they provoked; read the counts underneath.
+
+**3. Start HydraDB.** Lacuna talks to it as a separate service over its HTTP
+API, so it needs a node of its own, built from
+[upstream](https://github.com/hydra-db/hydradb) at the commit pinned in
+[docs/SOURCE_LOG.md](docs/SOURCE_LOG.md). Build it with upstream's own
+instructions; this repository deliberately does not restate them. Once the
+binary exists:
+
+```bash
+scripts/hydra-node.sh start
+```
+
+That serves HTTP on `127.0.0.1:18443` and keeps its data in
+`/var/lib/lacuna/hydradb` rather than a temporary directory, so the corpus
+survives a restart. On first run it mints an auth token and tells you where it
+wrote it. `scripts/hydra-node.sh status` and `stop` do what they say.
+
+**4. Point Lacuna at it.** Copy [`.env.example`](.env.example) to `.env.local`
+and fill in the five keys, `HYDRA_TOKEN` being the contents of the token file
+from the previous step. `.env.local` is git-ignored and must stay that way.
+
+**5. Load the demo corpus.**
+
+```bash
+npm run ingest
+npm run census
+```
+
+`ingest` writes 72 sessions, 5268 messages and 118 claims. `census` counts what
+is actually in the graph and compares it to what the generator planned, so it
+tells you the load worked rather than that it finished. It ends
+`graph matches the plan exactly`.
+
+**6. Serve.**
+
+```bash
+npm run serve
+```
+
+Then open <http://127.0.0.1:3014>. `PORT` and `HOST` are honoured; the default
+binds loopback only.
+
+To check the whole of that in one go, against a fresh clone rather than this
+working copy:
+
+```bash
+artifacts/repro/repro.sh
+```
+
+That is the script behind [artifacts/repro](artifacts/repro/README.md), which
+holds an unedited transcript of a run.
+
 ## Status
 
 Work in progress. This repository is being built live during the hackathon

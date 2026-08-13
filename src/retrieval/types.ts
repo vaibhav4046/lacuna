@@ -135,9 +135,18 @@ export interface QueryTrace {
   readonly readEpoch: number | null;
 }
 
-/** A resolution with the citations for the claims it rests on. */
-export interface Answer {
-  readonly question: RetrievalQuestion;
+/**
+ * The subgraph, what was concluded from it, and what it cost to read.
+ *
+ * It extends the view rather than holding one, because an answer is not a thing
+ * accompanied by its evidence, it is the evidence plus a conclusion. The
+ * extension buys a checkable property as well: `resolve(answer)` returns
+ * `answer.resolution`, since the resolver is pure and an answer carries every
+ * input it was given. A screen that draws the graph and a screen that states the
+ * verdict are then reading the same object rather than two objects that have to
+ * be kept in step.
+ */
+export interface Answer extends SubgraphView {
   readonly resolution: Resolution;
   readonly evidence: readonly EvidenceRecord[];
   /** Every round trip it took, in the order they were issued. */

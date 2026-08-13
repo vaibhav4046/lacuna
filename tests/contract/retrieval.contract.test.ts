@@ -12,6 +12,7 @@ import {
   buildQuestion,
   entityByName,
   parseVia,
+  resolve,
   supersededByClaim,
 } from '../../src/retrieval/index';
 
@@ -211,6 +212,19 @@ describe('cost and guards on the live node', () => {
     expect(trip.parameters).toEqual(entityByName('Redshank').parameters);
     expect(trip.rows).toBe(0);
     expect(trip.ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('carries the subgraph its verdict was drawn from', async () => {
+    // The screens draw the graph from this. If an answer held a conclusion
+    // without the nodes behind it, the drawing would be an illustration rather
+    // than a rendering, and re-resolving is the cheapest way to keep it honest:
+    // the resolver is pure, so a mismatch means the answer shipped a view that
+    // is not the view it decided from.
+    const answer = await askGold(gold('q-multi_hop-01'));
+
+    expect(answer.subject.name).toBe(answer.question.subject);
+    expect(answer.bridge?.id).toBe(answer.resolution.hop?.toEntityId);
+    expect(resolve(answer)).toEqual(answer.resolution);
   });
 
   it('costs more for a hop than for a direct question', async () => {

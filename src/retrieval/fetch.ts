@@ -145,6 +145,8 @@ export async function ask(
 
   return {
     question,
+    subject,
+    bridge,
     resolution,
     evidence,
     queries: counter.trips,

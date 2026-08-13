@@ -66,9 +66,11 @@ Status values: `open`, `done`, `dropped`.
 - **Status:** open
 - **Why it needs you:** final submission is irreversible and is your
   confirmation to make.
-- **What you get from me:** every field pre-drafted (project name, description,
-  problem, what was built, how it uses the HydraDB OS repo, tech stack, team
-  members and contributions, repo link, video link) so it is a paste-and-check.
+- **What you get from me:** delivered, at [docs/SUBMISSION.md](docs/SUBMISSION.md).
+  All ten fields the form asks for, written out and checked against the code
+  rather than from memory, plus a pre-submit checklist. Eight are ready to paste.
+  Two are blanks only you can fill, and both are items on this list: the
+  repository link (item 2) and the video link (item 3).
 - **Deadline:** 2026-08-20, 11:59 PM PT. Internal target is 2026-08-19, 21:00
   Europe/London.
 

@@ -30,10 +30,34 @@ Status values: `open`, `done`, `dropped`.
 - **Status:** open
 - **Why it needs you:** creating a public repository publishes code under your
   name. That is an outward-facing action and it is yours to approve.
-- **What to do:** say the word and it gets created and pushed. Suggested:
-  `github.com/vaibhav4046/lacuna`, public, no description auto-generated.
-- **Note on tooling:** `gh` is authenticated as `vaibhav4046` and has the `repo`
-  scope, so no credential is missing. Only the approval is.
+- **What to do:** you approved this on 2026-08-13 and it was attempted. The
+  sandbox refused the command, so it is two lines in your own terminal:
+
+  ```bash
+  gh repo create vaibhav4046/lacuna --public --source=. --remote=origin
+  git push -u origin main
+  ```
+
+  Run them from `D:\project\lacuna`. No description flag on purpose: an
+  auto-generated one-liner is worse than the README's first paragraph.
+- **Note on tooling:** `gh` is authenticated as `vaibhav4046` with the `repo`
+  scope, so no credential is missing. The block is the agent sandbox declining to
+  run an outward-facing publish, which is a rule about who presses the button and
+  not a problem with the repository.
+- **Publication safety, cleared on 2026-08-13 before the attempt.** Nothing below
+  is a reason to hesitate, and each was run rather than assumed:
+  - 257 blobs across all 38 commits scanned for tokens, private keys and AWS
+    keys. Zero hits. The working tree scan is separate and also zero across 135
+    files.
+  - `.env.example` is the only environment file tracked, and `.gitignore` covers
+    `.env`, `.env.local`, `*.pem`, `*.key` and the local database directories.
+  - `LICENSE` is Apache-2.0 and committed, which is one of the seven
+    disqualification triggers closed.
+  - First commit is `2026-08-12 21:22:04 +0100`, inside the eligibility window,
+    which closes a second trigger. Nothing in history predates kickoff and no
+    history was rewritten.
+  - Zero Claude or Anthropic attribution anywhere in author fields or messages.
+  - 186 relative links across 24 markdown files resolve. 610 tests pass.
 - **Note on commit email, corrected:** every commit already made carries the
   personal Gmail address that `git config user.email` returns on this machine. If
   "Block command line pushes that expose my email" is on for the GitHub account,

@@ -12,6 +12,9 @@ Status of each mitigation is tracked honestly:
   additionally checked by mutation: the property was broken on purpose and the
   suite watched failing, because a test that passes against broken code is
   decoration.
+- `not applicable` means the control was designed against a surface this system
+  turned out not to have. It is kept rather than deleted, with the reason, so
+  the gap between the original design and what shipped stays visible.
 - `enforced upstream` means the control was executed against the running HydraDB
   node and passed, with the run recorded in
   [artifacts/cypher-probe/](../artifacts/cypher-probe/README.md). Lacuna's own
@@ -157,10 +160,27 @@ Mutation runs behind these markers:
 Long transcripts, deeply nested JSON, huge single messages.
 
 - **Impact:** medium. Local denial of service, and a bad demo.
-- **Mitigations:** hard byte cap per ingest request, cap on message count per
-  batch, cap on individual message length, schema validation before any parsing
-  that allocates. Rejections return a specific error, not a stack trace.
-  `planned`
+- **Mitigations:**
+  - The query surface is the only one that takes input from outside the process,
+    and it is capped before anything parses it. `MAX_URL_CHARS = 1_024` is
+    checked against the raw request target, each term is rejected outside 1 to
+    200 characters, and a term containing a control character is rejected on
+    sight. Every rejection is one of eight fixed notice pages, so no stack trace
+    and no submitted value reaches the response. `tested`
+  - What comes back from the node is capped on this side too, independently of
+    what the node was asked for. See T4. `tested`
+  - The original design here was a byte cap per ingest request, a message count
+    per batch and a message length cap. Those describe a service that accepts
+    uploads. Lacuna's ingest reads the committed generator in `src/corpus/` and
+    nothing else, so there is no request to cap and no stranger's JSON to
+    validate. `not applicable`, and if an upload path is ever added it needs all
+    three before it is exposed.
+
+Where to look:
+[tests/unit/server-routes.test.ts](../tests/unit/server-routes.test.ts), the
+four cases under `the refusals`: a URL longer than any question rejected before
+parsing, both terms demanded when one is missing, an unusable term refused
+without quoting it back, and a control character in a term refused.
 
 ### T4. Unbounded queries
 
@@ -174,7 +194,10 @@ A traversal with no depth limit over a well-connected graph.
     `unbounded variable-length MATCH requires an explicit max hop`.
     `enforced upstream`
   - Path procedures are called with `maxLen`, `pathCount` and `resultLimit` set.
-    `planned`
+    No path procedure ships. `algo.SPpaths` was probed successfully and is not
+    on the answer path, for the reason in
+    [HYDRADB_INTEGRATION.md](HYDRADB_INTEGRATION.md): shortest-path needs two
+    known endpoints and a question arrives with one. `not applicable`
   - A server-side timeout bounds every request. Probe `T01` sent
     `timeout_ms: 1` and the request came back **408 in 4.2ms**, so the field is
     honoured rather than advisory. `enforced upstream`
@@ -186,15 +209,37 @@ A traversal with no depth limit over a well-connected graph.
     `enforced upstream`
   - The client caps rows and response bytes on its own side regardless of what
     the server returns, because a control that lives only in the request is one
-    forgotten parameter away from being absent. `planned`
+    forgotten parameter away from being absent. Five caps, all in
+    `DEFAULT_LIMITS` in [src/hydra/config.ts](../src/hydra/config.ts):
+    `maxQueryChars` 8,192, `maxParameterBytes` 1 MiB, `maxResponseBytes` 8 MiB
+    read incrementally and aborted mid-stream rather than after buffering,
+    `maxRowsPerQuery` 5,000, and `maxPages` 64 so following cursors cannot loop
+    forever. `tested`
+
+Where to look: [tests/unit/client.test.ts](../tests/unit/client.test.ts), which
+drives each cap past its limit and asserts the specific error, including the
+byte cap tripping on a response the fake transport streams past 16 bytes.
 
 ### T5. Token exposure
 
 - **Impact:** medium locally, high if a token is ever reused for something real.
 - **Mitigations:**
-  - Server-side only, never in the client bundle, never logged, never in a
-    screenshot or the video. `.env` git-ignored. Full Git history secret scan
-    before publication. `planned`
+  - Server-side only, never logged, never in a screenshot or the video. `.env`
+    git-ignored. There is no client bundle to leak into: the build ships no
+    JavaScript at all, so the only place the token could surface is the rendered
+    HTML, and three tests assert it does not reach it. `tested`
+  - Full Git history secret scan. Run on 2026-08-13 over every blob reachable
+    from every ref, 26 commits and 229 blobs, 0 hits. The method and the
+    first-attempt failure that made it worth re-running are in
+    [SECURITY.md](../SECURITY.md). It runs again before publication, because a
+    scan is only true of the history it saw. `tested`
+
+Where to look:
+[tests/unit/server-routes.test.ts](../tests/unit/server-routes.test.ts). The
+fixture token is literally named `token-that-must-never-be-rendered`, and it is
+asserted absent from the home page, from an answer page, and from the page
+served when the graph fails, which is the one most likely to leak a connection
+detail. The same answer-page test asserts the node's base URL is absent too.
   - The token is load-bearing rather than decorative, which was worth checking
     rather than assuming. Probe `X02` sent a wrong bearer token and got **401**,
     `X03` omitted the header and got **401**, both with
@@ -206,9 +251,34 @@ A traversal with no depth limit over a well-connected graph.
 Stored text goes back on screen. Naive rendering is a stored XSS.
 
 - **Impact:** medium.
-- **Mitigations:** escaped rendering, no `dangerouslySetInnerHTML` anywhere in
-  the evidence path, a Content-Security-Policy without `unsafe-inline` for
-  scripts. `planned`
+- **Mitigations:**
+  - Escaped rendering. Everything user-controlled goes through `escape()` in
+    [src/view/html.ts](../src/view/html.ts), and nothing else composes markup:
+    there is no `innerHTML` and no `dangerouslySetInnerHTML` anywhere in `src/`.
+    Mutating `escape()` to return its input unchanged fails 8 tests, which is the
+    row already in T1 above rather than a second measurement. `tested`
+  - A Content-Security-Policy stricter than "without `unsafe-inline`". The policy
+    is `default-src 'none'` with `script-src 'none'` stated explicitly beside it,
+    in `DIRECTIVES` in [src/view/layout.ts](../src/view/layout.ts). Not a
+    narrowed allowance for inline script: no script at all, from any origin,
+    inline or not. The page can afford that because it ships none. It is sent as
+    a header and mirrored into a `meta` element so a page saved to disk keeps the
+    restriction, and both strings are built from the one array so the mirror
+    cannot drift. `tested`
+
+Where to look: two places, because the policy and its delivery are separate
+failures. [tests/unit/view-pages.test.ts](../tests/unit/view-pages.test.ts),
+"the content security policy", asserts all six directives in both the header and
+the meta copy, and states the difference between them as a difference so adding
+a directive cannot quietly leave the mirror behind.
+[tests/unit/server-routes.test.ts](../tests/unit/server-routes.test.ts), "answers
+with the rendered page and the headers that protect it", asserts the header
+arrives on a real response over a real socket, alongside `nosniff`, `DENY` and
+`no-referrer`.
+
+- **Note on the meta mirror:** it carries one directive fewer.
+  `frame-ancestors` is ignored in a meta element and browsers log that it was,
+  so it is dropped there and kept in the header, alongside `x-frame-options`.
 
 ### T7. Remote content ingestion
 
@@ -222,8 +292,38 @@ Stored text goes back on screen. Naive rendering is a stored XSS.
 ### T8. Poisoned dependencies
 
 - **Impact:** medium.
-- **Mitigations:** lockfile committed, dependency audit in CI, dependency count
-  kept deliberately small. `planned`
+- **Mitigations:**
+  - The dependency count is not "kept small", it is zero. `package.json` has no
+    `dependencies` block at all, and `npm ls --omit=dev --depth=0` prints
+    `(empty)`. Every non-relative import in `src/` and `scripts/` is a `node:`
+    builtin: `node:url` 7 times, `node:fs` 6, `node:crypto` 4, `node:util` 2,
+    `node:http` 2, `node:path` 1. The product a judge runs pulls in nothing from
+    the registry, so there is no third-party code on the answer path to poison.
+    `tested`
+  - `package-lock.json` is committed and tracked. `tested`
+  - Audit, run and reported both ways because the two numbers differ and only
+    quoting the flattering one would be the error this document exists to
+    prevent:
+
+    ```
+    npm audit --omit=dev   exit 0   found 0 vulnerabilities
+    npm audit              exit 1   4 high severity vulnerabilities
+    ```
+
+    The four are `adm-zip <0.6.0` and `sharp <0.35.0`, both reported as **No fix
+    available**, both reached only through the devDependency
+    `@huggingface/transformers` by way of `onnxruntime-node`. That package is
+    loaded in exactly one place, a dynamic `await import()` inside
+    [src/bench/embed.ts](../src/bench/embed.ts), which computes sentence
+    embeddings for the *baselines* the benchmark measures Lacuna against. It is
+    not imported by the server, the ingest, the census or the resolver, and it is
+    not installed at all by `npm ci --omit=dev`. Reported rather than buried:
+    they are real advisories with no upgrade path, and the reason they are
+    tolerable is their location, not their severity. `tested`
+  - Dependency audit in CI. There is no CI, so this stays `planned` rather than
+    being quietly upgraded on the strength of the run above. A command run by
+    hand on one machine on one day is not the same control as one that runs on
+    every push, and the difference is the whole point of the marker.
 
 ### T9. Result handles used as capabilities
 
@@ -260,7 +360,18 @@ accepted will abstain when it should not.
   read the written row back with it. The engine named this mechanism itself when
   a client-supplied `read_epoch` was rejected:
   `read_epoch is not a storage snapshot selector; use bookmark for causal reads`.
-  `planned`, and the mechanism it depends on is `enforced upstream`.
+  `tested`, and the mechanism it depends on is `enforced upstream`.
+
+Where to look: five unit tests under "bookmarks" in
+[tests/unit/client.test.ts](../tests/unit/client.test.ts) pin the carrying rule
+in both directions. The client remembers what a write returned and attaches it to
+the next read; a caller passing `null` suppresses it; a caller passing their own
+overrides it; `forgetWriteBookmark()` clears it; and a second write returning no
+bookmark does not erase the one already held, which is the case that would
+silently turn causal reads off. The end to end version is "sends the write
+bookmark on the following read, and sees the write" in
+[tests/contract/hydra.contract.test.ts](../tests/contract/hydra.contract.test.ts),
+against a live node.
 - **Honest limit:** on a single node answering `consistency: "strong"` the read
   would probably have seen the write without the bookmark. `B02` does not isolate
   the bookmark as the cause and cannot on this deployment.
@@ -277,6 +388,22 @@ accepted will abstain when it should not.
 Each `planned` item above becomes either a test or a documented control, and this
 file gets updated to say which. An untested mitigation is a claim, and this
 project does not ship claims.
+
+That sweep ran on 2026-08-13, and it is worth recording which way the drift went.
+Five entries said `planned` for controls that had shipped and were under test:
+the client-side row and byte caps in T4, the input caps in T3, the token
+assertions and the history scan in T5, escaped rendering and the policy in T6,
+the audit in T8, and the bookmark carrying rule in T10. One of them had the file
+contradicting itself, since T1 already marked escaped rendering `tested` while T6
+called the same mitigation `planned`. Two more described controls for surfaces
+this system does not have: an ingest upload endpoint, and a path procedure that
+is deliberately not on the answer path. Those became `not applicable`, which is
+why that marker exists.
+
+A stale `planned` is a smaller error than a false `tested`, but it is the same
+kind of error. Documentation drifts in both directions, and only one of them gets
+caught by people looking for overclaiming. The check that found these was reading
+every marker against the code rather than against memory of having written it.
 
 The `enforced upstream` items were executed on 2026-08-12 in rounds four and five
 of [artifacts/cypher-probe/](../artifacts/cypher-probe/README.md). The raw

@@ -533,6 +533,170 @@ What exists right now. Updated as things change, and never ahead of them.
    TESTALL_EXIT=0
   ```
 
+- **The README carries the six commands it was claiming to, and
+  [SECURITY.md](SECURITY.md) carries results instead of placeholders.** The
+  README said "if a claim here is not backed by a command you can run, it is a
+  bug in the README" while containing no commands, which made that sentence the
+  first thing a judge could disprove. It now has a quickstart from a clean
+  machine, and it flags the error lines in the test run as error-path tests
+  rather than leaving a reader to wonder.
+
+  The history scan ran rather than being promised: every blob reachable from
+  every ref, 26 commits and 229 blobs, on 2026-08-13. No `.env`, `.env.*` or
+  `auth-token` file was ever added on any ref. Zero hits for seven vendor key
+  shapes. Zero hex runs 44 to 63 characters long, which is the band the node's
+  48-character token would land in. The blob list is sanity-checked against a
+  known object before anything is scanned, because the first attempt enumerated
+  nothing and reported zero hits, and a scan that saw no blobs is
+  indistinguishable from a clean one.
+
+  Paths were checked separately, since a home directory in a committed
+  transcript leaks a username even when it leaks no secret. No tracked file
+  holds one. The absolute paths that do appear are `/opt/hydradb` and
+  `/var/lib/lacuna/hydradb`, both from `scripts/hydra-node.sh`.
+
+  `npm audit` is recorded both ways, because the two numbers differ:
+
+  ```
+  npm audit --omit=dev   exit 0   found 0 vulnerabilities
+  npm audit              exit 1   4 high severity vulnerabilities
+  ```
+
+  The four are `adm-zip` and `sharp`, both **No fix available**, both reached
+  only through the devDependency `@huggingface/transformers` behind one dynamic
+  `import()` in `src/bench/embed.ts`, which is baseline code the benchmark
+  measures against. `npm ci --omit=dev` does not install them and the server
+  never imports them. Reported rather than buried: they are real advisories, and
+  what makes them tolerable is where they sit, not how severe they are.
+
+- **Two threats are now exercised by suites rather than described.** T1,
+  prompt injection through stored content, and T4, namespace isolation.
+
+  `tests/unit/security-injection.test.ts` runs 8 payloads against 12 resolver
+  scenarios, 96 cases. Two payloads are written against this system's own
+  vocabulary, naming `SUPERSEDES` and the abstention reasons, because generic
+  "ignore previous instructions" text is a weak test against code that was never
+  listening. Each case asserts three things: that the payload actually reached
+  the output, that the decision is identical to its uninjected twin, and that
+  stripping the payload makes the two results equal. A 97th test asserts the 12
+  scenarios reach all five abstention reasons and three answers, so a fixture
+  that quietly took a different branch cannot leave the suite claiming coverage
+  it does not have. 16 more render each payload through the real page, once as a
+  stored claim and once as the question itself, and assert `<script`, `</script`,
+  `onmouseover="` and `<!--` never appear. 113 tests in that file.
+
+  `tests/unit/security-namespace.test.ts` sends 10 hostile headers, including
+  both casings of `X-Graph-Namespace`, a chosen `Authorization` and a cookie, on
+  8 question shapes that try to carry a foreign tenant in a field that is read: a
+  subject shaped like a graph scope, a predicate shaped like a header, path
+  traversal, a `namespace=` parameter, a repeated parameter in case the last one
+  wins somewhere. Every outgoing request still carries the configured namespace
+  and the configured URL. One test asserts the header set is closed rather than
+  merely free of the hostile names, since a header this server does not send
+  today cannot be enumerated by a test written today. One asserts the namespace
+  is absent from the request body. Three cover a 403 from the node being
+  surfaced as a failure rather than rendered as an answer, with neither
+  namespace, the engine message, nor the token reaching the page. 13 tests.
+
+  Real output, 2026-08-13:
+
+  ```
+  > vitest run tests/unit/security-injection.test.ts tests/unit/security-namespace.test.ts
+
+  request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+  request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+  request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+
+   Test Files  2 passed (2)
+        Tests  126 passed (126)
+     Duration  1.60s
+  SEC_EXIT=0
+  ```
+
+  Those three lines are the refusal tests working. `tenant-b` is a fixture name
+  and not a namespace on anybody's node.
+
+- **The whole thing has been reproduced from a clean clone, twice.**
+  `artifacts/repro/repro.sh` clones into a temporary directory that has never
+  held this project, installs from the lockfile, typechecks, runs the unit
+  suite, then starts the server from the clone and asks the live node all four
+  demo questions. It refuses to report success for a step it did not run: with
+  no `.env.local` it stops after step 4 and says so, rather than printing a pass
+  for the HydraDB steps. It also refuses to run against a port it did not open,
+  which is [D-048](DECISIONS.md), because a reproduction that quietly answered
+  from the development server would prove nothing about the clone.
+
+  The transcript is committed unedited at
+  [artifacts/repro/](artifacts/repro/README.md). It was re-run and replaced
+  wholesale rather than corrected in place: the first one said 442 tests, and so
+  did the README in three places, while the suite had grown to 568 across 28
+  files. Editing a recorded transcript would have turned evidence of a run into
+  a description of one that never happened.
+
+  Real output from the committed run, 2026-08-13, against `ffbe274`:
+
+  ```
+  === 3. typecheck ===
+  TYPECHECK_EXIT=0
+
+  === 4. unit tests ===
+   Test Files  28 passed (28)
+        Tests  568 passed (568)
+  UNIT_EXIT=0
+
+  === 8. server request log ===
+  GET / 200 1ms
+  GET /ask 200 190ms
+  GET /ask 200 227ms
+  GET /ask 200 137ms
+  GET /ask 200 291ms
+  ```
+
+  The step 4 error-line note needed rewriting for a subtler reason than the
+  count. It named the two specific lines a reader would see, but a full run now
+  prints five and step 4 prints `tail -8`, so which of them land in the window
+  depends on the order the test files happened to finish in. Naming two would
+  have asserted an ordering nothing guarantees.
+
+- **The three documents a judge actually opens exist, and writing them found six
+  claims in this repository that were false.** [JUDGE_SCORECARD.md](JUDGE_SCORECARD.md)
+  maps every published criterion to a command,
+  [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md) names the four reads
+  on the answer path and what the engine refused, and
+  [docs/BENCHMARKS.md](docs/BENCHMARKS.md) opens by saying the headline is a tie.
+
+  The six, found by grepping for the code rather than trusting the prose:
+  `algo.SPpaths` is not on the answer path, it was probed and no shipped query
+  calls it; the answer path is four graph reads, not six; contradiction is
+  derived from two current claims disagreeing, not read off a `CONTRADICTS`
+  edge; two baseline configurations tie at 60/60, not one; there is no `CONFIRMS`
+  edge and no next-best-action on an abstention, both of which the rules matrix
+  claimed; and the unit suite prints five deliberate error lines, not two.
+
+  `docs/BENCHMARKS.md` also told the reader to run `npm run eval`, which was not
+  a script. Adding it and running it produced a fresh
+  [artifacts/eval/report.txt](artifacts/eval/report.txt): counts unchanged at
+  60/60 exact with abstention precision, recall and F1 all 1.000, and latency
+  p50 158.7ms against the 191.2ms in the previous committed report. Wall clock
+  on a loopback hop moves that much between runs on a laptop. Both documents
+  quote the new run rather than the old numbers.
+
+- **The threat model's status markers were checked one at a time against the
+  code, and six had drifted.** All six understated: controls that had shipped
+  and were under test still said `planned`. One had the file contradicting
+  itself, with T1 marking escaped rendering `tested` while T6 called the same
+  mitigation `planned`. Two more described controls for surfaces this system does
+  not have, an ingest upload endpoint and a path procedure that is deliberately
+  off the answer path, and became `not applicable`, which is why that marker now
+  exists.
+
+  Exactly one `planned` remains, at the CI dependency audit, and it stays that
+  way on purpose. A command run by hand on one machine on one day is not the
+  control that runs on every push, and pretending otherwise is the drift this
+  document exists to catch. A stale `planned` is a smaller error than a false
+  `tested`, but it is the same kind of error, and only one of the two gets caught
+  by people looking for overclaiming.
+
 ## In progress
 
 - Nothing.

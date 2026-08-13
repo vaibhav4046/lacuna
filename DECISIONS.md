@@ -980,8 +980,10 @@ that could fail differently on their machine.
 
 And there is no client state worth a framework. Every screen renders one
 `Answer`, which is already an immutable value produced by one function. The
-question form is a GET form, the panels are anchors, and every page works with
-JavaScript disabled. What script there is enhances and never enables.
+question form is a GET form and the panels are anchors, so the build ships no
+script at all: no bundle, no tag, no inline handler, and a
+`script-src 'none'` header saying so. "Works with JavaScript disabled" is the
+weaker claim; this one never asks.
 
 The cost is real and worth naming: no component model, no hot reload, and HTML
 assembled from template strings, which makes every interpolation an escaping
@@ -1009,3 +1011,71 @@ Nothing in a parameter is a secret. They are entity names, predicates and
 integer ids, the same values the question already contains. The token never
 enters a query; it is a header on the transport, which is the reason any of
 this is publishable.
+
+### D-043: An answer is the subgraph it was drawn from, not just the conclusion
+
+`Answer` used to hold a resolution, its evidence and its cost. The screens
+needed more than that. The Timeline panel prints every claim on the subject
+including the superseded ones, and the Graph panel prints the hop a two step
+question took, and neither of those is in a resolution: they are in the
+`SubgraphView` the resolver read and then discarded.
+
+The obvious fix was a second fetch from the page. That would have made the
+screens capable of disagreeing with the answer above them, since two reads of a
+live graph are two different moments, and a timeline that contradicts the
+conclusion printed over it is worse than no timeline.
+
+So `Answer extends SubgraphView`. One value carries the record and the
+conclusion drawn from it, the resolver stays the pure function it was, and every
+panel on the page is rendered from the same read. A screen cannot show a claim
+the decision did not see, because there is only one set of claims.
+
+### D-044: The server answers GET and HEAD, binds loopback, and logs no question
+
+Three properties of the HTTP surface, decided together because they are the same
+decision: this thing reads a graph and should be unable to do anything else.
+
+Only GET and HEAD are routed. Everything else gets a 405 with an `Allow` header.
+Asking a question does not write, so nothing here needs a method that implies it
+might, and the refusal is at the top of the handler rather than per route.
+
+The default bind is `127.0.0.1`. A demo server holding a bearer token for a
+graph should not appear on a LAN because someone ran it on a laptop in a cafe.
+Binding wider is possible and deliberate, not the default.
+
+The access log prints method, path, status and duration, and stops there. The
+query string is the two fields the visitor typed, and this console is going to
+be on screen during a demo. `safePath` cuts at the first `?`, strips anything
+outside printable ASCII and caps the result at 120 characters, so a crafted URL
+cannot write escape sequences into a terminal either.
+
+Rate limiting is per source address over a fixed window, applied before routing,
+which means the stylesheet counts too. That is intentional: the limit protects
+the single graph node behind this process, not any particular route.
+
+### D-045: The notices never repeat what was typed at them
+
+Eight fixed pages: not found, method, URL too long, missing terms, unusable
+terms, too many requests, upstream failure, internal failure. Every one is
+rendered to a `Buffer` once when the handler is built, and none of them
+interpolates anything from the request.
+
+The one that had to be argued is `badTerms`. Echoing the offending value is
+normal and it is helpful, and it is also how a page that exists to quote a
+graph ends up quoting an attacker instead. The escaping here is sound and the
+CSP is `default-src 'none'`, so this is belt and braces rather than a fix. It is
+still the right default: the page says the rule that was broken, which is the
+part the visitor can act on, and says nothing about the value, which is the part
+they already have.
+
+Same reasoning at the other end. A failed read prints `HydraTransportError:
+connect ECONNREFUSED` to the server console and the page says the graph did not
+answer. The detail is where the operator is, not where the internet is.
+
+The 502 and 500 split is carried by the type hierarchy rather than by a string
+match: anything under `HydraError` is the graph or the connection to it, a
+`RetrievalError` raised by term validation is the request, and anything else is
+this server's own fault. All three are exercised over a socket in
+`tests/unit/server-routes.test.ts`, including a graph that answers with two
+entities under one name, which is a 500 because it is neither the visitor's
+fault nor the transport's.

@@ -446,22 +446,77 @@ What exists right now. Updated as things change, and never ahead of them.
   tests and by the harness run itself, and the file says so where a reader will
   find it rather than only here.
 
+- **The four screens exist and are served.** `src/view/` is eleven files and
+  `src/server/` is three, 2,362 lines between them: the home page with the
+  corpus counts and one link per question kind, the answer page carrying the
+  conclusion, and the three panels under it, Timeline, Graph and Proof. Eight
+  fixed notice pages cover every way a request can fail. `npm run serve` starts
+  it.
+
+  **The build ships no JavaScript at all.** No bundle, no tag, no inline
+  handler, and a `script-src 'none'` in the header saying so. The question form
+  is a GET form and the panels are anchors, so there is nothing to hydrate and
+  nothing to go wrong between the graph and the screen. The full policy is
+  `default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self';
+  form-action 'self'; base-uri 'none'; frame-ancestors 'none'`. See
+  [D-041](DECISIONS.md).
+
+  Every panel is rendered from one read. `Answer` extends `SubgraphView`, so the
+  timeline, the hop and the conclusion all come out of the same fetch and cannot
+  disagree with each other, which a second request from the page would have
+  allowed. See [D-043](DECISIONS.md).
+
+  The HTTP surface is deliberately small: GET and HEAD only with a 405 and an
+  `Allow` header for anything else, `127.0.0.1` by default, a 1,024-character
+  URL cap, a 200-character cap per term, a 10s query timeout, and 120 requests
+  per minute per source address applied before routing so the stylesheet counts
+  too. The access log prints method, path, status and duration and stops at the
+  `?`, because the query string is what the visitor typed and the console is
+  going to be on screen. No notice page repeats a submitted value back.
+  [D-044](DECISIONS.md) and [D-045](DECISIONS.md).
+
+  `tests/unit/server-routes.test.ts` drives the whole surface over a real
+  loopback socket with only the transport faked, so the real client, the real
+  decoders and the real error hierarchy all run: 16 cases covering the two
+  static assets, the four input rejections, a real out-of-scope answer in
+  exactly one query, the log line, the rate limit, and the 502 and 500 paths.
+  The two error lines the run prints are that last pair working. It asserts the
+  bearer token and the node's base URL appear on no page, and that the namespace
+  does.
+
+  Real output, 2026-08-13:
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run tests/unit
+   Test Files  26 passed (26)
+        Tests  437 passed (437)
+     Duration  9.43s
+  UNIT_EXIT=0
+  ```
+
+  What is not done here: no screenshot has been captured from the running
+  server, and nothing has been deployed. Both are listed below.
+
 ## In progress
 
-- Nothing. The benchmark was the open item and it is finished, including the
-  part where it disagreed with the pitch. The four screens are next, and no line
-  of any of them exists yet.
+- Nothing. The screens were the open item and they are built, served and
+  tested. Screenshots are next, and they need a capture path that works on this
+  machine: the in-app browser refuses with "the Browser pane is not displayed,
+  so the page is not compositing frames", so it will be Playwright or headless
+  Chrome offline.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
-- No application code above the adapter, the ingest layer, retrieval and the
-  benchmark
-- No user interface
 - No CI
-- No screenshots
-- No deployment
+- No screenshots. The screens exist and are served; nothing has been captured
+  from them at 1920x1080 or 3840x2160
+- No deployment. HydraDB runs in WSL2 on this machine and is not reachable from
+  a hosted frontend, so this is an open question and not a task
 - No demo video
 
 ## Known environment deviations

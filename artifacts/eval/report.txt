@@ -1,6 +1,6 @@
 Lacuna retrieval evaluation
 corpus seed lacuna-demo-v1
-run at 2026-08-13T02:24:37.118Z
+run at 2026-08-13T03:06:19.963Z
 
 Questions        60
 Exact correct    60  (100.0%)
@@ -33,9 +33,9 @@ Abstention as a decision (positive class: abstained)
 Unsupported answers  0  (0.0% of all questions)
 
 Latency, wall clock per question, one at a time
-  p50   145.3ms
-  p95   284.9ms
-  max   319.7ms
+  p50   191.2ms
+  p95   356ms
+  max   378.1ms
 
 Queries per question
   min   1
@@ -50,5 +50,6 @@ What this measures, and what it does not
   corpus wrote them. It is a correctness check on the pipeline.
   It is not evidence that the approach beats anything, and it is not a
   measurement on real conversations. The comparison against recency,
-  lexical, vector and hybrid retrieval runs on this same corpus and is
-  reported separately. That is where a claim of advantage has to be earned.
+  lexical, vector and hybrid retrieval runs on this same corpus through
+  this same scorer, in scripts/benchmark.ts, and lands in artifacts/bench.
+  That is where a claim of advantage has to be earned.

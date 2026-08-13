@@ -51,6 +51,10 @@ desktop.ini
 npm-debug.log*
 yarn-error.log*
 
+# Derived data. Embedding vectors and downloaded model weights rebuild from
+# source on demand, and megabytes of floats do not belong in history.
+.cache/
+
 # Local scratch. Anything a developer wants to keep out of the tree.
 /scratch/
 /tmp/

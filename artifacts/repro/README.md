@@ -4,8 +4,19 @@ Whether a judge can run this is a claim like any other, so it gets an
 experiment rather than an assurance. [`repro.sh`](repro.sh) clones this
 repository into a directory that has never held it, installs from the lockfile,
 typechecks, runs the unit suite, starts the server, and asks it the four demo
-questions. [`clean-clone-2026-08-13.txt`](clean-clone-2026-08-13.txt) is the
-output of one such run, unedited.
+questions. Two runs are recorded here, both unedited:
+
+| Transcript | Commit | Why it is kept |
+|---|---|---|
+| [`clean-clone-2026-08-13.txt`](clean-clone-2026-08-13.txt) | `ffbe274`, 29 commits | The first run at the full 568-test suite |
+| [`clean-clone-4de1a65.txt`](clean-clone-4de1a65.txt) | `4de1a65`, 40 commits | The tip, which is what a judge actually clones |
+
+The second exists because the first was going stale in a specific way. Eleven
+commits landed after it, and although all of them were documentation, "all of
+them were documentation" is a claim, and the fix for a claim is to run the
+thing. Source, tests and `package-lock.json` are byte for byte identical
+between the two commits. The only non-markdown difference is one line of
+`package.json`, an `eval` script alias that no step of this run touches.
 
 ```bash
 artifacts/repro/repro.sh
@@ -37,7 +48,8 @@ request failed: HydraQueryError: HydraDB returned 403: principal bearer principa
 A full run prints five of these: the 403 above three times, plus one
 `HydraTransportError` and one `RetrievalDecodeError`. Step 4 prints `tail -8`,
 so which of the five you see there depends on the order the test files happened
-to finish in. The transcript recorded here caught two of the three 403s.
+to finish in. Both transcripts here caught two of the three 403s, which is a
+coincidence and not a guarantee.
 
 Every one of them is a test provoking an error on purpose and the code logging
 the error it was handed. The 403 is `tests/unit/security-namespace.test.ts`
@@ -46,8 +58,29 @@ rendered as an answer, so it has to cause a refusal to check it. The other two
 cover a node that will not accept a connection and an entity name that matches
 two nodes. `tenant-b` is a fixture name and not a namespace on anybody's node.
 
-The counts on the following lines are the result. The run above ends
+The counts on the following lines are the result. Both runs end
 `Tests 568 passed (568)` and `UNIT_EXIT=0`.
+
+## The two runs disagree about latency, and neither one is wrong
+
+Step 8 prints the server's own request log. The two transcripts do not match:
+
+```
+ffbe274    GET / 200 1ms     GET /ask 200 190ms   227ms   137ms   291ms
+4de1a65    GET / 200 5ms     GET /ask 200 1167ms  529ms   240ms   1184ms
+```
+
+Same source, byte for byte, four to six times the wall clock. No cause was
+established, so none is offered. What can be said is what it is not: it is not
+a code change, because there is no code change between these two commits, and
+it is not a different graph, because both ran against the same node holding the
+same corpus. It is a laptop under an unknown load, measured twice.
+
+This is the same instability [docs/BENCHMARKS.md](../../docs/BENCHMARKS.md)
+already reports in its latency column, where the same harness against the same
+graph produced a p50 of 188.1ms and then 243.4ms. Treat any millisecond figure
+in this repository as an order of magnitude. Every correctness figure in these
+two runs is identical, which is the part they were run to check.
 
 ## This script passed once without proving anything
 

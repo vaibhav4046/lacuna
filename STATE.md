@@ -658,6 +658,23 @@ What exists right now. Updated as things change, and never ahead of them.
   depends on the order the test files happened to finish in. Naming two would
   have asserted an ordering nothing guarantees.
 
+  **Re-run against the tip, 2026-08-13, and kept alongside rather than
+  replacing.** Eleven commits had landed since `ffbe274`, all documentation, and
+  "all documentation" is a claim rather than a check. `4de1a65` clones at 40
+  commits and 162 tracked files, installs, typechecks, passes 568 across 28
+  files, and answers all four demo questions HTTP 200 against the live node from
+  the clone. Source, tests and the lockfile are byte for byte identical between
+  the two commits; the one non-markdown difference is an `eval` script alias in
+  `package.json` that no step of the run touches. The second transcript is at
+  [artifacts/repro/clean-clone-4de1a65.txt](artifacts/repro/clean-clone-4de1a65.txt).
+
+  The two runs disagree on latency by four to six times, 190ms against 1167ms on
+  the same first question, and no cause was established. It is not the code,
+  because there is no code difference, and it is not the graph, because both ran
+  against the same node. Written down rather than smoothed over, and consistent
+  with the benchmark's own two runs at p50 188.1ms and 243.4ms. Every
+  correctness figure matched.
+
 - **The three documents a judge actually opens exist, and writing them found six
   claims in this repository that were false.** [JUDGE_SCORECARD.md](JUDGE_SCORECARD.md)
   maps every published criterion to a command,

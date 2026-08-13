@@ -1,0 +1,81 @@
+=== 0. environment ===
+date        2026-08-13T15:03:33Z UTC
+node        v24.12.0
+npm         11.6.2
+os          MINGW64_NT-10.0-26200 3.5.7-463ebcdc.x86_64
+source      /d/project/lacuna
+clone into  /tmp/tmp.2HNKvOwXv5/lacuna-repro
+
+=== 1. git clone into a path that has never held this project ===
+CLONE_EXIT=0
+HEAD        4de1a65
+commits     40
+tracked     162 files
+untracked   0 (expect 0)
+
+=== 2. npm ci ===
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+NPM_CI_EXIT=0
+
+=== 3. typecheck ===
+TYPECHECK_EXIT=0
+
+=== 4. unit tests ===
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+
+ Test Files  28 passed (28)
+      Tests  568 passed (568)
+   Start at  16:04:10
+   Duration  25.88s (transform 5.89s, setup 0ms, import 8.11s, tests 4.79s, environment 4ms)
+
+UNIT_EXIT=0
+
+=== 5. config ===
+COPY_EXIT=0
+keys present, values never printed:
+HYDRA_HTTP_URL=<redacted>
+HYDRA_NAMESPACE=<redacted>
+HYDRA_GRAPH=<redacted>
+HYDRA_CELL=<redacted>
+HYDRA_TOKEN=<redacted>
+
+=== 6. serve, reading the live HydraDB node over HTTP ===
+SERVER_UP_EXIT=0
+
+> lacuna@0.0.0 serve
+> tsx scripts/serve.ts
+
+Lacuna on http://127.0.0.1:3016
+
+=== 7. the four demo questions, against the clone ===
+--- /ask?subject=Bellwether&predicate=beta_partner
+    HTTP 200, 9360 bytes
+    This replaced 2 earlier values and nothing has superseded it.
+    4 reads, 10 rows,
+--- /ask?subject=Junco&predicate=launch_date
+    HTTP 200, 10889 bytes
+    5 reads, 7 rows,
+--- /ask?subject=Meridian&predicate=migration_window
+    HTTP 200, 6852 bytes
+    migration window of Meridian: Never stated. | Lacuna
+    Never stated.
+    The graph holds no claim about the migration window of
+--- /ask?subject=replay-queue&predicate=contact&via=vendor
+    HTTP 200, 11688 bytes
+    8 reads, 11 rows,
+
+=== 8. server request log ===
+GET / 200 5ms
+GET /ask 200 1167ms
+GET /ask 200 529ms
+GET /ask 200 240ms
+GET /ask 200 1184ms
+
+server stopped, port 3016 free again
+
+The clone is at /tmp/tmp.2HNKvOwXv5/lacuna-repro and still holds a copy of your .env.local.
+Delete it when you are done with it.

@@ -73,7 +73,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const VERIFY_PAGE_SIZE = 1_000;
 const MAX_VERIFY_PAGES = 1_024;
 
-/** Progress is reported on a stride so a logging caller does not get 5,693 lines. */
+/** Progress is reported on a stride so a logging caller does not get 5,705 lines. */
 const PROGRESS_STRIDE = 100;
 
 function assertPositiveInteger(value: number, role: string): number {

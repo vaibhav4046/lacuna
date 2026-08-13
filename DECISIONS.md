@@ -418,3 +418,243 @@ free text. That is deliberate and it is now written into
 a memory does with claims once it has them, which is where the abstention
 question lives. Bolting a fallible extractor onto the front would make every
 number in the benchmark a measurement of the extractor instead.
+
+### D-017: The entity roster comes from the claims, not from the name pools
+
+`src/corpus/vocab.ts` holds four pools of names: projects, services, vendors,
+people. The obvious way to build `Entity` nodes is to walk those pools. It is
+also the way that destroys the distinction D-016 exists to create.
+
+A name from a pool that no claim ever touched would still get a node. Then
+`out_of_scope` and `never_stated` become the same shape in the graph: a node with
+no claim on the predicate being asked about. The two are supposed to be different
+kinds of not-knowing, and a system that cannot tell them apart in the data cannot
+be asked to tell them apart in an answer.
+
+So `collectEntities` walks the finished claims instead and keeps only the names
+they touch, subject and object alike. `validateCorpus` then enforces both
+directions on every generation: every claim subject and object entity must be in
+the roster, and no `OUT_OF_SCOPE_SUBJECTS` name may be. What ingestion writes is
+66 `Entity` vertices out of a larger pool, and the absence of the rest is load
+bearing. In the graph, `out_of_scope` is the absence of a node. `never_stated` is
+a node with nothing attached on that predicate.
+
+### D-018: The pre-write read-back streams pages instead of accumulating them
+
+`HydraClient.query` follows cursors and accumulates rows, capped at 5,000 by
+`maxRowsPerQuery`. The corpus has 5,268 messages. So the collision check, which
+has to read back every node under every label it is about to write, cannot use
+it: the largest label alone exceeds the cap.
+
+Raising the cap is the wrong fix. It would mean holding every row of every label
+in memory in order to test each one against a set and then discard it. The check
+does not need the rows, it needs a verdict. So `verifyLabel` drives `queryPage`
+directly, one page at a time, under a single query id minted once for the whole
+label. A cursor is scoped to the query id it was issued under, so minting a fresh
+one on the second request would be reading something else entirely, which is a
+bug the unit test now pins down explicitly. Nothing accumulates, so the corpus
+can grow without this turning into a knob someone has to remember to turn.
+
+`MAX_VERIFY_PAGES` is 1,024. A server that hands back a cursor forever is
+otherwise an infinite loop, and an ingest that fails loudly is better than one
+that hangs.
+
+### D-019: Concurrent edge writes are pinned to one bookmark, and one serial write closes the run
+
+Edges go one statement per request (D-011) and the demo corpus has 5,705 of them.
+At the ~12ms steady-state round trip measured in D-010 that is over a minute of
+the demo spent watching a progress counter, so the edge phase runs a bounded pool
+with 8 in flight.
+
+That collides with D-013. The client remembers the bookmark from its last write
+and sends it on the next one, which is exactly right when writes are serial and
+exactly wrong when they are not: under concurrency that field holds whichever
+write returned most recently, which is not necessarily the latest. Every edge
+MERGE needs to observe both of its endpoints, which the vertex phase wrote. So
+each edge write sends an explicit bookmark, the one the vertex phase ended on. A
+pinned selector does not care who won the race.
+
+The cost of pinning is that the run ends without a bookmark known to be after
+everything, which is what verification reads need. One more write fixes it:
+re-MERGE the last edge, serially, after the pool has drained. It is the only
+request in flight, so what it returns is unambiguously after every write above.
+It changes no state, because a repeated MERGE on the same edge is the idempotence
+this whole design already rests on. One round trip, and the alternative was
+parsing an opaque bookmark string to compare two of them.
+
+### D-020: `DETACH` is required only when a vertex has edges, and deleting nothing succeeds
+
+The contract test wipes its fixture ids before and after it runs, against a graph
+that may or may not already hold them. Whether that cleanup needs a guard depends
+on two things, and both were measured rather than assumed.
+
+An earlier probe recorded that plain `DELETE` is rejected. That was measured
+against an id that was not present, and it is wrong as a general statement:
+
+```
+plain DELETE      -> 200 {"query_id":"...","columns":[],"rows":[],...}
+DETACH, absent id -> 200 {"query_id":"...","columns":[],"rows":[],...}
+```
+
+Neither form matched anything, so neither form had anything to object to. The
+real distinction only appears against a vertex that exists and has a
+relationship:
+
+```
+create nodes      -> 200
+create edge       -> 200
+plain DELETE      -> 400 {"error":{"code":"invalid_request","message":"Graph query is not supported yet: DELETE vertex 9200000200001 requires DETACH because it has 1 incident edge(s)"}}
+still there       -> 200 columns ["id","key"], the vertex still returned
+DETACH DELETE     -> 200
+left behind       -> 200 rows []
+```
+
+So the rejection is about incident edges, not about the keyword. Two consequences
+for the cleanup. It must use `DETACH`, because the fixture ids do carry edges and
+the vertex is left in place when the engine refuses. And it can run
+unconditionally, with no existence check in front of it, because deleting an id
+that is not there is a 200 no-op rather than an error.
+
+### D-021: The two ingest test suites are split by what each can prove
+
+`tests/contract/ingest.contract.test.ts` builds a small fixture corpus, puts it
+through the real `buildPlan`, ingests it twice against the running node, and
+diffs the counts. Idempotence is a claim about what the engine does with a
+repeated MERGE, so a fake responder could only ever prove that the fake was
+written to say yes twice. It has to be live.
+
+`tests/unit/ingest-run.test.ts` goes the other way: a hand-written `IngestPlan`
+literal against an injected fetch. A fourteen-node fixture never pages, never
+returns a node whose stored key disagrees with the planned one, never returns a
+node carrying no key at all, never returns an id that is not a number, never
+hands back a cursor forever, and never fails on the third of three edge writes.
+Those are the paths that decide whether ingestion refuses or corrupts, and a fake
+responder is the only way to stand them up on demand.
+
+Bookmark pinning is the clearest case for the split. It is invisible from outside
+against a real node, because an unpinned run succeeds there too. Only a fake that
+hands out a fresh bookmark on every response makes the difference show up, as
+`bm-4` repeated across all four writes instead of `bm-5`, `bm-6`, `bm-7`.
+
+Executed on 2026-08-13, against the live node:
+
+```
+> tsc --noEmit
+TYPECHECK_EXIT=0
+
+> vitest run
+ Test Files  12 passed (12)
+      Tests  185 passed (185)
+   Duration  6.60s
+TESTALL_EXIT=0
+```
+
+That is the 135 from the corpus and adapter work above, plus 22 plan cases, 17
+run cases, 4 for the two new query builders, and 7 contract cases that ingest
+into the running node.
+
+### D-022: `tsx` runs the scripts, and the imports stay extensionless
+
+Node v24.12.0 strips types on its own, so a `.ts` file runs without a build step
+until it imports something:
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\project\lacuna\src\corpus\index' imported from D:\project\lacuna\scripts\census.ts
+```
+
+Type stripping is not resolution. ESM wants the specifier to name a real file, and
+`../src/corpus/index` names a `.ts` file that will not exist at runtime.
+
+Three ways out. Write `../src/corpus/index.ts` in every import, which is legal
+under `allowImportingTsExtensions` but spreads a runtime detail through every
+source file and makes the codebase read oddly to anyone who has not hit this.
+Add a build step, and then run compiled output, which puts a stale-`dist`
+failure mode between every edit and every run for scripts that exist to be run
+ad hoc. Or use a runner that resolves the way the type checker already does.
+
+`tsx` is the runner, as a devDependency. It ships nothing into the product: the
+web app will be bundled by its own toolchain and the scripts are development
+tools. `tsconfig.json` keeps `moduleResolution: bundler`, the imports stay
+extensionless, and `tsc --noEmit` remains the thing that decides whether the code
+is correct.
+
+### D-023: Ingestion merges, so emptying and counting are separate scripts
+
+`MERGE` adds and never reconciles. That is the right behaviour for ingestion, and
+it means ingestion can never be the way back to a known state: a node that should
+not be there survives every re-ingest.
+
+That is not hypothetical. The first census of the live graph found 5,653 vertices
+where the plan accounts for 5,642, and named the extras:
+
+```
+nodes in the graph that this plan did not write:
+  Session        5000000000001      null
+  Message        4000000000001      null
+  Message        4000000000002      null
+  EvidenceSpan   3000000000001      null
+  EvidenceSpan   3000000000002      null
+  EvidenceSpan   3000000000003      null
+  Claim          2000000000001      null
+  Claim          2000000000002      null
+  Claim          2000000000003      null
+  Entity         1000000000001      null
+  Entity         1000000000002      null
+```
+
+Round-numbered ids and no key at all: leftovers from the hand-run shape probes
+that produced ADR 0002 and the `restart-1` probe in STATE.md. Lacuna derives every
+id from a canonical key and stores that key on the node, so nothing it writes can
+look like this. Eleven nodes with nothing to cite would have reached retrieval as
+records, and no amount of re-ingesting would have removed them.
+
+So `scripts/reset.ts` deletes every vertex carrying one of the five labels, with
+`DETACH` so incident edges go with them (D-020), refuses to run without `--yes`,
+and reads every label back afterwards rather than trusting the deletes. It is
+safe to run because the corpus is deterministic from its seed: everything it
+removes regenerates exactly.
+
+And `scripts/census.ts` counts what is in the graph and diffs it against the
+plan, then reads every stored key back, because counts alone cannot tell a
+missing node from a stray one. Two errors that cancel still add up. It exits
+non-zero on any disagreement, so it is a gate rather than something to read.
+
+The census is the stronger of the two reports the ingest produces. `runIngest`
+says what it wrote. The census says what survived.
+
+### D-024: 30 seconds is both the timeout the scripts use and the highest the server allows
+
+Measured against the live node on 2026-08-13:
+
+```
+over the cap: HydraDB returned 429: client_query_runtime_ms rejected by admission control: actual 120000 exceeds limit 30000
+5s on CONTAINS: HydraDB returned 408: client_query_runtime exceeded query timeout after 5000 ms; limit is 5000 ms
+30s on CONTAINS: ok [[5268]]
+```
+
+Both ends bind. Admission control refuses a request asking for more than 30,000
+ms before it runs, so a generous timeout is not available. And the client's own
+5,000 ms default is not enough to count the 5,268 `CONTAINS` edges, so the
+default is not enough either.
+
+30,000 it is, in `runIngest`, `scripts/reset.ts` and `scripts/census.ts`. This is
+a property of the server, not of the query: nothing in the ingest wants a longer
+timeout, and if a future query does, it will have to be paged rather than waited
+on.
+
+### D-025: The demo corpus has 5,705 edges, and two earlier records said 5,693
+
+The correct figure is 5,705, checked twice: the dry run prints it, and summing
+`plan.counts.edges` per type gives the same number. The earlier 5,693 omitted the
+12 `CONTRADICTS` edges.
+
+It appeared in three places. Two were editable and are now right: D-019 above,
+and a comment in `src/ingest/run.ts`. The third is the message of commit
+`40b6da5`, which says "5,642 vertices in 15 batches and 5,693 edges" and stays
+wrong, because rewriting history to correct it would be worse than the error.
+This record is the correction.
+
+The code was never wrong. `plan.counts` is computed from the edges the plan
+actually holds, and the contract test diffs live counts against it. Only the prose
+had a stale number in it, which is exactly the kind of thing a project claiming to
+be about not lying should write down rather than quietly fix.

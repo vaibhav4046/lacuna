@@ -200,19 +200,88 @@ What exists right now. Updated as things change, and never ahead of them.
   TESTALL_EXIT=0
   ```
 
-  135 cases: 84 adapter unit, 27 corpus, 11 id, 13 contract against the live
-  node.
+  135 cases at that point: 84 adapter unit, 27 corpus, 11 id, 13 contract
+  against the live node. The ingest layer below has since taken it to 185.
+
+- **The corpus is in HydraDB, and what is in there has been counted.**
+  `src/ingest/` splits in two: `plan.ts` turns a corpus into an `IngestPlan` and
+  touches no network at all, `run.ts` does verify, then vertices, then edges.
+  Ids are the first 52 bits of a SHA-256 over the canonical key, every node
+  stores that key as a property, and the run refuses before writing anything if
+  a planned id already holds a different one. Three scripts drive it,
+  `npm run ingest`, `npm run reset -- --yes` and `npm run census`, and the
+  mechanics and the reasons are in [docs/INGEST.md](docs/INGEST.md).
+
+  5,642 vertices in 15 batches and 5,705 edges, written to the running node
+  twice over. Every run's unedited output is in
+  [artifacts/ingest/](artifacts/ingest/README.md):
+
+  ```
+  wrote   5642 vertices in 15 batches, 5705 edges
+  already 0 planned ids were in the graph before this run
+  timing  verify 183.1ms, vertices 2.2s, edges 86.6s, total 89.0s
+  ```
+
+  ```
+  wrote   5642 vertices in 15 batches, 5705 edges
+  already 5642 planned ids were in the graph before this run
+  timing  verify 7.9s, vertices 5.2s, edges 67.3s, total 80.3s
+  ```
+
+  `already 5642` on the second run is every planned id found in the graph
+  holding the key that run derived for it. Then the census counts the graph
+  itself, diffs it against the plan, reads every stored key back and exits
+  non-zero on any disagreement. It printed `graph matches the plan exactly`
+  after both runs, byte for byte the same output. Two runs, one graph, measured
+  from the graph rather than from the writer.
+
+  The census earned its place on first use. It found eleven nodes with
+  round-numbered ids and no key at all, left over from the hand-run shape probes
+  behind ADR 0002 and from the `restart-1` probe quoted above. `MERGE` adds and
+  never reconciles, so no amount of re-ingesting would have removed them, and
+  they would have reached retrieval as records with nothing to cite. The
+  transcript is in
+  [artifacts/ingest/](artifacts/ingest/README.md#the-eleven-extra-nodes).
+
+  Real output, 2026-08-13, with the node up:
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run tests/unit
+   Test Files  10 passed (10)
+        Tests  165 passed (165)
+     Duration  4.44s
+  UNIT_EXIT=0
+
+  > vitest run tests/contract
+   Test Files  2 passed (2)
+        Tests  20 passed (20)
+     Duration  28.85s
+  CONTRACT_EXIT=0
+
+  > vitest run
+   Test Files  12 passed (12)
+        Tests  185 passed (185)
+     Duration  32.82s
+  TESTALL_EXIT=0
+  ```
+
+  The ingest layer contributes 39 of the unit cases across `ingest-plan` and
+  `ingest-run`, and 7 of the contract cases, which ingest a fixture corpus twice
+  against the live node and diff the counts rather than trusting the report.
 
 ## In progress
 
-- Nothing. The corpus was the open item and it is finished.
+- Nothing. Ingestion was the open item and it is finished. Retrieval and
+  abstention are next, and no line of either exists yet.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
-- No application code above the HydraDB adapter
-- No ingestion pipeline, so the corpus has never been written to HydraDB
+- No application code above the adapter and the ingest layer
 - No retrieval or abstention logic
 - No user interface
 - No CI
@@ -273,10 +342,14 @@ debugging Lacuna over a line HydraDB prints on its own.
   id instead of counting, because `count(<binding>)` does not parse. Evidence in
   [artifacts/cypher-probe/](artifacts/cypher-probe/README.md).
 
-- Whether one HTTP round trip per edge is fast enough at demo corpus size. It is
-  a throughput question with a measurable answer, and it gets measured when the
-  ingestion pipeline exists rather than guessed at now. If it is too slow the
-  fallback is Bolt, which is already verified working against the same node.
+- ~~Whether one HTTP round trip per edge is fast enough at demo corpus size.~~
+  **Measured 2026-08-13.** 5,705 edges through a pool of 8 took 86.6s into an
+  empty graph and 67.3s into a full one, and two earlier runs against the same
+  node took 62.2s and 47.7s. That is fine for a one-off setup step and it is the
+  reason the whole ingest is one command rather than something done live in a
+  demo. It says nothing about query latency, which is what the benchmark will
+  measure. Bolt remains the fallback if a later phase needs edge writes to be
+  faster, and it is already verified working against the same node.
 
 - Whether a paged read is a snapshot. `read_epoch` cannot be pinned by the
   client, so a multi-page read cannot be forced to see one consistent state, and

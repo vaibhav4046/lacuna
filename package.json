@@ -10,12 +10,16 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "ingest": "tsx scripts/ingest.ts",
+    "census": "tsx scripts/census.ts",
+    "reset": "tsx scripts/reset.ts",
     "test": "vitest run tests/unit",
     "test:contract": "vitest run tests/contract",
     "test:all": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

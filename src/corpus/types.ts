@@ -50,10 +50,13 @@ export type ThreadKind =
   | 'background';
 
 /**
- * `revise` carries explicit correction language in the message text and is the
- * only thing that produces a SUPERSEDES edge. `assert` never does, which is
- * what leaves a genuine contradiction unresolved instead of quietly ordering
- * it by timestamp.
+ * `revise` and `retract` both carry explicit language in the message text and
+ * both point at the claim they replace, so both produce a SUPERSEDES edge. What
+ * separates them is what is left standing: a revision puts a new value in place,
+ * a retraction puts nothing there.
+ *
+ * `assert` never supersedes anything, which is what leaves a genuine
+ * contradiction unresolved instead of quietly ordering it by timestamp.
  */
 export type ClaimKind = 'assert' | 'revise' | 'retract';
 

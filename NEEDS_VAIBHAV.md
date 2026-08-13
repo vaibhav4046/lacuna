@@ -34,10 +34,16 @@ Status values: `open`, `done`, `dropped`.
   `github.com/vaibhav4046/lacuna`, public, no description auto-generated.
 - **Note on tooling:** `gh` is authenticated as `vaibhav4046` and has the `repo`
   scope, so no credential is missing. Only the approval is.
-- **Note on commit email:** local git identity is
-  `lalwanivaibhav079@gmail.com`. If GitHub email privacy is on, a push is
-  rejected with `GH007`. Fix is to set the repo-local email to the GitHub
-  `users.noreply.github.com` address before the first push.
+- **Note on commit email, corrected:** every commit already made carries the
+  personal Gmail address that `git config user.email` returns on this machine. If
+  "Block command line pushes that expose my email" is on for the GitHub account,
+  the push is rejected with `GH007`, and switching the repo-local email to the
+  `users.noreply.github.com` address will not clear it, because that only changes
+  commits made afterwards and `GH007` is raised against the commits in the push.
+  The two ways out are turning that setting off for the account, or rewriting the
+  author email across the existing history. The second is off the table under the
+  build rules, so this is a setting on your account and it is your call. It has
+  not been tested here, because testing it means pushing.
 - **Deadline pressure:** the repo must be public and reachable without a
   permission request before submission. It does not have to be public today.
 

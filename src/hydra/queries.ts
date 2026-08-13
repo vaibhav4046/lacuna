@@ -117,9 +117,13 @@ export function verticesByLabel(label: string): PreparedQuery {
 /**
  * Removes one vertex and every edge attached to it.
  *
- * DETACH is not optional: a bare `DELETE n` is rejected with HTTP 400. Used by
- * the contract tests to clean up after themselves, not by ingestion, which only
- * ever merges.
+ * DETACH is what makes this safe to run without looking first. A bare `DELETE n`
+ * is rejected with HTTP 400 once the vertex has any incident edge, and against a
+ * vertex that does not exist it is a 200 that removes nothing, so the plain form
+ * fails exactly where cleanup needs it to work. See DECISIONS.md D-020.
+ *
+ * Used by the contract tests and by scripts/reset.ts, not by ingestion, which
+ * only ever merges.
  */
 export function detachDeleteVertex(id: number): PreparedQuery {
   return {

@@ -716,7 +716,12 @@ Everything else. Named explicitly so no reader has to guess:
   owner's, and it is item 3 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md)
 - Nothing submitted, and no public repository. The form answers are drafted at
   [docs/SUBMISSION.md](docs/SUBMISSION.md), eight of ten fields ready to paste
-  and two blocked on the owner
+  and two blocked on the owner. Publication was attempted on 2026-08-13 and the
+  sandbox declined to run `gh repo create`, so what is missing is the button
+  press and not the readiness: the full-history secret scan, the licence, the
+  eligibility date and the attribution check all passed first, and they are
+  listed with their results in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md) so none of
+  them has to be redone
 
 ## Known environment deviations
 

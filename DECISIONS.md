@@ -801,3 +801,157 @@ That paragraph is printed into `artifacts/eval/report.txt` by the script, not
 just written here, so the number cannot travel without its caveat attached. The
 comparison against recency, lexical, vector and hybrid retrieval is a separate
 harness on the same corpus. That is where an advantage has to be earned.
+
+### D-033: The vector baseline runs a local ONNX encoder, not an API
+
+`Xenova/all-MiniLM-L6-v2` through `@huggingface/transformers`, 384 dimensions,
+Apache-2.0, downloaded once and cached under `.cache/`. No key, no account, no
+network call at query time.
+
+A hosted embedding endpoint would produce a stronger baseline, and it would also
+make the benchmark unreproducible for anyone without that key and unrunnable
+offline. A judge who cannot re-run the comparison has to take the numbers on
+faith, which is worth less than a slightly weaker baseline that anybody can
+reproduce with `npm run bench`. The model name and dimension count are printed
+in the report header so the choice travels with the result.
+
+### D-034: The baselines get a perfect extractor, and never the edges
+
+Every flat baseline reads the corpus annotations on the messages it retrieved
+rather than parsing the prose. It sees each claim's subject, predicate, value,
+and whether the sentence announced itself as a correction or a withdrawal. It
+never misreads, never hallucinates a value, never misses a statement in front of
+it.
+
+This is deliberately generous, and it is generous in the direction that makes
+the result harder to overclaim. If a baseline loses, it lost because the
+evidence never reached the reader, not because a language model fumbled the
+extraction. That keeps the comparison about retrieval, which is the thing under
+test.
+
+What it never sees is which claim supersedes which. That link is an edge,
+building it is the entire question, and handing it over would be handing over
+the answer. The line is: everything readable in a message, yes; anything that
+only exists once messages are related to each other, no.
+
+### D-035: Only the strongest retriever gets the second round
+
+`hybrid+2hop` exists because a question like "who is our contact for the vendor
+behind X" is answerable from a flat index in two rounds: retrieve to find the
+vendor, then retrieve again on the vendor's name. Leaving that out would let
+Lacuna win every multi hop case against a baseline nobody would ship.
+
+It is given to hybrid alone rather than to all five retrievers. Running it on
+recency would add rows that lose for reasons already visible in the single round
+table, and the point of the steelman is to build the best opponent, not the
+largest number of opponents. It is charged for both rounds of retrieved context,
+because a second round genuinely costs that.
+
+### D-036: Rankings are not memoized
+
+Caching one deep ranking per query and slicing it for each cut off would cut the
+run time noticeably. It would also turn every latency after the first into a
+measurement of a map lookup.
+
+The scan over 5,268 messages is cheap enough to pay on every call. A latency
+column that needs no footnote about which rows were cached is worth more than
+the minute it saves. The `memoized` helper was written, then deleted, and the
+reason is recorded in `src/bench/index.ts` so it does not get reintroduced as an
+obvious optimization.
+
+### D-037: Query embeddings are keyed by text, never by question id
+
+The two round system builds its follow up by spreading the original question,
+which preserves the question's id while changing what is being asked. A vector
+retriever keyed by id would therefore have ranked round two by round one's
+meaning, and produced a plausible ranking that answers the wrong question. It
+would not have thrown, and the scores would have looked fine.
+
+Keying the embedding map by `question.text` makes that class of bug impossible,
+and a missing key throws rather than falling back. `followUpText()` is exported
+so the driver that pre-embeds every possible query and the system that issues it
+share one definition of the string, instead of two spellings that drift apart
+the first time either is edited.
+
+Pre-embedding every query the run could ask, before the clock starts, is what
+keeps encoder startup out of the timed path. That is 126 texts: 60 questions
+plus one follow up per entity.
+
+### D-038: One scorer, used by both the evaluation and the benchmark
+
+`src/bench/score.ts` defines what counts as correct, and both `scripts/evaluate.ts`
+and `scripts/benchmark.ts` call it. The evaluation originally carried its own
+copy of `judge`, the verdict names, and the precision and recall block, which was
+fine until the benchmark needed the same rules and the two could drift.
+
+A headline number and a comparison judged by two slightly different rules are two
+numbers nobody should put in the same sentence. Collapsing them means a change to
+what "correct" means moves both, or neither.
+
+### D-039: The baseline was handed the rule it was losing on
+
+The first full sweep put Lacuna at 60/60 and the best baseline at 54/60. The
+per kind table showed the entire six question gap sitting in one thread kind,
+`unconnected`, where the baseline scored 0 of 6, and tied everywhere else.
+
+Reading the failures rather than the headline: the baseline was not answering
+wrongly. It abstained on all six, with reason `never_stated` where the corpus
+wanted `unconnected`. Both refuse to answer. Only the stated reason differed.
+
+Lacuna's rule for that distinction is that it abstains after following a hop.
+The two round baseline also follows a hop, and passes the entity it landed on to
+its reader, so it had exactly the same signal and simply was not allowed to say
+so: the reader's absence branch only chose between `never_stated` and
+`out_of_scope`. That is not a capability gap. It is a rule withheld from the
+opponent, and scoring it would have measured the reader rather than the
+retrieval.
+
+The reader now returns `unconnected` when it abstains after a hop, matching
+Lacuna's test. On the re-run the baseline scores 60/60. Correctness is a tie.
+
+Both runs are real and both are on disk. What survives is narrower and more
+defensible than what was there before:
+
+- Correctness ties at 60/60, with zero unsupported answers on both sides.
+- Lacuna does it on 15 estimated context tokens per question against 636, 42
+  times fewer, and 7,779 times less than the whole transcript.
+- Lacuna is slower: 188ms against 3.7ms at p50, roughly 51 times, over HTTP
+  against a real node while every baseline runs in process against arrays
+  already in memory. That column is not a race and the report says so.
+- The baseline that ties is four hand built parts: BM25 and local embeddings
+  fused by reciprocal rank, a second retrieval round routed through a named
+  relation, a perfect annotation level extractor, and a conflict aware reader.
+  Remove the conflict aware reader and it drops to 54/60 with six false
+  answers. Remove the second round, 46/60. Remove both, 40/60 with six false
+  answers.
+
+The three rules that reader applies are the three distinctions the graph holds
+structurally: a correction supersedes, a withdrawal removes, and a hop onto a
+silent entity is a gap rather than an absence. The claim this benchmark
+supports is that writing them by hand costs four components and 42 times the
+context, not that flat retrieval cannot reach the same answers.
+
+That block is printed into `artifacts/bench/report.txt` by the script, ablation
+numbers computed from the run rather than typed in, for the same reason D-032
+prints its caveat: the finding should not be able to travel without the part
+that qualifies it.
+
+### D-040: The latency column is reported as an order of magnitude
+
+The benchmark was run twice against the same graph with the same code, once
+before and once after a one byte source fix that could not change behaviour.
+Every correctness column came out identical across the two runs, on all 51
+rows, down to the mean context tokens. The latency column did not. Lacuna's
+p50 read 188.1ms on the first run and 243.4ms on the second, moving the ratio
+against the tying baseline from 51.0 to 68.2 times slower.
+
+That spread is larger than most of the differences anyone would want to read
+out of the column. It comes from the part of the path that is not deterministic:
+Lacuna pays an HTTP round trip per hop to a node sharing a machine with the
+harness, while every baseline runs in process against arrays already in memory.
+
+So the column stays, because a query path that talks to a database over a
+network should not be able to hide that it does, but nothing is claimed from
+it beyond the order of magnitude. `STATE.md` quotes both runs rather than the
+flattering one. A judge who reruns the harness will get a third number, and
+should: that is what the column is like.

@@ -320,7 +320,7 @@ What exists right now. Updated as things change, and never ahead of them.
   would turn every abstention case green for the wrong reason.
 
   The full sweep scores 60 of 60 with zero unsupported answers and abstention
-  precision, recall and F1 all 1.000, at p50 145.3ms and p95 284.9ms across 276
+  precision, recall and F1 all 1.000, at p50 191.2ms and p95 356ms across 276
   queries. **That number is a correctness check on the pipeline and nothing
   more.** The corpus is generated and the graph is built from the same
   annotations the questions are scored against, so a perfect score says revision,
@@ -334,19 +334,84 @@ What exists right now. Updated as things change, and never ahead of them.
   hop it took. The behaviour is right and the test was corrected rather than the
   code, with the reasoning in [D-030](DECISIONS.md).
 
+- **The benchmark has been run, and it does not say what it was expected to
+  say.** `src/bench/` builds four flat retrievers over the same corpus: recency,
+  Okapi BM25 written out by hand, dense vectors from `Xenova/all-MiniLM-L6-v2`
+  run locally through ONNX with no API key anywhere, and the two fused by
+  reciprocal rank. A fifth configuration gives the hybrid retriever a second
+  round through a named relation. Each runs at cut offs 3, 5, 10, 20 and 50, in
+  both reader modes, for 51 configurations scored through the same
+  `src/bench/score.ts` the evaluator uses. Whole run in
+  [artifacts/bench/report.txt](artifacts/bench/report.txt), per question rows in
+  `results.json`.
+
+  **On correctness it is a tie.** Real output, 2026-08-13:
+
+  ```
+  system                       correct    rate   false  unsup   abst F1   ctx tok   p50     p95
+  lacuna                       60/60  100.0%      0      0   1.000       15   243.4   427.7
+  hybrid+2hop@20 +conflict     60/60  100.0%      0      0   1.000      636     3.6     6.9
+  lexical@20 +conflict         46/60   76.7%      0      0   0.889      513     1.0     1.3
+  hybrid@20 +conflict          46/60   76.7%      0      0   0.889      524     3.5     4.2
+  vector@50 +conflict          46/60   76.7%      0      0   0.889     1310     2.6     3.0
+  recency@50 +conflict         44/60   73.3%      0      0   0.865     1087     0.2     0.4
+  ```
+
+  Same score, same zero unsupported answers, tied on all eight thread kinds. No
+  claim of better recall or better abstention survives this run and none is
+  made. What separates them is cost and construction: 15 estimated tokens of
+  context per question against 636, 42.4 times fewer, and 243.4ms against 3.6ms,
+  68.2 times slower. The latency column is not like for like and the report says
+  so in its own text. Lacuna queries a HydraDB node over HTTP and pays a round
+  trip per hop; every baseline runs in process against arrays already in memory
+  and paid nothing for indexing, which happened before the clock started.
+
+  It is also the only noisy column. The harness was run twice and Lacuna's p50
+  came out at 188.1ms and then 243.4ms, a 51.0 and a 68.2 times ratio for the
+  same code against the same graph. Every correctness column was identical
+  between the two runs, down to the mean context tokens on all 51 rows. Treat
+  the latency figure as an order of magnitude, not a measurement.
+
+  The tying baseline is four hand built parts, and removing any one of them
+  breaks it:
+
+  ```
+  without the conflict aware reader  hybrid+2hop@20           54/60, 6 false answers
+  without the second retrieval round hybrid@20 +conflict      46/60
+  without both                       hybrid@20                40/60, 6 false answers
+  ```
+
+  No single round configuration of any retriever gets past 46/60. The three
+  rules that reader applies are the three distinctions the graph holds
+  structurally: a correction supersedes, a withdrawal removes, and a hop landing
+  on a silent entity is a gap rather than an absence. That is the defensible
+  claim, and it is narrower than the one the first sweep appeared to support.
+
+  It appeared to support 60 against 54. Every one of those six was `unconnected`,
+  and every one was the baseline abstaining with `never_stated` rather than
+  answering wrongly. The baseline had reached that subject by following a
+  relation itself, so it held the same hop signal Lacuna tests, and was simply
+  never given the branch to say so. It was given the branch, the run was
+  repeated, and the gap closed to nothing. Both runs, the diagnosis and the
+  surviving claims are in [D-039](DECISIONS.md).
+
 ## In progress
 
-- Nothing. Retrieval and abstention were the open item and they are finished.
-  The four screens are next, and no line of any of them exists yet.
+- Nothing. The benchmark was the open item and it is finished, including the
+  part where it disagreed with the pitch. The four screens are next, and no line
+  of any of them exists yet.
 
 ## Not built yet
 
 Everything else. Named explicitly so no reader has to guess:
 
-- No application code above the adapter, the ingest layer and retrieval
+- No application code above the adapter, the ingest layer, retrieval and the
+  benchmark
 - No user interface
 - No CI
-- No benchmark harness, and therefore no numbers of any kind
+- No unit tests over `src/bench/`, which is the only source directory without
+  them. The harness is exercised end to end by its own run and by the evaluator
+  sharing its scorer, and that is not the same thing.
 - No screenshots
 - No deployment
 - No demo video
@@ -408,9 +473,10 @@ debugging Lacuna over a line HydraDB prints on its own.
   empty graph and 67.3s into a full one, and two earlier runs against the same
   node took 62.2s and 47.7s. That is fine for a one-off setup step and it is the
   reason the whole ingest is one command rather than something done live in a
-  demo. It says nothing about query latency, which is what the benchmark will
-  measure. Bolt remains the fallback if a later phase needs edge writes to be
-  faster, and it is already verified working against the same node.
+  demo. It says nothing about query latency, which the benchmark has since
+  measured separately at 188.1ms and then 243.4ms p50 per question over HTTP,
+  hops included. Bolt remains the fallback if a later phase needs edge writes
+  to be faster, and it is already verified working against the same node.
 
 - Whether a paged read is a snapshot. `read_epoch` cannot be pinned by the
   client, so a multi-page read cannot be forced to see one consistent state, and

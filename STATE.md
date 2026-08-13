@@ -395,6 +395,57 @@ What exists right now. Updated as things change, and never ahead of them.
   repeated, and the gap closed to nothing. Both runs, the diagnosis and the
   surviving claims are in [D-039](DECISIONS.md).
 
+- **The benchmark harness now has unit tests, which it did not when the numbers
+  above were published.** `src/bench/` was the last source directory without
+  them. It was exercised end to end by its own run and by the evaluator sharing
+  its scorer, and that is not the same thing: a harness that is wrong in a quiet
+  way still prints a table. 129 cases across seven files, plus shared fixtures.
+
+  The ones that carry weight are the ones the published tie depends on.
+  `bench-score` pins which failures are counted separately and what abstention
+  precision and recall are measured over, including the deliberate choice to
+  count an abstention with the wrong reason as a true positive. `bench-systems`
+  asserts the second retrieval round is a real one and that context is charged
+  for both rounds deduped, because leaving either out would hand the comparison
+  to Lacuna by construction. `bench-embed` covers what has to miss in the vector
+  cache, including the `\0` separator that stops two different text lists
+  hashing to the same key. The rest cover the index, BM25, the reader and the
+  four retrievers.
+
+  Two things changed in source rather than in tests. `percentile` computed rank
+  zero at p0 and read position -1, handing back `undefined` typed as a number;
+  it is clamped at both ends now, and since the harness only ever asks for p50
+  and p95 no reported figure moves. And the contract suite's hook timeout went
+  to 60s, measured rather than guessed: the setup and teardown delete their
+  fixture one vertex at a time over HTTP, which is quick against the empty graph
+  a judge would clone into and takes 52.79s against this machine's graph holding
+  the full corpus. The same file at `--hookTimeout=120000` passed 7 of 7 before
+  the config was touched, which is what established it was slow and not hung.
+
+  Real output, 2026-08-13, node up:
+
+  ```
+  > tsc --noEmit
+  TYPECHECK_EXIT=0
+
+  > vitest run tests/unit/bench
+   Test Files  7 passed (7)
+        Tests  129 passed (129)
+     Duration  2.38s
+  BENCH_UNIT_EXIT=0
+
+  > vitest run
+   Test Files  24 passed (24)
+        Tests  411 passed (411)
+     Duration  49.10s
+  TESTALL_EXIT=0
+  ```
+
+  `lacunaSystem` is the one thing in that directory the unit suite does not
+  cover. It needs a live HydraDB connection, so it is exercised by the contract
+  tests and by the harness run itself, and the file says so where a reader will
+  find it rather than only here.
+
 ## In progress
 
 - Nothing. The benchmark was the open item and it is finished, including the
@@ -409,9 +460,6 @@ Everything else. Named explicitly so no reader has to guess:
   benchmark
 - No user interface
 - No CI
-- No unit tests over `src/bench/`, which is the only source directory without
-  them. The harness is exercised end to end by its own run and by the evaluator
-  sharing its scorer, and that is not the same thing.
 - No screenshots
 - No deployment
 - No demo video

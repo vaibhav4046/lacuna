@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { ABSTENTION_REASONS, explainAbstention } from '../../src/model/abstention';
-import { lacuna, tiedWithLacuna } from '../../src/report/bench';
-import { loadArtifacts } from '../../src/report/load';
-import { shortCommit } from '../../src/report/provenance';
+import { ABSTENTION_REASONS, explainAbstention } from '../../src/model/abstention.js';
+import { lacuna, tiedWithLacuna } from '../../src/report/bench.js';
+import { loadArtifacts } from '../../src/report/load.js';
+import { shortCommit } from '../../src/report/provenance.js';
 import {
   claimsAbout,
   contradictionPartners,
@@ -11,16 +11,16 @@ import {
   evidenceForClaim,
   mentionsFrom,
   supersededByClaim,
-} from '../../src/retrieval/queries';
-import { arenaPage } from '../../src/view/arena';
-import { roundMs } from '../../src/view/format';
-import { escape } from '../../src/view/html';
-import { hydradbPage } from '../../src/view/hydradb';
-import { integrationPage, type ServiceLimits } from '../../src/view/integration';
-import { META_CONTENT_SECURITY_POLICY } from '../../src/view/layout';
-import type { Notice } from '../../src/view/notice';
-import type { NodeIdentity } from '../../src/view/proof';
-import { markedPages } from '../support/markup';
+} from '../../src/retrieval/queries.js';
+import { arenaPage } from '../../src/view/arena.js';
+import { roundMs } from '../../src/view/format.js';
+import { escape } from '../../src/view/html.js';
+import { hydradbPage } from '../../src/view/hydradb.js';
+import { integrationPage, type ServiceLimits } from '../../src/view/integration.js';
+import { META_CONTENT_SECURITY_POLICY } from '../../src/view/layout.js';
+import type { Notice } from '../../src/view/notice.js';
+import type { NodeIdentity } from '../../src/view/proof.js';
+import { markedPages } from '../support/markup.js';
 
 /**
  * The three evidence pages, rendered from the files that actually ship.

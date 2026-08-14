@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { generateCorpus } from '../../src/corpus/index';
-import type { GoldQuestion } from '../../src/corpus/types';
-import { HydraClient } from '../../src/hydra/client';
-import { loadHydraConfig } from '../../src/hydra/config';
+import { generateCorpus } from '../../src/corpus/index.js';
+import type { GoldQuestion } from '../../src/corpus/types.js';
+import { HydraClient } from '../../src/hydra/client.js';
+import { loadHydraConfig } from '../../src/hydra/config.js';
 import {
   ask,
   buildQuestion,
@@ -14,7 +14,7 @@ import {
   parseVia,
   resolve,
   supersededByClaim,
-} from '../../src/retrieval/index';
+} from '../../src/retrieval/index.js';
 
 /**
  * Retrieval against a live HydraDB node holding the ingested corpus.

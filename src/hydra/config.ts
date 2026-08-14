@@ -1,4 +1,4 @@
-import { HydraConfigError } from './errors';
+import { HydraConfigError } from './errors.js';
 
 export interface HydraConfig {
   /** Base URL of the query API, with no trailing slash. */

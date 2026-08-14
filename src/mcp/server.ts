@@ -7,9 +7,9 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import type { HydraClient } from '../hydra/client';
-import { ask, buildQuestion, RetrievalError, type RetrievalQuestion } from '../retrieval';
-import { entityByName } from '../retrieval/queries';
+import type { HydraClient } from '../hydra/client.js';
+import { ask, buildQuestion, RetrievalError, type RetrievalQuestion } from '../retrieval/index.js';
+import { entityByName } from '../retrieval/queries.js';
 
 import {
   askResult,
@@ -18,8 +18,8 @@ import {
   type NodeIdentity,
   renderJson,
   timelineResult,
-} from './result';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from './tools';
+} from './result.js';
+import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from './tools.js';
 
 /**
  * The MCP server, and the dispatch under it.

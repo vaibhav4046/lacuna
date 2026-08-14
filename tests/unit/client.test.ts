@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { HydraClient, unwrapEngineMessage } from '../../src/hydra/client';
-import { loadHydraConfig, type HydraLimits } from '../../src/hydra/config';
+import { HydraClient, unwrapEngineMessage } from '../../src/hydra/client.js';
+import { loadHydraConfig, type HydraLimits } from '../../src/hydra/config.js';
 import {
   HydraDecodeError,
   HydraGuardError,
   HydraQueryError,
   HydraTransportError,
-} from '../../src/hydra/errors';
+} from '../../src/hydra/errors.js';
 
 const TOKEN = 'zzz-not-a-real-token-zzz';
 

@@ -1,14 +1,14 @@
-import { at, CorpusError } from './errors';
-import type { PredicateValue } from './predicates';
+import { at, CorpusError } from './errors.js';
+import type { PredicateValue } from './predicates.js';
 import {
   predicateSpec,
   PROJECT_PREDICATES,
   SERVICE_PREDICATES,
   VENDOR_PREDICATES,
-} from './predicates';
-import type { Rng } from './rng';
-import type { ClaimKind, GoldQuestion, PredicateName, ThreadKind } from './types';
-import { OUT_OF_SCOPE_SUBJECTS, PROJECTS, SERVICES, VENDORS } from './vocab';
+} from './predicates.js';
+import type { Rng } from './rng.js';
+import type { ClaimKind, GoldQuestion, PredicateName, ThreadKind } from './types.js';
+import { OUT_OF_SCOPE_SUBJECTS, PROJECTS, SERVICES, VENDORS } from './vocab.js';
 
 /**
  * Thread planning decides what is claimed, corrected, withdrawn and never said.

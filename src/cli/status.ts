@@ -1,7 +1,7 @@
-import { HydraClient } from '../hydra/client';
-import { loadHydraConfig } from '../hydra/config';
-import { assertIdentifier } from '../hydra/identifiers';
-import { NODE_LABELS } from '../ingest/plan';
+import { HydraClient } from '../hydra/client.js';
+import { loadHydraConfig } from '../hydra/config.js';
+import { assertIdentifier } from '../hydra/identifiers.js';
+import { NODE_LABELS } from '../ingest/plan.js';
 
 /**
  * What this CLI is pointed at and what is in there.

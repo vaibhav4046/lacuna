@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { HydraGuardError } from '../../src/hydra/errors';
+import { HydraGuardError } from '../../src/hydra/errors.js';
 import {
   assertIdentifier,
   isIdentifier,
   MAX_IDENTIFIER_LENGTH,
-} from '../../src/hydra/identifiers';
+} from '../../src/hydra/identifiers.js';
 
 describe('isIdentifier', () => {
   it('accepts the shapes Lacuna actually uses', () => {

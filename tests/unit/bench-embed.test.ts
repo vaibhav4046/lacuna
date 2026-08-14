@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { cosine, embedCached, type Embedder } from '../../src/bench/embed';
+import { cosine, embedCached, type Embedder } from '../../src/bench/embed.js';
 
 /**
  * Sentence embeddings for the vector and hybrid baselines.

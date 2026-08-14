@@ -1,11 +1,11 @@
-import type { HydraValue } from '../hydra/values';
-import { RetrievalDecodeError } from './errors';
+import type { HydraValue } from '../hydra/values.js';
+import { RetrievalDecodeError } from './errors.js';
 import type {
   ClaimRecord,
   EvidenceRecord,
   Mention,
   Polarity,
-} from './types';
+} from './types.js';
 
 /**
  * Turning wire rows into typed records, strictly.

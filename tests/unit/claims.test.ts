@@ -8,7 +8,7 @@ import {
   DATA_STATES,
   type CapabilityState,
   type DataState,
-} from '../../src/model/capability';
+} from '../../src/model/capability.js';
 
 /**
  * The ledger checks itself.

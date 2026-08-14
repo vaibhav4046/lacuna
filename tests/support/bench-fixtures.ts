@@ -1,6 +1,6 @@
-import { tokenize } from '../../src/bench/index-corpus';
-import type { CorpusIndex, IndexedMessage } from '../../src/bench/types';
-import type { ClaimAnnotation, GoldQuestion } from '../../src/corpus/types';
+import { tokenize } from '../../src/bench/index-corpus.js';
+import type { CorpusIndex, IndexedMessage } from '../../src/bench/types.js';
+import type { ClaimAnnotation, GoldQuestion } from '../../src/corpus/types.js';
 
 /**
  * Fixture builders shared by the bench unit tests.

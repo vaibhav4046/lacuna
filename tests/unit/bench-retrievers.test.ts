@@ -5,10 +5,10 @@ import {
   lexicalRetriever,
   recencyRetriever,
   vectorRetriever,
-} from '../../src/bench/retrievers';
-import type { Ranking, Retriever } from '../../src/bench/types';
-import type { GoldQuestion } from '../../src/corpus/types';
-import { claim, corpusIndex, question, sequence } from '../support/bench-fixtures';
+} from '../../src/bench/retrievers.js';
+import type { Ranking, Retriever } from '../../src/bench/types.js';
+import type { GoldQuestion } from '../../src/corpus/types.js';
+import { claim, corpusIndex, question, sequence } from '../support/bench-fixtures.js';
 
 /**
  * The four baselines Lacuna is measured against.

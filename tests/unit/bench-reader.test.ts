@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { bridgeFrom, read } from '../../src/bench/reader';
-import type { BenchOutcome } from '../../src/bench/types';
-import { claim, question, sequence } from '../support/bench-fixtures';
+import { bridgeFrom, read } from '../../src/bench/reader.js';
+import type { BenchOutcome } from '../../src/bench/types.js';
+import { claim, question, sequence } from '../support/bench-fixtures.js';
 
 /**
  * The answering step the baselines share, on retrieved sets built by hand.

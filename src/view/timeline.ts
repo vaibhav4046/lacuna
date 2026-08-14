@@ -1,7 +1,7 @@
-import type { Answer, ClaimRecord } from '../retrieval/types';
-import { count, shortDate, words } from './format';
-import { html, type Html } from './html';
-import { panel } from './layout';
+import type { Answer, ClaimRecord } from '../retrieval/types.js';
+import { count, shortDate, words } from './format.js';
+import { html, type Html } from './html.js';
+import { panel } from './layout.js';
 
 /**
  * The thread of a fact through time, and the place where it stops.

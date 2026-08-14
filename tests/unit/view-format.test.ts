@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { count, grouped, ms, sentence, shortDate, shortStamp, words } from '../../src/view/format';
+import { count, grouped, ms, sentence, shortDate, shortStamp, words } from '../../src/view/format.js';
 
 /**
  * The small conversions a page reads out loud.

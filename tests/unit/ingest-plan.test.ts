@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { generateCorpus } from '../../src/corpus';
-import type { ClaimAnnotation, Corpus, Message } from '../../src/corpus';
-import { buildPlan, spanKey } from '../../src/ingest/plan';
-import type { EdgeType, IngestPlan, NodeLabel, VertexRow } from '../../src/ingest/plan';
-import { KEY_SEPARATOR, MAX_ID, canonicalKey } from '../../src/model/ids';
+import { generateCorpus } from '../../src/corpus/index.js';
+import type { ClaimAnnotation, Corpus, Message } from '../../src/corpus/index.js';
+import { buildPlan, spanKey } from '../../src/ingest/plan.js';
+import type { EdgeType, IngestPlan, NodeLabel, VertexRow } from '../../src/ingest/plan.js';
+import { KEY_SEPARATOR, MAX_ID, canonicalKey } from '../../src/model/ids.js';
 
 /**
  * The plan is where the graph is decided, so these tests recompute what the

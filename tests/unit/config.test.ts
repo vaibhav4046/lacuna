@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { loadHydraConfig, queryEndpoint } from '../../src/hydra/config';
-import { HydraConfigError } from '../../src/hydra/errors';
+import { loadHydraConfig, queryEndpoint } from '../../src/hydra/config.js';
+import { HydraConfigError } from '../../src/hydra/errors.js';
 
 const COMPLETE = {
   HYDRA_HTTP_URL: 'http://127.0.0.1:18443',

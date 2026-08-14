@@ -1,8 +1,8 @@
 import { accessSync, constants } from 'node:fs';
-import { HydraClient } from '../hydra/client';
-import { loadHydraConfig, queryEndpoint, type HydraConfig } from '../hydra/config';
-import { HydraQueryError, HydraTransportError } from '../hydra/errors';
-import { EXIT_CONFIG, EXIT_OK, EXIT_UNAVAILABLE, exitCodeFor, messageFor } from './exit';
+import { HydraClient } from '../hydra/client.js';
+import { loadHydraConfig, queryEndpoint, type HydraConfig } from '../hydra/config.js';
+import { HydraQueryError, HydraTransportError } from '../hydra/errors.js';
+import { EXIT_CONFIG, EXIT_OK, EXIT_UNAVAILABLE, exitCodeFor, messageFor } from './exit.js';
 
 /**
  * Everything that has to be true before an answer is possible, checked in order

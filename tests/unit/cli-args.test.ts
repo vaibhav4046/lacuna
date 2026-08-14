@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { COMMANDS, TIMEOUT_ENV, parseArgs, resolveTimeoutMs } from '../../src/cli/args';
+import { COMMANDS, TIMEOUT_ENV, parseArgs, resolveTimeoutMs } from '../../src/cli/args.js';
 import {
   CliConfigError,
   EXIT_CONFIG,
@@ -9,15 +9,15 @@ import {
   EXIT_USAGE,
   UsageError,
   exitCodeFor,
-} from '../../src/cli/exit';
+} from '../../src/cli/exit.js';
 import {
   HydraConfigError,
   HydraQueryError,
   HydraTransportError,
-} from '../../src/hydra/errors';
-import { ReportError } from '../../src/report/bench';
-import { RetrievalDecodeError, RetrievalError } from '../../src/retrieval/errors';
-import { DEFAULT_QUERY_TIMEOUT_MS } from '../../src/retrieval/fetch';
+} from '../../src/hydra/errors.js';
+import { ReportError } from '../../src/report/bench.js';
+import { RetrievalDecodeError, RetrievalError } from '../../src/retrieval/errors.js';
+import { DEFAULT_QUERY_TIMEOUT_MS } from '../../src/retrieval/fetch.js';
 
 /**
  * The command line, checked without a node.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { escape, html, HtmlError, join, markup } from '../../src/view/html';
+import { escape, html, HtmlError, join, markup } from '../../src/view/html.js';
 
 /**
  * The escaping boundary.

@@ -1,5 +1,5 @@
-import { explainAbstention } from '../model/abstention';
-import { RetrievalConsistencyError } from './errors';
+import { explainAbstention } from '../model/abstention.js';
+import { RetrievalConsistencyError } from './errors.js';
 import type {
   ClaimRecord,
   Hop,
@@ -7,7 +7,7 @@ import type {
   Resolution,
   SubgraphView,
   SubjectView,
-} from './types';
+} from './types.js';
 
 /**
  * The decision. Given what the graph holds, what can honestly be said.

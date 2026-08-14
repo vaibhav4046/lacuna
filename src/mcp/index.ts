@@ -21,7 +21,7 @@ export {
   type RevisionItem,
   type TimelineResult,
   timelineResult,
-} from './result';
+} from './result.js';
 
 export {
   ASK_TOOL,
@@ -29,7 +29,7 @@ export {
   HEALTH_TOOL,
   TIMELINE_TOOL,
   TOOLS,
-} from './tools';
+} from './tools.js';
 
 export {
   callTool,
@@ -40,11 +40,11 @@ export {
   SERVER_VERSION,
   TOOL_TIMEOUT_MS,
   type ToolContext,
-} from './server';
+} from './server.js';
 
 export {
   createMcpListener,
   type HttpOptions,
   isLoopbackOrigin,
   MCP_PATH,
-} from './http';
+} from './http.js';

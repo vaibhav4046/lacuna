@@ -1,8 +1,8 @@
-import type { HydraConfig } from '../hydra/config';
-import type { Answer, QueryTrace } from '../retrieval/types';
-import { count, ms, roundMs } from './format';
-import { html, join, type Html } from './html';
-import { panel } from './layout';
+import type { HydraConfig } from '../hydra/config.js';
+import type { Answer, QueryTrace } from '../retrieval/types.js';
+import { count, ms, roundMs } from './format.js';
+import { html, join, type Html } from './html.js';
+import { panel } from './layout.js';
 
 /**
  * The reads themselves, printed in full.
@@ -33,6 +33,17 @@ export interface NodeIdentity {
   readonly graph: string;
   readonly cell: string;
 }
+
+/**
+ * Where the rows on this page came from.
+ *
+ * `live` is a node answering over HTTP as the page is built. `snapshot` is the
+ * public deployment: the same reads were executed against a live node at export
+ * time, their replies stored byte for byte, and decoded here through the same
+ * client code. The distinction is printed, not hidden, because a proof panel
+ * that lets a reader believe a replay was a round trip has stopped being proof.
+ */
+export type AnswerSource = 'live' | 'snapshot';
 
 export function describeNode(config: HydraConfig): NodeIdentity {
   return { namespace: config.namespace, graph: config.graph, cell: config.cell };
@@ -142,6 +153,20 @@ const NO_READS = 'This answer took no round trips, which should not be possible 
   + 'printed rather than hidden.';
 
 /**
+ * What "snapshot" changes about the panel, said before the reads it qualifies.
+ *
+ * Three facts a reader needs in order: the replies are real, the rows and
+ * epochs date from export, and the timings measure the replay. Left unsaid,
+ * the millisecond figures below would quietly imply a network that was never
+ * touched.
+ */
+const SNAPSHOT_NOTE = 'This deployment replays a recorded snapshot. Each read below was '
+  + 'executed against a live HydraDB node at export time and its reply stored byte for '
+  + 'byte; this page decoded those stored replies through the same client code the live '
+  + 'server uses. The rows and epochs are what the node returned at export. The timings '
+  + 'measure the replay, not a network round trip.';
+
+/**
  * Why the round trips add up to more than the answer took.
  *
  * Reads that do not depend on each other are issued together, so on any question
@@ -162,7 +187,11 @@ ${ms(total)} inside the client and ${ms(answer.ms)} end to end.
 ${overlapped ? OVERLAP : null} ${epochs(answer.queries)}</p>`;
 }
 
-export function proofPanel(answer: Answer, node: NodeIdentity): Html {
+export function proofPanel(
+  answer: Answer,
+  node: NodeIdentity,
+  source: AnswerSource = 'live',
+): Html {
   const { queries } = answer;
   const total = queries.reduce((sum, trace) => sum + trace.ms, 0);
   const rows = queries.reduce((sum, trace) => sum + trace.rows, 0);
@@ -171,6 +200,7 @@ export function proofPanel(answer: Answer, node: NodeIdentity): Html {
     html`<p class="prose">Everything above came out of these reads. They are printed
 whole, parameters and all, so the cost of this page is a measurement you can
 repeat rather than a number it asks you to believe.</p>`,
+    source === 'snapshot' ? html`<p class="prose">${SNAPSHOT_NOTE}</p>` : null,
     html`<p class="params">namespace <b>${node.namespace}</b> · graph <b>${node.graph}</b>
 · cell <b>${node.cell}</b></p>`,
     html`<p class="params">tested against HydraDB <b>${TESTED_AGAINST.tag}</b> at commit

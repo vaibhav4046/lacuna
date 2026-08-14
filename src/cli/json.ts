@@ -1,9 +1,9 @@
-import { askCore, toRevisionItem } from '../contract/result';
-import { bestPerFamily } from '../report/bench';
-import type { Answer } from '../retrieval/types';
-import type { BenchResult } from './bench';
-import type { DoctorReport } from './doctor';
-import type { StatusReport } from './status';
+import { askCore, toRevisionItem } from '../contract/result.js';
+import { bestPerFamily } from '../report/bench.js';
+import type { Answer } from '../retrieval/types.js';
+import type { BenchResult } from './bench.js';
+import type { DoctorReport } from './doctor.js';
+import type { StatusReport } from './status.js';
 
 /**
  * The machine readable form of every command.

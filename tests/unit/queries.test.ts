@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { HydraGuardError } from '../../src/hydra/errors';
+import { HydraGuardError } from '../../src/hydra/errors.js';
 import {
   detachDeleteVertex,
   mergeEdge,
   upsertVertices,
   verticesByLabel,
   vertexProperty,
-} from '../../src/hydra/queries';
+} from '../../src/hydra/queries.js';
 
 describe('upsertVertices', () => {
   it('builds the one form the engine accepts', () => {

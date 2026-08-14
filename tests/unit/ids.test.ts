@@ -9,7 +9,7 @@ import {
   IdRegistry,
   KEY_SEPARATOR,
   MAX_ID,
-} from '../../src/model/ids';
+} from '../../src/model/ids.js';
 
 describe('canonicalKey', () => {
   it('joins the label to the key with the unit separator', () => {

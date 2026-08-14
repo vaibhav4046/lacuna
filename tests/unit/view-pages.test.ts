@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import type { HydraConfig } from '../../src/hydra/config';
-import { lacuna, tiedWithLacuna } from '../../src/report/bench';
-import { loadArtifacts } from '../../src/report/load';
-import { buildDemo } from '../../src/server/examples';
-import { grouped, ms, roundMs } from '../../src/view/format';
-import { askHref, homePage, type CorpusFacts, type Example } from '../../src/view/home';
+import type { HydraConfig } from '../../src/hydra/config.js';
+import { lacuna, tiedWithLacuna } from '../../src/report/bench.js';
+import { loadArtifacts } from '../../src/report/load.js';
+import { buildDemo } from '../../src/server/examples.js';
+import { grouped, ms, roundMs } from '../../src/view/format.js';
+import { askHref, homePage, type CorpusFacts, type Example } from '../../src/view/home.js';
 import {
   CONTENT_SECURITY_POLICY,
   META_CONTENT_SECURITY_POLICY,
   PAGES,
-} from '../../src/view/layout';
-import { noticePage } from '../../src/view/notice';
-import { describeNode } from '../../src/view/proof';
-import { markedPages } from '../support/markup';
+} from '../../src/view/layout.js';
+import { noticePage } from '../../src/view/notice.js';
+import { describeNode } from '../../src/view/proof.js';
+import { markedPages } from '../support/markup.js';
 
 /**
  * The pages that are built without going near the graph.

@@ -1,9 +1,9 @@
-import { HydraClient, type QueryRequest } from '../hydra/client';
-import { mergeEdge, upsertVertices, verticesByLabel, vertexKeyById } from '../hydra/queries';
-import { rowsToObjects } from '../hydra/values';
+import { HydraClient, type QueryRequest } from '../hydra/client.js';
+import { mergeEdge, upsertVertices, verticesByLabel, vertexKeyById } from '../hydra/queries.js';
+import { rowsToObjects } from '../hydra/values.js';
 
-import { IngestCollisionError, IngestError } from './errors';
-import { NODE_LABELS, type IngestPlan, type NodeLabel } from './plan';
+import { IngestCollisionError, IngestError } from './errors.js';
+import { NODE_LABELS, type IngestPlan, type NodeLabel } from './plan.js';
 
 /**
  * Plan to graph. The I/O half of ingestion; `plan.ts` decided what goes in.

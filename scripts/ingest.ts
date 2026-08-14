@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { generateCorpus, DEFAULT_SEED } from '../src/corpus/index';
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
+import { generateCorpus, DEFAULT_SEED } from '../src/corpus/index.js';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
 import {
   buildPlan,
   runIngest,
@@ -13,7 +13,7 @@ import {
   IngestCollisionError,
   type IngestOptions,
   type IngestPlan,
-} from '../src/ingest/index';
+} from '../src/ingest/index.js';
 
 /**
  * Generates the demo corpus and writes it into HydraDB.

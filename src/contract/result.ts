@@ -1,11 +1,11 @@
-import type { AbstentionReason } from '../model/abstention';
+import type { AbstentionReason } from '../model/abstention.js';
 import type {
   Answer,
   ClaimRecord,
   EvidenceRecord,
   Polarity,
   QueryTrace,
-} from '../retrieval/types';
+} from '../retrieval/types.js';
 
 /**
  * The one result shape, for every adapter that has to hand an answer to

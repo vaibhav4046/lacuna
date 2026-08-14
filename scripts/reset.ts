@@ -2,10 +2,10 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { detachDeleteVertex, verticesByLabel } from '../src/hydra/queries';
-import { NODE_LABELS } from '../src/ingest/index';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { detachDeleteVertex, verticesByLabel } from '../src/hydra/queries.js';
+import { NODE_LABELS } from '../src/ingest/index.js';
 
 /**
  * Removes every vertex carrying one of Lacuna's labels, and every edge attached

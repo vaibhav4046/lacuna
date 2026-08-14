@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { FixedWindow } from '../../src/server/ratelimit';
+import { FixedWindow } from '../../src/server/ratelimit.js';
 
 /**
  * The limiter, driven by numbers instead of by a clock.

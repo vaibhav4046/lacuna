@@ -5,10 +5,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
-import type { AskCore } from '../src/contract/result';
-import { generateCorpus } from '../src/corpus/index';
-import { MCP_PATH } from '../src/mcp/http';
-import { parseVia } from '../src/retrieval/index';
+import type { AskCore } from '../src/contract/result.js';
+import { generateCorpus } from '../src/corpus/index.js';
+import { MCP_PATH } from '../src/mcp/http.js';
+import { parseVia } from '../src/retrieval/index.js';
 
 /**
  * Asks the same questions through the MCP server over stdio, through the same

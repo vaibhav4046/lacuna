@@ -1,4 +1,4 @@
-import { HydraGuardError } from './errors';
+import { HydraGuardError } from './errors.js';
 
 /**
  * Cypher parameters cover values, and nothing else. A label, a relationship

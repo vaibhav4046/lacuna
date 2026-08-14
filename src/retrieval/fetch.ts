@@ -1,22 +1,22 @@
-import type { HydraClient } from '../hydra/client';
-import type { PreparedQuery } from '../hydra/queries';
-import { rowsToObjects } from '../hydra/values';
-import { RetrievalConsistencyError } from './errors';
-import { decodeClaims, decodeEntity, decodeEvidence, decodeMentions, type Row } from './decode';
+import type { HydraClient } from '../hydra/client.js';
+import type { PreparedQuery } from '../hydra/queries.js';
+import { rowsToObjects } from '../hydra/values.js';
+import { RetrievalConsistencyError } from './errors.js';
+import { decodeClaims, decodeEntity, decodeEvidence, decodeMentions, type Row } from './decode.js';
 import {
   claimsAbout,
   entityByName,
   evidenceForClaim,
   mentionsFrom,
-} from './queries';
-import { citedClaims, resolve, selectHopTarget } from './resolve';
+} from './queries.js';
+import { citedClaims, resolve, selectHopTarget } from './resolve.js';
 import type {
   Answer,
   EvidenceRecord,
   QueryTrace,
   RetrievalQuestion,
   SubjectView,
-} from './types';
+} from './types.js';
 
 /**
  * Reading the subgraph a question needs, and nothing else.

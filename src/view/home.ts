@@ -1,8 +1,9 @@
-import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention';
-import { type BenchReport, lacuna, tiedWithLacuna } from '../report/bench';
-import { grouped, ms, roundMs, sentence } from './format';
-import { html, type Html } from './html';
-import { masthead, page, panel, PROMISE, separator } from './layout';
+import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention.js';
+import { type BenchReport, lacuna, tiedWithLacuna } from '../report/bench.js';
+import { grouped, ms, roundMs, sentence } from './format.js';
+import { html, type Html } from './html.js';
+import { masthead, page, panel, PROMISE, separator } from './layout.js';
+import type { AnswerSource } from './proof.js';
 
 /**
  * The page a reader arrives at, which has one job: get them to a real answer.
@@ -110,8 +111,22 @@ const WHY_IT_MATTERS = 'Every question above runs against this graph live. Nothi
   + 'an answer page is cached, pre-rendered or written by hand, and the reads that '
   + 'produced it are printed at the bottom of it in full.';
 
-function corpus(facts: CorpusFacts): Html {
-  return html`<p class="prose">${WHY_IT_MATTERS}</p>
+/**
+ * The same paragraph for the public deployment, which must not say "live".
+ *
+ * The replies were produced by a live HydraDB node at export time and are
+ * replayed byte for byte through the same client code; saying anything
+ * stronger than that would be the one lie this repository has organised
+ * itself around not telling.
+ */
+const WHY_IT_MATTERS_SNAPSHOT = 'This deployment answers from a recorded snapshot: every '
+  + 'reply was produced by a live HydraDB node at export time, stored byte for byte, '
+  + 'and decoded here through the same client code the live server uses. Nothing on an '
+  + 'answer page is written by hand, and the reads that produced it are printed at the '
+  + 'bottom of it in full, marked as replayed.';
+
+function corpus(facts: CorpusFacts, source: AnswerSource): Html {
+  return html`<p class="prose">${source === 'snapshot' ? WHY_IT_MATTERS_SNAPSHOT : WHY_IT_MATTERS}</p>
 <p class="params">sessions <b>${grouped(facts.sessions)}</b>
 · messages <b>${grouped(facts.messages)}</b> · claims <b>${grouped(facts.claims)}</b>
 · entities <b>${grouped(facts.entities)}</b>
@@ -163,6 +178,7 @@ export function homePage(
   questions: readonly Example[],
   facts: CorpusFacts,
   report: BenchReport,
+  source: AnswerSource = 'live',
 ): string {
   return page({
     title: `Lacuna | ${PROMISE}`,
@@ -190,7 +206,7 @@ export function homePage(
         index: 3,
         label: 'Corpus',
         heading: 'What is in the graph',
-        body: corpus(facts),
+        body: corpus(facts, source),
       }),
     ],
   });

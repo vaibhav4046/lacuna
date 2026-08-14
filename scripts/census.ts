@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { generateCorpus, DEFAULT_SEED } from '../src/corpus/index';
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { verticesByLabel } from '../src/hydra/queries';
-import { buildPlan, EDGE_TYPES, NODE_LABELS } from '../src/ingest/index';
+import { generateCorpus, DEFAULT_SEED } from '../src/corpus/index.js';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { verticesByLabel } from '../src/hydra/queries.js';
+import { buildPlan, EDGE_TYPES, NODE_LABELS } from '../src/ingest/index.js';
 
 /**
  * Counts what is actually in the graph and diffs it against what the plan says

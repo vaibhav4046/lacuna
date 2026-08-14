@@ -1,4 +1,4 @@
-import { html, markup, type Html, type Renderable } from './html';
+import { html, markup, type Html, type Renderable } from './html.js';
 
 /**
  * The document shell every page is poured into.

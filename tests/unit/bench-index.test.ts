@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildIndex, tokenize } from '../../src/bench/index-corpus';
-import type { Corpus, Message, Session } from '../../src/corpus/types';
-import { claim } from '../support/bench-fixtures';
+import { buildIndex, tokenize } from '../../src/bench/index-corpus.js';
+import type { Corpus, Message, Session } from '../../src/corpus/types.js';
+import { claim } from '../support/bench-fixtures.js';
 
 /**
  * The flat view of the corpus that every baseline reads.

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { RetrievalDecodeError } from '../../src/retrieval/errors';
+import { RetrievalDecodeError } from '../../src/retrieval/errors.js';
 import {
   decodeClaims,
   decodeEntity,
   decodeEvidence,
   decodeMentions,
   type Row,
-} from '../../src/retrieval/decode';
+} from '../../src/retrieval/decode.js';
 
 /**
  * The wire boundary, where a row either fits the declared shape or fails.

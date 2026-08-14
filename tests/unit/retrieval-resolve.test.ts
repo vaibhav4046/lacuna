@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { RetrievalConsistencyError } from '../../src/retrieval/errors';
-import { citedClaims, resolve, selectHopTarget } from '../../src/retrieval/resolve';
+import { RetrievalConsistencyError } from '../../src/retrieval/errors.js';
+import { citedClaims, resolve, selectHopTarget } from '../../src/retrieval/resolve.js';
 import type {
   ClaimRecord,
   Mention,
   Resolution,
   SubgraphView,
   SubjectView,
-} from '../../src/retrieval/types';
+} from '../../src/retrieval/types.js';
 
 /**
  * The decision procedure, on made up subgraphs.

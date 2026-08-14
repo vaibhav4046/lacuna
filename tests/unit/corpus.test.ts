@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_SEED, generateCorpus } from '../../src/corpus';
-import type { ClaimAnnotation, Corpus, GoldQuestion, Message } from '../../src/corpus';
-import { ABSTENTION_REASONS } from '../../src/model/abstention';
-import { OUT_OF_SCOPE_SUBJECTS } from '../../src/corpus/vocab';
+import { DEFAULT_SEED, generateCorpus } from '../../src/corpus/index.js';
+import type { ClaimAnnotation, Corpus, GoldQuestion, Message } from '../../src/corpus/index.js';
+import { ABSTENTION_REASONS } from '../../src/model/abstention.js';
+import { OUT_OF_SCOPE_SUBJECTS } from '../../src/corpus/vocab.js';
 
 /**
  * The corpus is the yardstick every later number is measured against, so these

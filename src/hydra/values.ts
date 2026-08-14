@@ -1,4 +1,4 @@
-import { HydraDecodeError } from './errors';
+import { HydraDecodeError } from './errors.js';
 
 /**
  * HydraDB v0.1.1 tags every value on the wire, and it uses two different

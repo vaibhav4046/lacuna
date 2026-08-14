@@ -1,8 +1,8 @@
-import type { GoldQuestion } from '../corpus/types';
-import { Bm25 } from './bm25';
-import { cosine } from './embed';
-import { tokenize } from './index-corpus';
-import type { CorpusIndex, Ranking, Retriever } from './types';
+import type { GoldQuestion } from '../corpus/types.js';
+import { Bm25 } from './bm25.js';
+import { cosine } from './embed.js';
+import { tokenize } from './index-corpus.js';
+import type { CorpusIndex, Ranking, Retriever } from './types.js';
 
 /**
  * The four ways of finding messages that Lacuna is being compared against.

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { type BenchReport, parseBenchReport } from '../report/bench';
-import { CliConfigError } from './exit';
+import { type BenchReport, parseBenchReport } from '../report/bench.js';
+import { CliConfigError } from './exit.js';
 
 /**
  * The committed benchmark, read back and printed.

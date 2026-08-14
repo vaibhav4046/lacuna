@@ -1,4 +1,4 @@
-export { IngestCollisionError, IngestError } from './errors';
+export { IngestCollisionError, IngestError } from './errors.js';
 export {
   EDGE_TYPES,
   NODE_LABELS,
@@ -13,7 +13,7 @@ export {
   type PropertyValue,
   type VertexBatch,
   type VertexRow,
-} from './plan';
+} from './plan.js';
 export {
   runIngest,
   type IngestOptions,
@@ -21,4 +21,4 @@ export {
   type IngestProgress,
   type IngestReport,
   type IngestTimings,
-} from './run';
+} from './run.js';

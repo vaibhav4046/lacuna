@@ -2,15 +2,15 @@ import { createServer, type Server } from 'node:http';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { HydraClient } from '../../src/hydra/client';
-import type { HydraConfig } from '../../src/hydra/config';
-import { lacuna } from '../../src/report/bench';
-import { type Artifacts, loadArtifacts } from '../../src/report/load';
-import { FixedWindow } from '../../src/server/ratelimit';
-import { createHandler, MAX_URL_CHARS } from '../../src/server/server';
-import type { CorpusFacts, Example } from '../../src/view/home';
-import type { NodeIdentity } from '../../src/view/proof';
-import { RUNNING_STATE, STATE_FACTS, VOICE_STATES } from '../../src/voice/states';
+import { HydraClient } from '../../src/hydra/client.js';
+import type { HydraConfig } from '../../src/hydra/config.js';
+import { lacuna } from '../../src/report/bench.js';
+import { type Artifacts, loadArtifacts } from '../../src/report/load.js';
+import { FixedWindow } from '../../src/server/ratelimit.js';
+import { createHandler, MAX_URL_CHARS } from '../../src/server/server.js';
+import type { CorpusFacts, Example } from '../../src/view/home.js';
+import type { NodeIdentity } from '../../src/view/proof.js';
+import { RUNNING_STATE, STATE_FACTS, VOICE_STATES } from '../../src/voice/states.js';
 
 /**
  * The whole server surface, driven over a real socket.

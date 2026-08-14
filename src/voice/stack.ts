@@ -13,7 +13,7 @@
  * claim has the reason it is not finished.
  */
 
-import type { CapabilityState } from '../model/capability';
+import type { CapabilityState } from '../model/capability.js';
 
 export interface Component {
   readonly role: string;

@@ -1,5 +1,5 @@
-import { HydraGuardError } from './errors';
-import { assertIdentifier } from './identifiers';
+import { HydraGuardError } from './errors.js';
+import { assertIdentifier } from './identifiers.js';
 
 /**
  * Query builders for the forms that HydraDB v0.1.1 actually executes.

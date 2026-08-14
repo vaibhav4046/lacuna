@@ -3,11 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { createMcpListener, MCP_PATH } from '../src/mcp/http';
-import { describeNode } from '../src/mcp/result';
-import { createMcpServer, SERVER_NAME, SERVER_VERSION, type ToolContext } from '../src/mcp/server';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { createMcpListener, MCP_PATH } from '../src/mcp/http.js';
+import { describeNode } from '../src/mcp/result.js';
+import { createMcpServer, SERVER_NAME, SERVER_VERSION, type ToolContext } from '../src/mcp/server.js';
 
 /**
  * Run the MCP server.

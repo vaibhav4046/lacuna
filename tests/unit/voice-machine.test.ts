@@ -12,7 +12,7 @@ import {
   VOICE_STATES,
   type VoiceEvent,
   type VoiceState,
-} from '../../src/voice/states';
+} from '../../src/voice/states.js';
 
 /**
  * The voice machine, which is the whole voice implementation.

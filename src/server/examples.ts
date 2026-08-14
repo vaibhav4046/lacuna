@@ -1,6 +1,6 @@
-import { generateCorpus } from '../corpus/index';
-import { parseVia } from '../retrieval/index';
-import type { CorpusFacts, Example } from '../view/home';
+import { generateCorpus } from '../corpus/index.js';
+import { parseVia } from '../retrieval/index.js';
+import type { CorpusFacts, Example } from '../view/home.js';
 
 /**
  * What the landing page shows, built once from the corpus at boot.

@@ -1,5 +1,5 @@
-import type { Corpus } from '../corpus/types';
-import type { CorpusIndex, IndexedMessage } from './types';
+import type { Corpus } from '../corpus/types.js';
+import type { CorpusIndex, IndexedMessage } from './types.js';
 
 /**
  * Flattening the corpus into the shape a flat retriever sees.

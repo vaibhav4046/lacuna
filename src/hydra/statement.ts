@@ -1,4 +1,4 @@
-import { HydraGuardError } from './errors';
+import { HydraGuardError } from './errors.js';
 
 /**
  * HydraDB's query transport takes exactly one Cypher statement per request and

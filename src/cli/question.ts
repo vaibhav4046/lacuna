@@ -1,8 +1,8 @@
-import { HydraClient } from '../hydra/client';
-import { loadHydraConfig } from '../hydra/config';
-import { ask } from '../retrieval/fetch';
-import { buildQuestion } from '../retrieval/question';
-import type { Answer } from '../retrieval/types';
+import { HydraClient } from '../hydra/client.js';
+import { loadHydraConfig } from '../hydra/config.js';
+import { ask } from '../retrieval/fetch.js';
+import { buildQuestion } from '../retrieval/question.js';
+import type { Answer } from '../retrieval/types.js';
 
 /**
  * One path for `ask`, `explain` and `timeline`.

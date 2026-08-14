@@ -16,7 +16,7 @@
  * instead.
  */
 
-import type { CapabilityState } from '../model/capability';
+import type { CapabilityState } from '../model/capability.js';
 
 /** Every situation the voice surface can be in. */
 export const VOICE_STATES = [

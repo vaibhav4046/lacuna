@@ -1,4 +1,4 @@
-import type { AbstentionReason } from '../model/abstention';
+import type { AbstentionReason } from '../model/abstention.js';
 
 /**
  * Shapes for the synthetic corpus.

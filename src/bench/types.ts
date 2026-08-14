@@ -1,5 +1,5 @@
-import type { AbstentionReason } from '../model/abstention';
-import type { ClaimAnnotation, GoldQuestion, Message } from '../corpus/types';
+import type { AbstentionReason } from '../model/abstention.js';
+import type { ClaimAnnotation, GoldQuestion, Message } from '../corpus/types.js';
 
 /**
  * Shapes for the comparison between Lacuna and the retrieval approaches it

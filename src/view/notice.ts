@@ -1,5 +1,5 @@
-import { html } from './html';
-import { mastheadCompact, page, panel } from './layout';
+import { html } from './html.js';
+import { mastheadCompact, page, panel } from './layout.js';
 
 /**
  * The page for everything that is not an answer.

@@ -9,11 +9,11 @@ import {
   scoreAll,
   VERDICTS,
   type Scored,
-} from '../../src/bench/score';
-import type { BenchOutcome } from '../../src/bench/types';
-import type { ExpectedAnswer } from '../../src/corpus/types';
-import type { AbstentionReason } from '../../src/model/abstention';
-import { question } from '../support/bench-fixtures';
+} from '../../src/bench/score.js';
+import type { BenchOutcome } from '../../src/bench/types.js';
+import type { ExpectedAnswer } from '../../src/corpus/types.js';
+import type { AbstentionReason } from '../../src/model/abstention.js';
+import { question } from '../support/bench-fixtures.js';
 
 /**
  * The scorer both the evaluation and the comparison run through.

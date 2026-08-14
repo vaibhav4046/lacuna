@@ -1,9 +1,9 @@
-import type { Answer } from '../retrieval/types';
-import { answerPanel, answerTitle } from './answer';
-import { graphPanel } from './graph';
-import { mastheadCompact, page, PROMISE, separator } from './layout';
-import { proofPanel, type NodeIdentity } from './proof';
-import { timelinePanel } from './timeline';
+import type { Answer } from '../retrieval/types.js';
+import { answerPanel, answerTitle } from './answer.js';
+import { graphPanel } from './graph.js';
+import { mastheadCompact, page, PROMISE, separator } from './layout.js';
+import { proofPanel, type AnswerSource, type NodeIdentity } from './proof.js';
+import { timelinePanel } from './timeline.js';
 
 /**
  * One question, answered, in four panels that get progressively harder to fake.
@@ -20,7 +20,11 @@ import { timelinePanel } from './timeline';
  * for any panel to drift away from.
  */
 
-export function askPage(answer: Answer, node: NodeIdentity): string {
+export function askPage(
+  answer: Answer,
+  node: NodeIdentity,
+  source: AnswerSource = 'live',
+): string {
   return page({
     title: answerTitle(answer),
     description: answer.resolution.explanation,
@@ -35,7 +39,7 @@ export function askPage(answer: Answer, node: NodeIdentity): string {
       separator(),
       graphPanel(answer),
       separator(),
-      proofPanel(answer, node),
+      proofPanel(answer, node, source),
     ],
   });
 }

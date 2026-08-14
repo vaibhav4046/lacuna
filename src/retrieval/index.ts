@@ -1,7 +1,7 @@
-export { RetrievalConsistencyError, RetrievalDecodeError, RetrievalError } from './errors';
-export { buildQuestion, MAX_TERM_CHARS, parseVia } from './question';
-export { ask, DEFAULT_QUERY_TIMEOUT_MS, type AskOptions } from './fetch';
-export { citedClaims, resolve, selectHopTarget, type HopSelection } from './resolve';
+export { RetrievalConsistencyError, RetrievalDecodeError, RetrievalError } from './errors.js';
+export { buildQuestion, MAX_TERM_CHARS, parseVia } from './question.js';
+export { ask, DEFAULT_QUERY_TIMEOUT_MS, type AskOptions } from './fetch.js';
+export { citedClaims, resolve, selectHopTarget, type HopSelection } from './resolve.js';
 export {
   claimsAbout,
   contradictionPartners,
@@ -10,7 +10,7 @@ export {
   MAX_SUPERSESSION_DEPTH,
   mentionsFrom,
   supersededByClaim,
-} from './queries';
+} from './queries.js';
 export {
   decodeClaims,
   decodeEntity,
@@ -18,7 +18,7 @@ export {
   decodeMentions,
   type EntityHead,
   type Row,
-} from './decode';
+} from './decode.js';
 export type {
   Answer,
   ClaimRecord,
@@ -32,4 +32,4 @@ export type {
   RetrievalQuestion,
   SubgraphView,
   SubjectView,
-} from './types';
+} from './types.js';

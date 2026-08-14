@@ -1,7 +1,7 @@
-import { askCore, lastReadEpoch, toRevisionItem } from '../contract/result';
-import type { AskCore, QueryItem, RevisionItem } from '../contract/result';
-import type { HydraConfig } from '../hydra/config';
-import type { Answer } from '../retrieval/types';
+import { askCore, lastReadEpoch, toRevisionItem } from '../contract/result.js';
+import type { AskCore, QueryItem, RevisionItem } from '../contract/result.js';
+import type { HydraConfig } from '../hydra/config.js';
+import type { Answer } from '../retrieval/types.js';
 
 /**
  * What an MCP client reads, which is the shared result contract plus the one
@@ -40,8 +40,8 @@ import type { Answer } from '../retrieval/types';
  * `tools.ts` reads `MAX_EVIDENCE_ITEMS` to describe the cap it advertises, and
  * `index.ts` re-exports the whole set again for callers outside `src/mcp/`.
  */
-export { lastReadEpoch, MAX_EVIDENCE_ITEMS } from '../contract/result';
-export type { EvidenceItem, QueryItem, ResultStatus, RevisionItem } from '../contract/result';
+export { lastReadEpoch, MAX_EVIDENCE_ITEMS } from '../contract/result.js';
+export type { EvidenceItem, QueryItem, ResultStatus, RevisionItem } from '../contract/result.js';
 
 /**
  * Which node answered.

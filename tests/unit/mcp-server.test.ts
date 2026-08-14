@@ -3,11 +3,11 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { type CallToolResult, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 
-import { HydraClient } from '../../src/hydra/client';
-import type { HydraConfig } from '../../src/hydra/config';
-import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server';
-import { describeNode } from '../../src/mcp/result';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools';
+import { HydraClient } from '../../src/hydra/client.js';
+import type { HydraConfig } from '../../src/hydra/config.js';
+import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server.js';
+import { describeNode } from '../../src/mcp/result.js';
+import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools.js';
 
 /**
  * The tool list, and dispatch, without a node.

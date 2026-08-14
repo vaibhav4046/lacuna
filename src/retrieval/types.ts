@@ -1,4 +1,4 @@
-import type { AbstentionReason } from '../model/abstention';
+import type { AbstentionReason } from '../model/abstention.js';
 
 /**
  * What retrieval reads out of the graph, and what it decides from it.

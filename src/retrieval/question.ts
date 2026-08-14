@@ -1,5 +1,5 @@
-import { RetrievalError } from './errors';
-import type { RetrievalQuestion } from './types';
+import { RetrievalError } from './errors.js';
+import type { RetrievalQuestion } from './types.js';
 
 /**
  * Turning what a person asked into something retrieval can act on.

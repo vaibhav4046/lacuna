@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { HydraClient } from '../../src/hydra/client';
-import { loadHydraConfig, type HydraConfig } from '../../src/hydra/config';
-import { HydraQueryError } from '../../src/hydra/errors';
-import { mergeEdge, upsertVertices, vertexProperty } from '../../src/hydra/queries';
+import { HydraClient } from '../../src/hydra/client.js';
+import { loadHydraConfig, type HydraConfig } from '../../src/hydra/config.js';
+import { HydraQueryError } from '../../src/hydra/errors.js';
+import { mergeEdge, upsertVertices, vertexProperty } from '../../src/hydra/queries.js';
 
 /**
  * These run against a live HydraDB node. Nothing here is mocked.

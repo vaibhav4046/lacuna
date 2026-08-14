@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { RetrievalError } from '../../src/retrieval/errors';
-import { buildQuestion, MAX_TERM_CHARS, parseVia } from '../../src/retrieval/question';
+import { RetrievalError } from '../../src/retrieval/errors.js';
+import { buildQuestion, MAX_TERM_CHARS, parseVia } from '../../src/retrieval/question.js';
 
 /**
  * The parser reads the question and nothing else.

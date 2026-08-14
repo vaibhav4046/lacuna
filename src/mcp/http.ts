@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
-import { createMcpServer, type ToolContext } from './server';
+import { createMcpServer, type ToolContext } from './server.js';
 
 /**
  * The Streamable HTTP transport, for clients that cannot spawn a process.

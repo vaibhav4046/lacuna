@@ -1,6 +1,6 @@
-import type { Rng } from './rng';
-import type { PredicateName } from './types';
-import { MONTHS, PEOPLE, REGIONS, STATUSES, VENDORS } from './vocab';
+import type { Rng } from './rng.js';
+import type { PredicateName } from './types.js';
+import { MONTHS, PEOPLE, REGIONS, STATUSES, VENDORS } from './vocab.js';
 
 /**
  * How each predicate is asked, asserted, corrected and withdrawn.

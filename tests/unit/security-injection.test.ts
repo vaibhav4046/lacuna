@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { HydraClient } from '../../src/hydra/client';
-import type { HydraConfig } from '../../src/hydra/config';
-import { ask } from '../../src/retrieval/fetch';
-import { resolve } from '../../src/retrieval/resolve';
+import { HydraClient } from '../../src/hydra/client.js';
+import type { HydraConfig } from '../../src/hydra/config.js';
+import { ask } from '../../src/retrieval/fetch.js';
+import { resolve } from '../../src/retrieval/resolve.js';
 import type {
   ClaimRecord,
   Resolution,
   SubgraphView,
   SubjectView,
-} from '../../src/retrieval/types';
-import { askPage } from '../../src/view/ask';
-import type { NodeIdentity } from '../../src/view/proof';
-import { FORBIDDEN_IN_MARKUP, INJECTIONS } from '../support/injection';
+} from '../../src/retrieval/types.js';
+import { askPage } from '../../src/view/ask.js';
+import type { NodeIdentity } from '../../src/view/proof.js';
+import { FORBIDDEN_IN_MARKUP, INJECTIONS } from '../support/injection.js';
 
 /**
  * T1 from docs/THREAT_MODEL.md: an instruction stored as if it were a fact.

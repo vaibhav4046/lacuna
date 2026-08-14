@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { HydraClient } from '../../src/hydra/client';
-import { loadHydraConfig } from '../../src/hydra/config';
-import { HydraQueryError } from '../../src/hydra/errors';
-import { IngestCollisionError, IngestError } from '../../src/ingest/errors';
-import type { EdgeType, IngestPlan, NodeLabel, PlannedEdge } from '../../src/ingest/plan';
-import { runIngest, type IngestProgress } from '../../src/ingest/run';
+import { HydraClient } from '../../src/hydra/client.js';
+import { loadHydraConfig } from '../../src/hydra/config.js';
+import { HydraQueryError } from '../../src/hydra/errors.js';
+import { IngestCollisionError, IngestError } from '../../src/ingest/errors.js';
+import type { EdgeType, IngestPlan, NodeLabel, PlannedEdge } from '../../src/ingest/plan.js';
+import { runIngest, type IngestProgress } from '../../src/ingest/run.js';
 
 /**
  * `runIngest` against a fake fetch.

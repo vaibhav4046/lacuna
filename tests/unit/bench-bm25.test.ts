@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { Bm25 } from '../../src/bench/bm25';
-import { message, sequence } from '../support/bench-fixtures';
+import { Bm25 } from '../../src/bench/bm25.js';
+import { message, sequence } from '../support/bench-fixtures.js';
 
 /**
  * The lexical baseline, checked against the properties BM25 is supposed to have.

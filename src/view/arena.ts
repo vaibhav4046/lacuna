@@ -5,10 +5,10 @@ import {
   ranked,
   type SystemResult,
   tiedWithLacuna,
-} from '../report/bench';
-import { count, grouped, ms, roundMs, words } from './format';
-import { html, type Html } from './html';
-import { mastheadCompact, page, panel, separator } from './layout';
+} from '../report/bench.js';
+import { count, grouped, ms, roundMs, words } from './format.js';
+import { html, type Html } from './html.js';
+import { mastheadCompact, page, panel, separator } from './layout.js';
 
 /**
  * The benchmark, printed including the part that does not flatter the product.

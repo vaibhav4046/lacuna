@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { HydraGuardError } from '../../src/hydra/errors';
+import { HydraGuardError } from '../../src/hydra/errors.js';
 import {
   assertSingleStatement,
   findStatementSeparator,
-} from '../../src/hydra/statement';
+} from '../../src/hydra/statement.js';
 
 describe('findStatementSeparator', () => {
   it('returns -1 for a single statement', () => {

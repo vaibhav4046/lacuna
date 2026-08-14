@@ -1,8 +1,8 @@
-import type { GoldQuestion } from '../corpus/types';
-import type { HydraClient } from '../hydra/client';
-import { ask, buildQuestion, parseVia } from '../retrieval/index';
-import { bridgeFrom, read } from './reader';
-import type { BenchResult, BenchSystem, CorpusIndex, IndexedMessage, ReaderMode, Retriever } from './types';
+import type { GoldQuestion } from '../corpus/types.js';
+import type { HydraClient } from '../hydra/client.js';
+import { ask, buildQuestion, parseVia } from '../retrieval/index.js';
+import { bridgeFrom, read } from './reader.js';
+import type { BenchResult, BenchSystem, CorpusIndex, IndexedMessage, ReaderMode, Retriever } from './types.js';
 
 /**
  * Each approach dressed as the same thing: a question in, a decision out, with

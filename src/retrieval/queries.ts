@@ -1,5 +1,5 @@
-import { HydraGuardError } from '../hydra/errors';
-import { assertVertexId, type PreparedQuery } from '../hydra/queries';
+import { HydraGuardError } from '../hydra/errors.js';
+import { assertVertexId, type PreparedQuery } from '../hydra/queries.js';
 
 /**
  * The read shapes retrieval uses, and only those.

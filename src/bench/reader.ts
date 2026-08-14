@@ -1,5 +1,5 @@
-import type { ClaimAnnotation, GoldQuestion } from '../corpus/types';
-import type { BenchOutcome, IndexedMessage, ReaderMode } from './types';
+import type { ClaimAnnotation, GoldQuestion } from '../corpus/types.js';
+import type { BenchOutcome, IndexedMessage, ReaderMode } from './types.js';
 
 /**
  * The answering step every flat baseline shares.

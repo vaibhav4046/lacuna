@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HydraGuardError } from '../../src/hydra/errors';
+import { HydraGuardError } from '../../src/hydra/errors.js';
 import {
   claimsAbout,
   contradictionPartners,
@@ -9,7 +9,7 @@ import {
   MAX_SUPERSESSION_DEPTH,
   mentionsFrom,
   supersededByClaim,
-} from '../../src/retrieval/queries';
+} from '../../src/retrieval/queries.js';
 
 /**
  * The read shapes, checked for the properties a test can check without a node.

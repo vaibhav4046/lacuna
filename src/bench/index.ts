@@ -1,15 +1,15 @@
-export { Bm25 } from './bm25';
-export { cosine, EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, embedCached, loadEmbedder } from './embed';
-export type { Embedder } from './embed';
-export { buildIndex, tokenize } from './index-corpus';
-export { bridgeFrom, read } from './reader';
-export type { ReadInput } from './reader';
+export { Bm25 } from './bm25.js';
+export { cosine, EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, embedCached, loadEmbedder } from './embed.js';
+export type { Embedder } from './embed.js';
+export { buildIndex, tokenize } from './index-corpus.js';
+export { bridgeFrom, read } from './reader.js';
+export type { ReadInput } from './reader.js';
 export {
   hybridRetriever,
   lexicalRetriever,
   recencyRetriever,
   vectorRetriever,
-} from './retrievers';
+} from './retrievers.js';
 export {
   describeExpected,
   describeOutcome,
@@ -18,9 +18,9 @@ export {
   percentile,
   scoreAll,
   VERDICTS,
-} from './score';
-export type { Metrics, Scored, Verdict } from './score';
-export { flatSystem, followUpText, lacunaSystem, twoHopSystem } from './systems';
+} from './score.js';
+export type { Metrics, Scored, Verdict } from './score.js';
+export { flatSystem, followUpText, lacunaSystem, twoHopSystem } from './systems.js';
 export type {
   BenchOutcome,
   BenchResult,
@@ -30,7 +30,7 @@ export type {
   Ranking,
   ReaderMode,
   Retriever,
-} from './types';
+} from './types.js';
 
 /**
  * No ranking cache lives in this module, on purpose.

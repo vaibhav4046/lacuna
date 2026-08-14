@@ -1,6 +1,6 @@
-import type { Answer, ClaimRecord, EvidenceRecord } from '../retrieval/types';
-import type { Palette } from './color';
-import { columns, truncate } from './table';
+import type { Answer, ClaimRecord, EvidenceRecord } from '../retrieval/types.js';
+import type { Palette } from './color.js';
+import { columns, truncate } from './table.js';
 
 /**
  * The terminal rendering of an answer.

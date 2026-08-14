@@ -1,7 +1,7 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 
-import type { HydraConfig } from '../../src/hydra/config';
+import type { HydraConfig } from '../../src/hydra/config.js';
 import {
   askResult,
   describeNode,
@@ -11,16 +11,16 @@ import {
   type NodeIdentity,
   renderJson,
   timelineResult,
-} from '../../src/mcp/result';
-import { readQuestion } from '../../src/mcp/server';
-import { MAX_TERM_CHARS } from '../../src/retrieval/question';
+} from '../../src/mcp/result.js';
+import { readQuestion } from '../../src/mcp/server.js';
+import { MAX_TERM_CHARS } from '../../src/retrieval/question.js';
 import type {
   Answer,
   ClaimRecord,
   EvidenceRecord,
   QueryTrace,
   SubjectView,
-} from '../../src/retrieval/types';
+} from '../../src/retrieval/types.js';
 
 /**
  * The Answer to MCP result mapping, on made up answers.

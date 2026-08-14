@@ -1,5 +1,5 @@
-import type { Command } from './args';
-import { TIMEOUT_ENV } from './args';
+import type { Command } from './args.js';
+import { TIMEOUT_ENV } from './args.js';
 
 /**
  * The help text, in one file, written out rather than generated.

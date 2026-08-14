@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 
-import type { ClaimAnnotation, Corpus, Message, Session } from '../corpus/types';
-import { IdRegistry, KEY_SEPARATOR } from '../model/ids';
-import { IngestError } from './errors';
+import type { ClaimAnnotation, Corpus, Message, Session } from '../corpus/types.js';
+import { IdRegistry, KEY_SEPARATOR } from '../model/ids.js';
+import { IngestError } from './errors.js';
 
 /**
  * Corpus to graph, as a pure function.

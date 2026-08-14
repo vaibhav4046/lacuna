@@ -3,14 +3,14 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { Corpus, EvidenceSpan, Message } from '../../src/corpus/types';
-import { HydraClient } from '../../src/hydra/client';
-import { loadHydraConfig, type HydraConfig } from '../../src/hydra/config';
-import { detachDeleteVertex, upsertVertices } from '../../src/hydra/queries';
-import { IngestCollisionError } from '../../src/ingest/errors';
-import { buildPlan, type EdgeType, type IngestPlan } from '../../src/ingest/plan';
-import { runIngest, type IngestReport } from '../../src/ingest/run';
-import { canonicalKey, deriveId } from '../../src/model/ids';
+import type { Corpus, EvidenceSpan, Message } from '../../src/corpus/types.js';
+import { HydraClient } from '../../src/hydra/client.js';
+import { loadHydraConfig, type HydraConfig } from '../../src/hydra/config.js';
+import { detachDeleteVertex, upsertVertices } from '../../src/hydra/queries.js';
+import { IngestCollisionError } from '../../src/ingest/errors.js';
+import { buildPlan, type EdgeType, type IngestPlan } from '../../src/ingest/plan.js';
+import { runIngest, type IngestReport } from '../../src/ingest/run.js';
+import { canonicalKey, deriveId } from '../../src/model/ids.js';
 
 /**
  * Ingestion against a live HydraDB node. Nothing here is mocked.

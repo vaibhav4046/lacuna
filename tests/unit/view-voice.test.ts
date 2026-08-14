@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { escape } from '../../src/view/html';
-import { META_CONTENT_SECURITY_POLICY } from '../../src/view/layout';
-import { voicePage } from '../../src/view/voice';
-import { LOCAL_STACK, METERED_STACK } from '../../src/voice/stack';
+import { escape } from '../../src/view/html.js';
+import { META_CONTENT_SECURITY_POLICY } from '../../src/view/layout.js';
+import { voicePage } from '../../src/view/voice.js';
+import { LOCAL_STACK, METERED_STACK } from '../../src/voice/stack.js';
 import {
   acceptedFrom,
   advance,
@@ -12,8 +12,8 @@ import {
   STATE_FACTS,
   stageOf,
   VOICE_STATES,
-} from '../../src/voice/states';
-import { markedPages } from '../support/markup';
+} from '../../src/voice/states.js';
+import { markedPages } from '../support/markup.js';
 
 /**
  * The voice page, which is fourteen pages.

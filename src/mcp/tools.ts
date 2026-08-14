@@ -1,9 +1,9 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import { ABSTENTION_REASONS } from '../model/abstention';
-import { MAX_TERM_CHARS } from '../retrieval/question';
+import { ABSTENTION_REASONS } from '../model/abstention.js';
+import { MAX_TERM_CHARS } from '../retrieval/question.js';
 
-import { MAX_EVIDENCE_ITEMS } from './result';
+import { MAX_EVIDENCE_ITEMS } from './result.js';
 
 /**
  * The four tools, and the schemas a client validates against.

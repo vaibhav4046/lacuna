@@ -1,21 +1,21 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import type { HydraClient } from '../hydra/client';
-import { HydraError } from '../hydra/errors';
-import type { Artifacts } from '../report/load';
-import { ask, buildQuestion, MAX_TERM_CHARS, RetrievalError } from '../retrieval/index';
-import { arenaPage } from '../view/arena';
-import { askPage } from '../view/ask';
-import { homePage, type CorpusFacts, type Example } from '../view/home';
-import { hydradbPage } from '../view/hydradb';
-import { integrationPage, type ServiceLimits } from '../view/integration';
-import { CONTENT_SECURITY_POLICY, FAVICON } from '../view/layout';
-import { noticePage, type Notice } from '../view/notice';
-import type { NodeIdentity } from '../view/proof';
-import { STYLESHEET } from '../view/style';
-import { voicePage } from '../view/voice';
-import { readState, RUNNING_STATE, VOICE_STATES, type VoiceState } from '../voice/states';
-import { FixedWindow } from './ratelimit';
+import type { HydraClient } from '../hydra/client.js';
+import { HydraError } from '../hydra/errors.js';
+import type { Artifacts } from '../report/load.js';
+import { ask, buildQuestion, MAX_TERM_CHARS, RetrievalError } from '../retrieval/index.js';
+import { arenaPage } from '../view/arena.js';
+import { askPage } from '../view/ask.js';
+import { homePage, type CorpusFacts, type Example } from '../view/home.js';
+import { hydradbPage } from '../view/hydradb.js';
+import { integrationPage, type ServiceLimits } from '../view/integration.js';
+import { CONTENT_SECURITY_POLICY, FAVICON } from '../view/layout.js';
+import { noticePage, type Notice } from '../view/notice.js';
+import type { AnswerSource, NodeIdentity } from '../view/proof.js';
+import { STYLESHEET } from '../view/style.js';
+import { voicePage } from '../view/voice.js';
+import { readState, RUNNING_STATE, VOICE_STATES, type VoiceState } from '../voice/states.js';
+import { FixedWindow } from './ratelimit.js';
 
 /**
  * The whole product surface: six pages, one stylesheet, one icon.
@@ -54,6 +54,12 @@ export interface ServerOptions {
   /** The committed benchmark run and HydraDB capture, already parsed. */
   readonly artifacts: Artifacts;
   readonly limiter: FixedWindow;
+  /**
+   * Whether answers come from a node over HTTP or from a recorded snapshot.
+   * Defaults to live. The snapshot deployment sets this so the home page and
+   * every proof panel say what they are; nothing else about the server changes.
+   */
+  readonly source?: AnswerSource;
   /** Injected so a test can drive the limiter without touching the clock. */
   readonly now?: () => number;
   readonly log?: (line: string) => void;
@@ -184,11 +190,12 @@ function optional(value: string | null): string | null {
 
 export function createHandler(options: ServerOptions): Handler {
   const { client, node, limiter } = options;
+  const answerSource = options.source ?? 'live';
   const now = options.now ?? Date.now;
   const log = options.log ?? ((line: string) => process.stdout.write(`${line}\n`));
 
   const home = Buffer.from(
-    homePage(options.examples, options.facts, options.artifacts.bench),
+    homePage(options.examples, options.facts, options.artifacts.bench, answerSource),
     'utf8',
   );
   const bench = Buffer.from(arenaPage(options.artifacts.bench), 'utf8');
@@ -322,9 +329,8 @@ export function createHandler(options: ServerOptions): Handler {
     }
 
     const answer = await ask(client, question, { timeoutMs: QUERY_TIMEOUT_MS });
-    send(request, response, 200, HTML, Buffer.from(askPage(answer, node), 'utf8'), {
-      'cache-control': 'no-store',
-    });
+    const answered = Buffer.from(askPage(answer, node, answerSource), 'utf8');
+    send(request, response, 200, HTML, answered, { 'cache-control': 'no-store' });
   }
 
   return (request: IncomingMessage, response: ServerResponse): void => {

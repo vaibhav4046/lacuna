@@ -1,14 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { describeExpected, describeOutcome, judge, percent, percentile, scoreAll } from '../src/bench/score';
-import type { Scored, Verdict } from '../src/bench/score';
-import { generateCorpus } from '../src/corpus/index';
-import type { GoldQuestion } from '../src/corpus/types';
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { ask, buildQuestion, parseVia } from '../src/retrieval/index';
-import type { Answer } from '../src/retrieval/index';
+import { describeExpected, describeOutcome, judge, percent, percentile, scoreAll } from '../src/bench/score.js';
+import type { Scored, Verdict } from '../src/bench/score.js';
+import { generateCorpus } from '../src/corpus/index.js';
+import type { GoldQuestion } from '../src/corpus/types.js';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { ask, buildQuestion, parseVia } from '../src/retrieval/index.js';
+import type { Answer } from '../src/retrieval/index.js';
 
 /**
  * Runs every gold question against the live graph and reports what happened.

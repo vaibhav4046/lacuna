@@ -2,13 +2,13 @@ import {
   HydraConfigError,
   HydraQueryError,
   HydraTransportError,
-} from '../hydra/errors';
-import { ReportError } from '../report/bench';
+} from '../hydra/errors.js';
+import { ReportError } from '../report/bench.js';
 import {
   RetrievalConsistencyError,
   RetrievalDecodeError,
   RetrievalError,
-} from '../retrieval/errors';
+} from '../retrieval/errors.js';
 
 /**
  * What went wrong, said in the one thing a shell reads.

@@ -1,5 +1,5 @@
-import { DEFAULT_QUERY_TIMEOUT_MS } from '../retrieval/fetch';
-import { CliConfigError, UsageError } from './exit';
+import { DEFAULT_QUERY_TIMEOUT_MS } from '../retrieval/fetch.js';
+import { CliConfigError, UsageError } from './exit.js';
 
 /**
  * Command line parsing, kept free of side effects.

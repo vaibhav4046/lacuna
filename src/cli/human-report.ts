@@ -1,9 +1,9 @@
-import { bestPerFamily } from '../report/bench';
-import type { BenchResult } from './bench';
-import type { Palette } from './color';
-import type { DoctorReport } from './doctor';
-import type { StatusReport } from './status';
-import { columns } from './table';
+import { bestPerFamily } from '../report/bench.js';
+import type { BenchResult } from './bench.js';
+import type { Palette } from './color.js';
+import type { DoctorReport } from './doctor.js';
+import type { StatusReport } from './status.js';
+import { columns } from './table.js';
 
 /**
  * Terminal rendering for the three commands that do not answer a question.

@@ -1,7 +1,7 @@
-import type { Answer, ClaimRecord } from '../retrieval/types';
-import { shortDate } from './format';
-import { html, type Html } from './html';
-import { panel } from './layout';
+import type { Answer, ClaimRecord } from '../retrieval/types.js';
+import { shortDate } from './format.js';
+import { html, type Html } from './html.js';
+import { panel } from './layout.js';
 
 /**
  * The path the verdict came down, drawn as the graph actually stores it.

@@ -18,13 +18,13 @@ import {
   scoreAll,
   twoHopSystem,
   vectorRetriever,
-} from '../src/bench/index';
-import type { BenchSystem, ReaderMode, Scored } from '../src/bench/index';
-import { generateCorpus } from '../src/corpus/index';
-import type { ThreadKind } from '../src/corpus/types';
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { parseVia } from '../src/retrieval/index';
+} from '../src/bench/index.js';
+import type { BenchSystem, ReaderMode, Scored } from '../src/bench/index.js';
+import { generateCorpus } from '../src/corpus/index.js';
+import type { ThreadKind } from '../src/corpus/types.js';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { parseVia } from '../src/retrieval/index.js';
 
 /**
  * Lacuna against the retrieval approaches it claims to beat, on one corpus,

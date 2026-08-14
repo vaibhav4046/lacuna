@@ -1,5 +1,5 @@
-import type { ExpectedAnswer, GoldQuestion, ThreadKind } from '../corpus/types';
-import type { BenchOutcome } from './types';
+import type { ExpectedAnswer, GoldQuestion, ThreadKind } from '../corpus/types.js';
+import type { BenchOutcome } from './types.js';
 
 /**
  * One definition of what counts as right.

@@ -1,4 +1,4 @@
-import type { IndexedMessage } from './types';
+import type { IndexedMessage } from './types.js';
 
 /**
  * Okapi BM25 over the flattened corpus.

@@ -1,8 +1,8 @@
-import { at, CorpusError } from './errors';
-import { fillerText, leadSentence, sessionTitle, tailSentence } from './filler';
-import type { Rng } from './rng';
-import type { PlannedClaim, ThreadPlan } from './threads';
-import type { ClaimAnnotation, CorpusStats, EvidenceSpan, Message, Session } from './types';
+import { at, CorpusError } from './errors.js';
+import { fillerText, leadSentence, sessionTitle, tailSentence } from './filler.js';
+import type { Rng } from './rng.js';
+import type { PlannedClaim, ThreadPlan } from './threads.js';
+import type { ClaimAnnotation, CorpusStats, EvidenceSpan, Message, Session } from './types.js';
 
 /**
  * Placement of planned claims into sessions and messages.

@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 
-import { generateCorpus } from '../src/corpus/index';
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { ask, buildQuestion, parseVia } from '../src/retrieval/index';
-import type { Answer } from '../src/retrieval/index';
+import { generateCorpus } from '../src/corpus/index.js';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { ask, buildQuestion, parseVia } from '../src/retrieval/index.js';
+import type { Answer } from '../src/retrieval/index.js';
 
 /**
  * Asks one question and prints what came back, with the reasoning and the

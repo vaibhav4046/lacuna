@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { flatSystem, followUpText, twoHopSystem } from '../../src/bench/systems';
-import type { Ranking, Retriever } from '../../src/bench/types';
-import type { GoldQuestion } from '../../src/corpus/types';
-import { claim, corpusIndex, question, sequence } from '../support/bench-fixtures';
+import { flatSystem, followUpText, twoHopSystem } from '../../src/bench/systems.js';
+import type { Ranking, Retriever } from '../../src/bench/types.js';
+import type { GoldQuestion } from '../../src/corpus/types.js';
+import { claim, corpusIndex, question, sequence } from '../support/bench-fixtures.js';
 
 /**
  * The baselines dressed as one interface: question in, decision out, with what

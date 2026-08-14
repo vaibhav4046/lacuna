@@ -1,8 +1,8 @@
-import type { AbstentionReason } from '../model/abstention';
-import type { Answer, EvidenceRecord } from '../retrieval/types';
-import { shortStamp, words } from './format';
-import { html, type Html } from './html';
-import { panel } from './layout';
+import type { AbstentionReason } from '../model/abstention.js';
+import type { Answer, EvidenceRecord } from '../retrieval/types.js';
+import { shortStamp, words } from './format.js';
+import { html, type Html } from './html.js';
+import { panel } from './layout.js';
 
 /**
  * The verdict, and the sentences that got to it.

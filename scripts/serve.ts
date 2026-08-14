@@ -1,13 +1,13 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
-import { HydraClient } from '../src/hydra/client';
-import { loadHydraConfig } from '../src/hydra/config';
-import { loadArtifacts } from '../src/report/load';
-import { buildDemo } from '../src/server/examples';
-import { FixedWindow } from '../src/server/ratelimit';
-import { createHandler } from '../src/server/server';
-import { describeNode } from '../src/view/proof';
+import { HydraClient } from '../src/hydra/client.js';
+import { loadHydraConfig } from '../src/hydra/config.js';
+import { loadArtifacts } from '../src/report/load.js';
+import { buildDemo } from '../src/server/examples.js';
+import { FixedWindow } from '../src/server/ratelimit.js';
+import { createHandler } from '../src/server/server.js';
+import { describeNode } from '../src/view/proof.js';
 
 /**
  * Serves the site against a running HydraDB node.

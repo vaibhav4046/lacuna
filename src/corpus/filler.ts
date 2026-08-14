@@ -1,5 +1,5 @@
-import type { Rng } from './rng';
-import { PROJECTS, SERVICES, SESSION_TOPICS, TEAMS, VENDORS } from './vocab';
+import type { Rng } from './rng.js';
+import { PROJECTS, SERVICES, SESSION_TOPICS, TEAMS, VENDORS } from './vocab.js';
 
 /**
  * Text around the claims.

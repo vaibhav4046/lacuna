@@ -1,17 +1,17 @@
-import type { Invocation } from './args';
-import { parseArgs, resolveTimeoutMs } from './args';
-import { runBench } from './bench';
-import { paletteFor, type Palette } from './color';
-import { runDoctor } from './doctor';
-import { loadEnvFile } from './env';
-import { EXIT_OK, EXIT_USAGE, exitCodeFor, messageFor } from './exit';
-import { helpText } from './help';
-import { renderAsk, renderExplain, renderTimeline } from './human';
-import { renderBench, renderDoctor, renderStatus } from './human-report';
-import { benchPayload, doctorPayload, questionPayload, render, statusPayload } from './json';
-import { readRequiredNode, readVersion } from './manifest';
-import { runQuestion } from './question';
-import { runStatus } from './status';
+import type { Invocation } from './args.js';
+import { parseArgs, resolveTimeoutMs } from './args.js';
+import { runBench } from './bench.js';
+import { paletteFor, type Palette } from './color.js';
+import { runDoctor } from './doctor.js';
+import { loadEnvFile } from './env.js';
+import { EXIT_OK, EXIT_USAGE, exitCodeFor, messageFor } from './exit.js';
+import { helpText } from './help.js';
+import { renderAsk, renderExplain, renderTimeline } from './human.js';
+import { renderBench, renderDoctor, renderStatus } from './human-report.js';
+import { benchPayload, doctorPayload, questionPayload, render, statusPayload } from './json.js';
+import { readRequiredNode, readVersion } from './manifest.js';
+import { runQuestion } from './question.js';
+import { runStatus } from './status.js';
 
 /**
  * Dispatch, and the only place in this CLI that decides an exit code.

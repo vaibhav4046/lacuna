@@ -1,6 +1,6 @@
-import type { PreparedQuery } from '../hydra/queries';
-import type { HydraEvidence } from '../report/load';
-import { shortCommit } from '../report/provenance';
+import type { PreparedQuery } from '../hydra/queries.js';
+import type { HydraEvidence } from '../report/load.js';
+import { shortCommit } from '../report/provenance.js';
 import {
   claimsAbout,
   contradictionPartners,
@@ -8,10 +8,10 @@ import {
   evidenceForClaim,
   mentionsFrom,
   supersededByClaim,
-} from '../retrieval/queries';
-import { html, type Html } from './html';
-import { mastheadCompact, page, panel, separator } from './layout';
-import type { NodeIdentity } from './proof';
+} from '../retrieval/queries.js';
+import { html, type Html } from './html.js';
+import { mastheadCompact, page, panel, separator } from './layout.js';
+import type { NodeIdentity } from './proof.js';
 
 /**
  * The database page: which HydraDB, running how, and what this product asks it.

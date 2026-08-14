@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { PLAIN, paletteFor } from '../../src/cli/color';
-import { renderAsk, renderExplain, renderTimeline } from '../../src/cli/human';
-import { questionPayload, render } from '../../src/cli/json';
-import type { Answer, ClaimRecord, EvidenceRecord, QueryTrace } from '../../src/retrieval/types';
+import { PLAIN, paletteFor } from '../../src/cli/color.js';
+import { renderAsk, renderExplain, renderTimeline } from '../../src/cli/human.js';
+import { questionPayload, render } from '../../src/cli/json.js';
+import type { Answer, ClaimRecord, EvidenceRecord, QueryTrace } from '../../src/retrieval/types.js';
 
 /**
  * Rendering, on a hand-built answer.

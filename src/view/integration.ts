@@ -1,7 +1,7 @@
-import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention';
-import { html, type Html } from './html';
-import { mastheadCompact, page, panel, separator } from './layout';
-import type { Notice } from './notice';
+import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention.js';
+import { html, type Html } from './html.js';
+import { mastheadCompact, page, panel, separator } from './layout.js';
+import type { Notice } from './notice.js';
 
 /**
  * The interface, written down so it can be used without reading the source.

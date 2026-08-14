@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { HydraDecodeError } from '../../src/hydra/errors';
+import { HydraDecodeError } from '../../src/hydra/errors.js';
 import {
   decodeRows,
   decodeValue,
   isHydraPath,
   rowsToObjects,
   type HydraPath,
-} from '../../src/hydra/values';
+} from '../../src/hydra/values.js';
 
 /**
  * The path case is decoded from the bytes a real node returned, not from a

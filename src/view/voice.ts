@@ -1,5 +1,5 @@
-import { explainCapability, type CapabilityState } from '../model/capability';
-import { LOCAL_STACK, METERED_STACK, type Component } from '../voice/stack';
+import { explainCapability, type CapabilityState } from '../model/capability.js';
+import { LOCAL_STACK, METERED_STACK, type Component } from '../voice/stack.js';
 import {
   acceptedFrom,
   RUNNING_STATE,
@@ -9,9 +9,9 @@ import {
   VOICE_STATES,
   advance,
   type VoiceState,
-} from '../voice/states';
-import { html, type Html } from './html';
-import { mastheadCompact, page, panel, separator } from './layout';
+} from '../voice/states.js';
+import { html, type Html } from './html.js';
+import { mastheadCompact, page, panel, separator } from './layout.js';
 
 /**
  * The voice surface, rendered rather than animated.

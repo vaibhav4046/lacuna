@@ -1469,3 +1469,166 @@ never worked on this deployment, logging
 `error collecting garbage [resource=Compactions|Manifest, error=ObjectStoreError(NotImplemented { operation: "`put_opts` with mode `PutMode::Update`", implementer: "LocalFileSystem(...)" })]`
 on a loop, and an unclean kill is the obvious suspect. Suspicion is not a cause,
 and it is written here as suspicion.
+
+### D-055: The voice surface is a state machine you can read, and it holds no microphone
+
+The imported design describes a voice interface: an orb that swells while you
+speak, a transcript that firms up as it commits, audio that stops within 120 ms
+when you interrupt, voice that resumes 24 seconds later. None of that was
+measured here, and no part of this environment can record audio.
+
+Three answers were available. Build the thing badly and demo it. Draw a picture
+of it and call the picture a screenshot. Or write down the machine, render every
+situation it can be in, and say at each one which stages ran and which do not
+exist yet.
+
+The third is what `/voice` is. Fourteen states, sixteen events, and two edges
+that exist from everywhere: the network can go at any moment, and anyone can
+give up on speech at any moment and land on the question form. The transition
+table in `src/voice/states.ts` is the whole implementation, and the page is a
+rendering of it rather than a description of it. `?state=` selects which of the
+fourteen you are looking at.
+
+**This build runs in `text_only`.** That is printed on all fourteen pages, not
+just on its own, so no state can be read as a claim that the build reaches it.
+The other thirteen carry the line that this build cannot enter them.
+
+**The pipeline is four stages and two of them are absent.** Speech to text and
+text to speech are `NOT_STARTED`. HydraDB and the resolver are `VERIFIED`, and
+they are verified by the rest of this suite rather than by anything on this page.
+The timing column for the two absent stages reads `UNAVAILABLE`. There is no
+number anywhere on the page, and `tests/unit/view-voice.test.ts` asserts that as
+a regex over all fourteen renders, so the design's 120 ms cannot creep back in
+through a later edit.
+
+**The page ships no script and costs the node nothing.** All fourteen buffers are
+rendered once at construction and looked up by key, so `?state=` never reaches a
+renderer: `readState` returns one of fourteen names or null, and null falls back
+to the running state. Junk falls back rather than 404s, because the page is
+linked from every other page and a stale bookmark should land somewhere true.
+`tests/unit/server-routes.test.ts` asserts that nothing sent in the query string
+appears in the response in either raw or escaped form, and that walking all
+fourteen states makes zero upstream calls.
+
+What this is not: a working voice interface. It is the design's state machine,
+executable and checked, with the audio stages named as missing.
+
+### D-056: The voice stack that is named is local, and none of it is installed
+
+Naming a stack that does not run is only useful if the naming is specific enough
+to be wrong. `src/voice/stack.ts` names seven components with their licences and
+their capability states, and every one of them is `NOT_STARTED` or `BLOCKED`.
+
+**Local first, for a reason that is not cost.** Silero VAD (MIT), whisper.cpp
+with a quantised `small.en` (MIT), Kokoro-82M (Apache 2.0), and optionally Qwen
+3.5 4B through Ollama (Apache 2.0). The corpus this product reads is somebody's
+stored conversation history. Sending audio of it to a hosted endpoint to get a
+transcript back is the failure the whole design is arranged against, and it is
+not made acceptable by the endpoint being cheap.
+
+**The optional model is optional in the strong sense.** HydraDB and the resolver
+decide the verdict. A model in that path would put a quota between a question
+and its evidence, and would make the answer depend on which model answered. The
+parity panel on `/voice` says this and points at the question form, which is the
+same pipeline with the two audio stages removed.
+
+**The metered fallbacks are named and labelled metered.** AssemblyAI is
+`BLOCKED`: no credential for it is configured in this environment, so it has
+never been called. ElevenLabs and Groq are `NOT_STARTED`: no code calls either.
+They are listed so that the absence is on the record rather than discovered by
+someone looking for the integration later.
+
+### D-057: The imported design is kept unmodified and deliberately not adopted
+
+The Claude Design project was imported and its artifacts are stored under
+`design/reference/`, unedited: `Lacuna Voice.dc.html`, its `support.js`, and a
+`tokens.css` carrying the Hydra palette (black, charcoal, `#ff5719`) and a Geist
+font stack. Keeping them verbatim is what makes them citable: the design can be
+checked against what shipped.
+
+It is not the product's palette, and that is a choice rather than an oversight.
+
+**The fonts settle it.** `src/view/style.ts` names no web font, which is why the
+content security policy never has to name a font host. Adopting Geist means
+either shipping a font file and widening `font-src`, or naming a host and
+widening it further. A policy that reads `default-src 'none'` with three narrow
+exceptions is worth more to this product than a typeface.
+
+**The palette follows from the same place.** The product is warm paper and
+archival ink because what it renders is quotations out of a stored history with
+their dates attached, and the design's near-black surface reads as a console.
+The one thing carried across is the structure: the orb's three variables
+(solidity for engagement, a dashed edge for anything provisional, a live ring
+for an active stage) are rendered from `STATE_FACTS`, in this product's colours.
+
+### D-058: The wedged store has a name now, and the fix is still only a reset
+
+D-054 recorded a store that stopped accepting writes, the remedy that cleared it,
+and one honest gap: what wedged it was unknown. The same failure happened again
+on 14 August, and this time the log was read before the store was moved, which
+closes part of that gap and leaves the rest open on purpose.
+
+**The symptom.** `npm run test:contract` came back `2 failed | 1 passed`, `22
+passed | 20 skipped`, on a fixture teardown rather than on anything interesting:
+
+```
+HydraQueryError: HydraDB returned 500: internal query execution error
+ at HydraClient.queryPage src/hydra/client.ts:239:13
+ at HydraClient.write src/hydra/client.ts:314:18
+ at removeFixture tests/contract/ingest.contract.test.ts:207:5
+```
+
+**What the node actually said.** `internal query execution error` is what the
+engine puts on the wire. It is not what it puts in its log. At the default
+`RUST_LOG=info` the same request logged this, as a `WARN` with the message
+`HTTP suppressed internal graph error` and `error_type: slatedb_graph_kernel`:
+
+```
+object store error: Operation `put_opts` with mode `PutMode::Update` not yet
+implemented by LocalFileSystem(file:///var/lib/lacuna/hydradb/store).
+```
+
+The error names its own operation and its own implementer, so nothing outside
+the log is needed to read it. `/opt/hydradb/Cargo.lock` pins `object_store`
+0.14.1 and `slatedb` 0.14.1 from
+`git+https://github.com/usecortex/slatedb.git?rev=c501471ea070498931f30611bfd1ad2773c3c367`.
+A conditional put is how slatedb makes a manifest update atomic, and the local
+filesystem backend does not implement one.
+
+**What this adds to D-054.** D-054 saw that exact `NotImplemented` in the
+garbage collector loop, called it the obvious suspect, and refused to call it the
+cause. It is now observed on the HTTP write path, in the request that returned
+the 500. That is a much stronger link than a coincidence of error text.
+
+**What is still not established.** That the collector never running is what
+eventually kills writes. The two share a signature and a backend, and the
+ordering fits, but no experiment here separates the two, and the honest word for
+that is still suspicion.
+
+**The remedy is unchanged and is not a fix.** Stop, move the store aside, start,
+re-ingest:
+
+```
+stopped pid 389 after 1s
+ready after 1s, pid 1357
+```
+```
+wrote   5642 vertices in 15 batches, 5705 edges
+timing  verify 2.2s, vertices 1.0s, edges 60.8s, total 64.0s
+bookmark sgk:1:6c6f63616c:64656661756c74:63656c6c2d30:5721
+```
+```
+ Test Files  3 passed (3)
+      Tests  42 passed (42)
+   Duration  9.07s
+```
+
+Moving a store aside is a reset. It does not patch `object_store`, it does not
+make the collector run, and the new store is on the same backend as the one that
+wedged, so it should be expected to wedge again. That is why this is written into
+NEEDS_VAIBHAV.md as an operational blocker rather than closed here: anything that
+has to stay up for longer than a demo needs a real object store, not this note.
+
+Both failed stores are kept: `store.wedged-20260814` from D-054 and
+`store.wedged-20260814b` from this one. Two preserved failures are worth more
+than one, and neither of them costs anything but disk.

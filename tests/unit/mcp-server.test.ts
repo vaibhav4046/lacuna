@@ -1,0 +1,351 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { type CallToolResult, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { describe, expect, it } from 'vitest';
+
+import { HydraClient } from '../../src/hydra/client';
+import type { HydraConfig } from '../../src/hydra/config';
+import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server';
+import { describeNode } from '../../src/mcp/result';
+import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools';
+
+/**
+ * The tool list, and dispatch, without a node.
+ *
+ * The graph is replaced at the one seam the client offers, its `fetch`, so
+ * everything above that seam is the shipped code: the wire decode, the guards,
+ * the resolver, the error classes, the mapping. A read whose first lookup
+ * returns no rows is a real answer, not a stub, and it abstains with
+ * out_of_scope after exactly one query. That is enough shape to check dispatch,
+ * the error taxonomy, and the promise that a node's address and token never
+ * reach a result.
+ *
+ * One test runs the whole thing through the SDK's own client over a linked
+ * in-memory transport. That client validates structuredContent against the
+ * tool's outputSchema, so the schemas in tools.ts are checked against real
+ * output rather than read and trusted.
+ */
+
+const CONFIG: HydraConfig = {
+  baseUrl: 'http://127.0.0.1:18443',
+  namespace: 'test-namespace',
+  graph: 'default',
+  cell: 'cell-0',
+  // Not a credential. It is here so the tests can assert it never reaches a result.
+  token: 'token-that-must-never-be-rendered',
+};
+
+const PROBE_EPOCH = 7;
+
+/** What the node sends back when nothing matched. */
+function emptyPage(): string {
+  return JSON.stringify({
+    query_id: 'lacuna-test',
+    columns: ['id', 'name', 'kind'],
+    rows: [],
+    read_epoch: PROBE_EPOCH,
+    next_cursor: null,
+    bookmark: null,
+  });
+}
+
+function contextWith(
+  handler: () => Promise<Response>,
+  timeoutMs?: number,
+): ToolContext {
+  const client = new HydraClient(CONFIG, { fetch: handler });
+  const node = describeNode(CONFIG);
+  return timeoutMs === undefined ? { client, node } : { client, node, timeoutMs };
+}
+
+/** A node that is up and knows nothing. */
+function silentNode(): ToolContext {
+  return contextWith(() => Promise.resolve(new Response(emptyPage(), { status: 200 })));
+}
+
+/** A node that cannot be reached at all. */
+function deadNode(): ToolContext {
+  return contextWith(() => Promise.reject(new TypeError('connect ECONNREFUSED')));
+}
+
+function textOf(result: CallToolResult): string {
+  const block = result.content[0];
+  if (block === undefined || block.type !== 'text') {
+    throw new Error('expected a text block');
+  }
+  return block.text;
+}
+
+function structuredOf(result: CallToolResult): Record<string, unknown> {
+  const value = result.structuredContent;
+  if (value === undefined) {
+    throw new Error('expected structuredContent');
+  }
+  return value;
+}
+
+describe('the advertised tools', () => {
+  it('are the four this release ships, each named for its prefix', () => {
+    expect(TOOLS.map((tool) => tool.name)).toEqual([
+      ASK_TOOL,
+      EXPLAIN_TOOL,
+      TIMELINE_TOOL,
+      HEALTH_TOOL,
+    ]);
+    expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
+  });
+
+  it('use names a client can group and route on', () => {
+    for (const tool of TOOLS) {
+      expect(tool.name).toMatch(/^lacuna_[a-z_]+$/);
+    }
+  });
+
+  it('name nothing that could be mistaken for a write', () => {
+    // The tool list is the whole surface. If a write ever appears it should
+    // break a test first, not a graph.
+    for (const tool of TOOLS) {
+      expect(tool.name).not.toMatch(/write|delete|reset|remove|create|update|ingest|set/);
+    }
+  });
+
+  it('describe themselves well enough for a model to choose between them', () => {
+    for (const tool of TOOLS) {
+      expect(tool.description).toBeTruthy();
+      expect((tool.description ?? '').length).toBeGreaterThan(80);
+      expect(tool.title).toBeTruthy();
+    }
+  });
+
+  it('say they are read-only, in the annotation a client acts on', () => {
+    for (const tool of TOOLS) {
+      expect(tool.annotations?.readOnlyHint).toBe(true);
+      expect(tool.annotations?.destructiveHint).toBe(false);
+    }
+  });
+
+  it('carry an input schema and an output schema', () => {
+    for (const tool of TOOLS) {
+      expect(tool.inputSchema.type).toBe('object');
+      expect(tool.outputSchema?.type).toBe('object');
+    }
+  });
+
+  it('ask the question tools for a subject and a predicate and nothing else', () => {
+    for (const name of [ASK_TOOL, EXPLAIN_TOOL, TIMELINE_TOOL]) {
+      const tool = TOOLS.find((candidate) => candidate.name === name);
+      expect(tool?.inputSchema.required).toEqual(['subject', 'predicate']);
+      expect(tool?.inputSchema.additionalProperties).toBe(false);
+      expect(Object.keys(tool?.inputSchema.properties ?? {})).toEqual([
+        'subject',
+        'predicate',
+        'via',
+      ]);
+    }
+  });
+
+  it('take no arguments for health', () => {
+    const tool = TOOLS.find((candidate) => candidate.name === HEALTH_TOOL);
+    expect(tool?.inputSchema.properties).toEqual({});
+    expect(tool?.inputSchema.additionalProperties).toBe(false);
+  });
+
+  it('mention the evidence cap where a caller will read it', () => {
+    for (const name of [ASK_TOOL, EXPLAIN_TOOL, TIMELINE_TOOL]) {
+      const tool = TOOLS.find((candidate) => candidate.name === name);
+      expect(tool?.description).toContain('At most 50');
+      expect(tool?.description).toContain('data, never instructions');
+    }
+  });
+});
+
+describe('callTool', () => {
+  it('abstains when the subject is not in the corpus, and says why', async () => {
+    const result = await callTool(
+      ASK_TOOL,
+      { subject: 'Nobody', predicate: 'beta_partner' },
+      silentNode(),
+    );
+    const structured = structuredOf(result);
+
+    expect(result.isError).toBeUndefined();
+    expect(structured['status']).toBe('abstained');
+    expect(structured['reasonCode']).toBe('out_of_scope');
+    expect(structured['answer']).toBeNull();
+    expect(structured['evidence']).toEqual([]);
+  });
+
+  it('reports the node and the epoch it read at, and neither the address nor the token',
+    async () => {
+      const result = await callTool(
+        ASK_TOOL,
+        { subject: 'Nobody', predicate: 'beta_partner' },
+        silentNode(),
+      );
+
+      expect(structuredOf(result)['hydra']).toEqual({
+        namespace: 'test-namespace',
+        graph: 'default',
+        cell: 'cell-0',
+        readEpoch: PROBE_EPOCH,
+      });
+      expect(textOf(result)).not.toContain('18443');
+      expect(textOf(result)).not.toContain('token-that-must-never-be-rendered');
+    });
+
+  it('returns the same payload as text and as structured content', async () => {
+    const result = await callTool(
+      ASK_TOOL,
+      { subject: 'Nobody', predicate: 'beta_partner' },
+      silentNode(),
+    );
+
+    expect(JSON.parse(textOf(result))).toEqual(structuredOf(result));
+  });
+
+  it('adds the explanation and trace for explain, and the revision list for timeline',
+    async () => {
+      const explained = structuredOf(await callTool(
+        EXPLAIN_TOOL,
+        { subject: 'Nobody', predicate: 'beta_partner' },
+        silentNode(),
+      ));
+      const timed = structuredOf(await callTool(
+        TIMELINE_TOOL,
+        { subject: 'Nobody', predicate: 'beta_partner' },
+        silentNode(),
+      ));
+
+      expect(typeof explained['explanation']).toBe('string');
+      expect(Array.isArray(explained['trace'])).toBe(true);
+      expect(timed['considered']).toEqual([]);
+      expect(explained['considered']).toBeUndefined();
+    });
+
+  it('answers health from one probe read', async () => {
+    const result = await callTool(HEALTH_TOOL, {}, silentNode());
+    const structured = structuredOf(result);
+
+    expect(structured['reachable']).toBe(true);
+    expect(structured['error']).toBeNull();
+    expect(structured['hydra']).toEqual({
+      namespace: 'test-namespace',
+      graph: 'default',
+      cell: 'cell-0',
+      readEpoch: PROBE_EPOCH,
+    });
+    expect((structured['queries'] as unknown[]).length).toBe(1);
+  });
+
+  it('reports an unreachable node as unhealthy rather than throwing', async () => {
+    const structured = structuredOf(await callTool(HEALTH_TOOL, {}, deadNode()));
+
+    expect(structured['reachable']).toBe(false);
+    expect(structured['error']).toBe('HydraTransportError');
+    expect(JSON.stringify(structured)).not.toContain('18443');
+  });
+
+  it('throws for a tool it does not implement', async () => {
+    await expect(callTool('lacuna_forget', {}, silentNode())).rejects.toThrow(McpError);
+    await expect(callTool('lacuna_forget', {}, silentNode()))
+      .rejects.toMatchObject({ code: ErrorCode.MethodNotFound });
+  });
+
+  it('throws for arguments it cannot use', async () => {
+    await expect(callTool(ASK_TOOL, { predicate: 'beta_partner' }, silentNode()))
+      .rejects.toMatchObject({ code: ErrorCode.InvalidParams });
+    await expect(callTool(ASK_TOOL, 'Bellwether', silentNode()))
+      .rejects.toMatchObject({ code: ErrorCode.InvalidParams });
+  });
+
+  it('returns a read failure as a failed result, naming the class and not the endpoint',
+    async () => {
+      // A tool failure is a fact the model can act on. A protocol error is a
+      // mistake in the request. This is the first kind, so it comes back as a
+      // result rather than a throw.
+      const result = await callTool(
+        ASK_TOOL,
+        { subject: 'Nobody', predicate: 'beta_partner' },
+        deadNode(),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toBeUndefined();
+      // The SDK prefixes an McpError's message with its code. What matters is
+      // the tail: a class name, and nothing about where the node lives.
+      expect(textOf(result))
+        .toBe('MCP error -32603: the graph did not answer this read (HydraTransportError)');
+      expect(textOf(result)).not.toContain('18443');
+      expect(textOf(result)).not.toContain('token-that-must-never-be-rendered');
+    });
+
+  it('gives up on a slow read at the deadline', async () => {
+    const slow = contextWith(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        return new Response(emptyPage(), { status: 200 });
+      },
+      5,
+    );
+
+    const result = await callTool(ASK_TOOL, { subject: 'Nobody', predicate: 'x' }, slow);
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toBe('MCP error -32001: lacuna_ask did not finish within 5ms');
+  });
+});
+
+describe('createMcpServer, over a linked in-memory transport', () => {
+  async function connected(context: ToolContext): Promise<Client> {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const server = createMcpServer(context);
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    return client;
+  }
+
+  it('lists the four tools with their schemas', async () => {
+    const client = await connected(silentNode());
+
+    const listed = await client.listTools();
+
+    expect(listed.tools.map((tool) => tool.name)).toEqual([
+      ASK_TOOL,
+      EXPLAIN_TOOL,
+      TIMELINE_TOOL,
+      HEALTH_TOOL,
+    ]);
+    await client.close();
+  });
+
+  it('returns output the SDK client accepts against the advertised output schema',
+    async () => {
+      // The client validates structuredContent against outputSchema on every
+      // call, so this fails if a schema and the mapping ever disagree.
+      const client = await connected(silentNode());
+
+      for (const name of [ASK_TOOL, EXPLAIN_TOOL, TIMELINE_TOOL]) {
+        const result = await client.callTool({
+          name,
+          arguments: { subject: 'Nobody', predicate: 'beta_partner' },
+        });
+        expect((result.structuredContent as Record<string, unknown>)['status'])
+          .toBe('abstained');
+      }
+
+      const health = await client.callTool({ name: HEALTH_TOOL, arguments: {} });
+      expect((health.structuredContent as Record<string, unknown>)['reachable']).toBe(true);
+
+      await client.close();
+    });
+
+  it('reports an unimplemented tool as a protocol error over the wire', async () => {
+    const client = await connected(silentNode());
+
+    await expect(client.callTool({ name: 'lacuna_forget', arguments: {} }))
+      .rejects.toMatchObject({ code: ErrorCode.MethodNotFound });
+
+    await client.close();
+  });
+});

@@ -497,7 +497,11 @@ What exists right now. Updated as things change, and never ahead of them.
   UNIT_EXIT=0
   ```
 
-  What is not done here: nothing has been deployed. That is listed below.
+  What is not done here: nothing has been deployed. That is listed below. The
+  page set has since grown past these four: the three evidence pages, the nav
+  and the voice surface each have their own entry further down, and the dark
+  theme described in this era became the only theme when the frozen design was
+  adopted.
 
 - **Twelve captures exist of the running product, taken and checked by one
   command, and taking them found a bug the suite did not.** `npm run screens`
@@ -526,6 +530,10 @@ What exists right now. Updated as things change, and never ahead of them.
   array, the mirror filters out the one directive it cannot carry, and the test
   asserts the difference between the two rather than their two values. See
   [D-046](DECISIONS.md).
+
+  This set has since been retaken: the design adoption entry below records the
+  current thirteen captures, taken on one ground with the voice page among
+  them.
 
   Real output, 2026-08-13, after both fixes:
 
@@ -724,6 +732,151 @@ What exists right now. Updated as things change, and never ahead of them.
   `tested`, but it is the same kind of error, and only one of the two gets caught
   by people looking for overclaiming.
 
+- **Three evidence pages exist, are linked, and cost the node nothing.**
+  `/bench`, `/hydradb` and `/interface`, rendered at startup from the committed
+  artifacts rather than from anything typed into the views. The benchmark page
+  states the tie and wins on context size, and its tests assert the tie is real
+  and the "slowest here" caption is earned by the numbers rather than granted by
+  the copy. The database page prints its Cypher by calling the same functions
+  the retriever calls, so it cannot describe a query the product does not run,
+  and it names GraphBLAS only to say that claim is not made. The interface page
+  is rendered in tests with limits no server configures, which is the only way
+  to tell a printed argument from a printed constant. A nav rendered from one
+  list of routes links every page and marks the current one with
+  `aria-current`; skip link ahead of it, still no client JavaScript anywhere.
+  Reloading any of the three sends the node nothing, so a judge re-reading the
+  evidence cannot spend the demo's query budget. See [D-051](DECISIONS.md).
+
+- **The ingest pre-write check was wrong in a way only the live engine could
+  show, and is fixed.** The read-back before a write exists to refuse a 52-bit
+  id collision before it overwrites someone else's node. It counted rows, and
+  on HydraDB the unlabelled id pattern addresses a vertex slot rather than a
+  stored node: ask it about an id nothing has ever written and it answers one
+  row carrying that id and a null key. So row count on that form never means
+  "present", and the check was throwing a collision on the first id of every
+  ingest into an empty graph. Both read shapes stay — a labelled scan and an
+  indexed id read — and `isPresent` is told which one it is reading rather than
+  guessing, because the null means an overwrite candidate in one and an empty
+  slot in the other. Ten query forms were measured against the live graph to
+  settle the shape and the threshold; the table is in [D-053](DECISIONS.md).
+
+- **The voice surface is an executable state machine, and it holds no
+  microphone.** `/voice` renders fourteen states and sixteen events from the
+  transition table in `src/voice/states.ts`, with `?state=` selecting which one
+  you are looking at and junk falling back to the running state rather than
+  404ing. This build runs in `text_only` and all fourteen pages print that, so
+  no state can be read as a claim the build reaches it. The pipeline is four
+  stages and two are absent: speech to text and text to speech are
+  `NOT_STARTED`, their timing column reads `UNAVAILABLE`, and
+  `tests/unit/view-voice.test.ts` asserts no number appears anywhere on any of
+  the fourteen renders, so the design's 120 ms cannot creep back in through a
+  later edit. The named stack is local — Silero VAD, whisper.cpp, Kokoro-82M,
+  optionally Qwen through Ollama — and none of it is installed, which the page
+  also says; the metered fallbacks are listed as `BLOCKED` or `NOT_STARTED` so
+  the absence is on the record. The page ships no script, and walking all
+  fourteen states makes zero upstream calls, asserted over the real socket.
+  What this is not: a working voice interface. [D-055](DECISIONS.md) and
+  [D-056](DECISIONS.md).
+
+- **The frozen design is adopted, and the capture set is thirteen.**
+  `src/view/style.ts` now commits to the ground in `design/reference/tokens.css`:
+  black paper, charcoal surfaces raised off it, four steps of white so
+  hierarchy is carried by weight of ink, borders as white at low alpha, and one
+  orange that only ever means something. Geist is named first because the
+  design names it, falling through to the system stack, so there is still
+  nothing to fetch and no font host in the policy. The page serves one ground:
+  the `prefers-color-scheme` block is gone from the served stylesheet, checked
+  by grep against what ships, and a capture taken preferring light came back
+  byte identical to the one preferring dark, 315,100 bytes each, which is
+  positive evidence rather than an assertion that nothing happened. The screens
+  set was regrown to thirteen by `npm run screens` against the adopted design,
+  the voice page now among them, and every PNG is still read back and checked
+  before the run may exit zero. [D-059](DECISIONS.md) reverses
+  [D-057](DECISIONS.md) and records what the adoption cost. The screens
+  README's proof-panel figures were also corrected to what the committed pixels
+  say, 344.9 ms and 417.5 ms, in the same sweep as [D-062](DECISIONS.md).
+
+- **The command line exists, and it is the same answer path.** `bin/lacuna.js`,
+  no build step, six commands: `doctor`, `status`, `ask`, `explain`,
+  `timeline`, `bench`. `doctor` runs six checks one line each, including a real
+  query reported with its latency and read epoch, and exits with the code of
+  the first failing check so a script can tell a node that needs starting from
+  a token that needs correcting. The token is reported as `set` or `missing`
+  and never as its value, in `--json` too. `--json` caps evidence at fifty
+  items and carries the true count in `evidenceTotal`, which is what the MCP
+  surface already did and is now shared behaviour rather than coincidence.
+  [docs/CLI.md](docs/CLI.md).
+
+- **The MCP server exists: four read-only tools over two transports, both
+  driven.** `lacuna_ask`, `lacuna_explain`, `lacuna_timeline` and
+  `lacuna_health`, with no tool that writes, resets or deletes. stdio is the
+  primary transport; Streamable HTTP is mounted at `/mcp`, stateless, loopback,
+  port 3015 by default, POST only. Every result comes back as pretty JSON and
+  as `structuredContent`, and each tool advertises an `outputSchema` the SDK
+  client validates against on every successful call. The envelope is built in
+  `src/contract/result.ts`, the one module both non-browser surfaces project
+  from, so the MCP result and the CLI's `--json` cannot drift apart without the
+  shared file changing. [docs/MCP.md](docs/MCP.md) and [D-060](DECISIONS.md).
+
+- **All three surfaces return the same value, checked by one command.**
+  `npm run parity` spawns the MCP server over stdio, connects to the same
+  server again over its HTTP transport with the SDK's own client — a real
+  listener, a real initialize handshake — and runs the command line in its own
+  process, then compares status, answer, reason code, claim id, superseded
+  claims, evidence, evidence total, source state and the set of reads with
+  their parameters and row counts across all three. What it deliberately does
+  not compare is the order of the independent reads, which is the order the
+  node finished them in and varies between runs of the same command on one
+  surface; the artifact prints the raw orders next to the verdict so the
+  exclusion is visible rather than assumed. The two MCP surfaces share one tool
+  implementation, so the HTTP leg proves the transport end to end, not the
+  substance of the answer twice. [D-060](DECISIONS.md) and
+  [D-062](DECISIONS.md).
+
+  Real output, 2026-08-14, node up, excerpted; the full transcripts, exit codes
+  and the exact tree they ran against are in
+  [artifacts/verification/2026-08-14c/](artifacts/verification/2026-08-14c/README.md):
+
+  ```
+  CASE: answered (Bellwether / beta_partner)
+    stdio status=answered claimId=797564529472318 reasonCode=null queries=4
+    http  status=answered claimId=797564529472318 reasonCode=null queries=4
+    cli   status=answered claimId=797564529472318 reasonCode=null queries=4
+    IDENTICAL: True
+  CASE: abstained (Meridian / migration_window)
+    stdio status=abstained claimId=null reasonCode=never_stated queries=3
+    http  status=abstained claimId=null reasonCode=never_stated queries=3
+    cli   status=abstained claimId=null reasonCode=never_stated queries=3
+    IDENTICAL: True
+  ALL_IDENTICAL: True
+  PARITY_EXIT=0
+
+  > vitest run tests/unit
+   Test Files  36 passed (36)
+        Tests  807 passed (807)
+     Duration  26.06s
+  UNIT_EXIT=0
+  ```
+
+  The suites behind those totals now cover the surfaces themselves: the CLI,
+  the MCP tools, the voice renders and the claims ledger below all sit inside
+  the 807.
+
+- **Every public claim is in a ledger, and the ledger is tested.**
+  [docs/CLAIMS.json](docs/CLAIMS.json) holds 25 claims, each carrying the
+  capability state and the data state behind it, the measured figures, the
+  evidence paths on disk, the command that reproduces it and the caveat it must
+  travel with. The two state vocabularies are defined once in
+  `src/model/capability.ts` and are the same ones the voice page renders, so a
+  state name cannot mean one thing in the ledger and another on a page.
+  `tests/unit/claims.test.ts` checks the schema, the vocabulary, and that every
+  cited evidence path exists in the repository; it does not check the values,
+  and says so, because a test that read the artifacts back would be a second
+  evaluation pretending to be a lint. [docs/EVIDENCE_INDEX.md](docs/EVIDENCE_INDEX.md)
+  maps each claim to the artifact and the run that produced it, pinned to the
+  commit named in its header, with the one row from a later run annotated as
+  such in prose rather than left for a reader to notice.
+
 ## In progress
 
 - Nothing.
@@ -742,8 +895,10 @@ Everything else. Named explicitly so no reader has to guess:
   product, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md). Recording is the
   owner's, and it is item 3 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md)
 - Nothing submitted. The repository stopped being the blocker on 2026-08-13:
-  it is public, it holds the code, and the tip `033c1a8` is live at
-  <https://github.com/vaibhav4046/lacuna>. Getting there took two attempts.
+  it is public, it holds the code, and it has been live at
+  <https://github.com/vaibhav4046/lacuna> since the day-one tip `033c1a8`;
+  every commit since is pushed to the same place. Getting there took two
+  attempts.
   `gh repo create` succeeded and `git push` was then rejected with `GH007`,
   because every commit carried an address GitHub is configured to keep private.
   The exit taken was not the account setting. Every other public repository on
@@ -761,7 +916,7 @@ Everything else. Named explicitly so no reader has to guess:
 
 ## Known environment deviations
 
-Three, recorded because reproducibility depends on them.
+Five, recorded because reproducibility depends on them.
 
 **`just` shebang recipes fail under WSL2.** `just 1.58.0` writes shebang recipe
 scripts into `$XDG_RUNTIME_DIR/just/`, and WSL mounts `/run/user/0` as tmpfs with
@@ -797,9 +952,47 @@ error collecting garbage [resource=Manifest, error=ObjectStoreError(NotImplement
 `resource=Compactions` produces the same thing. It is SlateDB refusing a
 conditional put against the `LocalFileSystem` backend, which is the backend
 `CLOUD_PROVIDER=local` selects, so it fires on the upstream recipe as well and
-followed the store to its new path unchanged. Writes, reads, restart and the
-contract suite are all unaffected. Recorded here so nobody spends an evening
-debugging Lacuna over a line HydraDB prints on its own.
+followed the store to its new path unchanged. When this was first recorded,
+writes, reads, restart and the contract suite were all unaffected. That
+sentence stopped being true on 2026-08-14: the wedged-store entry below is the
+same refused operation surfacing on the write path instead of in the
+collector's log.
+
+**The store can wedge: writes start answering 500 while reads keep working,
+and the only recovery found is a reset.** It has happened twice, both on
+2026-08-14. The symptom from the client is `500: internal query execution
+error` on every write, with reads still answering correctly, which makes it
+easy to misread as a bug in whatever write you happened to be running — the
+first diagnosis here blamed bookmark chaining and was wrong, recorded as such
+in [D-054](DECISIONS.md). The engine's own log has the cause, at `WARN` level:
+
+```
+HTTP suppressed internal graph error
+```
+
+with the underlying error naming the same unimplemented operation as the
+collector noise above: `` object store error: Operation `put_opts` with mode
+`PutMode::Update` not yet implemented by
+LocalFileSystem(file:///var/lib/lacuna/hydradb/store). `` No write-side fix
+exists in this project; the remedy is `npm run reset` and a re-ingest, about a
+minute of wall clock (the second one wrote 5,642 vertices and 5,705 edges in
+64.0s), after which the contract suite passed in full, 42 tests across 3
+files. Both failed stores are kept beside the live one as
+`store.wedged-20260814` and `store.wedged-20260814b` so the failure is
+inspectable rather than only described. [D-058](DECISIONS.md). This is the one
+known way the demo can die mid-run, which is why it is also an operational
+item in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md): check writes before recording,
+not during.
+
+**Restarting WSL can leave the Windows-side port relay half-alive: TCP
+connects, query traffic hangs.** After a WSL restart the relay on `18443` will
+accept a connection and then say nothing, so a liveness check that only
+connects reports a healthy node that cannot answer. Readiness is therefore
+only meaningful as `curl http://127.0.0.1:19091/readyz` — the admin port —
+because `18443` answers 404 for that path even when healthy. Recovery order
+matters: stop the node inside WSL first, then `wsl --shutdown`, then start the
+node again. Shutting WSL down around a running node is how the relay gets into
+this state. [D-061](DECISIONS.md).
 
 ## Open questions
 

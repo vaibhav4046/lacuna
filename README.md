@@ -122,11 +122,13 @@ faith:
 npm run parity
 ```
 
-That asks the same two questions, one answered and one abstained, through three
-surfaces: the MCP server over stdio, the same server over its HTTP transport
-with a real SDK client, and the command line in its own process. It compares the
-results field by field, ends `ALL_IDENTICAL: True`, and the saved output is
-[artifacts/verification/2026-08-14c/parity.txt](artifacts/verification/2026-08-14c/parity.txt).
+That asks two questions with full payloads printed, one answered and one
+abstained, then sweeps all sixty gold questions from the evaluation through
+three surfaces: the MCP server over stdio, the same server over its HTTP
+transport with a real SDK client, and the command line in its own process. It
+compares every result field by field, ends `SWEEP_IDENTICAL: 60 of 60` and
+`ALL_IDENTICAL: True`, and the saved output is
+[artifacts/verification/2026-08-14d/parity.txt](artifacts/verification/2026-08-14d/parity.txt).
 The pages are not in that comparison: they share the resolver underneath but
 render their own markup rather than the projection.
 

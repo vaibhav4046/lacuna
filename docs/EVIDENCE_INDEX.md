@@ -174,7 +174,7 @@ That last check is not decorative. It is what caught a proof panel printing
 | Four tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_health` | MCP | same, the `tools/list` response | same | `LIVE` |
 | The command line answers and abstains with the same typed result | CLAIMS, CLI | [cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json), [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) | `node bin/lacuna.js ask Bellwether beta_partner --json` | `LIVE` |
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
-| MCP over stdio, MCP over HTTP, and the command line return the same value | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-14c/parity.txt](../artifacts/verification/2026-08-14c/parity.txt) | `npm run parity` | `LIVE` |
+| MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-14d/parity.txt](../artifacts/verification/2026-08-14d/parity.txt) | `npm run parity` | `LIVE` |
 | Four reads for the answered question, three for the abstention | CLAIMS, HYDRADB_INTEGRATION | same, and the two command line captures | same | `LIVE` |
 
 The parity check is the reason [src/contract/result.ts](../src/contract/result.ts)
@@ -182,11 +182,12 @@ exists. All three surfaces build their output from that one module — the two M
 transports through one server, the command line through its own process — so
 agreement is structural rather than something separate code paths happen to
 arrive at, and the check exists to catch the day that stops being true. The
-parity row is the one row in this table from the third run of the day rather
-than the commit at the top of this file: the HTTP surface was added to
+parity row is the one row in this table from the fourth run of the day rather
+than the commit at the top of this file: the sixty-question sweep was added to
 `scripts/parity.ts` after that commit, and
-[that run's README](../artifacts/verification/2026-08-14c/README.md) records the
-exact tree it measured.
+[that run's README](../artifacts/verification/2026-08-14d/README.md) records the
+exact tree it measured, along with the timing-dependent comparison bug the
+sweep caught in its own referee on its first run.
 
 What it compares is the status, the answer, the reason code, the claim id, the
 superseded claims, the evidence, the evidence total, the source state, and the
@@ -249,10 +250,11 @@ lands.
 **The MCP and CLI rows arrived.** They were promised in this section as pending
 and are now in [Surfaces](#surfaces) above. What is still pending there is
 narrower and worth stating plainly: every client that has connected was run from
-this repository, and the parity check covers two questions rather than the
-eval's sixty. The HTTP transport left this list on the day's third run, when the
-parity script drove it end to end with a real SDK client. Each of the two that
-remain is a row this file does not yet have.
+this repository. The HTTP transport left this list on the day's third run, when
+the parity script drove it end to end with a real SDK client; the two-question
+coverage caveat left it on the fourth, when the parity check grew the
+evaluation's sixty questions. The third-party client is the one row this file
+does not yet have.
 
 **Nothing here covers voice, an LLM router, authentication, or a deployed URL.**
 Those remain `UNAVAILABLE` in the ledger and absent from this index, which is the

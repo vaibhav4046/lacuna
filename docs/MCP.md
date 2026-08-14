@@ -185,10 +185,14 @@ npm run parity
 ```
 
 It drives this server over stdio, drives it again over the HTTP transport, and
-runs the command line in its own process, asks all three the same two questions,
-and compares the results field by field. The output is
-[parity.txt](../artifacts/verification/2026-08-14c/parity.txt) and it ends
-`ALL_IDENTICAL: True`. The shared shape the two adapters build from is
+runs the command line in its own process. It asks all three two questions with
+full payloads printed, then sweeps the evaluation's sixty gold questions
+through the same three surfaces, comparing every result field by field. The
+output is [parity.txt](../artifacts/verification/2026-08-14d/parity.txt) and it
+ends `SWEEP_IDENTICAL: 60 of 60` then `ALL_IDENTICAL: True`. One stdio session
+serves all the questions, so the stdio side is also sixty-two tool calls
+through one process rather than a fresh server per call. The shared shape the
+two adapters build from is
 [`src/contract/result.ts`](../src/contract/result.ts).
 
 The HTTP case is the transport being exercised rather than the answer. It starts
@@ -199,11 +203,10 @@ the client validates against it, a successful call there is schema conformance
 and not only reachability. The run is written up in
 [the directory README](../artifacts/verification/2026-08-14c/README.md).
 
-Two things are not proven yet and are worth naming here rather than leaving to
+One thing is not proven yet and is worth naming here rather than leaving to
 inference. No third-party client, editor or agent runtime has connected, so the
 config block earlier in this document is written from the transport's
-requirements rather than from a session that used it. And the parity check covers
-two questions, not the sixty the evaluation covers.
+requirements rather than from a session that used it.
 
 ## One note on the SDK
 

@@ -862,6 +862,19 @@ What exists right now. Updated as things change, and never ahead of them.
   the MCP tools, the voice renders and the claims ledger below all sit inside
   the 807.
 
+  The check has since grown past those two questions. The day's fourth run
+  sweeps all sixty gold questions from the evaluation through the same three
+  surfaces, one stdio session serving every call, and ends
+  `SWEEP_IDENTICAL: 60 of 60` before `ALL_IDENTICAL: True`; the excerpt above
+  is the third run's, kept because it shows the full per-case shape. The
+  sweep's first run ended 45 of 60 and every mismatch was in its own
+  comparison, which sorted reads by query text alone and let equal-text reads
+  keep timing-dependent arrival order — a latent bug the two-question check
+  had been passing on luck. The fix, the audit of all fifteen false flags and
+  the full transcript are in
+  [artifacts/verification/2026-08-14d/](artifacts/verification/2026-08-14d/README.md),
+  and the decision record is [D-063](DECISIONS.md).
+
 - **Every public claim is in a ledger, and the ledger is tested.**
   [docs/CLAIMS.json](docs/CLAIMS.json) holds 25 claims, each carrying the
   capability state and the data state behind it, the measured figures, the

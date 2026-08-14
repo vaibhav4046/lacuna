@@ -427,17 +427,17 @@
     },
     {
       "id": "cross-surface-contract",
-      "claim": "MCP over stdio, MCP over its HTTP transport, and the command line return the same value for the same question: same status, answer, reason code, claim id, superseded claims, evidence, evidence total, source state, and same set of graph reads with the same parameters and row counts.",
+      "claim": "MCP over stdio, MCP over its HTTP transport, and the command line return the same value for the same question, across all sixty gold questions from the evaluation plus two deep cases: same status, answer, reason code, claim id, superseded claims, evidence, evidence total, source state, and same set of graph reads with the same parameters and row counts.",
       "capability": "VERIFIED",
       "data": "LIVE",
       "evidence": [
         "src/contract/result.ts",
         "scripts/parity.ts",
-        "artifacts/verification/2026-08-14c/parity.txt",
-        "artifacts/verification/2026-08-14c/README.md"
+        "artifacts/verification/2026-08-14d/parity.txt",
+        "artifacts/verification/2026-08-14d/README.md"
       ],
       "reproduce": "npm run parity",
-      "caveat": "Two questions, one answered and one abstained, against a live node. The order the reads appear in the trace is deliberately excluded, because the reads are issued together and land as the node answers them; the artifact prints the orders beside the verdict so the exclusion is visible. The two MCP surfaces share one tool implementation, so the HTTP case exercises the transport rather than the substance of the answer. The web pages share the resolver but are not part of this check."
+      "caveat": "The check proves the three surfaces agree, not that the answers are right; judging answers against the gold expectations is npm run eval's job and is deliberately not duplicated here. The order the reads appear in the trace is excluded, because the reads are issued together and land as the node answers them, and reads with identical query text are tiebroken by their parameters, a fix the sweep's own first run forced. The two MCP surfaces share one tool implementation, so the HTTP case exercises the transport rather than the substance of the answer. The web pages share the resolver but are not part of this check."
     },
     {
       "id": "deployment",

@@ -1826,3 +1826,52 @@ off the committed pixels rather than re-captured, because the PNG is the record
 and a fresh page would print fresh numbers. The epoch of 5844 and the
 byte-identical light-preference capture survived the recapture, so those claims
 stand unchanged.
+
+### D-063: The parity check sweeps the evaluation's sixty questions, and its first run caught a bug in its own referee
+
+Every description of `npm run parity` carried the same caveat: two questions,
+not the eval's sixty. That caveat is closed. The two deep cases still run
+first with their full payloads printed, and then all sixty gold questions from
+the evaluation sweep through the same three surfaces, one compact line each.
+
+**How the sweep is built.** The questions are constructed exactly the way
+`scripts/evaluate.ts` constructs them: the same generated corpus, the same
+`parseVia` on the question text, so the fourteen multi-hop questions carry
+their `via` relation through all three surfaces — the MCP argument, the CLI's
+`--via` flag. One stdio session serves every question, so the stdio side is
+also sixty-two tool calls through one process rather than a fresh server per
+call. The HTTP side reuses one listener; the CLI runs one process per
+question, which is what a script would do.
+
+**The referee bug.** The first sweep run ended `SWEEP_IDENTICAL: 45 of 60`,
+exit 1. All fifteen mismatches were in the comparison, not the surfaces. The
+comparable form sorted the read set by query text alone; the retracted,
+contradicted and multi-hop questions issue the same query text more than once
+with different parameters (two evidence-span reads, or one claim scan per
+hop), the sort is stable, and equal-text entries keep their arrival order,
+which is timing. An audit of all fifteen dumps confirmed every canonical field
+identical across the three surfaces and the read sets identical once
+equal-text entries were tiebroken by their parameters. The fix is that
+tiebreak, in `comparable()` in `scripts/parity.ts`.
+
+**Why this argues for the sweep rather than against it.** The two-question
+check had the same latent bug and passed on timing luck: its answered case
+also issues two span reads with identical query text. Two is exactly the
+coverage at which a timing-dependent referee can look deterministic. The
+concrete argument for sweeping sixty was made by the sweep itself, on its
+first run.
+
+**What the sweep does not judge.** It does not compare answers against the
+gold expectations, because `scripts/evaluate.ts` already does and a second
+scorer would be a second definition of correct. Here the sixty are sixty
+distinct values three surfaces must agree on, nothing more.
+
+**What was run.** `SWEEP_IDENTICAL: 60 of 60` then `ALL_IDENTICAL: True`,
+exit 0, stderr empty; 28 answered, 32 abstained, every abstention a
+successful call on all three surfaces. Typecheck clean, 807 unit tests over
+36 files. The transcripts, exit codes and the tree they measured are in
+`artifacts/verification/2026-08-14d/`, whose README also records the referee
+bug in full. The README, `docs/CLI.md`, `docs/MCP.md`,
+`docs/EVIDENCE_INDEX.md` and the `cross-surface-contract` claim in
+`docs/CLAIMS.json` now cite this run; the 14c citations that remain are dated
+records of the HTTP-transport milestone and stay as written.

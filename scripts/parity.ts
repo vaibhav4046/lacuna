@@ -6,7 +6,9 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 import type { AskCore } from '../src/contract/result';
+import { generateCorpus } from '../src/corpus/index';
 import { MCP_PATH } from '../src/mcp/http';
+import { parseVia } from '../src/retrieval/index';
 
 /**
  * Asks the same questions through the MCP server over stdio, through the same
@@ -14,6 +16,14 @@ import { MCP_PATH } from '../src/mcp/http';
  * all three answers are the same value.
  *
  *   npm run parity
+ *
+ * Two questions run first with their full payloads printed, one answered and
+ * one abstained, so a reader can see the value being compared rather than only
+ * a verdict about it. Then every gold question from the evaluation runs through
+ * the same three surfaces, one compact line each. The sweep exists because the
+ * two-question check used to be the whole check, and every document describing
+ * it had to carry the caveat that two is not sixty. Now the claim and the
+ * coverage are the same shape.
  *
  * All three surfaces wrap the same resolver, so this cannot fail on the
  * substance of an answer. What it can catch, and did catch, is them drifting
@@ -64,12 +74,35 @@ interface Question {
   readonly label: string;
   readonly subject: string;
   readonly predicate: string;
+  readonly via: string | null;
 }
 
 const CASES: readonly Question[] = [
-  { label: 'answered', subject: 'Bellwether', predicate: 'beta_partner' },
-  { label: 'abstained', subject: 'Meridian', predicate: 'migration_window' },
+  { label: 'answered', subject: 'Bellwether', predicate: 'beta_partner', via: null },
+  { label: 'abstained', subject: 'Meridian', predicate: 'migration_window', via: null },
 ];
+
+/**
+ * The sixty gold questions, built exactly the way the evaluation builds them:
+ * same generated corpus, same `parseVia` on the question text. Parity does not
+ * judge these against their expected answers, because scripts/evaluate.ts
+ * already does and a second scorer would be a second definition of correct.
+ * Here they are sixty distinct values that all three surfaces must agree on.
+ */
+function sweepQuestions(): readonly Question[] {
+  return generateCorpus().questions.map((question) => ({
+    label: question.id,
+    subject: question.subject,
+    predicate: question.predicate,
+    via: parseVia(question.text),
+  }));
+}
+
+function askArguments(question: Question): Record<string, unknown> {
+  return question.via === null
+    ? { subject: question.subject, predicate: question.predicate }
+    : { subject: question.subject, predicate: question.predicate, via: question.via };
+}
 
 function print(line: string): void {
   process.stdout.write(`${line}\n`);
@@ -90,9 +123,15 @@ function asAskCore(value: unknown, surface: string): AskCore {
 function comparable(answer: AskCore): string {
   const out: Record<string, unknown> = {};
   for (const key of CANONICAL) out[key] = answer[key];
+  // Sorting by cypher alone is not enough: a question that reads two evidence
+  // spans issues the same cypher twice with different parameters, the sort is
+  // stable, and equal-cypher entries keep their arrival order, which is timing.
+  // The sweep caught fifteen questions doing exactly that. Parameters break the
+  // tie so the comparison is over the set of reads, as the doc above promises.
   out['queryShape'] = answer.queries
     .map((query) => ({ cypher: query.cypher, parameters: query.parameters, rows: query.rows }))
-    .sort((left, right) => left.cypher.localeCompare(right.cypher));
+    .sort((left, right) => left.cypher.localeCompare(right.cypher)
+      || JSON.stringify(left.parameters).localeCompare(JSON.stringify(right.parameters)));
   return JSON.stringify(out, null, 2);
 }
 
@@ -101,11 +140,23 @@ function readOrder(answer: AskCore): string {
   return answer.queries.map((query) => query.cypher.slice(6, 26)).join(' | ');
 }
 
-async function overStdio(question: Question): Promise<AskCore> {
+interface StdioSession {
+  ask(question: Question): Promise<AskCore>;
+  stop(): void;
+}
+
+/**
+ * Starts the stdio server once and keeps the session open for every question.
+ * One session across the whole run is deliberate for the same reason one HTTP
+ * listener is: a client that asks sixty questions does not restart its server
+ * between them, and the part worth proving is many calls through one process.
+ */
+async function startStdio(): Promise<StdioSession> {
   const child = spawn(process.execPath, ['--import', 'tsx', MCP_SCRIPT, '--stdio'], { cwd: ROOT });
   const lines: string[] = [];
   const errors: string[] = [];
   let pending = '';
+  let nextId = 1;
 
   child.stderr.on('data', (chunk: Buffer) => errors.push(chunk.toString()));
   child.stdout.on('data', (chunk: Buffer) => {
@@ -146,38 +197,43 @@ async function overStdio(question: Question): Promise<AskCore> {
     }, REPLY_TIMEOUT_MS);
   });
 
-  try {
-    send({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: PROTOCOL_VERSION,
-        capabilities: {},
-        clientInfo: { name: 'lacuna-parity', version: '0.0.0' },
-      },
-    });
-    await reply(1);
-    send({ jsonrpc: '2.0', method: 'notifications/initialized' });
-    send({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: {
-        name: 'lacuna_ask',
-        arguments: { subject: question.subject, predicate: question.predicate },
-      },
-    });
-    const message = await reply(2);
-    const result = message['result'];
-    if (!isRecord(result)) {
-      throw new Error(`lacuna_ask failed: ${JSON.stringify(message['error'])}`);
-    }
-    return asAskCore(result['structuredContent'], 'the MCP server');
-  } finally {
-    child.stdin.end();
-    child.kill();
-  }
+  const initializeId = nextId;
+  nextId += 1;
+  send({
+    jsonrpc: '2.0',
+    id: initializeId,
+    method: 'initialize',
+    params: {
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: {},
+      clientInfo: { name: 'lacuna-parity', version: '0.0.0' },
+    },
+  });
+  await reply(initializeId);
+  send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+
+  return {
+    ask: async (question: Question): Promise<AskCore> => {
+      const id = nextId;
+      nextId += 1;
+      send({
+        jsonrpc: '2.0',
+        id,
+        method: 'tools/call',
+        params: { name: 'lacuna_ask', arguments: askArguments(question) },
+      });
+      const message = await reply(id);
+      const result = message['result'];
+      if (!isRecord(result)) {
+        throw new Error(`lacuna_ask failed: ${JSON.stringify(message['error'])}`);
+      }
+      return asAskCore(result['structuredContent'], 'the MCP server');
+    },
+    stop: (): void => {
+      child.stdin.end();
+      child.kill();
+    },
+  };
 }
 
 interface Listener {
@@ -235,10 +291,7 @@ async function overHttp(listener: Listener, question: Question): Promise<AskCore
     // casts for the mirror image of this in src/mcp/http.ts.
     await client.connect(transport as Transport);
     const result = await client.callTool(
-      {
-        name: 'lacuna_ask',
-        arguments: { subject: question.subject, predicate: question.predicate },
-      },
+      { name: 'lacuna_ask', arguments: askArguments(question) },
       undefined,
       { timeout: REPLY_TIMEOUT_MS },
     );
@@ -254,7 +307,14 @@ async function overHttp(listener: Listener, question: Question): Promise<AskCore
 async function overCli(question: Question): Promise<AskCore> {
   const child = spawn(
     process.execPath,
-    [CLI_SCRIPT, 'ask', question.subject, question.predicate, '--json'],
+    [
+      CLI_SCRIPT,
+      'ask',
+      question.subject,
+      question.predicate,
+      '--json',
+      ...(question.via === null ? [] : ['--via', question.via]),
+    ],
     { cwd: ROOT },
   );
   const chunks: string[] = [];
@@ -277,11 +337,12 @@ function summarise(name: string, answer: AskCore): string {
 
 async function run(): Promise<boolean> {
   const listener = await startHttp();
+  const session = await startStdio();
   let allSame = true;
 
   try {
     for (const question of CASES) {
-      const fromStdio = await overStdio(question);
+      const fromStdio = await session.ask(question);
       const fromHttp = await overHttp(listener, question);
       const fromCli = await overCli(question);
 
@@ -312,7 +373,40 @@ async function run(): Promise<boolean> {
       }
       print('');
     }
+
+    const sweep = sweepQuestions();
+    print(`SWEEP: ${sweep.length} gold questions from the evaluation, one line each`);
+    let identical = 0;
+    for (const question of sweep) {
+      const fromStdio = await session.ask(question);
+      const fromHttp = await overHttp(listener, question);
+      const fromCli = await overCli(question);
+
+      const stdio = comparable(fromStdio);
+      const http = comparable(fromHttp);
+      const cli = comparable(fromCli);
+      const same = stdio === http && http === cli;
+      allSame = allSame && same;
+      if (same) identical += 1;
+
+      const ask = question.via === null
+        ? `${question.subject} / ${question.predicate}`
+        : `${question.subject} / ${question.predicate} via ${question.via}`;
+      print(`  ${same ? 'ok  ' : 'DIFF'} ${question.label.padEnd(6)} `
+        + `status=${fromStdio.status.padEnd(9)} ${ask}`);
+      if (!same) {
+        print('--- from the MCP server over stdio');
+        print(stdio);
+        print('--- from the MCP server over HTTP');
+        print(http);
+        print('--- from the command line');
+        print(cli);
+      }
+    }
+    print(`SWEEP_IDENTICAL: ${identical} of ${sweep.length}`);
+    print('');
   } finally {
+    session.stop();
     listener.stop();
   }
 

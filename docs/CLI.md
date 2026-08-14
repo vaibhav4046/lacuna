@@ -340,20 +340,24 @@ npm run parity
 ```
 
 That spawns the MCP server over stdio, connects to it again over its HTTP
-transport with the SDK's own client, and runs this CLI in its own process. It
-asks all three the same two questions, one answered and one abstained, and
-compares status, answer, reason code, claim id, superseded claims, evidence,
-evidence total, source state, and the set of reads with their parameters and row
-counts. It ends `ALL_IDENTICAL: True`. The saved output is
-[artifacts/verification/2026-08-14c/parity.txt](../artifacts/verification/2026-08-14c/parity.txt).
+transport with the SDK's own client, and runs this CLI in its own process. Two
+questions run first with their full payloads printed, one answered and one
+abstained, and then all sixty gold questions from the evaluation sweep through
+the same three surfaces, one line each, `--via` included for the multi-hop
+ones. Every question compares status, answer, reason code, claim id, superseded
+claims, evidence, evidence total, source state, and the set of reads with their
+parameters and row counts. It ends `SWEEP_IDENTICAL: 60 of 60` and
+`ALL_IDENTICAL: True`. The saved output is
+[artifacts/verification/2026-08-14d/parity.txt](../artifacts/verification/2026-08-14d/parity.txt).
 
 One thing is deliberately excluded: the order the reads appear in. They are
 issued together and land as the node answers them, so the order varies between
 runs of the same command on the same surface. The artifact prints both orders
 next to the verdict, so the exclusion is visible rather than assumed.
 
-Two questions is what this covers, not the sixty in the evaluation, and a
-running node is required.
+The sweep checks that the surfaces agree, not that the answers are right;
+judging answers against the gold expectations is `npm run eval`'s job and this
+check deliberately does not duplicate it. A running node is required.
 
 ## Tests
 

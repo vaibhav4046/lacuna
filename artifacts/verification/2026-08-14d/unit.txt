@@ -1,0 +1,13 @@
+﻿
+> lacuna@0.0.0 test
+> vitest run tests/unit
+
+
+ RUN  v4.1.10 D:/project/lacuna
+
+
+ Test Files  36 passed (36)
+      Tests  807 passed (807)
+   Start at  21:58:39
+   Duration  26.19s (transform 1.58s, setup 0ms, import 5.09s, tests 3.33s, environment 3ms)
+

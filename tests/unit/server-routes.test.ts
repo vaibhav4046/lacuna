@@ -10,6 +10,7 @@ import { FixedWindow } from '../../src/server/ratelimit';
 import { createHandler, MAX_URL_CHARS } from '../../src/server/server';
 import type { CorpusFacts, Example } from '../../src/view/home';
 import type { NodeIdentity } from '../../src/view/proof';
+import { RUNNING_STATE, STATE_FACTS, VOICE_STATES } from '../../src/voice/states';
 
 /**
  * The whole server surface, driven over a real socket.
@@ -227,17 +228,18 @@ describe('the static files', () => {
 });
 
 /**
- * The three pages that exist to be checked rather than to answer a question.
+ * The pages that exist to be checked rather than to answer a question.
  *
- * Their contents are asserted in tests/unit/view-evidence.test.ts against the
- * artifacts they are rendered from. What is left for this file is the part that
- * only shows up over a socket: that they are reachable, that they carry the same
- * headers as the pages that do touch the graph, and that serving them costs the
- * node nothing. The last one is the reason they are rendered at start up. A
- * judge reloading the evidence should not be able to spend the demo's budget.
+ * Their contents are asserted in tests/unit/view-evidence.test.ts and
+ * tests/unit/view-voice.test.ts against the artifacts and the machine they are
+ * rendered from. What is left for this file is the part that only shows up over
+ * a socket: that they are reachable, that they carry the same headers as the
+ * pages that do touch the graph, and that serving them costs the node nothing.
+ * The last one is the reason they are rendered at start up. A judge reloading
+ * the evidence should not be able to spend the demo's budget.
  */
 describe('the evidence pages', () => {
-  const EVIDENCE = ['/bench', '/hydradb', '/interface'] as const;
+  const EVIDENCE = ['/bench', '/hydradb', '/interface', '/voice'] as const;
 
   for (const route of EVIDENCE) {
     it(`serves ${route} with the headers of the rest of the site`, async () => {
@@ -346,6 +348,79 @@ describe('the evidence pages', () => {
   });
 });
 
+/**
+ * The one page that reads a query parameter without asking the graph anything.
+ *
+ * Every one of the fourteen pages is rendered at start up and looked up by key,
+ * so what arrives in `?state=` never reaches a renderer: it is either one of the
+ * fourteen names or it is dropped. These tests are that claim said out loud,
+ * because the narrowing is the only thing standing between a query string and
+ * the markup, and a page with no script on it is a poor place to find out it
+ * leaked.
+ */
+describe('the voice page', () => {
+  for (const state of VOICE_STATES) {
+    it(`serves the ${state} page and says so on it`, async () => {
+      const harness = await start();
+      const response = await fetch(`${harness.origin}/voice?state=${state}`);
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(body).toContain(`Voice surface in the ${STATE_FACTS[state].label} state.`);
+      expect(harness.upstreamCalls).toHaveLength(0);
+    });
+  }
+
+  it('falls back to the state this build runs in when the parameter is missing', async () => {
+    const harness = await start();
+    const bare = await (await fetch(`${harness.origin}/voice`)).text();
+    const named = await (await fetch(`${harness.origin}/voice?state=${RUNNING_STATE}`)).text();
+
+    expect(bare).toBe(named);
+  });
+
+  it('falls back rather than refusing when the parameter is not a state', async () => {
+    const harness = await start();
+
+    for (const junk of ['zzz-not-a-state', 'READY', '', '../interface', '%00']) {
+      const response = await fetch(`${harness.origin}/voice?state=${junk}`);
+
+      // A 404 here would be defensible, and it is the wrong answer: the page is
+      // reachable from a link on every other page, and a stale bookmark should
+      // land somewhere true rather than nowhere.
+      expect(response.status).toBe(200);
+      expect(await response.text())
+        .toContain(`Voice surface in the ${STATE_FACTS[RUNNING_STATE].label} state.`);
+    }
+  });
+
+  it('never repeats back what it was given', async () => {
+    const harness = await start();
+    const sent = '<script>alert(1)</script>';
+    const body = await (await fetch(
+      `${harness.origin}/voice?state=${encodeURIComponent(sent)}`,
+    )).text();
+
+    // Not escaping, which would also pass a naive check. The value is discarded
+    // before anything is rendered, so neither the raw form nor the escaped one
+    // is anywhere on the page.
+    expect(body).not.toContain(sent);
+    expect(body).not.toContain('alert(1)');
+    expect(body).not.toContain('&lt;script&gt;');
+    expect(body).not.toContain('<script');
+  });
+
+  it('costs the node nothing however many states are walked', async () => {
+    const harness = await start();
+
+    for (const state of VOICE_STATES) {
+      await (await fetch(`${harness.origin}/voice?state=${state}`)).text();
+    }
+
+    expect(harness.upstreamCalls).toHaveLength(0);
+  });
+});
+
 describe('the refusals', () => {
   it('refuses a method that implies a write', async () => {
     const harness = await start();
@@ -356,7 +431,7 @@ describe('the refusals', () => {
     expect(await response.text()).toContain('This server only reads');
   });
 
-  it('has nothing at a path that is not one of the five pages', async () => {
+  it('has nothing at a path that is not one of the pages', async () => {
     const harness = await start();
     const response = await fetch(`${harness.origin}/admin`);
 

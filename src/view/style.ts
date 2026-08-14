@@ -3,7 +3,7 @@
  *
  * It is a string constant rather than a file on disk so that serving it reads
  * nothing from the filesystem. A server that never opens a path cannot be
- * talked into opening the wrong one, and the four screens need no other assets.
+ * talked into opening the wrong one, and no screen here needs another asset.
  *
  * The direction is an archival document rather than a dashboard: warm paper,
  * one ink, one annotation red, a ruled margin, and a serif for prose against a
@@ -170,8 +170,8 @@ body {
 /* ---- the page bar ------------------------------------------------------- */
 
 /*
- * Four pages is few enough that all four fit on one line, and a judge with
- * four minutes should never have to scroll to learn the other three exist.
+ * Few enough pages that they all fit on one line, and a judge with four
+ * minutes should never have to scroll to learn the rest of them exist.
  *
  * The bar is painted with the body's own ground, attached to the viewport, so
  * it draws exactly the pixels the page behind it would have drawn and there is
@@ -735,6 +735,70 @@ code { font-family: var(--mono); font-size: 0.9em; color: var(--mark); overflow-
 .edge-label { fill: var(--ink-faint); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; }
 .node-label { fill: var(--ink); font-family: var(--mono); font-size: 11px; }
 .node-sub { fill: var(--ink-faint); font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em; }
+
+/* ---- the voice surface -------------------------------------------------- */
+
+/*
+ * The sphere from the imported design, drawn once per state.
+ *
+ * The design animated it against microphone level. Nothing on this site reads
+ * a microphone, so it is drawn rather than driven, and its three variables are
+ * the three the design used: how solid the surface is, whether its edge is
+ * dashed, and whether it is engaged. That is enough to tell fourteen states
+ * apart on paper, which is the test this drawing has to pass.
+ *
+ * It is deliberately not a figure. Figures here break the measure and
+ * stretch a diagram across the sheet; this one is 148 pixels of circle beside
+ * a sentence, and stretching it would say the wrong thing about its
+ * importance.
+ */
+.orb-figure {
+  margin: 1.75rem 0 0;
+  display: grid;
+  grid-template-columns: auto minmax(16rem, 1fr);
+  gap: 0 clamp(1rem, 2.5vw, 2rem);
+  align-items: center;
+}
+
+.orb { display: block; width: 148px; height: 148px; }
+
+.orb-figure > .caption { margin: 0; max-width: 46ch; }
+
+@media (max-width: 34rem) {
+  .orb-figure { grid-template-columns: 1fr; }
+  .orb-figure > .caption { margin: 1rem 0 0; }
+}
+
+/* Drawn from the outside in: a limit, an edge, and whatever is inside it. */
+.orb-limit { fill: none; stroke: var(--rule-faint); stroke-width: 1; }
+
+.orb-fill { fill: none; }
+.orb-fill.full { fill: var(--paper-sunk); }
+.orb-fill.faded { fill: var(--paper-sunk); }
+.orb-fill.live { fill: var(--mark-wash); }
+
+.orb-ring { fill: none; stroke: var(--rule); stroke-width: 1.5; }
+.orb-ring.live { stroke: var(--mark); stroke-width: 2; }
+.orb-ring.dashed { stroke-dasharray: 6 5; }
+
+/* Fourteen links is too many for the page bar and exactly right for a list
+   that is the subject of the section it sits in. */
+.states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.15rem;
+  margin: 1rem 0 0;
+  font-family: var(--mono);
+  font-size: var(--t-small);
+  letter-spacing: 0.04em;
+}
+
+.states a { border-bottom-color: var(--rule-faint); }
+
+.states a[aria-current="page"] {
+  color: var(--mark);
+  border-bottom-color: var(--mark);
+}
 
 /* ---- foot --------------------------------------------------------------- */
 

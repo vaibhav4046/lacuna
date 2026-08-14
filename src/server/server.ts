@@ -13,10 +13,12 @@ import { CONTENT_SECURITY_POLICY, FAVICON } from '../view/layout';
 import { noticePage, type Notice } from '../view/notice';
 import type { NodeIdentity } from '../view/proof';
 import { STYLESHEET } from '../view/style';
+import { voicePage } from '../view/voice';
+import { readState, RUNNING_STATE, VOICE_STATES, type VoiceState } from '../voice/states';
 import { FixedWindow } from './ratelimit';
 
 /**
- * The whole product surface: five pages, one stylesheet, one icon.
+ * The whole product surface: six pages, one stylesheet, one icon.
  *
  * Everything is a GET. There is no POST endpoint, no JSON body parser and no
  * upload path, so the entire input surface of this server is a URL, and the
@@ -26,10 +28,12 @@ import { FixedWindow } from './ratelimit';
  * a chat box that posts free text to a model, would have had an input surface
  * nobody could describe in a sentence.
  *
- * Four of the five pages are rendered once at construction. Each is a pure
- * function of a seeded corpus, of a committed artifact file, or of the limits
- * this server itself enforces, and none of those can change while the process
- * runs. Only the answer page depends on the request.
+ * Every page but the answer is rendered once at construction. Each is a pure
+ * function of a seeded corpus, of a committed artifact file, of the limits this
+ * server itself enforces, or of a transition table, and none of those can
+ * change while the process runs. The voice page is rendered fourteen times for
+ * the same reason, once per state, so a request for one of them is a lookup
+ * rather than a render. Only the answer page depends on the request.
  */
 
 /**
@@ -83,9 +87,9 @@ const NOTICES = {
     title: 'Not found',
     heading: 'There is no page here',
     lines: [
-      'This server has five pages: the question form, the answer to one question, '
-      + 'the benchmark, the database evidence and the interface. Anything else is a '
-      + 'typed URL or a stale link.',
+      'This server has six pages: the question form, the answer to one question, '
+      + 'the benchmark, the database evidence, the interface and the voice surface. '
+      + 'Anything else is a typed URL or a stale link.',
     ],
   },
   methodNotAllowed: {
@@ -207,6 +211,17 @@ export function createHandler(options: ServerOptions): Handler {
   const statuses = Object.values(NOTICES).sort((left, right) => left.code - right.code);
   const contract = Buffer.from(integrationPage(limits, statuses), 'utf8');
 
+  /*
+   * Fourteen renders, once, because a state is not a request parameter so much
+   * as a page of its own that happens to share a path. Rendering them here also
+   * means the query string cannot reach a renderer: it is narrowed to one of
+   * these keys or it is ignored.
+   */
+  const voices = new Map<VoiceState, Buffer>();
+  for (const state of VOICE_STATES) {
+    voices.set(state, Buffer.from(voicePage(state), 'utf8'));
+  }
+
   const notices = new Map<NoticeName, Buffer>();
   for (const [name, notice] of Object.entries(NOTICES)) {
     notices.set(name as NoticeName, Buffer.from(noticePage(notice), 'utf8'));
@@ -274,6 +289,15 @@ export function createHandler(options: ServerOptions): Handler {
     }
     if (url.pathname === '/interface') {
       send(request, response, 200, HTML, contract, { 'cache-control': 'no-store' });
+      return;
+    }
+    if (url.pathname === '/voice') {
+      // An unrecognised state is the state this build is really in, rather than
+      // an error page. Nothing from the query string is printed either way.
+      const asked = readState(url.searchParams.get('state')) ?? RUNNING_STATE;
+      send(request, response, 200, HTML, voices.get(asked)!, {
+        'cache-control': 'no-store',
+      });
       return;
     }
     if (url.pathname !== '/ask') {

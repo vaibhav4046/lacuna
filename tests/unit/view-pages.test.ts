@@ -9,6 +9,7 @@ import { askHref, homePage, type CorpusFacts, type Example } from '../../src/vie
 import {
   CONTENT_SECURITY_POLICY,
   META_CONTENT_SECURITY_POLICY,
+  PAGES,
 } from '../../src/view/layout';
 import { noticePage } from '../../src/view/notice';
 import { describeNode } from '../../src/view/proof';
@@ -251,7 +252,7 @@ describe('the page bar', () => {
     expect([...new Set(found)]).toEqual(['/']);
   });
 
-  it('marks none of the four on a refusal, because a refusal is not a page', () => {
+  it('marks nothing on a refusal, because a refusal is not one of the pages', () => {
     const rendered = noticePage({
       code: 429,
       title: 'Too many',
@@ -261,8 +262,11 @@ describe('the page bar', () => {
 
     expect(markedPages(rendered)).toEqual([]);
     // The links are still there. Only the claim about where you are is dropped.
-    for (const href of ['/', '/bench', '/hydradb', '/interface']) {
-      expect(rendered).toContain(`href="${href}"`);
+    // Read out of PAGES rather than listed here, so adding a page cannot leave
+    // this assertion quietly checking a shorter list than the bar renders.
+    expect(PAGES.length).toBeGreaterThan(1);
+    for (const entry of PAGES) {
+      expect(rendered).toContain(`href="${entry.href}"`);
     }
   });
 

@@ -497,11 +497,12 @@ What exists right now. Updated as things change, and never ahead of them.
   UNIT_EXIT=0
   ```
 
-  What is not done here: nothing has been deployed. That is listed below. The
-  page set has since grown past these four: the three evidence pages, the nav
-  and the voice surface each have their own entry further down, and the dark
-  theme described in this era became the only theme when the frozen design was
-  adopted.
+  What was not done in this era: nothing had been deployed. That changed on
+  2026-08-14, when a recorded-snapshot copy went public; it has its own entry
+  further down. The page set has since grown past these four: the three
+  evidence pages, the nav and the voice surface each have their own entry
+  further down, and the dark theme described in this era became the only theme
+  when the frozen design was adopted.
 
 - **Twelve captures exist of the running product, taken and checked by one
   command, and taking them found a bug the suite did not.** `npm run screens`
@@ -904,6 +905,30 @@ What exists right now. Updated as things change, and never ahead of them.
   commit named in its header, with the one row from a later run annotated as
   such in prose rather than left for a reader to notice.
 
+- **A copy of the product is public at <https://lacuna-five.vercel.app>, and
+  it answers from a recorded snapshot rather than pretending to host a node.**
+  Every route runs through one serverless function, `api/index.ts`, a thin
+  adapter over the same routing the local server uses. The answers are replies
+  the live node produced at export time, stored byte for byte by
+  `npm run snapshot` into
+  [artifacts/snapshot/graph-snapshot.json](artifacts/snapshot/graph-snapshot.json)
+  and decoded in production by the same client code the live server uses. The
+  home page discloses the replay in a full sentence and every answer page
+  marks its reads as replayed, so the caveat travels with the page rather than
+  living only here. `npm run serve:snapshot` runs the identical thing locally
+  with no database and no token, and `npm run snapshot:verify` replays all
+  sixty gold questions against the stored replies: 60 questions, 0 answer
+  mismatches, 0 wrong verdicts. Getting the function to boot took rewriting
+  483 relative imports across 119 files to carry explicit `.js` extensions,
+  chosen over bundling so the deployed source stays inspectable; the trade is
+  recorded in [D-065](DECISIONS.md). Measured from outside on 2026-08-14:
+  every route 200, unknown paths 404, `POST /ask` 405, the CSP and nosniff
+  headers character-identical to the local server's, and one question of each
+  kind returning its recorded answer. The unedited transcripts are in
+  [artifacts/verification/2026-08-14f/](artifacts/verification/2026-08-14f/README.md).
+  What this is not: a live node. No writes happen at the URL and no token is
+  present there; the durability limit below is unchanged.
+
 ## In progress
 
 - Nothing.
@@ -916,8 +941,10 @@ Everything else. Named explicitly so no reader has to guess:
   runners have no HydraDB, so a green workflow would cover every test that
   needs no database and exclude the 42 that carry the integration claim, which is
   a badge whose coverage is the opposite of what the README promises
-- No deployment. HydraDB runs in WSL2 on this machine and is not reachable from
-  a hosted frontend, so this is an open question and not a task
+- No hosted live node. The public URL above is a recorded replay; HydraDB
+  itself runs in WSL2 on this machine, is not reachable from a hosted
+  frontend, and the graph store's write-durability limit makes a long-lived
+  hosted node dishonest to offer today
 - No demo video recorded. The script is written and checked against the running
   product, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md). Recording is the
   owner's, and it is item 3 in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md)

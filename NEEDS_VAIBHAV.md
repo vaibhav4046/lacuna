@@ -92,15 +92,25 @@ Status values: `open`, `done`, `dropped`.
 
 ## 5. Deployed link, if we want one
 
-- **Status:** open, and optional
-- **Why it needs you:** deploying to a hosting account is publishing, and any
-  paid tier is a paid action.
-- **Detail:** the form asks for a "deployed project link, if available", so it is
-  explicitly optional. A local-run product with clean instructions satisfies
-  every stated repository requirement. If you want a public deploy, the honest
-  complication is that HydraDB itself has to run somewhere, and a free tier that
-  will host a Rust graph database with object storage is not a given. Decide
-  later, with real information, not now.
+- **Status:** done, as a recorded replay
+- **What happened:** a copy of the product went public on 2026-08-14 at
+  <https://lacuna-five.vercel.app>, on the Vercel free tier, so no paid action
+  occurred. It answers every gold question from a recorded snapshot: replies a
+  live HydraDB node produced at export time, stored byte for byte, decoded in
+  production by the same client code the live server uses. The site states this
+  about itself on its own pages. Verified from outside the same day, every
+  route and one answer of each kind, transcripts in
+  [artifacts/verification/2026-08-14f/](artifacts/verification/2026-08-14f/README.md);
+  the design record is D-065 in [DECISIONS.md](DECISIONS.md).
+- **Why this shape:** the complication this item named, that HydraDB itself has
+  to run somewhere, is real and unresolved. The replay avoids it rather than
+  solving it: no node runs behind the URL, no writes happen there, and no token
+  is present there. A hosted live node would also collide with the store wedge
+  in item 6, which is why the snapshot is the honest shape a public copy can
+  take today.
+- **What is still yours:** open the URL in a logged-out browser on the day you
+  submit, same as the other links, and paste it into form field 5 per
+  [docs/SUBMISSION.md](docs/SUBMISSION.md).
 
 ## 6. The local graph store wedges, and the fix is a reset
 
@@ -120,8 +130,10 @@ Status values: `open`, `done`, `dropped`.
   gap is in the storage backend HydraDB uses, not in the code here.
 - **What it means in practice.** Demoing, developing and testing are all fine:
   the reset is cheap and the corpus reloads clean. A long-lived deployment is
-  not fine on this backend. If item 5 turns into a real deploy, this is the
-  first thing that has to be answered.
+  not fine on this backend. The deploy that happened under item 5 is a recorded
+  replay with no node behind it, chosen partly to avoid this exact question; if
+  a hosted live node is ever wanted, this is the first thing that has to be
+  answered.
 - **Blocking?** No. Every gate in the repository is green right now.
 
 ## 7. AssemblyAI is the one named fallback with no credential

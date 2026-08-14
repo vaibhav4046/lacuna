@@ -1,0 +1,14 @@
+=== answer shapes (grep of key phrases in /ask HTML) ===
+--- Meridian launch_date ---
+25 July 2026
+--- replay-queue contact via=vendor ---
+Farah Haddad
+--- Junco launch_date ---
+Withdrawn, and not replaced
+--- notify-relay budget_code ---
+The sessions disagree
+--- Redshank launch_date ---
+Not in these sessions
+
+=== snapshot note on home page ===
+This deployment answers from a recorded snapshot: every reply was produced by a live HydraDB node at export time, stored byte for byte, and decoded here through the same client code the live server uses. Nothing on an answer page is written by hand, and the reads that produced it are printed at the bottom of it in full, marked as replayed.

@@ -1,0 +1,16 @@
+=== route statuses ===
+GET / => 200
+GET /bench => 200
+GET /hydradb => 200
+GET /interface => 200
+GET /voice => 200
+GET /lacuna.css => 200
+GET /favicon.svg => 200
+GET /nope => 404
+POST /ask => 405
+
+=== headers on / ===
+HTTP/1.1 200 OK
+Content-Security-Policy: default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
+Content-Type: text/html; charset=utf-8
+X-Content-Type-Options: nosniff

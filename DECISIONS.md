@@ -1918,3 +1918,54 @@ the tree they ran against are in `artifacts/verification/2026-08-14e/`.
 `docs/MCP.md`, `docs/EVIDENCE_INDEX.md` and the `mcp-server` claim in
 `docs/CLAIMS.json` now cite this run; the 14b and 14c citations that remain
 are dated records and stay as written.
+
+### D-065: The public URL is a recorded replay, deployed by rewriting 483 imports rather than bundling
+
+Nothing was deployed, and the deployment claim in `docs/CLAIMS.json` said so
+in as many words. The reason was honest: the graph store wedges under
+sustained writes (D-058's durability record), so a long-lived hosted node
+would be a demo waiting to fall over. But a public URL matters — a product
+nobody can open is a claim, not a product — and there is a shape of
+deployment that stays inside what is true: a replay. `npm run snapshot`
+exports every reply the live node produces for the whole gold set, byte for
+byte, into `artifacts/snapshot/graph-snapshot.json`. Production decodes those
+stored replies through the same client code the live server uses; nothing is
+re-implemented for the copy. The pages say this about themselves — the home
+page carries the disclosure sentence and every answer page marks its reads as
+replayed — so a judge who never reads this file still meets the caveat.
+
+**Why one serverless function.** <https://lacuna-five.vercel.app> serves
+every route through `api/index.ts` behind a catch-all rewrite, with
+`includeFiles` shipping the snapshot into the function bundle. The server is
+already a plain request handler with no framework, so the function is a thin
+adapter over the same routing the local server uses; a second HTTP stack for
+production would have been a second thing to keep honest.
+
+**Why the import sweep, and not a bundler.** The first deploy returned 500 on
+every route: `ERR_MODULE_NOT_FOUND: Cannot find module
+'/var/task/src/snapshot/serve' imported from /var/task/api/index.js`. The
+`@vercel/node` builder compiles TypeScript but keeps import specifiers as
+written, and Node's ESM loader requires explicit file extensions. Two fixes
+existed: bundle everything with esbuild, or make every relative import carry
+its `.js` extension. The sweep won: 483 imports across 119 files rewritten
+mechanically, three directory imports hand-fixed to `/index.js` after
+typecheck named them. It adds no dependency, the deployed source stays
+inspectable file by file, and `tsc` under `moduleResolution: bundler` checks
+the rewritten specifiers rather than trusting a bundler's resolution. The
+cost is a convention the repository must keep; the typecheck is the fence
+that keeps it.
+
+**What was run.** From outside, over the public internet: every route answers
+200, an unknown path 404, `POST /ask` 405; the deployed CSP and nosniff
+headers are character-identical to the local server's; one question of each
+kind returns its recorded answer; the home page carries the disclosure
+sentence. Locally, `npm run snapshot:verify` replays all sixty gold questions
+against the shipped snapshot: 60 questions, 0 answer mismatches, 0 wrong
+verdicts. Transcripts and the tree they measured are in
+`artifacts/verification/2026-08-14f/`. The README, `docs/EVIDENCE_INDEX.md`,
+`STATE.md` and the `deployment` claim in `docs/CLAIMS.json` now cite this
+run.
+
+**What this does not prove.** No live HydraDB node is behind the URL, no
+writes happen there, and no token is present there. The durability limit
+stands, and the live path remains local, exactly as the ledger records it.

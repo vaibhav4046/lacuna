@@ -37,7 +37,7 @@
         "artifacts/hydradb/metrics-ready.txt"
       ],
       "reproduce": "bash scripts/hydra-node.sh start && bash scripts/hydra-node.sh status",
-      "caveat": "The node runs on this machine. Nothing is deployed. See the deployment claim below."
+      "caveat": "The node runs on this machine. The public URL in the deployment claim below replays recorded answers from this node; it does not host one."
     },
     {
       "id": "cypher-subset",
@@ -445,15 +445,31 @@
     },
     {
       "id": "deployment",
-      "claim": "Nothing is deployed. Every screenshot, benchmark and test result in this repository was produced on one machine.",
-      "capability": "NOT_STARTED",
-      "data": "UNAVAILABLE",
+      "claim": "A copy of the product is public at https://lacuna-five.vercel.app. It serves every page and answers every gold question from a recorded snapshot: replies a live HydraDB node produced at export time, stored byte for byte, decoded in production by the same client code the live server uses.",
+      "capability": "VERIFIED",
+      "data": "RECORDED",
+      "measured": {
+        "url": "https://lacuna-five.vercel.app",
+        "routes_200": ["/", "/bench", "/hydradb", "/interface", "/voice", "/lacuna.css", "/favicon.svg"],
+        "unknown_path": 404,
+        "post_ask": 405,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "snapshot_replay": "60 questions, 0 answer mismatches, 0 wrong verdicts"
+      },
       "evidence": [
-        "NEEDS_VAIBHAV.md",
-        "STATE.md"
+        "artifacts/verification/2026-08-14f/README.md",
+        "artifacts/verification/2026-08-14f/prod-routes.txt",
+        "artifacts/verification/2026-08-14f/prod-answers.txt",
+        "artifacts/verification/2026-08-14f/snapshot-verify.txt",
+        "artifacts/snapshot/graph-snapshot.json",
+        "api/index.ts",
+        "src/snapshot/replay.ts",
+        "src/snapshot/serve.ts",
+        "scripts/serve-snapshot.ts",
+        "vercel.json"
       ],
-      "reproduce": "npm run serve  # http://127.0.0.1:3014",
-      "caveat": "The graph store limit below is the reason a long lived deployment is not honest yet. Nothing here says deployed, and nothing should until a URL opens and its release commit matches."
+      "reproduce": "npm run serve:snapshot  # http://127.0.0.1:3015, same code and snapshot as the URL; npm run snapshot:verify replays all sixty gold questions",
+      "caveat": "The deployment is a replay, not a live node, and says so on its own pages. No writes happen there and no token is present there. The graph store limit below is why a long lived hosted node is still not honest; the snapshot is the honest shape a public copy can take today."
     },
     {
       "id": "graph-store-durability",

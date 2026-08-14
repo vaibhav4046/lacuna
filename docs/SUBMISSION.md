@@ -106,16 +106,21 @@ absent rather than quietly mocking it. 849 tests in total with a node running.
 ## 5. Deployed project link, if available
 
 ```
-None. HydraDB runs locally in this submission, so the product runs locally with
-it, and the repository is set up so that is a six-step quickstart rather than an
-excuse. artifacts/repro/repro.sh clones the repository into a directory that has
-never held the project, follows the README exactly, and its unedited transcript
-is committed.
+https://lacuna-five.vercel.app
+
+One honest caveat, which the site also states about itself on its own pages:
+the deployed copy answers from a recorded snapshot. Every reply was produced by
+a live HydraDB node at export time, stored byte for byte, and is decoded in
+production by the same client code the live server uses. The live node runs
+locally in this submission; the six-step quickstart in the README stands it up,
+and artifacts/repro/repro.sh is the committed transcript of a clean clone doing
+exactly that.
 ```
 
-If you would rather submit a hosted URL, that is item 5 in
-[NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) and it needs a hosting decision from
-you. The form says "if available", so leaving this as-is costs nothing stated.
+The URL was verified from outside on 2026-08-14, every route and one answer of
+each kind, with the transcripts in
+[artifacts/verification/2026-08-14f/](../artifacts/verification/2026-08-14f/README.md).
+Open it in a logged-out browser on the day you submit, same as the other links.
 
 ## 6. How the project uses the HydraDB Open Source Repo
 
@@ -264,6 +269,8 @@ judges must be able to watch without requesting access.
 ## Before you press submit
 
 - [ ] Repository is public, and you have opened it in a logged-out browser.
+- [ ] <https://lacuna-five.vercel.app> opens in a logged-out browser and an
+      answer page renders with its proof panel.
 - [ ] Video link opens in a logged-out browser and runs under 3:00.
 - [ ] Both links pasted into the form are the ones you just tested. The rules say
       broken links are the most common way entrants lose.

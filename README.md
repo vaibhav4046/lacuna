@@ -22,6 +22,24 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
+## The deployed copy
+
+<https://lacuna-five.vercel.app> is this repository running as one serverless
+function. It answers from a recorded snapshot: every HydraDB reply was produced
+by a live node at export time and stored byte for byte in
+[artifacts/snapshot](artifacts/snapshot/graph-snapshot.json), then decoded in
+production by the same client code the live server uses. The deployment says so
+itself on every page that shows an answer. To run the identical thing locally,
+with no database and no token:
+
+```bash
+npm run serve:snapshot
+```
+
+Then open <http://127.0.0.1:3015>. `npm run snapshot:verify` replays all sixty
+gold questions against the stored replies and fails on any mismatch. The full
+stack against a live node is the next section.
+
 ## Running it
 
 Node 20.11 or newer, and a HydraDB node. Steps 1 and 2 need nothing else and are

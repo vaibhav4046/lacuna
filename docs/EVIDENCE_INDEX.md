@@ -228,14 +228,29 @@ count is in the [tests](#tests) section, from a run of its own.
 The 42 in the history row is the commit count at the time of the email rewrite,
 not the count now, which is 52. Both are true and they are not the same fact.
 
+## Deployment
+
+| Number or claim | Said in | Artifact | Command | State |
+|---|---|---|---|---|
+| <https://lacuna-five.vercel.app> serves every page, 404s unknown paths, 405s POST | README, CLAIMS, SUBMISSION | [artifacts/verification/2026-08-14f/prod-routes.txt](../artifacts/verification/2026-08-14f/prod-routes.txt) | `curl` against the URL, listed in [that run's README](../artifacts/verification/2026-08-14f/README.md) | `RECORDED` |
+| The deployed copy returns the recorded answer for one question of each kind, and discloses the replay on its own pages | README, CLAIMS | [artifacts/verification/2026-08-14f/prod-answers.txt](../artifacts/verification/2026-08-14f/prod-answers.txt) | same | `RECORDED` |
+| The deployed copy sends the same CSP and nosniff headers as the local server | CLAIMS | [artifacts/verification/2026-08-14f/prod-routes.txt](../artifacts/verification/2026-08-14f/prod-routes.txt) | same | `RECORDED` |
+| The snapshot replays all sixty gold questions with zero mismatches | README, CLAIMS | [artifacts/verification/2026-08-14f/snapshot-verify.txt](../artifacts/verification/2026-08-14f/snapshot-verify.txt) | `npm run snapshot:verify` | `RECORDED` |
+
+The deployment is a replay, not a hosted node. Every reply it serves was
+produced by the live node at export time and stored byte for byte in
+[artifacts/snapshot/graph-snapshot.json](../artifacts/snapshot/graph-snapshot.json);
+production decodes them through the same client code the live server uses, and
+each answer page marks its reads as replayed. `npm run serve:snapshot` runs the
+identical thing locally with no database and no token.
+
 ## What this index does not cover
 
-Nothing here supports voice, an LLM router, authentication, or a deployed URL,
-because none of those has produced an artifact. Their rows in
-[docs/CLAIMS.json](CLAIMS.json) carry `UNAVAILABLE` and that is the whole of what
-is claimed about them. A capability with no line in this file is a capability
-with no evidence, which is the state this file exists to make visible rather than
-to hide.
+Nothing here supports voice, an LLM router, or authentication, because none of
+those has produced an artifact. Their rows in [docs/CLAIMS.json](CLAIMS.json)
+carry `UNAVAILABLE` and that is the whole of what is claimed about them. A
+capability with no line in this file is a capability with no evidence, which is
+the state this file exists to make visible rather than to hide.
 
 ## What moves
 
@@ -262,6 +277,9 @@ What is still pending is narrower than it was: no editor or agent runtime has
 held an interactive session with this server. A client run from a terminal is
 not a host, and the row for a host is the one this file does not yet have.
 
-**Nothing here covers voice, an LLM router, authentication, or a deployed URL.**
-Those remain `UNAVAILABLE` in the ledger and absent from this index, which is the
+**The deployed URL arrived on the sixth run.** It sat in the not-covered list
+until [artifacts/verification/2026-08-14f/](../artifacts/verification/2026-08-14f/README.md)
+measured it from outside; its rows are in [Deployment](#deployment) above.
+What remains not covered is voice, an LLM router, and authentication. Those
+remain `UNAVAILABLE` in the ledger and absent from this index, which is the
 same statement made twice on purpose.

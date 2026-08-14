@@ -1,0 +1,15 @@
+ok    q-never_stated-02     abstain never_stated
+ok    q-never_stated-03     abstain never_stated
+ok    q-never_stated-04     abstain never_stated
+ok    q-never_stated-05     abstain never_stated
+ok    q-never_stated-06     abstain never_stated
+ok    q-never_stated-07     abstain never_stated
+ok    q-never_stated-08     abstain never_stated
+ok    q-out_of_scope-01     abstain out_of_scope
+ok    q-out_of_scope-02     abstain out_of_scope
+ok    q-out_of_scope-03     abstain out_of_scope
+ok    q-out_of_scope-04     abstain out_of_scope
+ok    q-out_of_scope-05     abstain out_of_scope
+ok    q-out_of_scope-06     abstain out_of_scope
+
+60 questions, 0 answer mismatches, 0 wrong verdicts on replay.

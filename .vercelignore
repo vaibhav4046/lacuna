@@ -1,0 +1,7 @@
+.env.local
+.env*
+.claude
+docs
+tests
+media
+*.md

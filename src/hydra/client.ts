@@ -3,15 +3,15 @@ import {
   queryEndpoint,
   type HydraConfig,
   type HydraLimits,
-} from './config';
+} from './config.js';
 import {
   HydraDecodeError,
   HydraGuardError,
   HydraQueryError,
   HydraTransportError,
-} from './errors';
-import { assertSingleStatement } from './statement';
-import { decodeRows, rowsToObjects, type HydraValue } from './values';
+} from './errors.js';
+import { assertSingleStatement } from './statement.js';
+import { decodeRows, rowsToObjects, type HydraValue } from './values.js';
 
 export interface QueryRequest {
   readonly cypher: string;
@@ -55,7 +55,7 @@ interface WireRequest {
   bookmark?: string;
 }
 
-type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
+export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

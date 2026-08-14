@@ -21,6 +21,9 @@
     "reset": "tsx scripts/reset.ts",
     "bench": "tsx scripts/benchmark.ts",
     "eval": "tsx scripts/evaluate.ts",
+    "snapshot": "tsx scripts/export-snapshot.ts",
+    "snapshot:verify": "tsx scripts/verify-snapshot.ts",
+    "serve:snapshot": "tsx scripts/serve-snapshot.ts",
     "parity": "tsx scripts/parity.ts",
     "screens": "tsx scripts/screens.ts",
     "test": "vitest run tests/unit",
@@ -31,7 +34,7 @@
     "@huggingface/transformers": "^4.2.0",
     "@types/node": "^26.2.0",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.10"
   },
   "dependencies": {

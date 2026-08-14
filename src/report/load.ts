@@ -13,18 +13,25 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-import { type BenchReport, parseBenchReport } from './bench';
-import { evidence, parseProvenance, type Provenance } from './provenance';
+import { type BenchReport, parseBenchReport } from './bench.js';
+import { evidence, parseProvenance, type Provenance } from './provenance.js';
 
-/** Resolved against this file, so the process's working directory is irrelevant. */
-function artifact(relative: string): URL {
+/**
+ * Resolved against this file, so the process's working directory is
+ * irrelevant — unless a root is given, for callers whose files have been
+ * moved by a bundler and whose `import.meta.url` no longer points at the
+ * repository layout.
+ */
+function artifact(relative: string, root: string | undefined): URL | string {
+  if (root !== undefined) return join(root, 'artifacts', relative);
   return new URL(`../../artifacts/${relative}`, import.meta.url);
 }
 
-function text(relative: string): string {
+function text(relative: string, root: string | undefined): string {
   try {
-    return readFileSync(artifact(relative), 'utf8');
+    return readFileSync(artifact(relative, root), 'utf8');
   } catch (error) {
     throw new Error(`could not read artifacts/${relative}: ${(error as Error).message}`);
   }
@@ -58,17 +65,18 @@ export interface Artifacts {
   readonly hydra: HydraEvidence;
 }
 
-export function loadArtifacts(): Artifacts {
+/** `root` is the directory holding `artifacts/`; omitted, paths resolve against this file. */
+export function loadArtifacts(root?: string): Artifacts {
   return {
-    bench: parseBenchReport(text('bench/results.json')),
+    bench: parseBenchReport(text('bench/results.json', root)),
     hydra: {
-      provenance: parseProvenance(text('hydradb/provenance.txt')),
-      smokeWrite: evidence(text('hydradb/smoke-write.json')),
-      smokeRead: evidence(text('hydradb/smoke-read.json')),
-      boltRead: evidence(text('hydradb/bolt-read.txt')),
-      metricsReady: evidence(text('hydradb/metrics-ready.txt')),
-      runtimeSmoke: evidence(text('hydradb/runtime-smoke-result.txt')),
-      storeSmoke: evidence(text('hydradb/just-smoke-result.txt')),
+      provenance: parseProvenance(text('hydradb/provenance.txt', root)),
+      smokeWrite: evidence(text('hydradb/smoke-write.json', root)),
+      smokeRead: evidence(text('hydradb/smoke-read.json', root)),
+      boltRead: evidence(text('hydradb/bolt-read.txt', root)),
+      metricsReady: evidence(text('hydradb/metrics-ready.txt', root)),
+      runtimeSmoke: evidence(text('hydradb/runtime-smoke-result.txt', root)),
+      storeSmoke: evidence(text('hydradb/just-smoke-result.txt', root)),
     },
   };
 }

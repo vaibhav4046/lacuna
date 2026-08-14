@@ -66,3 +66,5 @@ yarn-error.log*
 
 # Local assistant tooling state. Not part of the project.
 .claude/
+
+.vercel

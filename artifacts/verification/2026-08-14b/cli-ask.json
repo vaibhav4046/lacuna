@@ -1,0 +1,113 @@
+{
+  "command": "ask",
+  "question": {
+    "subject": "Bellwether",
+    "predicate": "beta_partner",
+    "via": null
+  },
+  "status": "answered",
+  "answer": "Halverd",
+  "reasonCode": null,
+  "claimId": 797564529472318,
+  "supersededClaims": [
+    2475749815969757,
+    2247326196671333
+  ],
+  "evidence": [
+    {
+      "spanId": 3143682352205758,
+      "claimId": 797564529472318,
+      "quote": "Correction on Bellwether: the beta partner is now Halverd.",
+      "sessionId": 2309051113767819,
+      "sessionTitle": "Platform handover notes",
+      "messageId": 4005309072683664,
+      "role": "user",
+      "ts": "2025-03-11T10:12:00.000Z"
+    }
+  ],
+  "evidenceTotal": 1,
+  "queries": [
+    {
+      "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+      "parameters": {
+        "name": "Bellwether"
+      },
+      "rows": 1,
+      "ms": 131.6,
+      "readEpoch": 6459
+    },
+    {
+      "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+      "parameters": {
+        "e": 3786366697184251
+      },
+      "rows": 4,
+      "ms": 64.7,
+      "readEpoch": 6459
+    },
+    {
+      "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+      "parameters": {
+        "e": 3786366697184251
+      },
+      "rows": 4,
+      "ms": 141.5,
+      "readEpoch": 6459
+    },
+    {
+      "cypher": "MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title",
+      "parameters": {
+        "c": 797564529472318
+      },
+      "rows": 1,
+      "ms": 54.8,
+      "readEpoch": 6459
+    }
+  ],
+  "timingMs": 331,
+  "sourceState": "live",
+  "explanation": "This replaced 2 earlier values and nothing has superseded it.",
+  "hop": null,
+  "trace": [
+    "Found \"Bellwether\" as a project with 4 claims about it.",
+    "Read 3 \"beta_partner\" claims about \"Bellwether\", 2 of them superseded.",
+    "One current claim stands: \"Halverd\", stated 2025-03-11T10:12:00.000Z."
+  ],
+  "considered": [
+    {
+      "claimId": 2475749815969757,
+      "predicate": "beta_partner",
+      "objectText": "Stonecrop",
+      "polarity": "positive",
+      "validFrom": "2025-03-03T10:18:00.000Z",
+      "txTime": "2025-03-03T10:18:00.000Z",
+      "supersededBy": [
+        2247326196671333
+      ],
+      "current": false
+    },
+    {
+      "claimId": 2247326196671333,
+      "predicate": "beta_partner",
+      "objectText": "Millbrace",
+      "polarity": "positive",
+      "validFrom": "2025-03-07T11:06:00.000Z",
+      "txTime": "2025-03-07T11:06:00.000Z",
+      "supersededBy": [
+        797564529472318
+      ],
+      "current": false
+    },
+    {
+      "claimId": 797564529472318,
+      "predicate": "beta_partner",
+      "objectText": "Halverd",
+      "polarity": "positive",
+      "validFrom": "2025-03-11T10:12:00.000Z",
+      "txTime": "2025-03-11T10:12:00.000Z",
+      "supersededBy": [],
+      "current": true
+    }
+  ],
+  "queryCount": 4
+}

@@ -1,0 +1,54 @@
+{
+  "command": "ask",
+  "question": {
+    "subject": "Meridian",
+    "predicate": "migration_window",
+    "via": null
+  },
+  "status": "abstained",
+  "answer": null,
+  "reasonCode": "never_stated",
+  "claimId": null,
+  "supersededClaims": [],
+  "evidence": [],
+  "evidenceTotal": 0,
+  "queries": [
+    {
+      "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+      "parameters": {
+        "name": "Meridian"
+      },
+      "rows": 1,
+      "ms": 70.8,
+      "readEpoch": 6459
+    },
+    {
+      "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+      "parameters": {
+        "e": 1693986850366836
+      },
+      "rows": 2,
+      "ms": 27.6,
+      "readEpoch": 6459
+    },
+    {
+      "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+      "parameters": {
+        "e": 1693986850366836
+      },
+      "rows": 1,
+      "ms": 52.6,
+      "readEpoch": 6459
+    }
+  ],
+  "timingMs": 125.4,
+  "sourceState": "live",
+  "explanation": "No answer given, because nothing in the sessions ever stated this.",
+  "hop": null,
+  "trace": [
+    "Found \"Meridian\" as a project with 2 claims about it.",
+    "Nothing states a \"migration_window\" for \"Meridian\"."
+  ],
+  "considered": [],
+  "queryCount": 3
+}

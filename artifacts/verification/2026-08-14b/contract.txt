@@ -1,0 +1,14 @@
+
+> lacuna@0.0.0 test:contract
+> vitest run tests/contract
+
+
+ RUN  v4.1.10 D:/project/lacuna
+
+
+ Test Files  3 passed (3)
+      Tests  42 passed (42)
+   Start at  17:39:43
+   Duration  13.35s (transform 273ms, setup 0ms, import 879ms, tests 10.90s, environment 0ms)
+
+CONTRACT_EXIT=0

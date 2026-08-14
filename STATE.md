@@ -499,12 +499,18 @@ What exists right now. Updated as things change, and never ahead of them.
 
   What is not done here: nothing has been deployed. That is listed below.
 
-- **Six captures exist of the running product, and taking them found a bug the
-  suite did not.** Chromium under Playwright pointed at `http://127.0.0.1:3014`,
-  that server reading the live node over HTTP. Home at 1920x1080 and 3840x2160,
-  the revised answer at both extents, the multi-hop answer full page, and the
-  never-stated answer. Every file, its URL and its viewport are in
-  [artifacts/screens/](artifacts/screens/README.md).
+- **Twelve captures exist of the running product, taken and checked by one
+  command, and taking them found a bug the suite did not.** `npm run screens`
+  drives headless Chrome over the DevTools Protocol against
+  `http://127.0.0.1:3014`, that server reading the live node over HTTP. Home at
+  1920x1080, 3840x2160, 375x812 and in the dark theme, the benchmark page at
+  both extents, the database and interface pages full page, and three answers:
+  revised at both extents, multi-hop full page, never-stated. Each PNG is read
+  back off disk afterwards and checked for exact size, correct theme and enough
+  compressed density to rule out a blank rectangle, so the run fails rather than
+  quietly writing a wrong image. Every file, its URL, its viewport and its theme
+  are in [artifacts/screens/](artifacts/screens/README.md). See
+  [D-052](DECISIONS.md).
 
   The multi-hop proof panel printed `448.4000000000003 ms inside the client`.
   Eight reads, each already rounded to a tenth of a millisecond by the retrieval
@@ -727,7 +733,7 @@ What exists right now. Updated as things change, and never ahead of them.
 Everything else. Named explicitly so no reader has to guess:
 
 - No CI. Decided, not skipped: [DECISIONS.md](DECISIONS.md) D-049. GitHub's
-  runners have no HydraDB, so a green workflow would cover the 568 tests that
+  runners have no HydraDB, so a green workflow would cover the 623 tests that
   need no database and exclude the 42 that carry the integration claim, which is
   a badge whose coverage is the opposite of what the README promises
 - No deployment. HydraDB runs in WSL2 on this machine and is not reachable from

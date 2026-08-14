@@ -99,7 +99,15 @@ cmd_start() {
   export GRAPH_BOLT_ADDR="$BOLT_ADDR" GRAPH_ADVERTISED_BOLT_ADDR="$BOLT_ADDR"
   export GRAPH_BOLT_NODE_ADDRESSES="node-0=$BOLT_ADDR"
   export GRAPH_HTTP_ADDR="$HTTP_ADDR" GRAPH_ADMIN_ADDR="$ADMIN_ADDR"
-  export RUST_MIN_STACK=33554432 RUST_LOG=info
+  # The query engine recurses deeply enough to overflow the default 8 MiB thread
+  # stack on real query shapes, so the minimum is raised rather than tuned.
+  # RUST_LOG stays overridable so a node can be restarted louder. Worth knowing
+  # before you try it: the engine answers a failed query with a bare "internal
+  # query execution error" over HTTP, and on the one incident where that
+  # mattered, restarting at debug added nothing to the log. The binary keeps its
+  # own filter. See DECISIONS.md D-054.
+  export RUST_MIN_STACK=33554432
+  export RUST_LOG="${RUST_LOG:-info}"
 
   cd "$HYDRA_REPO"
   nohup "$BINARY" >>"$LOG_FILE" 2>&1 &

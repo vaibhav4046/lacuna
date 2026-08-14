@@ -58,3 +58,11 @@ yarn-error.log*
 # Local scratch. Anything a developer wants to keep out of the tree.
 /scratch/
 /tmp/
+
+# Throwaway probes. Scripts written to measure one thing against a live node and
+# then deleted. The measurements they produced live in DECISIONS.md, which is
+# the part worth keeping.
+*.tmp.ts
+
+# Local assistant tooling state. Not part of the project.
+.claude/

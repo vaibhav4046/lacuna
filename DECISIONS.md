@@ -1194,13 +1194,13 @@ A GitHub Actions workflow on this repository would run `npm ci`, `npm test` and
 change. What a workflow adds over that is a green badge, and the badge is the
 problem, because of what it cannot cover.
 
-Three of the thirty-one test files are contract suites, and they are the only
+Three of the thirty-two test files are contract suites, and they are the only
 tests in the repository that prove the Cypher is right. They run every query
 builder against a live HydraDB node and fail if the node is absent, which was a
 deliberate decision recorded earlier: a contract suite that mocks the database
 when the database is missing is a suite that passes hardest exactly when it is
 least entitled to. GitHub's runners have no HydraDB. Making the workflow green
-would mean running the 568 tests that need no database and skipping the 42 that
+would mean running the 623 tests that need no database and skipping the 42 that
 carry the actual integration claim.
 
 That produces the worst artifact available: a green check on the front page of
@@ -1305,3 +1305,167 @@ messages, parentage and content all survive verbatim, and every one of those was
 checked. What changed is which address the author is reachable at. That is a
 contact detail, not a claim about when work happened or who did it, and the
 rewrite is recorded here in full rather than left for a judge to discover.
+
+### D-051: Every page carries the same four links, and marks the one you are on
+
+Before this, the four pages were reachable only from a list in the footer of the
+home page. `/bench`, `/hydradb` and `/interface` each had the list too, but a
+visitor who landed on an answer page had nothing above the fold telling them the
+other three existed, and nothing anywhere telling them which one they were
+reading. On a site whose argument is spread across four documents, that is not a
+navigation gap, it is an argument that does not get made.
+
+So `page()` in `src/view/layout.ts` now renders a bar above the sheet and the
+same links again in the footer, and both are built by one function from one
+array. A fifth page cannot appear in the bar and not in the footer, because
+there is no second list to forget.
+
+**The marker is `aria-current="page"`, not a class.** A class would have made the
+visible marker and the spoken one two separate facts that agree by convention.
+The attribute is the announcement a screen reader makes, and
+`.tabs a[aria-current="page"]` in the stylesheet is what draws the red rule under
+it, so a page that stops marking itself loses both at once rather than silently
+losing one.
+
+**A notice marks nothing.** `Route | null`, and the notices pass null. A 404 is
+not one of the four pages, and a bar claiming it was `/` would be a wrong answer
+to the only question the bar exists to answer. The links are still there, so a
+refusal is still a way back in; only the claim about where you are is dropped.
+
+**What holds it.** `tests/support/markup.ts` pulls every marked href out of a
+rendered page, and both view suites assert the set is exactly one entry and that
+it equals the route the server hands the page out on. A page that marked two, or
+marked a route it is not served at, fails. The notice test asserts the empty set
+and then asserts all four links are still present, so removing the bar from
+refusals entirely would fail as well.
+
+An answer page is served at `/ask` and marks `/`. That is deliberate: an answer
+is what the ask page produces, and marking a fifth entry that is not in the bar
+would leave the marker pointing at nothing.
+
+### D-052: The screenshot set is taken and verified by one command, not by hand
+
+The first version of this directory was six PNGs taken by hand. They were correct
+when taken and wrong three commits later, because the bar in D-051 changed the
+top of every page and nothing connected the images to the pages they claimed to
+be of. The failure mode of a hand-taken screenshot is not that it is fake, it is
+that it silently stops being current while still looking like evidence.
+
+`scripts/screens.ts` takes all twelve, and `npm run screens` retakes the set from
+one build in one run.
+
+**Chrome over the DevTools Protocol, not `--screenshot`.** The flag was tried
+first, because it costs nothing. It cannot set a colour scheme: launching with
+`--blink-settings=preferredColorScheme=1` and `=2` produced byte identical
+files, so a dark capture is not reachable from the command line. It also writes
+exactly the window height, so a full page capture is not reachable either. The
+protocol has `Emulation.setEmulatedMedia` and `captureBeyondViewport`, and Node
+24 has a global `WebSocket`, so driving it costs no dependency. Playwright would
+have cost a browser download and a devDependency for something the platform
+already does.
+
+**Every capture is read back off disk and checked.** Signature, bit depth and
+colour type, exact width, exact height or at least the viewport height for a full
+page, a top left pixel above 180 on a light capture and below 90 on a dark one,
+and at least 0.005 compressed bytes per pixel. The run exits non-zero if any
+check fails. The theme check is the cheap one and the one that catches the most:
+every PNG row filter subtracts a neighbour that does not exist at row 0 column 0,
+so the first three bytes of the inflated stream are the literal top left colour,
+with no need to unfilter the image.
+
+That density floor is what separates a page from a blank rectangle. A flat fill
+of a solid colour compresses far below it; a real page, even one that is mostly
+paper, does not come close to it from below.
+
+**What it does not check.** That the right words are on the page. No pixel test
+does. The suite covers the words, this covers whether the page rendered at all
+and in the state it was asked for, and looking at the file covers the rest. All
+three were used here, and the second one is the only one that runs unattended.
+
+---
+
+## 2026-08-14
+
+### D-053: The pre-write key check reads two different ways, because an id read cannot report absence
+
+The read-back before a write exists to catch a 52-bit id collision before it
+overwrites someone else's node. It had one implementation, a scan of every node
+carrying the label, and that is the wrong shape for the incremental case: adding
+fourteen nodes to a graph holding 5,642 should not cost a walk of the graph.
+
+An id read was added for that case, and probing it turned up a behaviour that
+made the first version of the check wrong. Measured against a live node on
+2026-08-14, against a graph holding the demo corpus:
+
+| Query form | Time | Result |
+|---|---|---|
+| `MATCH (n:Entity {id: $id}) RETURN n.id, n.key`, id present | 13 ms | one row |
+| `MATCH (n {id: $id}) RETURN n.id, n.key`, id present | 10 ms | one row |
+| `MATCH (n {id: $id}) RETURN n.id, n.key`, id never written | 11 ms | **one row, `key` null** |
+| `MATCH (n:Claim {id: $id}) RETURN n.id, n.key`, id never written | 11 ms | no rows |
+| `MATCH (n) WHERE n.id = $id RETURN n.id, n.key` | 12 ms | 400, `node-only MATCH requires an id, label, or property predicate` |
+| `MATCH (n) WHERE n.id IN $ids RETURN n.id` | 3 ms | 400, `composite parameter $ids is only supported as an UNWIND in` |
+| `UNWIND $ids AS w MATCH (n {id: w}) RETURN n.id` | 3 ms | 400, `UNWIND batch supports one-hop relationships only` |
+| `MATCH (n:Entity) WHERE n.key IS NOT NULL RETURN n.id` | 3 ms | 400, `WHERE currently supports boolean combinations of property comparisons` |
+| `MATCH (n:Entity) RETURN n.id, n.key` (66 nodes) | 43 ms | one page |
+| `MATCH (n:Message) RETURN n.id, n.key` paged at 1,000 | 2,630 ms | 6 pages, 5,268 rows |
+
+The third row is the load-bearing one. **The unlabelled id pattern addresses a
+vertex slot, not a stored node.** Ask it about an id nothing has ever written and
+it answers with one row carrying the id it was asked for and a null key. The
+same id under a label answers with nothing. So row count on the unlabelled form
+never means "present", and the check that read it as present was throwing a
+collision on the first id of every ingest into an empty graph. It was not caught
+earlier because the unit tests mock the transport and the contract suite was not
+running at the time.
+
+**Both reads stay, and the null means different things in each.** A scan returns
+nodes that carry the label, so one of them with no canonical key is a real node
+this corpus never wrote, sitting on an id we are about to write, which is exactly
+the overwrite the check exists to refuse. An id read's null is an empty slot.
+`isPresent` takes that as a parameter rather than guessing, and the two unit
+tests that pin it say which read they are describing.
+
+**The id read stays unlabelled.** A canonical key begins with its label, so a
+planned id found under a different label carries a key that cannot match, which
+is a collision worth refusing. Scoping the read to one label would look straight
+past it, and per the table the labelled and unlabelled forms cost the same.
+
+**The threshold is 256 planned ids per label.** 256 indexed reads at ~11 ms is
+under three seconds serially and well under one at the default concurrency, so
+whichever way `auto` goes the cost is bounded. It also sits an order of magnitude
+above an incremental ingest of a session or two and an order of magnitude below
+a corpus load, which are the only two things anyone runs.
+
+### D-054: The 28-second delete was a wedged store, not a bookmark problem, and the fix was to say so
+
+Recorded because the wrong answer was already written down and acted on.
+
+The contract suite's fixture teardown, fourteen sequential deletes, took 28,498
+ms. The theory was bookmark chaining: each delete waits for the read epoch of
+the one before it. It was plausible, it fit the shape of the numbers, and a fix
+for it was drafted.
+
+Then the node was found dead. Its log ran from `2026-08-12T22:03:34Z` to
+`2026-08-13T23:55:34Z` with no `graph node stopped` line, unlike every clean
+restart before it, so it was killed rather than shut down. `dmesg` showed no OOM
+and memory was healthy. On restart every write returned `500: internal query
+execution error` while reads kept working normally, and writes were half
+applying: a vertex materialised carrying `id` with `key` null. `RUST_LOG=debug`
+produced no additional output, so the engine's own filter kept the cause out of
+the log and the 500 stayed undiagnosable from outside.
+
+One experiment settled it. The store was moved aside and the node restarted onto
+a fresh one. Every write worked immediately, MERGE in 120 ms and DETACH DELETE
+in 11 ms, and the corpus reloaded clean. After that the same fourteen deletes
+were part of a contract run whose tests took 6.90 seconds in total.
+
+So the 28 seconds was a store degrading, and the bookmark theory was wrong. No
+fix was shipped on it. The bad store is kept at `store.wedged-20260814` rather
+than deleted, because a preserved failure is worth more than a tidy directory.
+
+What is **not** established: what wedged it. The slatedb garbage collector has
+never worked on this deployment, logging
+`error collecting garbage [resource=Compactions|Manifest, error=ObjectStoreError(NotImplemented { operation: "`put_opts` with mode `PutMode::Update`", implementer: "LocalFileSystem(...)" })]`
+on a loop, and an unclean kill is the obvious suspect. Suspicion is not a cause,
+and it is written here as suspicion.

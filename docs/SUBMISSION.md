@@ -98,9 +98,9 @@ There is deliberately no LLM anywhere in the demo path. The claims are about
 retrieval and abstention, and a generated sentence on top would make every one
 of them harder to check.
 
-568 unit tests across 28 files run with no database. Three contract suites run
+623 unit tests across 29 files run with no database. Three contract suites run
 every query builder against a live HydraDB node and fail loudly if the node is
-absent rather than quietly mocking it. 610 tests in total with a node running.
+absent rather than quietly mocking it. 665 tests in total with a node running.
 ```
 
 ## 5. Deployed project link, if available
@@ -195,16 +195,18 @@ a separate service on loopback and reached over its HTTP query API, in WSL2 on
 Ubuntu 24.04.
 
 Five dev dependencies and nothing else: typescript, @types/node, tsx to run
-TypeScript directly, vitest for the 610 tests, and @huggingface/transformers.
+TypeScript directly, vitest for the 665 tests, and @huggingface/transformers.
 That last one is worth explaining, because it is the only model in the
 repository and it belongs to the opposition: the benchmark baselines embed with
 Xenova/all-MiniLM-L6-v2, 384 dimensions, run locally, so the pipelines Lacuna is
 measured against are real semantic search rather than keyword strawmen. It is
 never loaded on the product's answer path.
 
-Screenshots in artifacts/screens were captured with Chromium under Playwright,
-which is a capture tool run against the server and not a dependency of the
-project.
+Screenshots in artifacts/screens were captured by npm run screens, which drives
+headless Chrome over the DevTools Protocol and then reads every PNG back and
+checks its size, theme and content before the run is allowed to pass. It adds no
+dependency: Node 24 has a global WebSocket, so the protocol is reachable without
+one.
 
 Apache-2.0.
 ```

@@ -1,0 +1,72 @@
+/* Lacuna design tokens. Immutable per docs/DESIGN_FREEZE.md. */
+:root {
+  --hydra-black: #000000;
+  --hydra-charcoal: #1c1d21;
+  --hydra-elevated: #2a2c33;
+  --hydra-disabled: #6e7180;
+  --hydra-secondary: #9da2b3;
+  --hydra-muted: #bcbfcc;
+  --hydra-white: #ffffff;
+  --hydra-orange: #ff5719;
+
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-medium: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  --surface-faint: rgba(255, 255, 255, 0.02);
+  --orange-soft: rgba(255, 87, 25, 0.06);
+  --orange-medium: rgba(255, 87, 25, 0.30);
+  --orange-strong: rgba(255, 87, 25, 0.60);
+
+  --font-sans: Geist, Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --text-display: clamp(4.25rem, 10vw, 11rem);
+  --text-page-title: clamp(1.75rem, 2.3vw, 3rem);
+  --text-section: 24px;
+  --text-body: 16px;
+  --text-body-lg: 17px;
+  --text-label: 12px;
+  --text-label-sm: 10px;
+  --text-code: 13px;
+
+  --leading-display: 0.82;
+  --leading-title: 1.05;
+  --leading-body: 1.6;
+  --tracking-display: -0.055em;
+  --tracking-title: -0.03em;
+  --tracking-label: 0.1em;
+
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-30: 120px;
+
+  --radius-marketing: 32px;
+  --radius-panel: 16px;
+  --radius-control: 13px;
+  --radius-pill: 9999px;
+
+  --gutter: clamp(20px, 3vw, 48px);
+  --section-y: clamp(48px, 5.6vw, 96px);
+  --workspace-max: 2560px;
+  --rail-collapsed: 72px;
+  --rail-expanded: 248px;
+  --utility-bar: 56px;
+  --inspector-min: 360px;
+  --inspector-max: 440px;
+
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --dur-hover: 140ms;
+  --dur-press: 100ms;
+  --dur-drawer: 240ms;
+  --dur-route: 200ms;
+  --dur-graph-focus: 380ms;
+  --dur-traversal: 560ms;
+  --dur-ribbon: 900ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-hover: 0ms; --dur-press: 0ms; --dur-drawer: 0ms; --dur-route: 0ms;
+    --dur-graph-focus: 0ms; --dur-traversal: 0ms; --dur-ribbon: 0ms;
+  }
+}

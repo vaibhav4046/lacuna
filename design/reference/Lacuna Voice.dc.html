@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:#000000; }
+  body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+  a { color:#ff5719; text-decoration:none; }
+  a:hover { color:#ffffff; }
+  ::selection { background:#ff5719; color:#000000; }
+  .rail::-webkit-scrollbar, .board::-webkit-scrollbar { display:none; }
+  .rail, .board { scrollbar-width:none; }
+</style>
+</helmet>
+<div style="background:#000000; color:#ffffff; font-family:Geist, Inter, ui-sans-serif, system-ui, sans-serif; font-variant-numeric:tabular-nums; min-height:100vh; display:flex; flex-direction:column">
+
+  <div class="board" style="border-bottom:1px solid rgba(255,255,255,0.10); padding:10px clamp(16px, 2vw, 24px); display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px">
+    <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:#9da2b3; flex:0 0 auto">Design board / state inspector</span>
+    <div class="board" style="display:flex; gap:4px; flex:1 1 auto; min-width:0; overflow-x:auto">
+      <sc-for list="{{ stateTabs }}" as="s" hint-placeholder-count="14">
+        <button type="button" onClick="{{ s.pick }}" aria-pressed="{{ s.on }}" style="border:1px solid {{ s.border }}; background:{{ s.bg }}; color:{{ s.ink }}; border-radius:9999px; padding:6px 11px; font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; white-space:nowrap; cursor:pointer; transition:border-color 140ms cubic-bezier(.2,.7,.2,1), color 140ms cubic-bezier(.2,.7,.2,1)" style-hover="border-color:rgba(255,255,255,0.25)">{{ s.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex:1 1 auto; min-height:0">
+
+    <nav class="rail" aria-label="Product" style="flex:0 0 auto; width:72px; border-right:1px solid rgba(255,255,255,0.10); padding:12px 0; display:flex; flex-direction:column; gap:2px; overflow-y:auto">
+      <div style="display:flex; justify-content:center; padding:6px 0 16px">
+        <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Lacuna">
+          <g fill="#ffffff">
+            <rect x="5.6" y="3.2" width="9.6" height="2.6" rx="1.3"></rect>
+            <rect x="3.2" y="5.6" width="2.6" height="9.6" rx="1.3"></rect>
+            <rect x="5.6" y="18.2" width="12.6" height="2.6" rx="1.3"></rect>
+            <rect x="18.2" y="8.8" width="2.6" height="9.4" rx="1.3"></rect>
+          </g>
+          <circle cx="18.4" cy="5.4" r="2" fill="#ff5719"></circle>
+        </svg>
+      </div>
+      <sc-for list="{{ rail }}" as="r" hint-placeholder-count="9">
+        <a href="#voice" aria-current="{{ r.current }}" style="display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 4px; margin:0 6px; border-radius:13px; background:{{ r.bg }}; color:{{ r.ink }}; transition:background 140ms cubic-bezier(.2,.7,.2,1)" style-hover="background:rgba(255,255,255,0.02); color:#ffffff">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="{{ r.d }}"></path></svg>
+          <span style="font-size:10px; font-weight:500; letter-spacing:0.01em; text-align:center; line-height:1.15">{{ r.label }}</span>
+        </a>
+      </sc-for>
+    </nav>
+
+    <div style="flex:1 1 auto; min-width:0; display:flex; flex-direction:column">
+
+      <div style="height:56px; flex:0 0 auto; border-bottom:1px solid rgba(255,255,255,0.10); padding:0 clamp(16px, 2vw, 24px); display:flex; align-items:center; gap:clamp(10px, 1.4vw, 18px); overflow-x:auto">
+        <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#ffffff; white-space:nowrap">Voice</span>
+        <span style="display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border:1px solid {{ src.border }}; background:{{ src.bg }}; border-radius:9999px; font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:{{ src.ink }}; white-space:nowrap">
+          <span aria-hidden="true" style="width:5px; height:5px; border-radius:9999px; background:{{ src.ink }}"></span>{{ src.label }}
+        </span>
+        <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; color:#9da2b3; white-space:nowrap">lacuna/demo</span>
+        <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; color:#9da2b3; white-space:nowrap">HydraDB {{ hydra }}</span>
+        <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; color:#9da2b3; white-space:nowrap">trace {{ trace }}</span>
+        <div style="flex:1 1 20px"></div>
+        <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:#9da2b3; border:1px solid rgba(255,255,255,0.15); border-radius:9999px; padding:6px 10px; white-space:nowrap">Cmd K</span>
+      </div>
+
+      <div class="board" id="voice" style="flex:1 1 auto; min-height:0; overflow-y:auto; padding:clamp(20px, 2.6vw, 40px) clamp(16px, 2.4vw, 40px)">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap:clamp(20px, 2.4vw, 36px); max-width:2560px; margin:0 auto; align-items:start">
+
+          <section aria-label="Voice control" style="position:relative; display:flex; flex-direction:column; align-items:center; gap:clamp(18px, 2vw, 26px); min-width:0; padding:clamp(16px, 2vw, 28px) 0">
+            <svg aria-hidden="true" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none"><g stroke="rgba(255,255,255,0.10)" stroke-width="1"><path d="M40 0V400M360 0V400M0 40H400M0 360H400"></path></g><g fill="rgba(255,255,255,0.15)"><rect x="38.5" y="38.5" width="3" height="3"></rect><rect x="358.5" y="38.5" width="3" height="3"></rect><rect x="38.5" y="358.5" width="3" height="3"></rect><rect x="358.5" y="358.5" width="3" height="3"></rect></g></svg>
+            <div style="position:relative; width:clamp(144px, 18vw, 280px); aspect-ratio:1 / 1; flex:0 0 auto">
+              <svg viewBox="0 0 200 200" aria-hidden="true" style="width:100%; height:100%; display:block; overflow:visible">
+                <defs>
+                  <linearGradient id="lacSphere" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ff5719"></stop>
+                    <stop offset="0.34" stop-color="#ff7434"></stop>
+                    <stop offset="0.52" stop-color="#ffb188"></stop>
+                    <stop offset="0.68" stop-color="#ffeade"></stop>
+                    <stop offset="1" stop-color="#ffffff"></stop>
+                  </linearGradient>
+                  <radialGradient id="lacSphereShade" cx="0.34" cy="0.26" r="0.86">
+                    <stop offset="0" stop-color="#ffffff" stop-opacity="0.30"></stop>
+                    <stop offset="0.52" stop-color="#000000" stop-opacity="0"></stop>
+                    <stop offset="1" stop-color="#000000" stop-opacity="0.48"></stop>
+                  </radialGradient>
+                </defs>
+                <g data-sphere="1" style="transform-origin:100px 100px; will-change:transform">
+                  <circle cx="100" cy="100" r="84" fill="url(#lacSphere)" opacity="{{ sphere.fill }}"></circle>
+                  <circle cx="100" cy="100" r="84" fill="url(#lacSphereShade)" opacity="{{ sphere.fill }}"></circle>
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="{{ sphere.stroke }}" stroke-width="1.5" stroke-dasharray="{{ sphere.dash }}"></circle>
+                </g>
+              </svg>
+            </div>
+
+            <div role="status" aria-live="polite" style="position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; min-width:0">
+              <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:{{ sphere.statusInk }}">{{ status }}</span>
+              <p style="font-size:15px; line-height:1.5; color:#bcbfcc; margin:0; max-width:38ch; text-wrap:pretty">{{ detail }}</p>
+            </div>
+
+            <div style="position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; width:100%">
+              <button type="button" onClick="{{ primary.act }}" disabled="{{ primary.off }}" aria-label="{{ primary.aria }}" style="min-height:52px; padding:15px 34px; border:1px solid {{ primary.border }}; background:{{ primary.bg }}; color:{{ primary.ink }}; border-radius:13px; font-family:inherit; font-size:15px; font-weight:600; white-space:nowrap; cursor:{{ primary.cursor }}; transition:opacity 140ms ease, transform 140ms cubic-bezier(.2,.7,.2,1)" style-hover="opacity:0.88; transform:translate3d(0,-1px,0)" style-active="transform:translate3d(0,0,0)">{{ primary.label }}</button>
+              <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:6px">
+                <sc-for list="{{ controls }}" as="c" hint-placeholder-count="4">
+                  <button type="button" onClick="{{ c.act }}" disabled="{{ c.off }}" aria-label="{{ c.aria }}" style="min-height:44px; min-width:44px; padding:11px 15px; border:1px solid {{ c.border }}; background:{{ c.bg }}; color:{{ c.ink }}; border-radius:13px; font-family:inherit; font-size:13px; font-weight:500; white-space:nowrap; cursor:{{ c.cursor }}; transition:border-color 140ms cubic-bezier(.2,.7,.2,1), opacity 140ms ease" style-hover="opacity:0.88">{{ c.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <p style="position:relative; font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:#9da2b3; margin:0; text-align:center">Space holds to talk. Escape stops playback.</p>
+          </section>
+
+          <div style="display:flex; flex-direction:column; gap:clamp(14px, 1.6vw, 20px); min-width:0">
+
+            <section aria-label="Transcript" style="border:1px solid rgba(255,255,255,0.15); background:#1c1d21; border-radius:16px; padding:clamp(18px, 2vw, 24px); display:flex; flex-direction:column; gap:14px; min-width:0">
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:#9da2b3">Transcript</span>
+                <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:{{ sphere.statusInk }}">{{ transcriptState }}</span>
+              </div>
+              <sc-if value="{{ hasTranscript }}" hint-placeholder-val="{{ true }}">
+                <p style="font-size:17px; line-height:1.55; margin:0; text-wrap:pretty">{{ committed }}<span style="color:#9da2b3; border-bottom:1px dashed #6e7180">{{ uncommitted }}</span></p>
+              </sc-if>
+              <sc-if value="{{ noTranscript }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:15px; line-height:1.5; color:#9da2b3; margin:0">Nothing captured yet. Hold the control or press Space to start, or use the text fallback below.</p>
+              </sc-if>
+              <span style="font-size:12px; line-height:1.5; color:#9da2b3">Solid text is committed. Dashed underline is not final.</span>
+              <label style="display:flex; flex-direction:column; gap:7px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.10)">
+                <span style="font-size:13px; font-weight:500; color:#bcbfcc">Text fallback</span>
+                <input type="text" placeholder="Type the question instead" style="background:#000000; border:1px solid rgba(255,255,255,0.15); border-radius:13px; padding:12px 14px; font-family:inherit; font-size:15px; color:#ffffff; min-height:44px" style-focus="border-color:#ff5719; outline:2px solid rgba(255,87,25,0.30); outline-offset:1px">
+              </label>
+            </section>
+
+            <section aria-label="Pipeline" style="border:1px solid rgba(255,255,255,0.15); border-radius:16px; padding:clamp(18px, 2vw, 24px); display:flex; flex-direction:column; gap:14px; min-width:0">
+              <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:#9da2b3">Latency rail</span>
+              <ol style="list-style:none; display:flex; flex-direction:column; gap:6px; margin:0; padding:0">
+                <sc-for list="{{ pipeline }}" as="p" hint-placeholder-count="4">
+                  <li style="display:flex; align-items:center; gap:12px; padding:11px 14px; border:1px {{ p.edge }} {{ p.border }}; background:{{ p.bg }}; border-radius:13px; min-width:0">
+                    <span style="flex:0 0 76px; font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:{{ p.ink }}">{{ p.stage }}</span>
+                    <span aria-hidden="true" style="flex:1 1 auto; height:4px; border-radius:9999px; background:rgba(255,255,255,0.10); overflow:hidden; min-width:0"><span style="display:block; height:4px; width:{{ p.bar }}; background:{{ p.fill }}"></span></span>
+                    <span style="flex:0 0 auto; font-family:'Geist Mono', ui-monospace, monospace; font-size:12px; color:{{ p.ink }}">{{ p.ms }}</span>
+                  </li>
+                </sc-for>
+              </ol>
+              <p style="font-size:12px; line-height:1.5; color:#9da2b3; margin:0">A stage that did not report shows <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px">UNAVAILABLE</span>. No timing is estimated.</p>
+            </section>
+
+            <section aria-label="Spoken answer and evidence" style="border:1px solid {{ answerEdge }}; background:#1c1d21; border-radius:16px; padding:clamp(18px, 2vw, 24px); display:flex; flex-direction:column; gap:16px; min-width:0">
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:5px 11px; border:1px {{ answerTagEdge }} {{ answerEdge }}; border-radius:9999px; color:{{ answerInk }}">{{ answerStatus }}</span>
+                <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; color:#9da2b3">{{ answerMeta }}</span>
+              </div>
+              <sc-if value="{{ hasAnswer }}" hint-placeholder-val="{{ true }}">
+                <p style="font-size:17px; line-height:1.6; margin:0; text-wrap:pretty">Atlas 2 launches on August 25, 2026.<sup style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; color:#ff5719; padding-left:3px">m-0602</sup> Ines Varela approved the actuator supplier switch on April 22.<sup style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; color:#ff5719; padding-left:3px">m-0455</sup> No launch marketing budget was ever stated.<sup style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; color:#9da2b3; padding-left:3px">abstained</sup></p>
+                <ol style="list-style:none; display:flex; flex-direction:column; gap:6px; margin:0; padding:0">
+                  <sc-for list="{{ evidence }}" as="e" hint-placeholder-count="3">
+                    <li style="display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; padding:11px 0; border-top:1px solid rgba(255,255,255,0.10); min-width:0">
+                      <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:11px; color:#ff5719; flex:0 0 66px">{{ e.id }}</span>
+                      <span style="font-size:14px; line-height:1.5; color:#bcbfcc; flex:1 1 180px; min-width:0">{{ e.text }}</span>
+                      <span style="font-family:'Geist Mono', ui-monospace, monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:#9da2b3; border:1px {{ e.edge }} rgba(255,255,255,0.25); border-radius:9999px; padding:4px 9px; flex:0 0 auto">{{ e.state }}</span>
+                    </li>
+                  </sc-for>
+                </ol>
+              </sc-if>
+              <sc-if value="{{ noAnswer }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:15px; line-height:1.5; color:#9da2b3; margin:0">{{ noAnswerReason }}</p>
+              </sc-if>
+            </section>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { key: 'ready', level: 0, micError: '' };
+
+  componentDidMount() {
+    this.reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.onKey = (e) => {
+      if (e.code === 'Space' && e.target && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+        e.preventDefault();
+        this.state.key === 'listening' ? this.setState({ key: 'final_transcript' }) : this.startMic();
+      }
+      if (e.key === 'Escape' && this.state.key === 'speaking') this.setState({ key: 'interrupted' });
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.onKey);
+    this.stopMic();
+  }
+
+  // Real microphone RMS only. No synthetic amplitude anywhere.
+  startMic() {
+    if (this.stream) { this.setState({ key: 'listening' }); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.setState({ key: 'permission_denied', micError: 'This browser exposes no microphone API.' });
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      this.stream = stream;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new Ctx();
+      const src = this.ctx.createMediaStreamSource(stream);
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 1024;
+      src.connect(this.analyser);
+      this.buf = new Uint8Array(this.analyser.fftSize);
+      this.setState({ key: 'listening', micError: '' });
+      this.tick();
+    }).catch((err) => {
+      this.setState({ key: 'permission_denied', micError: (err && err.name) || 'Permission denied' });
+    });
+  }
+
+  tick() {
+    if (!this.analyser) return;
+    this.analyser.getByteTimeDomainData(this.buf);
+    let sum = 0;
+    for (let i = 0; i < this.buf.length; i++) { const v = (this.buf[i] - 128) / 128; sum += v * v; }
+    const rms = Math.sqrt(sum / this.buf.length);
+    this.level = this.level * 0.8 + rms * 0.2;
+    const node = document.querySelector('[data-sphere]');
+    if (node && !this.reduce) node.style.transform = 'scale(' + (1 + Math.min(this.level * 1.4, 0.12)).toFixed(4) + ')';
+    this.raf = window.requestAnimationFrame(() => this.tick());
+  }
+
+  stopMic() {
+    if (this.raf) window.cancelAnimationFrame(this.raf);
+    if (this.stream) this.stream.getTracks().forEach((t) => t.stop());
+    if (this.ctx && this.ctx.close) this.ctx.close();
+    this.stream = null; this.ctx = null; this.analyser = null; this.level = 0;
+    const node = document.querySelector('[data-sphere]');
+    if (node) node.style.transform = '';
+  }
+
+  renderVals() {
+    const k = this.state.key;
+    const set = (key) => () => {
+      if (key !== 'listening') this.stopMic();
+      this.setState({ key });
+    };
+
+    const S = {
+      ready:                { label: 'Ready', status: 'Ready', detail: 'Hold to talk, or type instead. Voice uses the same temporal graph as text.', fill: '1', stroke: 'rgba(255,255,255,0.25)', dash: '0', ink: '#ffffff', stage: -1, tState: 'Idle' },
+      listening:            { label: 'Listening', status: 'Listening', detail: 'The boundary is driven by real microphone level. Release or press Space to commit.', fill: '1', stroke: '#ff5719', dash: '0', ink: '#ff5719', stage: 0, tState: 'Capturing' },
+      partial_transcript:   { label: 'Partial', status: 'Uncommitted transcript', detail: 'Words are still provisional. The dashed perimeter marks unconfirmed speech.', fill: '1', stroke: '#ff5719', dash: '6 5', ink: '#ff5719', stage: 0, tState: 'Partial' },
+      final_transcript:     { label: 'Final', status: 'Transcript committed', detail: 'The utterance is complete and about to be sent to the graph.', fill: '1', stroke: '#ffffff', dash: '0', ink: '#ffffff', stage: 0, tState: 'Committed' },
+      retrieving:           { label: 'Retrieving', status: 'Retrieving memory', detail: 'One finite path advances from speech recognition into the HydraDB read.', fill: '1', stroke: '#ff5719', dash: '0', ink: '#ff5719', stage: 1, tState: 'Committed' },
+      reasoning:            { label: 'Reasoning', status: 'Grounding answer', detail: 'Context is assembled. The hold is labelled rather than animated indefinitely.', fill: '1', stroke: '#ff5719', dash: '0', ink: '#ff5719', stage: 2, tState: 'Committed' },
+      generating_voice:     { label: 'Generating', status: 'Preparing voice', detail: 'Speech synthesis has started. Stage progress is finite.', fill: '1', stroke: '#ff5719', dash: '0', ink: '#ff5719', stage: 3, tState: 'Committed' },
+      speaking:             { label: 'Speaking', status: 'Speaking', detail: 'Playback amplitude drives the surface. Evidence markers advance by sentence.', fill: '1', stroke: '#ff5719', dash: '0', ink: '#ff5719', stage: 3, tState: 'Committed' },
+      interrupted:          { label: 'Interrupted', status: 'Interrupted', detail: 'Audio and motion stopped within 120ms. The transcript is retained.', fill: '0.55', stroke: '#ffffff', dash: '0', ink: '#ffffff', stage: -1, tState: 'Committed' },
+      permission_denied:    { label: 'Mic blocked', status: 'Microphone blocked', detail: 'Grant microphone access in the browser address bar, then press Retry. Text mode stays available.', fill: '0', stroke: 'rgba(255,255,255,0.25)', dash: '0', ink: '#ffffff', stage: -1, tState: 'Unavailable' },
+      rate_limited:         { label: 'Rate limited', status: 'Rate limited', detail: 'Voice resumes in 24 seconds. Text mode is unaffected.', fill: '0.22', stroke: 'rgba(255,255,255,0.15)', dash: '0', ink: '#bcbfcc', stage: -1, tState: 'Unavailable' },
+      provider_unavailable: { label: 'Provider down', status: 'Provider unavailable', detail: 'The speech synthesis stage failed. No audio is produced and none is simulated.', fill: '0', stroke: 'rgba(255,255,255,0.25)', dash: '0', ink: '#ffffff', stage: 3, tState: 'Unavailable' },
+      offline:              { label: 'Offline', status: 'Offline', detail: 'No network. Cached transcript history is still readable.', fill: '0', stroke: 'rgba(255,255,255,0.25)', dash: '0', ink: '#ffffff', stage: -1, tState: 'Unavailable' },
+      text_only:            { label: 'Text only', status: 'Text only fallback', detail: 'Full Ask parity without voice. The sphere is hidden from assistive tech and optional to render.', fill: '0', stroke: 'rgba(255,255,255,0.15)', dash: '3 4', ink: '#bcbfcc', stage: -1, tState: 'Idle' }
+    };
+    const c = S[k] || S.ready;
+    const order = ['ready','listening','partial_transcript','final_transcript','retrieving','reasoning','generating_voice','speaking','interrupted','permission_denied','rate_limited','provider_unavailable','offline','text_only'];
+
+    const answered = k === 'speaking' || k === 'interrupted' || k === 'generating_voice';
+    const failed = k === 'permission_denied' || k === 'rate_limited' || k === 'provider_unavailable' || k === 'offline';
+    const stages = ['STT', 'HydraDB', 'Reasoning', 'TTS'];
+    const times = ['180 ms', '38 ms', '410 ms', k === 'speaking' ? 'streaming' : 'pending'];
+    const bars = ['26%', '6%', '59%', '9%'];
+
+    return {
+      stateTabs: order.map((key) => ({
+        label: S[key].label,
+        pick: set(key),
+        on: key === k ? 'true' : 'false',
+        border: key === k ? '#ff5719' : 'rgba(255,255,255,0.15)',
+        bg: key === k ? 'rgba(255,87,25,0.06)' : 'transparent',
+        ink: key === k ? '#ff5719' : '#9da2b3'
+      })),
+      rail: [
+        { label: 'Ask', d: 'M4 5.5h10M4 9h7M4 12.5h4', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'Voice', d: 'M9 3a1.8 1.8 0 011.8 1.8v2.6a1.8 1.8 0 01-3.6 0V4.8A1.8 1.8 0 019 3zM5.4 8.2a3.6 3.6 0 007.2 0M9 11.8v2.6M7 14.4h4', current: 'page', bg: 'rgba(255,87,25,0.06)', ink: '#ff5719' },
+        { label: 'Timeline', d: 'M3 9h12M6.5 9V5.8M11.5 9v3.2', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'Graph', d: 'M9 4.2l5.2 8.6H3.8L9 4.2z', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'Bench', d: 'M4.5 14V8.4M9 14V4.4M13.5 14v-3.4', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'HydraDB', d: 'M9 3.4l5.6 2.8L9 9 3.4 6.2 9 3.4zM3.4 10.4L9 13.2l5.6-2.8', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'Router', d: 'M3.6 9h3.8l2.8-3.6h4.2M10.2 12.6h4.2M7.4 9l2.8 3.6', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'Integrate', d: 'M6.8 4.2C5.4 4.6 5.6 6.6 5.4 7.8 5.2 8.8 4.2 9 3.6 9c.6 0 1.6.2 1.8 1.2.2 1.2 0 3.2 1.4 3.6M11.2 4.2c1.4.4 1.2 2.4 1.4 3.6.2 1 1.2 1.2 1.8 1.2-.6 0-1.6.2-1.8 1.2-.2 1.2 0 3.2-1.4 3.6', current: 'false', bg: 'transparent', ink: '#9da2b3' },
+        { label: 'Settings', d: 'M4 6.4h10M4 11.6h10M8.2 4.8v3.2M11.4 10v3.2', current: 'false', bg: 'transparent', ink: '#9da2b3' }
+      ],
+      src: failed
+        ? { label: 'Unavailable', ink: '#bcbfcc', border: 'rgba(255,255,255,0.25)', bg: 'transparent' }
+        : { label: 'Seeded demo', ink: '#ff5719', border: 'rgba(255,87,25,0.30)', bg: 'rgba(255,87,25,0.06)' },
+      hydra: k === 'offline' ? 'unreachable' : 'healthy',
+      trace: '0x4e1a',
+      sphere: { fill: c.fill, stroke: c.stroke, dash: c.dash, statusInk: c.ink },
+      status: c.status,
+      detail: this.state.micError && k === 'permission_denied' ? c.detail + ' Reported: ' + this.state.micError + '.' : c.detail,
+      transcriptState: c.tState,
+      hasTranscript: k !== 'ready' && k !== 'text_only' && k !== 'permission_denied',
+      noTranscript: k === 'ready' || k === 'text_only' || k === 'permission_denied',
+      committed: k === 'partial_transcript' || k === 'listening'
+        ? 'When does Atlas 2 launch and who approved '
+        : 'When does Atlas 2 launch, who approved the supplier change, and what is the marketing budget?',
+      uncommitted: k === 'partial_transcript' ? 'the supplier change' : (k === 'listening' ? 'the sup' : ''),
+      pipeline: stages.map((s, i) => {
+        const active = c.stage >= i && c.stage >= 0;
+        const isFail = k === 'provider_unavailable' && i === 3;
+        return {
+          stage: s,
+          ms: isFail ? 'UNAVAILABLE' : (active ? times[i] : 'pending'),
+          bar: active && !isFail ? bars[i] : '0%',
+          edge: isFail || !active ? 'dashed' : 'solid',
+          border: isFail ? 'rgba(255,255,255,0.25)' : (active ? 'rgba(255,87,25,0.30)' : 'rgba(255,255,255,0.15)'),
+          bg: active && !isFail ? 'rgba(255,87,25,0.06)' : 'rgba(255,255,255,0.02)',
+          ink: isFail ? '#ffffff' : (active ? '#ffffff' : '#9da2b3'),
+          fill: '#ff5719'
+        };
+      }),
+      answerStatus: answered ? 'Partial' : (failed ? 'Unavailable' : 'Pending'),
+      answerInk: answered ? '#ff5719' : '#bcbfcc',
+      answerEdge: answered ? 'rgba(255,87,25,0.30)' : 'rgba(255,255,255,0.15)',
+      answerTagEdge: answered ? 'solid' : 'dashed',
+      answerMeta: answered ? '2 answered, 1 abstained / 3 sources / 3 hops' : 'no result yet',
+      hasAnswer: answered,
+      noAnswer: !answered,
+      noAnswerReason: failed
+        ? 'No answer is shown because a required stage failed. Nothing is synthesised to fill the gap.'
+        : 'The answer appears once the graph read and grounding complete.',
+      evidence: [
+        { id: 'm-0602', text: 'Final: Atlas 2 launches August 25. Board signed off.', state: 'Current', edge: 'solid' },
+        { id: 'm-0455', text: 'Ines Varela approved the actuator supplier switch.', state: 'Current', edge: 'solid' },
+        { id: 'budget', text: 'No claim links Atlas 2 to an approved budget.', state: 'Abstained', edge: 'dashed' }
+      ],
+      primary: k === 'permission_denied'
+        ? { label: 'Retry microphone', aria: 'Retry microphone', act: () => this.startMic(), off: false, border: '#ff5719', bg: '#ff5719', ink: '#000000', cursor: 'pointer' }
+        : { label: k === 'listening' ? 'Commit transcript' : 'Push to talk', aria: k === 'listening' ? 'Commit transcript' : 'Push to talk', act: k === 'listening' ? set('final_transcript') : () => this.startMic(), off: failed, border: failed ? 'rgba(255,255,255,0.15)' : '#ff5719', bg: failed ? 'transparent' : '#ff5719', ink: failed ? '#6e7180' : '#000000', cursor: failed ? 'not-allowed' : 'pointer' },
+      controls: [
+        { label: 'Stop', aria: 'Stop response', act: set('interrupted'), off: !answered, border: 'rgba(255,255,255,0.25)', bg: 'transparent', ink: answered ? '#ffffff' : '#6e7180', cursor: answered ? 'pointer' : 'not-allowed' },
+        { label: 'Barge in', aria: 'Barge in', act: () => this.startMic(), off: k !== 'speaking', border: 'rgba(255,255,255,0.25)', bg: 'transparent', ink: k === 'speaking' ? '#ffffff' : '#6e7180', cursor: k === 'speaking' ? 'pointer' : 'not-allowed' },
+        { label: 'Replay', aria: 'Replay response', act: set('speaking'), off: !answered, border: 'rgba(255,255,255,0.25)', bg: 'transparent', ink: answered ? '#ffffff' : '#6e7180', cursor: answered ? 'pointer' : 'not-allowed' },
+        { label: 'Inspect sources', aria: 'Inspect sources', act: set('speaking'), off: false, border: 'rgba(255,255,255,0.25)', bg: 'transparent', ink: '#ffffff', cursor: 'pointer' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

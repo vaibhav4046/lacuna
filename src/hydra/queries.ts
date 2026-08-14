@@ -119,6 +119,34 @@ export function verticesByLabel(label: string): PreparedQuery {
 }
 
 /**
+ * The id and stored canonical key of one vertex, addressed by id.
+ *
+ * The same two columns `verticesByLabel` returns, for one node instead of all of
+ * them. The pattern carries the id as a property rather than a WHERE clause
+ * because the WHERE form is not a slower version of this query, it is not a
+ * query at all: against a graph holding 5,642 vertices this answers in 10 ms,
+ * and `MATCH (n) WHERE n.id = $id` is refused with a 400 reading `node-only
+ * MATCH requires an id, label, or property predicate`. The probe that measured
+ * both is in DECISIONS.md D-053.
+ *
+ * No label, deliberately. A canonical key begins with the label, so a planned id
+ * found under a different label is a node whose stored key cannot match, which
+ * is exactly the overwrite the pre-write check exists to refuse. Scoping the
+ * read to one label would look past it.
+ *
+ * One row back does not mean the node is there. This pattern addresses a vertex
+ * slot, and an id never written answers with a row whose key is null. The caller
+ * decides what that means, which is why `run.ts` reads the key rather than
+ * counting rows.
+ */
+export function vertexKeyById(id: number): PreparedQuery {
+  return {
+    cypher: 'MATCH (n {id: $id}) RETURN n.id AS id, n.key AS key',
+    parameters: { id: assertVertexId(id, 'id') },
+  };
+}
+
+/**
  * Removes one vertex and every edge attached to it.
  *
  * DETACH is what makes this safe to run without looking first. A bare `DELETE n`

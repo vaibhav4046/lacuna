@@ -169,9 +169,20 @@ function manyEdges(n: number): readonly PlannedEdge[] {
 
 const plan = planWith(THREE_EDGES);
 
-describe('the read-back', () => {
+/**
+ * Forces the label scan.
+ *
+ * Three planned ids is under the threshold `auto` reads one id at a time at, so
+ * a plan this size would otherwise issue one request per id and every assertion
+ * below that counts calls or addresses one by position would be describing a
+ * different run. The tests that are about the strategy itself say which one they
+ * mean; these are about everything else and pin it so it cannot drift.
+ */
+const SCAN = { verifyStrategy: 'scan' } as const;
+
+describe('the read-back by label scan', () => {
   it('reads only the labels the plan has vertices for, in schema order', async () => {
-    await runIngest(client(), plan, { concurrency: 2 });
+    await runIngest(client(), plan, { ...SCAN, concurrency: 2 });
 
     // Session, Message and EvidenceSpan are all zero in this plan, so three of
     // the five labels are never asked about.
@@ -189,7 +200,7 @@ describe('the read-back', () => {
       return ok(n);
     });
 
-    const report = await runIngest(c, plan, { concurrency: 2 });
+    const report = await runIngest(c, plan, { ...SCAN, concurrency: 2 });
 
     // A cursor is scoped to the query id it was issued under, so a paged read
     // that mints a fresh id on the second request is reading something else.
@@ -211,8 +222,9 @@ describe('the read-back', () => {
       : ok(n)));
 
     // The stranger's key does not match anything planned, and that is fine: a
-    // graph is allowed to hold things this corpus did not put there.
-    const report = await runIngest(c, plan, { concurrency: 2 });
+    // graph is allowed to hold things this corpus did not put there. Only a scan
+    // can meet one, because an id read only ever addresses ids that were planned.
+    const report = await runIngest(c, plan, { ...SCAN, concurrency: 2 });
     expect(report.alreadyPresent).toBe(1);
   });
 
@@ -232,14 +244,34 @@ describe('the read-back', () => {
     expect(calls.filter(isWrite)).toHaveLength(0);
   });
 
-  it('refuses a planned id that carries no key at all', async () => {
+  it('reads a null key from an id read as nothing stored, and writes', async () => {
+    // What an empty graph answers. The unlabelled id pattern addresses a vertex
+    // slot rather than filtering stored nodes, so an id nothing has ever written
+    // still comes back as one row, carrying the id it was asked for and a null
+    // key. Refusing that would refuse every first ingest, which is the whole of
+    // the demo path. Measured against a live node; see DECISIONS.md D-053.
     const c = client((_call, n) => (n === 1
       ? ok(n, { rows: idKeyRows([[CLAIM, null]]) })
       : ok(n)));
 
-    const error = await runIngest(c, plan).catch((e: unknown) => e);
+    const report = await runIngest(c, plan, { verifyStrategy: 'id' });
+    expect(report.alreadyPresent).toBe(0);
+    expect(calls.filter(isWrite).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a planned id that a scan finds carrying no key', async () => {
+    // Same null, different question. A scan returns nodes that carry the label,
+    // so one of them without a canonical key is a node this corpus never wrote
+    // sitting on an id it is about to write. That is the overwrite the pre-write
+    // check exists to refuse, and the id path's empty slot is not it.
+    const c = client((_call, n) => (n === 1
+      ? ok(n, { rows: idKeyRows([[CLAIM, null]]) })
+      : ok(n)));
+
+    const error = await runIngest(c, plan, SCAN).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(IngestCollisionError);
     expect((error as IngestCollisionError).storedKey).toBeNull();
+    expect(calls.filter(isWrite)).toHaveLength(0);
   });
 
   it('refuses a read-back row whose id is not a number', async () => {
@@ -257,7 +289,7 @@ describe('the read-back', () => {
     // an infinite loop, which is a worse failure than a loud one.
     const c = client((_call, n) => ok(n, { next_cursor: n }));
 
-    await expect(runIngest(c, plan)).rejects.toThrowError(
+    await expect(runIngest(c, plan, SCAN)).rejects.toThrowError(
       /Claim read-back did not end after 1025 pages/,
     );
   });
@@ -270,9 +302,77 @@ describe('the read-back', () => {
   });
 });
 
+describe('the read-back by id', () => {
+  const ID_READ = 'MATCH (n {id: $id}) RETURN n.id AS id, n.key AS key';
+
+  /** The id under which the nth call asked about a vertex. */
+  function askedAbout(n: number): unknown {
+    return (call(n)['parameters'] as Record<string, unknown>)['id'];
+  }
+
+  it('is what auto picks for a plan this small, one request per planned id', async () => {
+    await runIngest(client(), plan);
+
+    // Three planned ids, three reads, in label order and then in batch order
+    // within a label. Anything else and the reads below are not the reads the
+    // strategy claims to make.
+    expect(cypherOf(0)).toBe(ID_READ);
+    expect(cypherOf(1)).toBe(ID_READ);
+    expect(cypherOf(2)).toBe(ID_READ);
+    expect(askedAbout(0)).toBe(CLAIM);
+    expect(askedAbout(1)).toBe(ENTITY_A);
+    expect(askedAbout(2)).toBe(ENTITY_B);
+    expect(cypherOf(3)).toContain('MERGE');
+  });
+
+  it('counts every planned id the graph already holds', async () => {
+    // A second ingest of the same corpus: every id answers with the key the plan
+    // derived for it. Reported as present, and still written, because the write
+    // is a MERGE and the count is what makes the no-op visible.
+    const stored = new Map<number, string>([
+      [CLAIM, CLAIM_KEY],
+      [ENTITY_A, ENTITY_A_KEY],
+      [ENTITY_B, ENTITY_B_KEY],
+    ]);
+    const c = client((call_, n) => {
+      const id = (call_.body['parameters'] as Record<string, unknown> | undefined)?.['id'];
+      const key = typeof id === 'number' ? stored.get(id) : undefined;
+      return key === undefined ? ok(n) : ok(n, { rows: idKeyRows([[id as number, key]]) });
+    });
+
+    const report = await runIngest(c, plan);
+    expect(report.alreadyPresent).toBe(3);
+  });
+
+  it('refuses a planned id carrying a different key, before any write', async () => {
+    const c = client((_call, n) => (n === 1
+      ? ok(n, { rows: idKeyRows([[CLAIM, 'unit/some-other-claim']]) })
+      : ok(n)));
+
+    const error = await runIngest(c, plan, { verifyStrategy: 'id' }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(IngestCollisionError);
+    expect((error as IngestCollisionError).storedKey).toBe('unit/some-other-claim');
+    expect(calls.filter(isWrite)).toHaveLength(0);
+  });
+
+  it('refuses when two nodes answer to one id', async () => {
+    // An id is meant to address one vertex slot. Two rows means the unlabelled
+    // reads the rest of this codebase makes are no longer answering about one
+    // node, which is worse than a collision and is not counted as one.
+    const c = client((_call, n) => (n === 1
+      ? ok(n, { rows: idKeyRows([[CLAIM, CLAIM_KEY], [CLAIM, 'unit/some-other-claim']]) })
+      : ok(n)));
+
+    await expect(runIngest(c, plan, { verifyStrategy: 'id' })).rejects.toThrowError(
+      /2 nodes answer to id 3000000000001/,
+    );
+    expect(calls.filter(isWrite)).toHaveLength(0);
+  });
+});
+
 describe('the write phases', () => {
   it('writes every batch, then every edge, then one settling re-merge', async () => {
-    const report = await runIngest(client(), plan, { concurrency: 2 });
+    const report = await runIngest(client(), plan, { ...SCAN, concurrency: 2 });
 
     // 2 reads + 2 batches + 3 edges + 1 settle.
     expect(calls).toHaveLength(8);
@@ -285,7 +385,7 @@ describe('the write phases', () => {
   });
 
   it('pins every edge write to the bookmark the vertex phase ended on', async () => {
-    await runIngest(client(), plan, { concurrency: 2 });
+    await runIngest(client(), plan, { ...SCAN, concurrency: 2 });
 
     // The fake hands out a new bookmark on every response, so a run that let
     // the client use its own remembered one would show bm-5, bm-6, bm-7 here.
@@ -297,7 +397,7 @@ describe('the write phases', () => {
   });
 
   it('reports the settling write bookmark, not whichever edge finished last', async () => {
-    const report = await runIngest(client(), plan, { concurrency: 2 });
+    const report = await runIngest(client(), plan, { ...SCAN, concurrency: 2 });
     expect(report.bookmark).toBe('bm-8');
   });
 
@@ -321,7 +421,7 @@ describe('the write phases', () => {
 
   it('does nothing at all with an empty plan', async () => {
     const empty = planWith([]);
-    const report = await runIngest(client(), empty, { concurrency: 2 });
+    const report = await runIngest(client(), empty, { ...SCAN, concurrency: 2 });
 
     // No edges means no settling write, and a null bookmark rather than a
     // borrowed one from the vertex phase.
@@ -345,7 +445,7 @@ describe('when a write fails', () => {
       return ok(n);
     });
 
-    const error = await runIngest(c, big, { concurrency: 2 }).catch((e: unknown) => e);
+    const error = await runIngest(c, big, { ...SCAN, concurrency: 2 }).catch((e: unknown) => e);
 
     // Reported verbatim, not reworded into something friendlier.
     expect(error).toBeInstanceOf(HydraQueryError);
@@ -366,7 +466,7 @@ describe('when a write fails', () => {
       )
       : ok(n)));
 
-    await expect(runIngest(c, plan)).rejects.toThrowError(/exactly one SET label/);
+    await expect(runIngest(c, plan, SCAN)).rejects.toThrowError(/exactly one SET label/);
     expect(calls).toHaveLength(3);
   });
 });

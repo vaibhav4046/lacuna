@@ -210,8 +210,8 @@
       "data": "FIXTURE",
       "measured": {
         "files": 36,
-        "tests": 805,
-        "duration_seconds": 26.12,
+        "tests": 807,
+        "duration_seconds": 163.36,
         "run_on": "2026-08-14"
       },
       "evidence": [
@@ -324,7 +324,7 @@
         "src/server",
         "tests/unit"
       ],
-      "reproduce": "npm run serve  # then: curl -sI http://127.0.0.1:3000/ | grep -i content-security-policy",
+      "reproduce": "npm run serve  # then: curl -sI http://127.0.0.1:3014/ | grep -i content-security-policy",
       "caveat": "This is why the voice surface is reachable by URL rather than driven by a client. It is a constraint the design was fitted to, not a feature."
     },
     {
@@ -396,17 +396,18 @@
     },
     {
       "id": "mcp-server",
-      "claim": "The MCP server speaks the protocol over stdio. A client initialised, listed the tools, called lacuna_ask twice and lacuna_health once, and got the typed answer with its evidence back in structuredContent, read from a live graph.",
+      "claim": "The MCP server speaks the protocol over stdio and over Streamable HTTP. Over stdio a client initialised, listed the tools, called lacuna_ask twice and lacuna_health once, and got the typed answer with its evidence back in structuredContent, read from a live graph. Over HTTP the SDK's own client did the initialize handshake against a real listener and got the same validated result.",
       "capability": "VERIFIED",
       "data": "LIVE",
       "evidence": [
         "src/mcp",
         "docs/MCP.md",
         "artifacts/verification/2026-08-14b/mcp-stdio.txt",
-        "artifacts/verification/2026-08-14b/README.md"
+        "artifacts/verification/2026-08-14c/parity.txt",
+        "artifacts/verification/2026-08-14c/README.md"
       ],
-      "reproduce": "npm run parity   # spawns the same server over stdio and drives it end to end",
-      "caveat": "Verified against clients written here, not against a third party host. No editor or agent runtime has connected to this server yet, so nothing on this line claims compatibility with one, and the server is not called universal. The saved transcript was produced by a throwaway driver that is not in the tree; the repeatable command is the one above."
+      "reproduce": "npm run parity   # drives the same server over stdio and over HTTP, end to end",
+      "caveat": "Verified against clients written here, not against a third party host. No editor or agent runtime has connected to this server yet, so nothing on this line claims compatibility with one, and the server is not called universal. The stdio transcript was produced by a throwaway driver that is not in the tree; the HTTP session was the SDK's Client over StreamableHTTPClientTransport, which validates structured output against each tool's outputSchema, so a successful call there is schema conformance rather than reachability."
     },
     {
       "id": "cli",
@@ -426,16 +427,17 @@
     },
     {
       "id": "cross-surface-contract",
-      "claim": "MCP and the command line return the same value for the same question: same status, answer, reason code, claim id, superseded claims, evidence, evidence total, source state, and same set of graph reads with the same parameters and row counts.",
+      "claim": "MCP over stdio, MCP over its HTTP transport, and the command line return the same value for the same question: same status, answer, reason code, claim id, superseded claims, evidence, evidence total, source state, and same set of graph reads with the same parameters and row counts.",
       "capability": "VERIFIED",
       "data": "LIVE",
       "evidence": [
         "src/contract/result.ts",
         "scripts/parity.ts",
-        "artifacts/verification/2026-08-14b/parity.txt"
+        "artifacts/verification/2026-08-14c/parity.txt",
+        "artifacts/verification/2026-08-14c/README.md"
       ],
       "reproduce": "npm run parity",
-      "caveat": "Two questions, one answered and one abstained, against a live node. The order the reads appear in the trace is deliberately excluded, because the reads are issued together and land as the node answers them; the artifact prints both orders beside the verdict so the exclusion is visible. The web pages share the resolver but are not part of this check, and there is no REST or SDK surface to compare yet."
+      "caveat": "Two questions, one answered and one abstained, against a live node. The order the reads appear in the trace is deliberately excluded, because the reads are issued together and land as the node answers them; the artifact prints the orders beside the verdict so the exclusion is visible. The two MCP surfaces share one tool implementation, so the HTTP case exercises the transport rather than the substance of the answer. The web pages share the resolver but are not part of this check."
     },
     {
       "id": "deployment",
@@ -446,7 +448,7 @@
         "NEEDS_VAIBHAV.md",
         "STATE.md"
       ],
-      "reproduce": "npm run serve  # http://127.0.0.1:3000",
+      "reproduce": "npm run serve  # http://127.0.0.1:3014",
       "caveat": "The graph store limit below is the reason a long lived deployment is not honest yet. Nothing here says deployed, and nothing should until a URL opens and its release commit matches."
     },
     {

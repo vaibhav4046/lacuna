@@ -113,7 +113,7 @@ npm run mcp -- --stdio
 [docs/CLI.md](docs/CLI.md) covers the commands, the flags and the exit codes.
 [docs/MCP.md](docs/MCP.md) covers the four tools and both transports.
 
-These two build their result from one shared projection,
+Both build their result from one shared projection,
 [`src/contract/result.ts`](src/contract/result.ts), so agreement between them is
 structural rather than maintained by hand. To check it rather than take it on
 faith:
@@ -122,11 +122,11 @@ faith:
 npm run parity
 ```
 
-That spawns the MCP server over stdio and the command line in its own process,
-asks both the same two questions, one answered and one abstained, and compares
-the results field by field. It ends `ALL_IDENTICAL: True`, and the saved output
-is
-[artifacts/verification/2026-08-14b/parity.txt](artifacts/verification/2026-08-14b/parity.txt).
+That asks the same two questions, one answered and one abstained, through three
+surfaces: the MCP server over stdio, the same server over its HTTP transport
+with a real SDK client, and the command line in its own process. It compares the
+results field by field, ends `ALL_IDENTICAL: True`, and the saved output is
+[artifacts/verification/2026-08-14c/parity.txt](artifacts/verification/2026-08-14c/parity.txt).
 The pages are not in that comparison: they share the resolver underneath but
 render their own markup rather than the projection.
 

@@ -184,18 +184,26 @@ The repeatable version is:
 npm run parity
 ```
 
-It drives this server over stdio and the command line over its own process, asks
-both the same two questions, and compares the results field by field. The output
-is [parity.txt](../artifacts/verification/2026-08-14b/parity.txt) and it ends
-`ALL_IDENTICAL: True`. The shared shape both surfaces build from is
+It drives this server over stdio, drives it again over the HTTP transport, and
+runs the command line in its own process, asks all three the same two questions,
+and compares the results field by field. The output is
+[parity.txt](../artifacts/verification/2026-08-14c/parity.txt) and it ends
+`ALL_IDENTICAL: True`. The shared shape the two adapters build from is
 [`src/contract/result.ts`](../src/contract/result.ts).
 
-Three things are not proven yet and are worth naming here rather than leaving to
-inference. The HTTP transport described above has not been driven end to end. No
-third-party client, editor or agent runtime has connected, so the config block
-earlier in this document is written from the transport's requirements rather than
-from a session that used it. And the parity check covers two questions, not the
-sixty the evaluation covers.
+The HTTP case is the transport being exercised rather than the answer. It starts
+the listener the way this document says to start it, connects the SDK's own
+`Client` over `StreamableHTTPClientTransport`, and does the initialize handshake
+a third-party client would do. Because every tool declares an `outputSchema` and
+the client validates against it, a successful call there is schema conformance
+and not only reachability. The run is written up in
+[the directory README](../artifacts/verification/2026-08-14c/README.md).
+
+Two things are not proven yet and are worth naming here rather than leaving to
+inference. No third-party client, editor or agent runtime has connected, so the
+config block earlier in this document is written from the transport's
+requirements rather than from a session that used it. And the parity check covers
+two questions, not the sixty the evaluation covers.
 
 ## One note on the SDK
 

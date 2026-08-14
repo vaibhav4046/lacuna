@@ -174,13 +174,19 @@ That last check is not decorative. It is what caught a proof panel printing
 | Four tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_health` | MCP | same, the `tools/list` response | same | `LIVE` |
 | The command line answers and abstains with the same typed result | CLAIMS, CLI | [cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json), [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) | `node bin/lacuna.js ask Bellwether beta_partner --json` | `LIVE` |
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
-| MCP and the command line return the same value | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-14b/parity.txt](../artifacts/verification/2026-08-14b/parity.txt) | `npm run parity` | `LIVE` |
+| MCP over stdio, MCP over HTTP, and the command line return the same value | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-14c/parity.txt](../artifacts/verification/2026-08-14c/parity.txt) | `npm run parity` | `LIVE` |
 | Four reads for the answered question, three for the abstention | CLAIMS, HYDRADB_INTEGRATION | same, and the two command line captures | same | `LIVE` |
 
 The parity check is the reason [src/contract/result.ts](../src/contract/result.ts)
-exists. Both surfaces build their output from that one module, so agreement is
-structural rather than something two code paths happen to arrive at, and the
-check exists to catch the day that stops being true.
+exists. All three surfaces build their output from that one module — the two MCP
+transports through one server, the command line through its own process — so
+agreement is structural rather than something separate code paths happen to
+arrive at, and the check exists to catch the day that stops being true. The
+parity row is the one row in this table from the third run of the day rather
+than the commit at the top of this file: the HTTP surface was added to
+`scripts/parity.ts` after that commit, and
+[that run's README](../artifacts/verification/2026-08-14c/README.md) records the
+exact tree it measured.
 
 What it compares is the status, the answer, the reason code, the claim id, the
 superseded claims, the evidence, the evidence total, the source state, and the
@@ -192,11 +198,12 @@ command on the same surface. `parity.txt` prints both orders next to the verdict
 so the exclusion is visible rather than buried in the comparison that excludes
 it.
 
-One client has connected to the MCP server so far, and it was written here. No
-editor or agent runtime has been pointed at it yet, so nothing in this repository
-calls the server universal or claims compatibility with a named host. That row
-arrives when three materially different clients connect and each transcript is
-saved beside the others.
+The only clients that have connected to the MCP server were run from this
+repository: the stdio driver behind the row above, and the SDK's own `Client`
+over the HTTP transport in the parity run. No editor or agent runtime has been
+pointed at it yet, so nothing in this repository calls the server universal or
+claims compatibility with a named host. That row arrives when three materially
+different clients connect and each transcript is saved beside the others.
 
 ## Repository
 
@@ -241,10 +248,11 @@ lands.
 
 **The MCP and CLI rows arrived.** They were promised in this section as pending
 and are now in [Surfaces](#surfaces) above. What is still pending there is
-narrower and worth stating plainly: one client has connected and it was written
-here, the HTTP transport has not been exercised at all, and the parity check
-covers two questions rather than the eval's sixty. Each of those is a row this
-file does not yet have.
+narrower and worth stating plainly: every client that has connected was run from
+this repository, and the parity check covers two questions rather than the
+eval's sixty. The HTTP transport left this list on the day's third run, when the
+parity script drove it end to end with a real SDK client. Each of the two that
+remain is a row this file does not yet have.
 
 **Nothing here covers voice, an LLM router, authentication, or a deployed URL.**
 Those remain `UNAVAILABLE` in the ledger and absent from this index, which is the

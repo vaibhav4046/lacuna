@@ -1787,3 +1787,42 @@ The output of `wsl --shutdown` is UTF-16 and arrives with nulls in it, so it
 needs `tr -d '\0'` to be readable in a POSIX shell. That is cosmetic, but it is
 the kind of thing that makes a working command look broken at three in the
 morning.
+
+### D-062: The parity check grows a third surface, and the HTTP transport stops being described from the code
+
+`npm run parity` compared two processes: the MCP server over stdio and the
+command line in its own process. The Streamable HTTP transport was implemented,
+documented, and never driven end to end, and `docs/MCP.md` said so in its own
+gap list. That gap is closed and the list is shorter by one.
+
+**What the third surface is.** The script starts the HTTP listener the way
+`docs/MCP.md` says to start one, connects the SDK's own `Client` over
+`StreamableHTTPClientTransport`, and asks the same two questions through it. The
+client is deliberately not a hand-written POST. The handshake it performs, the
+initialize exchange, the POST contract, the response arriving on the JSON body
+rather than an event stream, is the one a third-party client would perform,
+which is the point of using the SDK end rather than `fetch`.
+
+**What it proves and what it cannot.** The two MCP surfaces share one tool
+implementation, so this cannot fail on the substance of an answer; a substantive
+failure would already have failed over stdio. What the HTTP case exercises is
+the transport: the handshake, the stateless per-request `Server` construction,
+and two requests through one listener, since the server builds a fresh transport
+per request and closes it when the response ends. Because every tool advertises
+an `outputSchema` and the SDK client validates structured output against it, a
+successful `callTool` over HTTP is schema conformance rather than reachability.
+
+**What was run.** `npm run parity` ends `ALL_IDENTICAL: True` over two questions
+and three surfaces. Typecheck is clean, the unit suite is 807 tests over 36
+files, and the saved output is in `artifacts/verification/2026-08-14c/`, whose
+README records the tree it measured and the readiness check that preceded it.
+The documents that cited the two-surface run, the README, `docs/MCP.md`,
+`docs/CLI.md` and `docs/EVIDENCE_INDEX.md`, now cite this one.
+
+**One correction in the same sweep.** `artifacts/screens/README.md` still quoted
+the proof-panel figures from the earlier capture set, 244.6 and 971.8 ms, while
+the committed PNGs read 344.9 and 417.5. The corrected figures were read back
+off the committed pixels rather than re-captured, because the PNG is the record
+and a fresh page would print fresh numbers. The epoch of 5844 and the
+byte-identical light-preference capture survived the recapture, so those claims
+stand unchanged.

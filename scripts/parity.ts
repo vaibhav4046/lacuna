@@ -1,21 +1,32 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+
 import type { AskCore } from '../src/contract/result';
+import { MCP_PATH } from '../src/mcp/http';
 
 /**
- * Asks the same questions through the MCP server and through the command line
- * and checks that the two answers are the same value.
+ * Asks the same questions through the MCP server over stdio, through the same
+ * server over its HTTP transport, and through the command line, and checks that
+ * all three answers are the same value.
  *
  *   npm run parity
  *
- * Both surfaces wrap the same resolver, so this cannot fail on the substance of
- * an answer. What it can catch, and did catch, is the two of them drifting apart
- * in how they name and shape what they return: a client that reads `reason` from
- * one and `reasonCode` from the other is a client that has to be written twice.
- * The projection under test is the one in src/contract, and this is the check
- * that says the projection is what both surfaces actually emit against a live
- * node rather than what they are declared to emit.
+ * All three surfaces wrap the same resolver, so this cannot fail on the
+ * substance of an answer. What it can catch, and did catch, is them drifting
+ * apart in how they name and shape what they return: a client that reads
+ * `reason` from one and `reasonCode` from another is a client that has to be
+ * written twice. The projection under test is the one in src/contract, and this
+ * is the check that says the projection is what the surfaces actually emit
+ * against a live node rather than what they are declared to emit.
+ *
+ * The two MCP surfaces share a tool implementation and differ only in transport,
+ * so the HTTP case is here to exercise the transport: a real client doing a real
+ * protocol handshake over a socket, against a listener started the way the
+ * documentation says to start it.
  *
  * The reads a question needs are issued together and appended to the trace as
  * the node answers them, so the order of the trace is timing and moves between
@@ -35,6 +46,7 @@ const CLI_SCRIPT = fileURLToPath(new URL('../bin/lacuna.js', import.meta.url));
 
 const PROTOCOL_VERSION = '2025-06-18';
 const REPLY_TIMEOUT_MS = 60_000;
+const HTTP_PORT = 3015;
 
 /** The fields a caller branches on. Timing and read epoch move; these do not. */
 const CANONICAL = [
@@ -168,6 +180,77 @@ async function overStdio(question: Question): Promise<AskCore> {
   }
 }
 
+interface Listener {
+  readonly url: string;
+  stop(): void;
+}
+
+/**
+ * Starts the HTTP transport once for the whole run and waits for the line the
+ * server writes to stderr after the socket is listening. One listener across
+ * both questions is deliberate: the server builds a fresh server and transport
+ * per request, so two requests through one listener is the part worth proving.
+ */
+async function startHttp(): Promise<Listener> {
+  const child = spawn(
+    process.execPath,
+    ['--import', 'tsx', MCP_SCRIPT, '--http', '--port', String(HTTP_PORT)],
+    { cwd: ROOT },
+  );
+  const errors: string[] = [];
+  let listening = false;
+
+  child.stderr.on('data', (chunk: Buffer) => {
+    const text = chunk.toString();
+    errors.push(text);
+    if (text.includes(`:${HTTP_PORT}${MCP_PATH}`)) listening = true;
+  });
+
+  const deadline = Date.now() + REPLY_TIMEOUT_MS;
+  while (!listening) {
+    if (Date.now() > deadline) {
+      child.kill();
+      throw new Error(`the HTTP transport never started: ${errors.join('')}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  return {
+    url: `http://127.0.0.1:${HTTP_PORT}${MCP_PATH}`,
+    stop: (): void => {
+      child.kill();
+    },
+  };
+}
+
+async function overHttp(listener: Listener, question: Question): Promise<AskCore> {
+  const client = new Client({ name: 'lacuna-parity', version: '0.0.0' });
+  const transport = new StreamableHTTPClientTransport(new URL(listener.url));
+
+  try {
+    // The cast covers one SDK type mismatch and nothing else. `Transport`
+    // declares `sessionId: string`, while this transport declares it
+    // `string | undefined`, since a stateless server never assigns one. Under
+    // `exactOptionalPropertyTypes` those are different types. The server side
+    // casts for the mirror image of this in src/mcp/http.ts.
+    await client.connect(transport as Transport);
+    const result = await client.callTool(
+      {
+        name: 'lacuna_ask',
+        arguments: { subject: question.subject, predicate: question.predicate },
+      },
+      undefined,
+      { timeout: REPLY_TIMEOUT_MS },
+    );
+    if (result['isError'] === true) {
+      throw new Error(`lacuna_ask failed: ${JSON.stringify(result['content'])}`);
+    }
+    return asAskCore(result['structuredContent'], 'the MCP HTTP transport');
+  } finally {
+    await client.close();
+  }
+}
+
 async function overCli(question: Question): Promise<AskCore> {
   const child = spawn(
     process.execPath,
@@ -186,37 +269,58 @@ async function overCli(question: Question): Promise<AskCore> {
   return asAskCore(JSON.parse(chunks.join('')), 'the command line');
 }
 
-async function main(): Promise<void> {
+/** One line per surface, wide enough to read the fields that decide a branch. */
+function summarise(name: string, answer: AskCore): string {
+  return `  ${name.padEnd(5)} status=${answer.status} claimId=${String(answer.claimId)} `
+    + `reasonCode=${String(answer.reasonCode)} queries=${answer.queries.length}`;
+}
+
+async function run(): Promise<boolean> {
+  const listener = await startHttp();
   let allSame = true;
 
-  for (const question of CASES) {
-    const fromMcp = await overStdio(question);
-    const fromCli = await overCli(question);
-    const left = comparable(fromMcp);
-    const right = comparable(fromCli);
-    const same = left === right;
-    allSame = allSame && same;
+  try {
+    for (const question of CASES) {
+      const fromStdio = await overStdio(question);
+      const fromHttp = await overHttp(listener, question);
+      const fromCli = await overCli(question);
 
-    print(`CASE: ${question.label} (${question.subject} / ${question.predicate})`);
-    print(`  MCP status=${fromMcp.status} claimId=${String(fromMcp.claimId)} `
-      + `reasonCode=${String(fromMcp.reasonCode)} queries=${fromMcp.queries.length}`);
-    print(`  CLI status=${fromCli.status} claimId=${String(fromCli.claimId)} `
-      + `reasonCode=${String(fromCli.reasonCode)} queries=${fromCli.queries.length}`);
-    print(`  MCP read order: ${readOrder(fromMcp)}`);
-    print(`  CLI read order: ${readOrder(fromCli)}`);
-    print(`  IDENTICAL: ${same ? 'True' : 'False'}`);
-    if (same) {
-      print('--- the value both surfaces returned');
-      print(left);
-    } else {
-      print('--- from the MCP server');
-      print(left);
-      print('--- from the command line');
-      print(right);
+      const stdio = comparable(fromStdio);
+      const http = comparable(fromHttp);
+      const cli = comparable(fromCli);
+      const same = stdio === http && http === cli;
+      allSame = allSame && same;
+
+      print(`CASE: ${question.label} (${question.subject} / ${question.predicate})`);
+      print(summarise('stdio', fromStdio));
+      print(summarise('http', fromHttp));
+      print(summarise('cli', fromCli));
+      print(`  stdio read order: ${readOrder(fromStdio)}`);
+      print(`  http  read order: ${readOrder(fromHttp)}`);
+      print(`  cli   read order: ${readOrder(fromCli)}`);
+      print(`  IDENTICAL: ${same ? 'True' : 'False'}`);
+      if (same) {
+        print('--- the value all three surfaces returned');
+        print(stdio);
+      } else {
+        print('--- from the MCP server over stdio');
+        print(stdio);
+        print('--- from the MCP server over HTTP');
+        print(http);
+        print('--- from the command line');
+        print(cli);
+      }
+      print('');
     }
-    print('');
+  } finally {
+    listener.stop();
   }
 
+  return allSame;
+}
+
+async function main(): Promise<void> {
+  const allSame = await run();
   print(`ALL_IDENTICAL: ${allSame ? 'True' : 'False'}`);
   process.exit(allSame ? 0 : 1);
 }

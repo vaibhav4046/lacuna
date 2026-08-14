@@ -62,9 +62,9 @@ element so the browser paints the scrollbars to match.
 ## The numbers differ between images, and that is the point
 
 Each page prints the reads it just made. `answer-revised-fullpage.png` says
-"4 reads, 10 rows, 244.6 ms inside the client and 194.7 ms end to end".
-`answer-multihop-fullpage.png` says "8 reads, 11 rows, 971.8 ms inside the client
-and 737 ms end to end". Neither figure is a benchmark and neither is carried
+"4 reads, 10 rows, 344.9 ms inside the client and 256 ms end to end".
+`answer-multihop-fullpage.png` says "8 reads, 11 rows, 417.5 ms inside the client
+and 307.6 ms end to end". Neither figure is a benchmark and neither is carried
 anywhere else. They are what those round trips cost on this machine at that
 moment, which is why two captures of two different questions do not agree and
 are not supposed to.

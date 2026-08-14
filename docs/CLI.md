@@ -339,12 +339,13 @@ apart without the shared file changing.
 npm run parity
 ```
 
-That spawns the MCP server over stdio and this CLI in its own process, asks both
-the same two questions, one answered and one abstained, and compares status,
-answer, reason code, claim id, superseded claims, evidence, evidence total,
-source state, and the set of reads with their parameters and row counts. It ends
-`ALL_IDENTICAL: True`. The saved output is
-[artifacts/verification/2026-08-14b/parity.txt](../artifacts/verification/2026-08-14b/parity.txt).
+That spawns the MCP server over stdio, connects to it again over its HTTP
+transport with the SDK's own client, and runs this CLI in its own process. It
+asks all three the same two questions, one answered and one abstained, and
+compares status, answer, reason code, claim id, superseded claims, evidence,
+evidence total, source state, and the set of reads with their parameters and row
+counts. It ends `ALL_IDENTICAL: True`. The saved output is
+[artifacts/verification/2026-08-14c/parity.txt](../artifacts/verification/2026-08-14c/parity.txt).
 
 One thing is deliberately excluded: the order the reads appear in. They are
 issued together and land as the node answers them, so the order varies between

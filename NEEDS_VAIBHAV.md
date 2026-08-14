@@ -162,12 +162,39 @@ Status values: `open`, `done`, `dropped`.
 - **Why it was written the way it was.** The rule as you have applied it before
   was about authorship: co-authored-by trailers, generated-with footers,
   `.claude/` directories, handoff files. None of that is here, and the author
-  field on all 47 commits is your noreply address. What is here is a citation for
+  field on every commit is your noreply address. What is here is a citation for
   an imported asset, which is the same kind of line as the HydraDB pin in the
   source log.
 - **If you disagree,** the fix is small: the artifacts can be removed and the two
   paragraphs cut, at the cost of the design no longer being checkable against
   what shipped. Say which you want.
+
+## 10. A hosted HydraDB API key was described as provided, and never arrived
+
+- **Status:** open, and the recommendation is to close it as not needed
+- **Why it needs you:** only you can say whether a hosted account exists.
+- **What was asked for.** One of your instructions says a live HydraDB API key
+  was provided separately, and names the variables to read it from:
+  `HYDRA_DB_API_KEY`, `HYDRADB_API_KEY`, `HYDRADB_DATABASE`. It goes on to
+  describe a hosted service at `api.hydradb.com` speaking a REST contract with
+  `Authorization: Bearer` and `API-Version: 2` headers, and two SDK packages.
+- **What is actually here.** No such key reached this session. `.env.local`
+  holds `HYDRA_HTTP_URL`, `HYDRA_NAMESPACE`, `HYDRA_GRAPH`, `HYDRA_CELL`,
+  `HYDRA_TOKEN` and two unrelated provider keys, and nothing named
+  `HYDRA_DB_API_KEY`. There is no `@hydradb` package installed. Neither the
+  REST contract nor either SDK exists in this codebase, and no code path was
+  written that would want them.
+- **Why that is the right shape anyway.** The captured rules never mention a
+  hosted API, an SDK or a key. Line 331 says "Build a project using the HydraDB
+  open-source repo" and line 255 asks the submission to explain "How the
+  project uses the HydraDB Open Source Repo". Lacuna builds that repo from the
+  commit pinned in [docs/SOURCE_LOG.md](docs/SOURCE_LOG.md) and talks to the
+  node it runs, which is the thing the rules ask about. Swapping a working
+  local integration for a hosted one nobody asked for would trade verified
+  evidence for a service call.
+- **What to do:** nothing, unless a hosted HydraDB account exists that you want
+  in the submission. If it does, say so and it becomes a second transport
+  behind the same client rather than a replacement for the one that works.
 
 ---
 

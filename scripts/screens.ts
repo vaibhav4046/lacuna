@@ -26,12 +26,13 @@ import { inflateSync } from 'node:zlib';
  *
  * Every capture is read back off disk before it is reported: the PNG header is
  * parsed for the real dimensions, the first pixel is decoded to confirm the
- * theme actually applied, and the compressed size is checked against the area
- * so a capture of a blank page cannot pass as a capture of a page. A shot that
+ * ground is the ground, and the compressed size is checked against the area so
+ * a capture of a blank page cannot pass as a capture of a page. A shot that
  * fails any of those exits non-zero rather than printing a filename.
  */
 
-type Theme = 'light' | 'dark';
+/** What the browser is told the reader prefers, which the page ignores. */
+type Preference = 'light' | 'dark';
 
 interface Shot {
   /** File name under artifacts/screens. */
@@ -40,52 +41,58 @@ interface Shot {
   readonly url: string;
   readonly width: number;
   readonly height: number;
-  readonly theme: Theme;
+  readonly prefers: Preference;
   /** True to capture the whole document rather than the first screen of it. */
   readonly whole: boolean;
 }
 
 const SHOTS: readonly Shot[] = [
-  { file: 'home-1920x1080.png', url: '/', width: 1_920, height: 1_080, theme: 'light', whole: false },
-  { file: 'home-3840x2160.png', url: '/', width: 3_840, height: 2_160, theme: 'light', whole: false },
-  { file: 'home-375x812.png', url: '/', width: 375, height: 812, theme: 'light', whole: false },
-  { file: 'home-dark-1920x1080.png', url: '/', width: 1_920, height: 1_080, theme: 'dark', whole: false },
-  { file: 'bench-1920x1080.png', url: '/bench', width: 1_920, height: 1_080, theme: 'light', whole: false },
-  { file: 'bench-fullpage.png', url: '/bench', width: 1_920, height: 1_080, theme: 'light', whole: true },
-  { file: 'hydradb-fullpage.png', url: '/hydradb', width: 1_920, height: 1_080, theme: 'light', whole: true },
-  { file: 'interface-fullpage.png', url: '/interface', width: 1_920, height: 1_080, theme: 'light', whole: true },
+  { file: 'home-1920x1080.png', url: '/', width: 1_920, height: 1_080, prefers: 'dark', whole: false },
+  { file: 'home-3840x2160.png', url: '/', width: 3_840, height: 2_160, prefers: 'dark', whole: false },
+  { file: 'home-375x812.png', url: '/', width: 375, height: 812, prefers: 'dark', whole: false },
+  {
+    file: 'home-light-preference-1920x1080.png',
+    url: '/',
+    width: 1_920, height: 1_080, prefers: 'light', whole: false,
+  },
+  { file: 'bench-1920x1080.png', url: '/bench', width: 1_920, height: 1_080, prefers: 'dark', whole: false },
+  { file: 'bench-fullpage.png', url: '/bench', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
+  { file: 'hydradb-fullpage.png', url: '/hydradb', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
+  { file: 'interface-fullpage.png', url: '/interface', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
+  { file: 'voice-fullpage.png', url: '/voice', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
   {
     file: 'answer-revised-1920x1080.png',
     url: '/ask?subject=Bellwether&predicate=beta_partner',
-    width: 1_920, height: 1_080, theme: 'light', whole: false,
+    width: 1_920, height: 1_080, prefers: 'dark', whole: false,
   },
   {
     file: 'answer-revised-fullpage.png',
     url: '/ask?subject=Bellwether&predicate=beta_partner',
-    width: 1_920, height: 1_080, theme: 'light', whole: true,
+    width: 1_920, height: 1_080, prefers: 'dark', whole: true,
   },
   {
     file: 'answer-multihop-fullpage.png',
     url: '/ask?subject=replay-queue&predicate=contact&via=vendor',
-    width: 1_920, height: 1_080, theme: 'light', whole: true,
+    width: 1_920, height: 1_080, prefers: 'dark', whole: true,
   },
   {
     file: 'answer-never-stated-1920x1080.png',
     url: '/ask?subject=Meridian&predicate=migration_window',
-    width: 1_920, height: 1_080, theme: 'light', whole: false,
+    width: 1_920, height: 1_080, prefers: 'dark', whole: false,
   },
 ];
 
 /**
- * Mean channel value a first pixel has to clear, or stay under, for its theme.
+ * Mean channel value the first pixel has to stay under, whatever was preferred.
  *
- * The palettes are nowhere near each other. Light paper is around 240 and dark
- * paper is around 20, so any threshold in the middle separates them, and a wide
- * gap is what keeps this a check on the theme rather than a check on the exact
- * hex value of a token that is allowed to be tuned.
+ * There is one ground and it is black, so this is not a check that the right
+ * palette was picked: it is a check that no palette was picked at all. Both
+ * preferences are emulated and both have to come back under this number, which
+ * is what makes the light capture evidence rather than decoration. The ceiling
+ * sits far above the ground itself so a token can be tuned without editing a
+ * threshold.
  */
-const LIGHT_FLOOR = 180;
-const DARK_CEILING = 90;
+const GROUND_CEILING = 90;
 
 /**
  * Compressed bytes per pixel a capture has to reach.
@@ -355,11 +362,11 @@ function check(shot: Shot, reading: Reading): void {
     throw new Error(`${shot.file} is ${reading.height} tall, asked for ${shot.height}`);
   }
 
-  if (shot.theme === 'light' && mean < LIGHT_FLOOR) {
-    throw new Error(`${shot.file} asked for the light theme and came back at ${mean.toFixed(0)}`);
-  }
-  if (shot.theme === 'dark' && mean > DARK_CEILING) {
-    throw new Error(`${shot.file} asked for the dark theme and came back at ${mean.toFixed(0)}`);
+  if (mean > GROUND_CEILING) {
+    throw new Error(
+      `${shot.file} was captured preferring ${shot.prefers} and came back at ${mean.toFixed(0)}, `
+      + `over the ${GROUND_CEILING} ceiling the one ground has to stay under`,
+    );
   }
 
   const density = reading.bytes / (reading.width * reading.height);
@@ -399,7 +406,7 @@ try {
   await devtools.attach();
   await devtools.send('Page.enable');
 
-  process.stdout.write('file                            size        theme  bytes    px\n');
+  process.stdout.write('file                                 size        prefers  bytes    px\n');
 
   for (const shot of SHOTS) {
     const target = join(OUT_DIR, shot.file);
@@ -412,7 +419,7 @@ try {
     });
     await devtools.send('Emulation.setEmulatedMedia', {
       media: 'screen',
-      features: [{ name: 'prefers-color-scheme', value: shot.theme }],
+      features: [{ name: 'prefers-color-scheme', value: shot.prefers }],
     });
 
     const loaded = devtools.once('Page.loadEventFired', LOAD_TIMEOUT_MS);
@@ -434,12 +441,12 @@ try {
       const size = `${reading.width}x${reading.height}`;
       const density = (reading.bytes / (reading.width * reading.height)).toFixed(3);
       process.stdout.write(
-        `${shot.file.padEnd(32)}${size.padEnd(12)}${shot.theme.padEnd(7)}`
+        `${shot.file.padEnd(37)}${size.padEnd(12)}${shot.prefers.padEnd(9)}`
         + `${String(reading.bytes).padStart(8)}${density.padStart(7)}\n`,
       );
     } catch (error) {
       failures += 1;
-      process.stdout.write(`${shot.file.padEnd(32)}${(error as Error).message}\n`);
+      process.stdout.write(`${shot.file.padEnd(37)}${(error as Error).message}\n`);
     }
   }
 } finally {

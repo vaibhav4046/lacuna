@@ -57,14 +57,15 @@ export const META_CONTENT_SECURITY_POLICY = DIRECTIVES
 /**
  * The mark: a ruled line with a piece missing.
  *
- * Geometry only, no script, no external reference. The dark ground is
- * deliberate so it reads against both a light and a dark browser chrome, which
- * is the one place on screen the page does not control.
+ * Geometry only, no script, no external reference. The black ground is the
+ * product's own ground rather than a concession to the browser chrome, and it
+ * reads against a light and a dark tab strip equally, which matters because
+ * the tab strip is the one place on screen the page does not control.
  */
 export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">`
-  + `<rect width="32" height="32" rx="5" fill="#14120e"/>`
-  + `<path d="M5 16h7M20 16h7" stroke="#ece7da" stroke-width="2.75" stroke-linecap="round"/>`
-  + `<circle cx="16" cy="16" r="1.9" fill="#e0724b"/>`
+  + `<rect width="32" height="32" rx="6" fill="#000000"/>`
+  + `<path d="M5 16h7M20 16h7" stroke="#ffffff" stroke-width="2.75" stroke-linecap="round"/>`
+  + `<circle cx="16" cy="16" r="2" fill="#ff5719"/>`
   + `</svg>\n`;
 
 export const PROMISE = 'Memory that knows what changed, what remains true, '
@@ -120,7 +121,7 @@ export function page(options: PageOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${META_CONTENT_SECURITY_POLICY}">
 <meta name="referrer" content="no-referrer">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <meta name="description" content="${options.description}">
 <title>${options.title}</title>
 <link rel="stylesheet" href="/lacuna.css">

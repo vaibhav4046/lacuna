@@ -67,7 +67,9 @@ export const STYLESHEET = `
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* The bar at the top is sticky, so a jump to an anchor has to clear it or the
+   thing you jumped to arrives underneath it. */
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 5rem; }
 
 body {
   margin: 0;
@@ -93,6 +95,23 @@ body {
 
 .doc > * { grid-column: main; }
 .doc > .full { grid-column: rail / end; }
+
+/*
+ * The sheet is everything between the bar and the footer, and it has to span
+ * the document and declare the same columns again. A panel inside it asks for
+ * subgrid, and subgrid resolves against the immediate parent grid rather than
+ * against the nearest ancestor that happens to have the right columns. Without
+ * this rule every panel loses its margin and the labels fall into the measure.
+ */
+.sheet {
+  grid-column: rail / end;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-content: start;
+}
+
+.sheet > * { grid-column: main; }
+.sheet > .full { grid-column: rail / end; }
 
 /*
  * A panel spans the whole sheet and re-uses the sheet's own columns, so its
@@ -143,9 +162,95 @@ body {
 
 @media (max-width: 62rem) {
   :root { --rail-w: 0px; }
-  .doc, .panel { column-gap: 0; }
+  .doc, .sheet, .panel { column-gap: 0; }
   .panel { background-image: none; }
   .rail { grid-column: main; justify-self: start; text-align: left; padding-top: 0; }
+}
+
+/* ---- the page bar ------------------------------------------------------- */
+
+/*
+ * Four pages is few enough that all four fit on one line, and a judge with
+ * four minutes should never have to scroll to learn the other three exist.
+ *
+ * The bar is painted with the body's own ground, attached to the viewport, so
+ * it draws exactly the pixels the page behind it would have drawn and there is
+ * no seam of the kind a panel laid over a fixed gradient always shows. The rule
+ * underneath is the only thing that says it is there.
+ */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1.5rem;
+  padding: 0.85rem 0 0.7rem;
+  background: var(--paper);
+  background-image: radial-gradient(120% 70% at 50% 0%, var(--paper-raised) 0%, var(--paper) 55%);
+  background-attachment: fixed;
+  border-bottom: 1px solid var(--rule);
+}
+
+.bar-mark {
+  font-size: var(--t-small);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom-color: transparent;
+}
+
+.bar-mark:hover { color: var(--mark); }
+
+.tabs, .ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.4rem;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tabs a, .ways a {
+  color: var(--ink-faint);
+  border-bottom: 1px solid transparent;
+  padding-bottom: 0.15rem;
+}
+
+.tabs a:hover, .ways a:hover { color: var(--mark); }
+
+/*
+ * The page you are on is said twice here, in colour and in a rule, because
+ * colour on its own is not an answer for a reader who cannot see this one. The
+ * markup says it a third time in aria-current, which is the copy that carries.
+ */
+.tabs a[aria-current="page"], .ways a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--mark);
+}
+
+/*
+ * Off the screen until it is focused, which is the one moment it is any use.
+ * Fixed rather than absolute on focus, so it lands in the corner of the
+ * viewport wherever the reader was when they reached for the keyboard.
+ */
+.skip { position: absolute; top: 0; left: -100vw; }
+
+.skip:focus {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 4;
+  padding: 0.6rem 1rem;
+  font-family: var(--mono);
+  font-size: var(--t-small);
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
 }
 
 /* ---- masthead ----------------------------------------------------------- */
@@ -188,6 +293,63 @@ body {
   color: var(--ink-faint);
   max-width: 62ch;
 }
+
+/* ---- the result band ---------------------------------------------------- */
+
+/*
+ * Four figures under the name, each at the size of the claim it makes. Three
+ * of them are the argument and the fourth is the price, and the price is set in
+ * the same type as the other three rather than shrunk into a footnote, because
+ * a band that prints only its wins is an advertisement.
+ *
+ * Every cell links to the run that produced it, so the figure and its evidence
+ * are one click apart. The numerals are monospace for the same reason every
+ * other machine produced figure here is: it marks them as read off something
+ * rather than written by hand.
+ */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+  gap: 1px;
+  margin: clamp(2rem, 5vw, 3.25rem) 0 0;
+  border: 1px solid var(--rule-faint);
+  background: var(--rule-faint);
+}
+
+.strip .cell {
+  padding: 1.15rem 1.25rem 1.1rem;
+  background: var(--paper-raised);
+  border-bottom: 0;
+  transition: background-color 120ms ease;
+}
+
+.strip .cell b {
+  display: block;
+  font-family: var(--mono);
+  font-size: clamp(1.5rem, 1rem + 1.7vw, 2.125rem);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.strip .cell span {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The one figure the whole argument turns on. */
+.strip .cell.mark b { color: var(--mark); }
+
+.strip .cell:hover { background: var(--paper); }
+.strip .cell:hover span { color: var(--ink-soft); }
 
 /* ---- section furniture -------------------------------------------------- */
 
@@ -251,6 +413,11 @@ a:active { color: var(--mark-soft); }
   outline-offset: 3px;
   border-radius: 1px;
 }
+
+/* Selecting a quotation to paste it into a report is a thing this site expects
+   people to do, so the selection is part of the palette rather than the
+   browser's blue. */
+::selection { background: var(--mark-wash); color: var(--mark); }
 
 /* ---- the question form -------------------------------------------------- */
 
@@ -445,6 +612,12 @@ th {
 
 td { padding: 0.55rem 0.9rem 0.55rem 0; border-bottom: 1px solid var(--rule-faint); vertical-align: top; }
 
+/* A row is a system in a fifty one row sweep, so following one across the page
+   is the main thing anybody does with these tables. Written with the same
+   specificity as the rule that marks our own row, and before it, so that the
+   marked row keeps its wash rather than losing it under the cursor. */
+tr:hover td { background: var(--paper-raised); }
+
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.mono { font-family: var(--mono); color: var(--ink-soft); white-space: nowrap; }
 td.value { font-size: 1rem; }
@@ -575,18 +748,28 @@ code { font-family: var(--mono); font-size: 0.9em; color: var(--mark); overflow-
   max-width: 74ch;
 }
 
-.foot a { border-bottom-color: var(--rule-faint); }
+/* Scoped to the prose, so the repeated bar below keeps the link treatment it
+   shares with the bar at the top rather than picking up a faint underline on
+   all four of its items. */
+.foot p a { border-bottom-color: var(--rule-faint); }
 
-/* The only navigation on the site, in the footer because every page is a
-   destination rather than a step and none of them needs a chrome bar. */
-.ways {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 1.4rem;
-  margin: 0 0 1rem;
-  font-size: var(--t-micro);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+/* The bar again at the end, so a reader who has read to the bottom of a page
+   does not have to travel back up it to go anywhere else. */
+.ways { margin: 0 0 1rem; }
+
+/* ---- motion ------------------------------------------------------------- */
+
+/*
+ * There are four moving things on the whole site and all four are named here.
+ * A blanket universal selector would be shorter and would lose: it has no
+ * specificity at all, so it cannot beat the plain element rule that sets the
+ * link transition in the first place. Naming each selector at the specificity
+ * it was written with, and after it was written, is what makes the preference
+ * actually hold.
+ */
+@media (prefers-reduced-motion: reduce) {
+  a, .strip .cell, .ask button { transition: none; }
+  .ask button:active { transform: none; }
 }
 
 /* ---- print -------------------------------------------------------------- */
@@ -594,7 +777,10 @@ code { font-family: var(--mono); font-size: 0.9em; color: var(--mark); overflow-
 @media print {
   :root { --paper: #fff; --paper-raised: #fff; --paper-sunk: #fff; --ink: #000; }
   body { padding: 0; background: none; }
-  .ask, .foot { display: none; }
+  /* Navigation and a text box are the two things paper cannot do anything
+     with. What survives is the evidence, which is the reason to print a page
+     here at all. */
+  .skip, .bar, .ask, .foot { display: none; }
   .panel { break-inside: avoid; }
   .figure { box-shadow: none; }
 }

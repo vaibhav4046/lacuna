@@ -23,6 +23,8 @@ export function noticePage(notice: Notice): string {
   return page({
     title: `${notice.title} | Lacuna`,
     description: notice.heading,
+    // A refusal is not one of the four pages, so the bar marks none of them.
+    current: null,
     body: [
       mastheadCompact(notice.heading),
       panel({

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { HydraConfig } from '../../src/hydra/config';
+import { lacuna, tiedWithLacuna } from '../../src/report/bench';
+import { loadArtifacts } from '../../src/report/load';
 import { buildDemo } from '../../src/server/examples';
+import { grouped, ms, roundMs } from '../../src/view/format';
 import { askHref, homePage, type CorpusFacts, type Example } from '../../src/view/home';
 import {
   CONTENT_SECURITY_POLICY,
@@ -9,6 +12,7 @@ import {
 } from '../../src/view/layout';
 import { noticePage } from '../../src/view/notice';
 import { describeNode } from '../../src/view/proof';
+import { markedPages } from '../support/markup';
 
 /**
  * The pages that are built without going near the graph.
@@ -27,6 +31,16 @@ const FACTS: CorpusFacts = {
   estimatedTokens: 117_395,
   seed: 'lacuna-demo-v1',
 };
+
+/**
+ * The real run, because the figures at the top of the home page are the run.
+ *
+ * The corpus counts above are a fixture, since the point of those assertions is
+ * the formatting rather than the corpus. The benchmark band is the opposite: a
+ * fixture would let the page print a number that no committed artifact
+ * supports, which is the exact failure the band exists to make impossible.
+ */
+const REPORT = loadArtifacts().bench;
 
 function example(over: Partial<Example> = {}): Example {
   return {
@@ -157,7 +171,7 @@ describe('buildDemo', () => {
 
 describe('homePage', () => {
   it('prints the counts grouped, so a judge reads them at a glance', () => {
-    const rendered = homePage([example()], FACTS);
+    const rendered = homePage([example()], FACTS, REPORT);
 
     expect(rendered).toContain('<b>5,268</b>');
     expect(rendered).toContain('<b>117,395</b>');
@@ -168,6 +182,7 @@ describe('homePage', () => {
     const rendered = homePage(
       [example(), example({ kind: 'multi_hop', via: 'vendor', predicate: 'contact' })],
       FACTS,
+      REPORT,
     );
 
     expect(rendered).toContain('href="/ask?subject=Meridian&amp;predicate=launch_date"');
@@ -175,14 +190,87 @@ describe('homePage', () => {
   });
 
   it('escapes a question, because a corpus is data and not markup', () => {
-    const rendered = homePage([example({ text: '<script>alert(1)</script>' })], FACTS);
+    const rendered = homePage([example({ text: '<script>alert(1)</script>' })], FACTS, REPORT);
 
     expect(rendered).not.toContain('<script>alert(1)</script>');
     expect(rendered).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
   });
 
   it('says so rather than showing an empty list when there are no questions', () => {
-    expect(homePage([], FACTS)).toContain('No example questions were loaded.');
+    expect(homePage([], FACTS, REPORT)).toContain('No example questions were loaded.');
+  });
+});
+
+describe('the figures at the top of the home page', () => {
+  const rendered = homePage([example()], FACTS, REPORT);
+  const ours = lacuna(REPORT)!;
+
+  it('states the score the run recorded rather than a rank', () => {
+    // A rank would be a claim about position in a tie, which is the one thing
+    // this run does not establish. The score is what it does establish.
+    expect(rendered).toContain(`<b>${ours.correct}/${ours.total}</b>`);
+  });
+
+  it('takes the context ratio against the closest system that tied', () => {
+    const tied = tiedWithLacuna(REPORT);
+    expect(tied.length).toBeGreaterThan(0);
+
+    const ratios = tied.map((system) => system.meanEstimatedTokens / ours.meanEstimatedTokens);
+    const nearest = Math.min(...ratios);
+
+    // Every tie carried more context, so the smallest ratio is still above one,
+    // and picking the smallest is what stops the band flattering itself with
+    // the worst baseline in the sweep.
+    expect(nearest).toBeGreaterThan(1);
+    expect(rendered).toContain(`<b>${roundMs(nearest)}x</b>`);
+    expect(roundMs(nearest)).toBeLessThanOrEqual(roundMs(Math.max(...ratios)));
+  });
+
+  it('counts the configurations in the run instead of spelling the number twice', () => {
+    expect(rendered).toContain(`<b>${grouped(REPORT.systems.length)}</b>`);
+    // The benchmark page writes this count out as words. Writing it again here
+    // as prose would be a second copy to keep in step, so the band interpolates
+    // and says nothing that could go stale.
+    expect(rendered).not.toContain('fifty one');
+  });
+
+  it('prints the median it loses on at the same size as the rest', () => {
+    const slowest = Math.max(...REPORT.systems.map((system) => system.p50Ms));
+
+    expect(ours.p50Ms).toBe(slowest);
+    expect(rendered).toContain(`<b>${ms(ours.p50Ms)}</b>`);
+    expect(rendered).toContain('the slowest in the run');
+  });
+});
+
+describe('the page bar', () => {
+  it('marks the home page as the page you are on, and nothing else', () => {
+    const found = markedPages(homePage([example()], FACTS, REPORT));
+
+    expect(found.length).toBeGreaterThan(0);
+    expect([...new Set(found)]).toEqual(['/']);
+  });
+
+  it('marks none of the four on a refusal, because a refusal is not a page', () => {
+    const rendered = noticePage({
+      code: 429,
+      title: 'Too many',
+      heading: 'Too many questions at once',
+      lines: ['One line.'],
+    });
+
+    expect(markedPages(rendered)).toEqual([]);
+    // The links are still there. Only the claim about where you are is dropped.
+    for (const href of ['/', '/bench', '/hydradb', '/interface']) {
+      expect(rendered).toContain(`href="${href}"`);
+    }
+  });
+
+  it('offers a way past the bar for anyone arriving by keyboard', () => {
+    const rendered = homePage([example()], FACTS, REPORT);
+
+    expect(rendered).toContain('href="#start"');
+    expect(rendered).toContain('id="start"');
   });
 });
 

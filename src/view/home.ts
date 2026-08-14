@@ -1,5 +1,6 @@
 import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention';
-import { grouped, sentence } from './format';
+import { type BenchReport, lacuna, tiedWithLacuna } from '../report/bench';
+import { grouped, ms, roundMs, sentence } from './format';
 import { html, type Html } from './html';
 import { masthead, page, panel, PROMISE, separator } from './layout';
 
@@ -123,13 +124,54 @@ const OPENING = 'Ask for a property of something the sessions talked about. If t
   + 'sentences it came from. If they did not, you get the reason they did not, which '
   + 'is a different answer for each of the five ways a fact can be missing.';
 
-export function homePage(questions: readonly Example[], facts: CorpusFacts): string {
+/**
+ * The four figures that decide whether the rest of this page is worth reading.
+ *
+ * Three of them are the argument and the fourth is the price. Correctness is a
+ * tie in the committed run, so the first cell states the score rather than a
+ * rank; the separation is context, so the ratio sits beside it; and the median
+ * is the axis this product loses on, printed at the same size as the rest
+ * instead of in a footnote further down.
+ *
+ * Every number here is derived from `artifacts/bench/results.json` when the
+ * page is built, including the ratio, which is taken against the closest system
+ * that matched the score rather than the most flattering one. A figure typed
+ * into this file would be a figure that outlives the run it came from, and this
+ * repository has spent its documentation arguing against exactly that.
+ */
+function strip(report: BenchReport): Html {
+  const ours = lacuna(report);
+  if (ours === undefined) return html``;
+  const tied = tiedWithLacuna(report);
+  const nearest = tied.length === 0
+    ? null
+    : Math.min(...tied.map((system) => system.meanEstimatedTokens / ours.meanEstimatedTokens));
+
+  return html`<div class="strip full">
+<a class="cell" href="/bench"><b>${ours.correct}/${ours.total}</b>
+<span>questions answered correctly</span></a>
+${nearest === null ? null : html`<a class="cell mark" href="/bench"><b>${roundMs(nearest)}x</b>
+<span>less context than the closest system that tied</span></a>`}
+<a class="cell" href="/bench"><b>${grouped(report.systems.length)}</b>
+<span>retrieval configurations in the run</span></a>
+<a class="cell" href="/bench"><b>${ms(ours.p50Ms)}</b>
+<span>median question, and the slowest in the run</span></a>
+</div>`;
+}
+
+export function homePage(
+  questions: readonly Example[],
+  facts: CorpusFacts,
+  report: BenchReport,
+): string {
   return page({
     title: `Lacuna | ${PROMISE}`,
     description: 'Ask a graph of past sessions what it knows, and get the shape of '
       + 'the absence when it does not know.',
+    current: '/',
     body: [
       masthead(),
+      strip(report),
       panel({
         index: 1,
         label: 'Ask',

@@ -70,9 +70,41 @@ export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 
 export const PROMISE = 'Memory that knows what changed, what remains true, '
   + 'and what was never known.';
 
+/**
+ * The four pages, in the order of the argument they make together.
+ *
+ * Ask a question, then check the score, then check the database the score came
+ * from, then check the surface all three are served over. One array, read by
+ * both the bar at the top of every page and the list at the bottom, so a fifth
+ * page cannot appear in one and not the other.
+ */
+export const PAGES = [
+  { href: '/', label: 'Ask' },
+  { href: '/bench', label: 'Benchmark' },
+  { href: '/hydradb', label: 'Database' },
+  { href: '/interface', label: 'Interface' },
+] as const;
+
+/** One of the four. A notice is not one of them, which is why null is allowed. */
+export type Route = (typeof PAGES)[number]['href'];
+
+/**
+ * The same four links, twice.
+ *
+ * `aria-current` rather than a class is what marks the page you are on: it is
+ * the announcement a screen reader makes, and the stylesheet reads the same
+ * attribute, so the visible marker and the spoken one cannot disagree.
+ */
+function ways(current: Route | null, style: string, label: string): Html {
+  return html`<nav class="${style}" aria-label="${label}">${PAGES.map((entry) => html`<a
+href="${entry.href}"${entry.href === current ? html` aria-current="page"` : null}>${entry.label}</a>`)}</nav>`;
+}
+
 export interface PageOptions {
   readonly title: string;
   readonly description: string;
+  /** Which of the four this is, or null on a page that is none of them. */
+  readonly current: Route | null;
   readonly body: Renderable;
   /** An extra line in the footer, when the page has something to add there. */
   readonly note?: Renderable;
@@ -93,12 +125,17 @@ export function page(options: PageOptions): string {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
+<a class="skip" href="#start">Skip to the content</a>
 <div class="doc">
+<div class="bar full">
+<a class="bar-mark" href="/">Lacuna</a>
+${ways(options.current, 'tabs', 'Pages')}
+</div>
+<main class="sheet" id="start">
 ${options.body}
+</main>
 <footer class="foot full">
-<nav class="ways" aria-label="Pages">
-<a href="/">Ask</a><a href="/bench">Benchmark</a><a href="/hydradb">Database</a><a href="/interface">Interface</a>
-</nav>
+${ways(options.current, 'ways', 'Pages, repeated')}
 <p>Lacuna. ${PROMISE}</p>
 <p>This page ships no JavaScript. Every sentence on it is either a fixed
 template or a quotation carried out of the graph.</p>

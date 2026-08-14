@@ -24,6 +24,9 @@ export function askPage(answer: Answer, node: NodeIdentity): string {
   return page({
     title: answerTitle(answer),
     description: answer.resolution.explanation,
+    // An answer is what the question form produces, so the bar keeps the form
+    // marked: this page is that page, further along.
+    current: '/',
     body: [
       mastheadCompact(PROMISE),
       answerPanel(answer),

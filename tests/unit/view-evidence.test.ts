@@ -20,6 +20,7 @@ import { integrationPage, type ServiceLimits } from '../../src/view/integration'
 import { META_CONTENT_SECURITY_POLICY } from '../../src/view/layout';
 import type { Notice } from '../../src/view/notice';
 import type { NodeIdentity } from '../../src/view/proof';
+import { markedPages } from '../support/markup';
 
 /**
  * The three evidence pages, rendered from the files that actually ship.
@@ -86,10 +87,11 @@ const ARENA = arenaPage(REPORT);
 const DATABASE = hydradbPage(ARTIFACTS.hydra, NODE);
 const INTERFACE = integrationPage(LIMITS, NOTICES);
 
-const PAGES: readonly (readonly [string, string])[] = [
-  ['the benchmark page', ARENA],
-  ['the database page', DATABASE],
-  ['the interface page', INTERFACE],
+/** Each page, and the route the bar should be marking while you read it. */
+const PAGES: readonly (readonly [string, string, string])[] = [
+  ['the benchmark page', ARENA, '/bench'],
+  ['the database page', DATABASE, '/hydradb'],
+  ['the interface page', INTERFACE, '/interface'],
 ];
 
 const QUERIES = [
@@ -263,7 +265,7 @@ describe('the interface page', () => {
 });
 
 describe('every evidence page', () => {
-  for (const [name, body] of PAGES) {
+  for (const [name, body, current] of PAGES) {
     it(`carries no script or style element, on ${name}`, () => {
       // D-041. Escaping is only correct outside raw text elements, and the
       // renderer has no way to opt out of escaping, so the site uses neither
@@ -276,6 +278,22 @@ describe('every evidence page', () => {
       for (const href of ['/', '/bench', '/hydradb', '/interface']) {
         expect(body).toContain(`href="${href}"`);
       }
+    });
+
+    it(`marks itself and only itself in the bar, on ${name}`, () => {
+      // Every copy of the bar has to agree, and it has to agree with the route
+      // the server hands this page out on. A page that marks a route it is not
+      // is worse than one that marks nothing, because it is a wrong answer to
+      // the only question the bar exists to answer.
+      const found = markedPages(body);
+
+      expect(found.length).toBeGreaterThan(0);
+      expect([...new Set(found)]).toEqual([current]);
+    });
+
+    it(`offers a skip link past the bar, on ${name}`, () => {
+      expect(body).toContain('href="#start"');
+      expect(body).toContain('id="start"');
     });
 
     it(`declares a policy that forbids script, on ${name}`, () => {

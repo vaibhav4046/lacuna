@@ -162,6 +162,7 @@ export function hydradbPage(evidence: HydraEvidence, node: NodeIdentity): string
     title: 'Lacuna | The database',
     description: 'Which HydraDB build this runs against, the raw responses it returned, '
       + 'the queries this product issues, and the claims it does not make.',
+    current: '/hydradb',
     body: [
       mastheadCompact('The database'),
       panel({ index: 1, label: 'Build', heading: 'Which HydraDB this is', body: build(evidence, node) }),

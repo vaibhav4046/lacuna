@@ -179,6 +179,7 @@ export function integrationPage(
     title: 'Lacuna | Interface',
     description: 'One GET route, three fields, two shapes of reply, and the reason '
       + 'text stored in the graph cannot become an instruction.',
+    current: '/interface',
     body: [
       mastheadCompact('Interface'),
       panel({

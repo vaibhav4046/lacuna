@@ -16,6 +16,7 @@
     "reset": "tsx scripts/reset.ts",
     "bench": "tsx scripts/benchmark.ts",
     "eval": "tsx scripts/evaluate.ts",
+    "screens": "tsx scripts/screens.ts",
     "test": "vitest run tests/unit",
     "test:contract": "vitest run tests/contract",
     "test:all": "vitest run"

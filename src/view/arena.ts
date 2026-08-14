@@ -196,6 +196,7 @@ ${cost(ours, tied)}
     title: 'Lacuna | Benchmark',
     description: 'Fifty one retrieval configurations over sixty questions, including '
       + 'the tie on correctness and the latency Lacuna loses on.',
+    current: '/bench',
     body: [
       mastheadCompact('Benchmark'),
       panel({ index: 1, label: 'Result', heading: 'Same answers, less text', body: headline }),

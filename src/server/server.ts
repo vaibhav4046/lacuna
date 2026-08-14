@@ -183,7 +183,10 @@ export function createHandler(options: ServerOptions): Handler {
   const now = options.now ?? Date.now;
   const log = options.log ?? ((line: string) => process.stdout.write(`${line}\n`));
 
-  const home = Buffer.from(homePage(options.examples, options.facts), 'utf8');
+  const home = Buffer.from(
+    homePage(options.examples, options.facts, options.artifacts.bench),
+    'utf8',
+  );
   const bench = Buffer.from(arenaPage(options.artifacts.bench), 'utf8');
   const database = Buffer.from(hydradbPage(options.artifacts.hydra, node), 'utf8');
 

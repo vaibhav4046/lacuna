@@ -875,6 +875,20 @@ What exists right now. Updated as things change, and never ahead of them.
   [artifacts/verification/2026-08-14d/](artifacts/verification/2026-08-14d/README.md),
   and the decision record is [D-063](DECISIONS.md).
 
+  The day's fifth run put a client from outside this repository on the other
+  end. The MCP Inspector's CLI, `@modelcontextprotocol/inspector` at `2.2.0`,
+  consumed the exact `mcpServers` config block `docs/MCP.md` documents, spawned
+  the server through it, listed the tools and called `lacuna_ask` three ways —
+  answered, abstained, and multi-hop with `--via` — plus `lacuna_health` over
+  stdio, then listed and called again over Streamable HTTP. The two
+  `tools/list` responses are byte-identical across transports and the values
+  match the sweep's. What that run does not prove, and says so, is an editor
+  or agent runtime: the inspector is a client, not a host, and no interactive
+  host has held a session with this server. Transcripts, the consumed config
+  file and exit codes are in
+  [artifacts/verification/2026-08-14e/](artifacts/verification/2026-08-14e/README.md),
+  and the decision record is [D-064](DECISIONS.md).
+
 - **Every public claim is in a ledger, and the ledger is tested.**
   [docs/CLAIMS.json](docs/CLAIMS.json) holds 25 claims, each carrying the
   capability state and the data state behind it, the measured figures, the

@@ -1,0 +1,77 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"status\": \"answered\",\n  \"answer\": \"Halverd\",\n  \"reasonCode\": null,\n  \"claimId\": 797564529472318,\n  \"supersededClaims\": [\n    2475749815969757,\n    2247326196671333\n  ],\n  \"evidence\": [\n    {\n      \"spanId\": 3143682352205758,\n      \"claimId\": 797564529472318,\n      \"quote\": \"Correction on Bellwether: the beta partner is now Halverd.\",\n      \"sessionId\": 2309051113767819,\n      \"sessionTitle\": \"Platform handover notes\",\n      \"messageId\": 4005309072683664,\n      \"role\": \"user\",\n      \"ts\": \"2025-03-11T10:12:00.000Z\"\n    }\n  ],\n  \"evidenceTotal\": 1,\n  \"queries\": [\n    {\n      \"cypher\": \"MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind\",\n      \"parameters\": {\n        \"name\": \"Bellwether\"\n      },\n      \"rows\": 1,\n      \"ms\": 30.7,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by\",\n      \"parameters\": {\n        \"e\": 3786366697184251\n      },\n      \"rows\": 4,\n      \"ms\": 23.3,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name\",\n      \"parameters\": {\n        \"e\": 3786366697184251\n      },\n      \"rows\": 4,\n      \"ms\": 43.3,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title\",\n      \"parameters\": {\n        \"c\": 797564529472318\n      },\n      \"rows\": 1,\n      \"ms\": 19.3,\n      \"readEpoch\": 6459\n    }\n  ],\n  \"timingMs\": 95.6,\n  \"sourceState\": \"live\",\n  \"hydra\": {\n    \"namespace\": \"local\",\n    \"graph\": \"default\",\n    \"cell\": \"cell-0\",\n    \"readEpoch\": 6459\n  }\n}"
+    }
+  ],
+  "structuredContent": {
+    "status": "answered",
+    "answer": "Halverd",
+    "reasonCode": null,
+    "claimId": 797564529472318,
+    "supersededClaims": [
+      2475749815969757,
+      2247326196671333
+    ],
+    "evidence": [
+      {
+        "spanId": 3143682352205758,
+        "claimId": 797564529472318,
+        "quote": "Correction on Bellwether: the beta partner is now Halverd.",
+        "sessionId": 2309051113767819,
+        "sessionTitle": "Platform handover notes",
+        "messageId": 4005309072683664,
+        "role": "user",
+        "ts": "2025-03-11T10:12:00.000Z"
+      }
+    ],
+    "evidenceTotal": 1,
+    "queries": [
+      {
+        "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+        "parameters": {
+          "name": "Bellwether"
+        },
+        "rows": 1,
+        "ms": 30.7,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+        "parameters": {
+          "e": 3786366697184251
+        },
+        "rows": 4,
+        "ms": 23.3,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+        "parameters": {
+          "e": 3786366697184251
+        },
+        "rows": 4,
+        "ms": 43.3,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title",
+        "parameters": {
+          "c": 797564529472318
+        },
+        "rows": 1,
+        "ms": 19.3,
+        "readEpoch": 6459
+      }
+    ],
+    "timingMs": 95.6,
+    "sourceState": "live",
+    "hydra": {
+      "namespace": "local",
+      "graph": "default",
+      "cell": "cell-0",
+      "readEpoch": 6459
+    }
+  }
+}

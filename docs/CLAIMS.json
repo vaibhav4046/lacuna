@@ -396,7 +396,7 @@
     },
     {
       "id": "mcp-server",
-      "claim": "The MCP server speaks the protocol over stdio and over Streamable HTTP. Over stdio a client initialised, listed the tools, called lacuna_ask twice and lacuna_health once, and got the typed answer with its evidence back in structuredContent, read from a live graph. Over HTTP the SDK's own client did the initialize handshake against a real listener and got the same validated result.",
+      "claim": "The MCP server speaks the protocol over stdio and over Streamable HTTP, to clients written here and to one that was not. The parity script's SDK client drives both transports end to end, and the MCP Inspector CLI at 2.2.0, a separate codebase, consumed the documented mcpServers config block, spawned the server through it, listed the tools and called lacuna_ask and lacuna_health over stdio, then listed and called again over HTTP. The two tools/list responses are byte-identical across transports and the answered values match the parity sweep.",
       "capability": "VERIFIED",
       "data": "LIVE",
       "evidence": [
@@ -404,10 +404,14 @@
         "docs/MCP.md",
         "artifacts/verification/2026-08-14b/mcp-stdio.txt",
         "artifacts/verification/2026-08-14c/parity.txt",
-        "artifacts/verification/2026-08-14c/README.md"
+        "artifacts/verification/2026-08-14c/README.md",
+        "artifacts/verification/2026-08-14e/README.md",
+        "artifacts/verification/2026-08-14e/inspector-config.json",
+        "artifacts/verification/2026-08-14e/inspector-stdio-ask-answered.txt",
+        "artifacts/verification/2026-08-14e/inspector-http-ask-answered.txt"
       ],
-      "reproduce": "npm run parity   # drives the same server over stdio and over HTTP, end to end",
-      "caveat": "Verified against clients written here, not against a third party host. No editor or agent runtime has connected to this server yet, so nothing on this line claims compatibility with one, and the server is not called universal. The stdio transcript was produced by a throwaway driver that is not in the tree; the HTTP session was the SDK's Client over StreamableHTTPClientTransport, which validates structured output against each tool's outputSchema, so a successful call there is schema conformance rather than reachability."
+      "reproduce": "npm run parity   # both transports end to end; the inspector commands are in the 2026-08-14e README",
+      "caveat": "The third-party client is the MCP Inspector's CLI run from a terminal, not an editor or agent runtime. No interactive host has held a session with this server, so nothing on this line claims Claude Desktop or Cursor compatibility, and the server is not called universal. The inspector announces protocol 2025-11-25 against this server's 2025-06-18 and every call succeeded, which is version negotiation working, not a claim about either revision's full surface. The parity script's HTTP session was the SDK's Client over StreamableHTTPClientTransport, which validates structured output against each tool's outputSchema, so a successful call there is schema conformance rather than reachability."
     },
     {
       "id": "cli",

@@ -1,0 +1,31 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"reachable\": true,\n  \"hydra\": {\n    \"namespace\": \"local\",\n    \"graph\": \"default\",\n    \"cell\": \"cell-0\",\n    \"readEpoch\": 6459\n  },\n  \"queries\": [\n    {\n      \"cypher\": \"MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind\",\n      \"parameters\": {\n        \"name\": \"__lacuna_health_probe__\"\n      },\n      \"rows\": 0,\n      \"ms\": 29.3,\n      \"readEpoch\": 6459\n    }\n  ],\n  \"timingMs\": 29.3,\n  \"sourceState\": \"live\",\n  \"error\": null\n}"
+    }
+  ],
+  "structuredContent": {
+    "reachable": true,
+    "hydra": {
+      "namespace": "local",
+      "graph": "default",
+      "cell": "cell-0",
+      "readEpoch": 6459
+    },
+    "queries": [
+      {
+        "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+        "parameters": {
+          "name": "__lacuna_health_probe__"
+        },
+        "rows": 0,
+        "ms": 29.3,
+        "readEpoch": 6459
+      }
+    ],
+    "timingMs": 29.3,
+    "sourceState": "live",
+    "error": null
+  }
+}

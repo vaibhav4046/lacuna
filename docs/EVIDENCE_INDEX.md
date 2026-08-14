@@ -176,18 +176,22 @@ That last check is not decorative. It is what caught a proof panel printing
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
 | MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-14d/parity.txt](../artifacts/verification/2026-08-14d/parity.txt) | `npm run parity` | `LIVE` |
 | Four reads for the answered question, three for the abstention | CLAIMS, HYDRADB_INTEGRATION | same, and the two command line captures | same | `LIVE` |
+| A third-party client connected over both transports using the documented config block | MCP | [artifacts/verification/2026-08-14e/](../artifacts/verification/2026-08-14e/README.md) | `npx --yes @modelcontextprotocol/inspector@2.2.0 --cli --config artifacts/verification/2026-08-14e/inspector-config.json --server lacuna --method tools/list` | `LIVE` |
 
 The parity check is the reason [src/contract/result.ts](../src/contract/result.ts)
 exists. All three surfaces build their output from that one module — the two MCP
 transports through one server, the command line through its own process — so
 agreement is structural rather than something separate code paths happen to
 arrive at, and the check exists to catch the day that stops being true. The
-parity row is the one row in this table from the fourth run of the day rather
-than the commit at the top of this file: the sixty-question sweep was added to
-`scripts/parity.ts` after that commit, and
-[that run's README](../artifacts/verification/2026-08-14d/README.md) records the
-exact tree it measured, along with the timing-dependent comparison bug the
-sweep caught in its own referee on its first run.
+parity row and the third-party client row are the two rows in this table from
+later runs of the day rather than the commit at the top of this file: the
+sixty-question sweep was added to `scripts/parity.ts` after that commit, and
+[the fourth run's README](../artifacts/verification/2026-08-14d/README.md)
+records the exact tree it measured, along with the timing-dependent comparison
+bug the sweep caught in its own referee on its first run. The third-party
+client row is the fifth run,
+[written up in its own README](../artifacts/verification/2026-08-14e/README.md),
+which names the tree it ran against.
 
 What it compares is the status, the answer, the reason code, the claim id, the
 superseded claims, the evidence, the evidence total, the source state, and the
@@ -247,14 +251,16 @@ and in the `unit-tests` entry in the ledger, where a single run updates both.
 Anywhere it still appears as a figure, it is one commit behind the moment a test
 lands.
 
-**The MCP and CLI rows arrived.** They were promised in this section as pending
-and are now in [Surfaces](#surfaces) above. What is still pending there is
-narrower and worth stating plainly: every client that has connected was run from
-this repository. The HTTP transport left this list on the day's third run, when
+**The MCP and CLI rows arrived, and then the third-party client did.** They
+were promised in this section as pending and are now in [Surfaces](#surfaces)
+above. The HTTP transport left the pending list on the day's third run, when
 the parity script drove it end to end with a real SDK client; the two-question
-coverage caveat left it on the fourth, when the parity check grew the
-evaluation's sixty questions. The third-party client is the one row this file
-does not yet have.
+coverage caveat left on the fourth, when the parity check grew the evaluation's
+sixty questions; and the third-party client left on the fifth, when the MCP
+Inspector's CLI consumed the documented config block and drove both transports.
+What is still pending is narrower than it was: no editor or agent runtime has
+held an interactive session with this server. A client run from a terminal is
+not a host, and the row for a host is the one this file does not yet have.
 
 **Nothing here covers voice, an LLM router, authentication, or a deployed URL.**
 Those remain `UNAVAILABLE` in the ledger and absent from this index, which is the

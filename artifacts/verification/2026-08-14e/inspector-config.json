@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "lacuna": {
+      "command": "npm",
+      "args": ["run", "mcp", "--", "--stdio"],
+      "cwd": "D:\\project\\lacuna"
+    }
+  }
+}

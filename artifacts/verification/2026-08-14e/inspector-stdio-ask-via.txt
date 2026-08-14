@@ -1,0 +1,120 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"status\": \"answered\",\n  \"answer\": \"Farah Haddad\",\n  \"reasonCode\": null,\n  \"claimId\": 1908459145534170,\n  \"supersededClaims\": [],\n  \"evidence\": [\n    {\n      \"spanId\": 1581692515679772,\n      \"claimId\": 4026755961307662,\n      \"quote\": \"replay-queue is supplied by Northfold.\",\n      \"sessionId\": 3443130758304203,\n      \"sessionTitle\": \"Platform planning call\",\n      \"messageId\": 1335903273210585,\n      \"role\": \"user\",\n      \"ts\": \"2025-03-21T09:54:00.000Z\"\n    },\n    {\n      \"spanId\": 3333501094241224,\n      \"claimId\": 1908459145534170,\n      \"quote\": \"Our contact at Northfold is Farah Haddad.\",\n      \"sessionId\": 3456079190413057,\n      \"sessionTitle\": \"Data handover notes\",\n      \"messageId\": 1892373045063511,\n      \"role\": \"user\",\n      \"ts\": \"2025-03-23T09:18:00.000Z\"\n    }\n  ],\n  \"evidenceTotal\": 2,\n  \"queries\": [\n    {\n      \"cypher\": \"MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind\",\n      \"parameters\": {\n        \"name\": \"replay-queue\"\n      },\n      \"rows\": 1,\n      \"ms\": 28.6,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by\",\n      \"parameters\": {\n        \"e\": 2493563994067016\n      },\n      \"rows\": 2,\n      \"ms\": 18.5,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name\",\n      \"parameters\": {\n        \"e\": 2493563994067016\n      },\n      \"rows\": 2,\n      \"ms\": 33.7,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind\",\n      \"parameters\": {\n        \"name\": \"Northfold\"\n      },\n      \"rows\": 1,\n      \"ms\": 15.5,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name\",\n      \"parameters\": {\n        \"e\": 1635203334682294\n      },\n      \"rows\": 1,\n      \"ms\": 19.1,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by\",\n      \"parameters\": {\n        \"e\": 1635203334682294\n      },\n      \"rows\": 2,\n      \"ms\": 34.3,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title\",\n      \"parameters\": {\n        \"c\": 4026755961307662\n      },\n      \"rows\": 1,\n      \"ms\": 19.7,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title\",\n      \"parameters\": {\n        \"c\": 1908459145534170\n      },\n      \"rows\": 1,\n      \"ms\": 34.9,\n      \"readEpoch\": 6459\n    }\n  ],\n  \"timingMs\": 149.2,\n  \"sourceState\": \"live\",\n  \"hydra\": {\n    \"namespace\": \"local\",\n    \"graph\": \"default\",\n    \"cell\": \"cell-0\",\n    \"readEpoch\": 6459\n  }\n}"
+    }
+  ],
+  "structuredContent": {
+    "status": "answered",
+    "answer": "Farah Haddad",
+    "reasonCode": null,
+    "claimId": 1908459145534170,
+    "supersededClaims": [],
+    "evidence": [
+      {
+        "spanId": 1581692515679772,
+        "claimId": 4026755961307662,
+        "quote": "replay-queue is supplied by Northfold.",
+        "sessionId": 3443130758304203,
+        "sessionTitle": "Platform planning call",
+        "messageId": 1335903273210585,
+        "role": "user",
+        "ts": "2025-03-21T09:54:00.000Z"
+      },
+      {
+        "spanId": 3333501094241224,
+        "claimId": 1908459145534170,
+        "quote": "Our contact at Northfold is Farah Haddad.",
+        "sessionId": 3456079190413057,
+        "sessionTitle": "Data handover notes",
+        "messageId": 1892373045063511,
+        "role": "user",
+        "ts": "2025-03-23T09:18:00.000Z"
+      }
+    ],
+    "evidenceTotal": 2,
+    "queries": [
+      {
+        "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+        "parameters": {
+          "name": "replay-queue"
+        },
+        "rows": 1,
+        "ms": 28.6,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+        "parameters": {
+          "e": 2493563994067016
+        },
+        "rows": 2,
+        "ms": 18.5,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+        "parameters": {
+          "e": 2493563994067016
+        },
+        "rows": 2,
+        "ms": 33.7,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+        "parameters": {
+          "name": "Northfold"
+        },
+        "rows": 1,
+        "ms": 15.5,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+        "parameters": {
+          "e": 1635203334682294
+        },
+        "rows": 1,
+        "ms": 19.1,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+        "parameters": {
+          "e": 1635203334682294
+        },
+        "rows": 2,
+        "ms": 34.3,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title",
+        "parameters": {
+          "c": 4026755961307662
+        },
+        "rows": 1,
+        "ms": 19.7,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title",
+        "parameters": {
+          "c": 1908459145534170
+        },
+        "rows": 1,
+        "ms": 34.9,
+        "readEpoch": 6459
+      }
+    ],
+    "timingMs": 149.2,
+    "sourceState": "live",
+    "hydra": {
+      "namespace": "local",
+      "graph": "default",
+      "cell": "cell-0",
+      "readEpoch": 6459
+    }
+  }
+}

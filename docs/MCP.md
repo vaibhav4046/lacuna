@@ -203,10 +203,18 @@ the client validates against it, a successful call there is schema conformance
 and not only reachability. The run is written up in
 [the directory README](../artifacts/verification/2026-08-14c/README.md).
 
-One thing is not proven yet and is worth naming here rather than leaving to
-inference. No third-party client, editor or agent runtime has connected, so the
-config block earlier in this document is written from the transport's
-requirements rather than from a session that used it.
+A client from outside this repository has now connected over both transports.
+The MCP Inspector's CLI, `@modelcontextprotocol/inspector` at `2.2.0`, consumed
+the exact `mcpServers` block earlier in this document, spawned the server
+through it, listed the tools and called `lacuna_ask` and `lacuna_health` over
+stdio, then did the same over Streamable HTTP against a running listener. The
+two `tools/list` responses are byte-identical across transports, and the
+answered values match the parity sweep's. That run is
+[the fifth run's README](../artifacts/verification/2026-08-14e/README.md), and
+the config file it consumed is committed next to it. What remains unproven is
+narrower: no editor or agent runtime has held an interactive session with this
+server. The inspector is a client, not a host, so nothing here claims Claude
+Desktop, Cursor, or any other host works until one has.
 
 ## One note on the SDK
 

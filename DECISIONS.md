@@ -1875,3 +1875,46 @@ bug in full. The README, `docs/CLI.md`, `docs/MCP.md`,
 `docs/EVIDENCE_INDEX.md` and the `cross-surface-contract` claim in
 `docs/CLAIMS.json` now cite this run; the 14c citations that remain are dated
 records of the HTTP-transport milestone and stay as written.
+
+### D-064: A third-party client connects, through the documented config block, over both transports
+
+Every client that had ever connected to the MCP server was written in this
+repository, and `docs/MCP.md` named that plainly: the `mcpServers` config
+block it publishes was written from the transport's requirements, not from a
+session that used it. That gap is closed. The client is the MCP Inspector's
+CLI, `@modelcontextprotocol/inspector` pinned at `2.2.0` via `npx --yes` — a
+separate codebase with its own protocol implementation.
+
+**Why the config-file form, and not the direct-command form.** The inspector
+accepts a server command inline, but on this setup it parses the server's own
+flags (`--import`, `--stdio`) as inspector flags, spawns bare `node`, and the
+initialize frame lands in node's REPL as script text: `SyntaxError:
+Unexpected token ':'`, then a 15-second connection timeout. The config-file
+form sidesteps that and is also the stronger test: the file the inspector
+consumed is character-for-character the `mcpServers` block `docs/MCP.md`
+documents, with `cwd` filled in. The committed copy in the artifact directory
+is that exact file. The documented onboarding path is now the tested path.
+
+**What was run.** Over stdio: `tools/list`, `lacuna_ask` three ways —
+answered (Bellwether / beta_partner: `Halverd`, claim `797564529472318`),
+abstained (Meridian / migration_window: `never_stated`), and multi-hop with
+`via` passed as a plain `--tool-arg` — plus `lacuna_health` (`reachable:
+true`, read epoch 6459). Over Streamable HTTP against `--http --port 3015`:
+`tools/list` and the answered ask. Every command exited 0. The two
+`tools/list` captures hash identical across transports, and every value
+matches the fourth run's sweep.
+
+**One protocol observation.** The inspector announces protocol version
+`2025-11-25`; this server declares `2025-06-18`. Every call succeeded, which
+is the SDK's version negotiation working against a client two revisions
+newer. That is recorded as an observation, not a compatibility claim about
+either revision's full surface.
+
+**What this run does not prove.** The inspector is a client run from a
+terminal, not a host. No editor or agent runtime has held an interactive
+session with this server, and `docs/MCP.md` still says so; the residual gap
+is narrower, and named. Transcripts, the consumed config file, exit codes and
+the tree they ran against are in `artifacts/verification/2026-08-14e/`.
+`docs/MCP.md`, `docs/EVIDENCE_INDEX.md` and the `mcp-server` claim in
+`docs/CLAIMS.json` now cite this run; the 14b and 14c citations that remain
+are dated records and stay as written.

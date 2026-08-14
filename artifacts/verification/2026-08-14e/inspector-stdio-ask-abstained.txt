@@ -1,0 +1,54 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"status\": \"abstained\",\n  \"answer\": null,\n  \"reasonCode\": \"never_stated\",\n  \"claimId\": null,\n  \"supersededClaims\": [],\n  \"evidence\": [],\n  \"evidenceTotal\": 0,\n  \"queries\": [\n    {\n      \"cypher\": \"MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind\",\n      \"parameters\": {\n        \"name\": \"Meridian\"\n      },\n      \"rows\": 1,\n      \"ms\": 29.4,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name\",\n      \"parameters\": {\n        \"e\": 1693986850366836\n      },\n      \"rows\": 1,\n      \"ms\": 20.5,\n      \"readEpoch\": 6459\n    },\n    {\n      \"cypher\": \"MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by\",\n      \"parameters\": {\n        \"e\": 1693986850366836\n      },\n      \"rows\": 2,\n      \"ms\": 34,\n      \"readEpoch\": 6459\n    }\n  ],\n  \"timingMs\": 64.2,\n  \"sourceState\": \"live\",\n  \"hydra\": {\n    \"namespace\": \"local\",\n    \"graph\": \"default\",\n    \"cell\": \"cell-0\",\n    \"readEpoch\": 6459\n  }\n}"
+    }
+  ],
+  "structuredContent": {
+    "status": "abstained",
+    "answer": null,
+    "reasonCode": "never_stated",
+    "claimId": null,
+    "supersededClaims": [],
+    "evidence": [],
+    "evidenceTotal": 0,
+    "queries": [
+      {
+        "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+        "parameters": {
+          "name": "Meridian"
+        },
+        "rows": 1,
+        "ms": 29.4,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+        "parameters": {
+          "e": 1693986850366836
+        },
+        "rows": 1,
+        "ms": 20.5,
+        "readEpoch": 6459
+      },
+      {
+        "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+        "parameters": {
+          "e": 1693986850366836
+        },
+        "rows": 2,
+        "ms": 34,
+        "readEpoch": 6459
+      }
+    ],
+    "timingMs": 64.2,
+    "sourceState": "live",
+    "hydra": {
+      "namespace": "local",
+      "graph": "default",
+      "cell": "cell-0",
+      "readEpoch": 6459
+    }
+  }
+}

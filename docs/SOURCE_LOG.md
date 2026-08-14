@@ -144,6 +144,26 @@ in [`path-value-shape.json`](../artifacts/cypher-probe/path-value-shape.json).
 
 Captured verbatim into [RULES_MATRIX.md](RULES_MATRIX.md).
 
+## The two dates the deadline is quoted as
+
+Worth writing down because both numbers exist in circulation and they are not
+the same number.
+
+| Claim | Where it comes from | Status |
+|---|---|---|
+| 2026-08-20, 11:59 PM PT | The organizer page, captured 2026-08-12 into [RULES_MATRIX.md](RULES_MATRIX.md) | authoritative |
+| 19 August 2026 | Working notes carried into this project from outside it | not a source |
+
+Nothing published by the organizers says the 19th. The 19th is the internal
+target in [RULES_MATRIX.md](RULES_MATRIX.md), 2026-08-19 at 21:00 Europe/London,
+which is a day of buffer and not a deadline. It is recorded here so that a
+reader who meets the earlier date somewhere else can see it was checked rather
+than assumed, and so nobody shortens the build by a day for the wrong reason.
+
+The organizer rules also say every schedule change and extension is announced in
+Discord first. That channel is not being watched from here, which is why joining
+it is item 1 in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md).
+
 ## Benchmarks
 
 To be filled in when each dataset is actually fetched and its license read.

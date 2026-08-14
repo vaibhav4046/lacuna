@@ -102,6 +102,73 @@ Status values: `open`, `done`, `dropped`.
   will host a Rust graph database with object storage is not a given. Decide
   later, with real information, not now.
 
+## 6. The local graph store wedges, and the fix is a reset
+
+- **Status:** open
+- **Why it needs you:** it decides whether anything here can be left running
+  unattended, which is a hosting decision and therefore yours.
+- **What happens.** Twice now the HydraDB store has stopped accepting writes and
+  answered every write with `internal query execution error` over HTTP. The node
+  log carries the real reason both times: a conditional put that the local
+  filesystem backend does not implement. The remedy is to stop the node, move
+  the store aside and re-ingest, which takes about 90 seconds and loses whatever
+  was in it. Full detail, with the exact error and the pinned crate versions, is
+  D-058 in [DECISIONS.md](DECISIONS.md).
+- **Why this is not just a bug report.** Moving a store aside is a reset. The
+  replacement runs on the same backend as the one that wedged, so it should be
+  expected to wedge again. Nothing in this repository can fix that, because the
+  gap is in the storage backend HydraDB uses, not in the code here.
+- **What it means in practice.** Demoing, developing and testing are all fine:
+  the reset is cheap and the corpus reloads clean. A long-lived deployment is
+  not fine on this backend. If item 5 turns into a real deploy, this is the
+  first thing that has to be answered.
+- **Blocking?** No. Every gate in the repository is green right now.
+
+## 7. AssemblyAI is the one named fallback with no credential
+
+- **Status:** open, and probably should stay that way
+- **Why it needs you:** a credential is yours to create, and creating an account
+  is not something to do on your behalf.
+- **Detail.** `src/voice/stack.ts` marks AssemblyAI `BLOCKED` rather than
+  `NOT_STARTED`, because unlike the others it is blocked on something outside
+  the repository rather than on unwritten code. No code calls it either way.
+- **The honest recommendation is to leave it.** The voice path this project
+  would ship is local, for the reason in D-056: the audio is somebody talking
+  about their own stored history, and sending it out to get a transcript back is
+  the failure the whole design is arranged against. The metered services are
+  named so their absence is on the record, not because they are wanted.
+
+## 8. The API keys staged locally, and revoking them afterwards
+
+- **Status:** open
+- **Why it needs you:** revoking a key is an account action.
+- **Detail.** The ElevenLabs and Groq keys you pasted are in `.env.local`, which
+  `.gitignore` covers and which the history scan confirms was never committed.
+  No code in this repository reads either one. They are not in any page, log,
+  screenshot, or the video.
+- **What to do:** revoke both after the hackathon, as you said you would. Keys
+  that were pasted into a chat should be treated as exposed regardless of where
+  they ended up on disk.
+
+## 9. The design provenance names a vendor you normally keep out of repos
+
+- **Status:** open, needs a one-line decision from you
+- **Why it needs you:** it is your standing rule about your own repositories, and
+  I am not going to quietly reinterpret it.
+- **The tension.** Your rule is zero Claude or Anthropic anywhere in your
+  repositories. The hackathon rules require honest sourcing, and
+  `design/reference/` holds artifacts that came from Claude Design, so D-057 and
+  the source log name where they came from.
+- **Why it was written the way it was.** The rule as you have applied it before
+  was about authorship: co-authored-by trailers, generated-with footers,
+  `.claude/` directories, handoff files. None of that is here, and the author
+  field on all 47 commits is your noreply address. What is here is a citation for
+  an imported asset, which is the same kind of line as the HydraDB pin in the
+  source log.
+- **If you disagree,** the fix is small: the artifacts can be removed and the two
+  paragraphs cut, at the cost of the design no longer being checkable against
+  what shipped. Say which you want.
+
 ---
 
 ## Resolved

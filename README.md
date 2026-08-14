@@ -25,8 +25,8 @@ part everyone skips.
 ## Running it
 
 Node 20.11 or newer, and a HydraDB node. Steps 1 and 2 need nothing else and are
-worth running on their own: they prove the checkout is complete and that 568
-tests pass.
+worth running on their own: they prove the checkout is complete and that the
+unit suite passes with nothing installed.
 
 **1. Install.**
 
@@ -40,10 +40,13 @@ npm ci
 npm test && npm run typecheck
 ```
 
-Five lines on stderr during the tests are meant to be there: a refused
-connection, an ambiguous entity name, and three 403s from a fixture namespace.
-They are error-path tests logging the failures they provoked on purpose. Read
-the counts underneath, which end `Tests 568 passed (568)`.
+Seven lines on stderr during the tests are meant to be there: two refused
+connections, two ambiguous entity names, and three 403s from a fixture
+namespace. They are error-path tests logging the failures they provoked on
+purpose. Read the counts underneath: the line that matters says every test
+passed and none were skipped. The count itself moves as the suite grows, and the
+run it was last measured at is in
+[docs/EVIDENCE_INDEX.md](docs/EVIDENCE_INDEX.md).
 
 **3. Start HydraDB.** Lacuna talks to it as a separate service over its HTTP
 API, so it needs a node of its own, built from
@@ -95,6 +98,37 @@ artifacts/repro/repro.sh
 
 That is the script behind [artifacts/repro](artifacts/repro/README.md), which
 holds an unedited transcript of a run.
+
+## Asking it from somewhere other than a browser
+
+The pages are one adapter over the answer path, not the answer path. The same
+question can be asked from a terminal and from an MCP client. Both need a
+running node and a loaded corpus, so both come after step 5.
+
+```bash
+node bin/lacuna.js ask Bellwether beta_partner
+npm run mcp -- --stdio
+```
+
+[docs/CLI.md](docs/CLI.md) covers the commands, the flags and the exit codes.
+[docs/MCP.md](docs/MCP.md) covers the four tools and both transports.
+
+These two build their result from one shared projection,
+[`src/contract/result.ts`](src/contract/result.ts), so agreement between them is
+structural rather than maintained by hand. To check it rather than take it on
+faith:
+
+```bash
+npm run parity
+```
+
+That spawns the MCP server over stdio and the command line in its own process,
+asks both the same two questions, one answered and one abstained, and compares
+the results field by field. It ends `ALL_IDENTICAL: True`, and the saved output
+is
+[artifacts/verification/2026-08-14b/parity.txt](artifacts/verification/2026-08-14b/parity.txt).
+The pages are not in that comparison: they share the resolver underneath but
+render their own markup rather than the projection.
 
 ## Status
 

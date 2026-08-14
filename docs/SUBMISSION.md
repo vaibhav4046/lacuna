@@ -98,9 +98,9 @@ There is deliberately no LLM anywhere in the demo path. The claims are about
 retrieval and abstention, and a generated sentence on top would make every one
 of them harder to check.
 
-623 unit tests across 29 files run with no database. Three contract suites run
+807 unit tests across 36 files run with no database. Three contract suites run
 every query builder against a live HydraDB node and fail loudly if the node is
-absent rather than quietly mocking it. 665 tests in total with a node running.
+absent rather than quietly mocking it. 849 tests in total with a node running.
 ```
 
 ## 5. Deployed project link, if available
@@ -186,16 +186,18 @@ Pinned to HydraDB v0.1.1 at commit 02a40025d2d57e97ab2754c8256219cdbfeab379.
 ## 7. Tech stack used
 
 ```
-TypeScript on Node 20.11+, with zero runtime dependencies. The server, the
-HydraDB HTTP client, the retrieval layer and the four rendered screens are all
-first-party code, and the pages ship no JavaScript at all.
+TypeScript on Node 20.11+, with one runtime dependency: the official Model
+Context Protocol SDK, used only by the MCP adapter and never imported by the
+product. The server, the HydraDB HTTP client, the retrieval layer and the
+rendered screens are all first-party code with nothing underneath them, and the
+pages ship no JavaScript at all.
 
 HydraDB v0.1.1 (pinned commit 02a40025d2d57e97ab2754c8256219cdbfeab379), run as
 a separate service on loopback and reached over its HTTP query API, in WSL2 on
 Ubuntu 24.04.
 
-Five dev dependencies and nothing else: typescript, @types/node, tsx to run
-TypeScript directly, vitest for the 665 tests, and @huggingface/transformers.
+Five dev dependencies: typescript, @types/node, tsx to run TypeScript
+directly, vitest for the 849 tests, and @huggingface/transformers.
 That last one is worth explaining, because it is the only model in the
 repository and it belongs to the opposition: the benchmark baselines embed with
 Xenova/all-MiniLM-L6-v2, 384 dimensions, run locally, so the pipelines Lacuna is

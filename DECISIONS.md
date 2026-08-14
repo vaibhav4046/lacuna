@@ -1194,14 +1194,14 @@ A GitHub Actions workflow on this repository would run `npm ci`, `npm test` and
 change. What a workflow adds over that is a green badge, and the badge is the
 problem, because of what it cannot cover.
 
-Three of the thirty-two test files are contract suites, and they are the only
-tests in the repository that prove the Cypher is right. They run every query
-builder against a live HydraDB node and fail if the node is absent, which was a
-deliberate decision recorded earlier: a contract suite that mocks the database
-when the database is missing is a suite that passes hardest exactly when it is
-least entitled to. GitHub's runners have no HydraDB. Making the workflow green
-would mean running the 623 tests that need no database and skipping the 42 that
-carry the actual integration claim.
+Three test files are contract suites, and they are the only tests in the
+repository that prove the Cypher is right. They run every query builder against
+a live HydraDB node and fail if the node is absent, which was a deliberate
+decision recorded earlier: a contract suite that mocks the database when the
+database is missing is a suite that passes hardest exactly when it is least
+entitled to. GitHub's runners have no HydraDB. Making the workflow green would
+mean running every test that needs no database and skipping the 42 that carry
+the actual integration claim.
 
 That produces the worst artifact available: a green check on the front page of
 the repository, next to a README that says the product is proven against a live
@@ -1632,3 +1632,158 @@ has to stay up for longer than a demo needs a real object store, not this note.
 Both failed stores are kept: `store.wedged-20260814` from D-054 and
 `store.wedged-20260814b` from this one. Two preserved failures are worth more
 than one, and neither of them costs anything but disk.
+
+### D-059: The frozen design is adopted, which reverses D-057 and costs one assertion
+
+**Supersedes D-057.**
+
+D-057 kept the imported design under `design/reference/` unmodified and did not
+adopt it. The reasoning there was that a product with a working evidence surface
+should not be restyled on the strength of a token file nobody had read against
+the real pages. That reasoning has been used up: the pages were read against it,
+and the token file turned out to be a decision rather than a palette.
+
+**What changed.** `src/view/style.ts` now commits to the ground in
+`design/reference/tokens.css`: black paper, charcoal surfaces raised off it,
+four steps of white so hierarchy is carried by weight of ink, borders as white at
+low alpha, and one orange that only ever means something. Geist is named first
+because the design names it, and the stack falls through to the system, so there
+is still nothing to fetch and no font host to name in the policy.
+
+**What the adoption cost.** The old sheet carried a `prefers-color-scheme` block
+and served two grounds. The new one serves one and says so twice: a
+`color-scheme: dark` declaration so the browser paints its own furniture to
+match, and a `<meta name="color-scheme" content="dark">` in the head so it knows
+before the sheet arrives. A reader who prefers light gets the black page. That is
+the trade: the design was drawn on one ground, and a product that paints itself
+two ways is not wearing the design, it is wearing a compromise with the operating
+system.
+
+`grep -c 'prefers-color-scheme'` over the served stylesheet returns 0, which is
+the check that this is true of what ships rather than of what was intended.
+
+**What it cost the capture harness.** `scripts/screens.ts` used to assert a floor
+of 180 on a capture named light and a ceiling of 90 on one named dark. With one
+ground the floor is unreachable and the pair is meaningless, so both were
+replaced by a single `GROUND_CEILING = 90`, and the field the shots carry was
+renamed from `theme` to `prefers`, because what a shot records is now what the
+browser was told the reader wants, not what the page did about it. A capture at
+1920x1080 preferring light was kept for exactly that reason: it came back byte
+identical to the one preferring dark, 315100 bytes each, which is positive
+evidence rather than an assertion that nothing happened.
+
+**The ledger the ultimatum asks for is two new files, not six.** The requested
+set was STATE, BLOCKERS, REQUIREMENTS_MATRIX, CLAIMS, EVIDENCE_INDEX and an ADR
+directory. Four of those already exist here under other names and would be worse
+duplicated than referenced: `STATE.md` is at the root and is the state file,
+`docs/RULES_MATRIX.md` is the requirements matrix, `NEEDS_VAIBHAV.md` and the
+operational sections of STATE.md are the blocker list, and this file is the ADR
+directory with the decisions in one readable sequence instead of one file each.
+Only two were genuinely missing and both are now written: `docs/CLAIMS.json`,
+which is every public claim with the capability state and data state behind it,
+and `docs/EVIDENCE_INDEX.md`, which maps each of them to the artifact on disk.
+
+**Why CLAIMS.json carries `"data": null`.** A capability state and a data state
+are not the same axis. `lacuna doctor` reporting a version is VERIFIED and has no
+data behind it at all, while a screenshot is a RECORDED RUN of something that was
+LIVE when the shutter opened. Forcing a data state onto a claim that has no data
+would mean inventing one, so the field is nullable and every null carries a
+`why_no_data` beside it saying why. A reader can tell a claim with no data from a
+claim whose data nobody recorded, which is the distinction the whole file exists
+to keep.
+
+### D-060: One projection for both non-browser surfaces, and the one field it refuses to cover
+
+The MCP server and the command line answered the same question and returned two
+results built by two pieces of code. They agreed, because both were written from
+the same intention a week apart, which is the kind of agreement that lasts until
+someone renames a field on one side.
+
+**What changed.** `src/contract/result.ts` is now the only place an `Answer`
+becomes a result. `askCore` and `toRevisionItem` live there, `src/mcp/result.ts`
+imports them and adds the tool envelope, `src/cli/json.ts` imports them and adds
+what the command line has that a tool call does not: the command that ran, the
+question as it was parsed, and the resolver's own trace. Neither file holds a
+second copy of the field names, so the two cannot drift apart without the shared
+file changing.
+
+**Why `src/contract/` and not `src/model/`.** `src/model/` is a leaf with no
+imports of its own, and `src/retrieval/types.ts` imports `../model/abstention`.
+A projection of an `Answer` has to know what an `Answer` is, so putting it in
+`model` would make the leaf depend on the layer above it and turn a one-way
+dependency into a cycle waiting to happen. The layering is
+`model -> retrieval -> contract -> {mcp, cli}` and the new directory is what
+keeps it readable.
+
+**Two narrowings that were nearly widenings.** `RevisionItem.polarity` was about
+to be typed `string` to save an import. It is `Polarity`, which is
+`'positive' | 'negative'`, and the local declaration that would have shadowed it
+was deleted rather than kept in parallel. Evidence items gained `role`, the role
+of the speaker whose message the span came from, because a quotation whose
+speaker is unknown is weaker evidence than one whose speaker is named. That
+addition invalidated a fixture in `tests/unit/mcp-tools.test.ts`, and the fixture
+was corrected rather than the contract reverted.
+
+**One deliberate behaviour change on the command line.** `--json` now caps
+evidence at fifty items and reports the true count in `evidenceTotal`, which is
+what the MCP surface already did. The cap exists because a result goes into a
+context window. A caller reading the array length instead of `evidenceTotal`
+would undercount, and that is written into `docs/CLI.md` rather than left for
+someone to discover.
+
+**The field the contract refuses to cover, and why.** `npm run parity` compares
+status, answer, reason code, claim id, superseded claims, evidence, evidence
+total, source state, and the set of reads with their parameters and row counts.
+It does not compare the order the reads appear in. The independent reads are
+issued together with `Promise.all` and appended to `answer.queries` as they
+resolve, so the order is the order the node finished them in. Four consecutive
+runs of the same command on the same surface came back in different orders, which
+is what settled it: the variation is not between MCP and the command line, it is
+between one run and the next. Ordering it inside the contract would have been
+inventing a guarantee the system does not make. The parity artifact prints both
+raw orders next to the verdict so the exclusion is visible rather than assumed.
+
+**What was run.** `npm run parity` ends `ALL_IDENTICAL: True` over two questions,
+one answered and one abstained, against a live node. The unit suite is 807 tests
+over 36 files. The saved output is in
+`artifacts/verification/2026-08-14b/`, and what produced each file, including one
+file produced by a driver that is not in the tree, is written in that directory's
+README.
+
+### D-061: The Windows to WSL relay fails without closing the socket, so a probe that connects proves nothing
+
+`npm run test:contract` stopped returning. It did not fail, it hung, and it was
+killed at three minutes with exit 143.
+
+**Why the obvious check said the node was fine.** The node runs inside WSL2 and
+binds WSL's own loopback. Windows reaches it through the localhost relay, and
+after a WSL restart that relay can degrade into a state where TCP still connects
+and query traffic never comes back. A connection test therefore passes while
+every request hangs. `curl` against `127.0.0.1:18443/readyz` made it worse rather
+than better: that port answers 404 with an empty body for that path, which reads
+exactly like a dead node and sent an earlier diagnosis in the wrong direction.
+Readiness is on the admin port:
+
+```
+wsl -e bash -lc 'curl -s -o /dev/null -w "READYZ=%{http_code}\n" --max-time 5 http://127.0.0.1:19091/readyz'
+```
+
+`READYZ=200` from that is the only cheap signal that means anything.
+
+**The fix, and the order it has to happen in.** Stop the node from inside WSL
+first, then `wsl --shutdown`, wait a few seconds, let WSL start again, then start
+the node. The order is a precaution rather than a diagnosis. Two stores have
+already wedged on this machine, D-054 and D-058, and the cause of neither is
+fully understood, so there is nothing to gain from pulling the floor out from
+under a node that is mid-write. Stopping it cleanly costs six seconds.
+
+```
+wsl -e bash -lc '/mnt/d/project/lacuna/scripts/hydra-node.sh stop'
+wsl --shutdown
+wsl -e bash -lc '/mnt/d/project/lacuna/scripts/hydra-node.sh start'
+```
+
+The output of `wsl --shutdown` is UTF-16 and arrives with nulls in it, so it
+needs `tr -d '\0'` to be readable in a POSIX shell. That is cosmetic, but it is
+the kind of thing that makes a working command look broken at three in the
+morning.

@@ -41,7 +41,9 @@ into a fresh temporary directory.
 
 Steps 1 to 4 need nothing but the repository and a Node 20.11 or newer. They
 prove the checkout is complete, that the lockfile installs, that it typechecks,
-and that 568 tests pass, all from a path with no leftovers in it.
+and that the unit suite passes, all from a path with no leftovers in it. The
+count the two committed transcripts print is the count on the day they were
+run; a run today prints a larger one, because the suite has grown since.
 
 Steps 5 to 7 need two more things: a HydraDB node running, and a `.env.local`
 pointing at it. See the quickstart in the top-level [README](../../README.md).

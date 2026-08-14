@@ -6,7 +6,7 @@ for each. Status is what is true today, not what is planned.
 Criteria are quoted from the rules page as captured on 2026-08-12 in
 [artifacts/rules/](artifacts/rules/hackhydra-rules-2026-08-12.txt).
 
-**Last updated: 2026-08-13.** Everything marked `done` below has a command in it
+**Last updated: 2026-08-14.** Everything marked `done` below has a command in it
 that a judge can run. Three things are not done and are not rows here because
 they are submission mechanics rather than judging criteria: a public repository,
 a demo video, and a hosted URL. Those are tracked in
@@ -20,7 +20,7 @@ a demo video, and a hosted URL. Those are tracked in
 | A functional product or demo | `npm run serve`, then ask it something. The answer page is four panels: Answer, Timeline, Subgraph, Proof. Screenshots in [artifacts/screens/](artifacts/screens/README.md) | done |
 | Real ingestion and retrieval workflows | 5,642 vertices and 5,705 edges written to a live node, idempotent on re-run, verified by `npm run census` against the generator's plan. Transcripts in [artifacts/ingest/](artifacts/ingest/README.md) | done |
 | A clear use case | [README](README.md), [ADR 0001](docs/adr/0001-track-and-thesis.md) | done |
-| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 623 unit tests plus 42 contract tests against a live node | done |
+| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 807 unit tests plus 42 contract tests against a live node | done |
 
 ## "Judges consider"
 
@@ -28,7 +28,7 @@ a demo video, and a hosted URL. Those are tracked in
 
 - **Evidence:** three contract suites in [tests/contract/](tests/contract) run
   every query builder against a live HydraDB node, and a missing node fails them
-  rather than skipping. 623 unit tests, 29 files, no database needed. The query
+  rather than skipping. 807 unit tests, 36 files, no database needed. The query
   layer was written against the Cypher subset the engine actually implements,
   discovered by probing it on day two; the refusals are quoted in the source
   beside the code that works around them.
@@ -101,9 +101,10 @@ lose on by using a graph database as a place to put results.
 
 ## The judge's ten minutes
 
-1. `npm ci && npm test`. 568 tests, no database required. Five error lines on
-   stderr are error-path tests provoking failures on purpose; the counts
-   underneath are the result, ending `Tests 568 passed (568)`.
+1. `npm ci && npm test`. 807 tests at the last measured run, no database
+   required. Seven error lines on stderr are error-path tests provoking failures
+   on purpose; the counts underneath are the result, and the line that matters
+   says every test passed and none were skipped.
 2. Start a node, `npm run ingest && npm run census`. It ends
    `graph matches the plan exactly`.
 3. `npm run serve`, then the Ask panel on a question whose answer was revised

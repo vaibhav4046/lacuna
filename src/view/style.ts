@@ -57,7 +57,7 @@ export const STYLESHEET = `
   --sans: Geist, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --mono: 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
-  --t-display: clamp(3.25rem, 1rem + 8.5vw, 7.25rem);
+  --t-display: clamp(2.75rem, 1rem + 4.25vw, 4.75rem);
   --t-verdict: clamp(2rem, 1rem + 4vw, 3.75rem);
   --t-lede:    clamp(1.0625rem, 1rem + 0.45vw, 1.3125rem);
   --t-body:    1rem;
@@ -326,7 +326,7 @@ body {
 
 /* ---- masthead ----------------------------------------------------------- */
 
-.masthead { padding: clamp(3rem, 8vw, 6.5rem) 0 0; }
+.masthead { padding: clamp(2rem, 4vw, 3.5rem) 0 0; }
 
 /*
  * The name at display size, set tight. The whole page below it is evidence, so
@@ -399,7 +399,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
   gap: 1px;
-  margin: clamp(2.25rem, 5vw, 3.5rem) 0 0;
+  margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
   border: 1px solid var(--rule-faint);
   border-radius: var(--r-panel);
   background: var(--rule-faint);

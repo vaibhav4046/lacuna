@@ -2090,3 +2090,23 @@ restarting the server (tsx does not hot-reload; the first capture round ran
 against stale modules and was discarded). The regenerated
 `answer-revised-1920x1080.png` and `home-1920x1080.png` were inspected:
 content band ~236..1684, trace and quotations side by side.
+
+### D-070: The product sits above the fold
+
+**The problem.** The wordmark was set at up to 7.25rem with 6.5rem of padding
+above it, which spent roughly the top 520px of a 1080px viewport on the name
+and the promise. The ask form scraped the bottom of the first screen and the
+example questions — the actual product — began below it.
+
+**The fix.** Three tokens in the stylesheet. The display size dropped from
+`clamp(3.25rem, 1rem + 8.5vw, 7.25rem)` to `clamp(2.75rem, 1rem + 4.25vw,
+4.75rem)`, the masthead's top padding from `clamp(3rem, 8vw, 6.5rem)` to
+`clamp(2rem, 4vw, 3.5rem)`, and the strip's top margin from
+`clamp(2.25rem, 5vw, 3.5rem)` to `clamp(1.75rem, 3vw, 2.5rem)`. The name is
+still the largest thing on the page; it just stopped charging rent for it.
+
+**What was run.** `npm run typecheck` exit 0, `npx vitest run tests/unit`
+807 passed 0 failed, server restarted, `npm run screens` 13 captures all
+checked. In the regenerated `home-1920x1080.png` the ask form sits at about
+780px and the first four example questions are visible inside the first
+1080px; before the change the form alone scraped the fold.

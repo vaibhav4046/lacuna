@@ -453,7 +453,14 @@ try {
   devtools?.close();
   browser.kill();
   await wait(200);
-  rmSync(profile, { recursive: true, force: true });
+  // Chrome on Windows can hold the profile directory open for a moment after
+  // the process is killed; retry, and if it still will not go, leave the temp
+  // directory behind rather than failing a run whose captures all validated.
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch {
+    process.stdout.write(`profile directory left behind: ${profile}\n`);
+  }
 }
 
 process.stdout.write(

@@ -2158,3 +2158,45 @@ twice each on home, one in the answer badge, five on the interface page),
 `npm run screens` 13 captures all checked. home-1920x1080.png,
 answer-never-stated-1920x1080.png and interface-fullpage.png inspected — all
 five marks render as shapes, no missing-glyph boxes, codes legible beside them.
+
+### D-073: A capture run whose captures all validated does not fail on a locked temp directory
+
+**The problem.** `npm run screens` crashed twice in a row at cleanup: Chrome on
+Windows holds the temporary profile directory open for a moment after the
+process is killed, so the `rmSync` at the end of scripts/screens.ts threw
+`EPERM` and the run exited 1 after all 13 captures had already been written and
+checked. A verification step failing on janitorial work it does not need is a
+false red.
+
+**The fix.** The cleanup now retries (`maxRetries: 10, retryDelay: 300`) and,
+if the directory still will not go, prints the path it left behind and moves
+on. The exit code stays owned by the capture checks alone.
+
+**What was run.** `npm run screens` twice before the fix (both EPERM at
+scripts/screens.ts:456, captures complete both times), once after: 13 captures,
+all checked, exit 0, profile directory reported and left behind.
+
+### D-074: Mono is for machine values; prose is set as prose
+
+**The problem.** Sentences, captions, subheads, form labels and the footer all
+wore 11px letterspaced all-caps mono, so a figure caption and a claim id were
+indistinguishable by type. When everything is set as a machine value, the type
+stops saying which things actually are one.
+
+**The fix.** Converted to sans prose: the strip captions, the tally captions,
+figure captions (`.caption`), panel subheads (`.panel h3`), the asked line, the
+form labels, the Ask button and the footer. Inverted the asked line properly:
+the sentence is prose and the subject/predicate values inside it now take the
+mono (`.asked b`). Deleted the dead `.masthead-note` rules, which no markup
+used. Kept mono and caps deliberately where the text is machine furniture: rail
+labels, the wordmark, nav, kind tags, the reason pill, state chips, table
+headers, params readouts, query metadata, citation source lines, numerals and
+code.
+
+**What was run.** `npm run typecheck` exit 0; `npx vitest run tests/unit`
+807/807; server restarted; `npm run screens` 13 captures all checked;
+inspected home-1920x1080.png (strip captions read as sentences),
+answer-never-stated-1920x1080.png (asked line prose with mono values, sans
+subheads), bench-1920x1080.png (tally captions prose, table headers still
+caps), interface-fullpage.png (captions and footer prose, params still mono)
+and home-3840x2160.png (form labels sans, placeholders mono, button sans).

@@ -2110,3 +2110,26 @@ still the largest thing on the page; it just stopped charging rent for it.
 checked. In the regenerated `home-1920x1080.png` the ask form sits at about
 780px and the first four example questions are visible inside the first
 1080px; before the change the form alone scraped the fold.
+
+### D-071: Example questions are the primary path, the triple form the second
+
+**The problem.** The first thing under the heading was the raw
+subject/predicate/via form — the graph's storage schema offered as the user
+interface. The one-click example questions, which are how a judge actually
+reaches an answer, sat underneath it. Schema before affordance.
+
+**The fix.** Panel 01 now runs prose, examples, form. The examples are
+reordered in the view so the demo journey's three questions lead — revised,
+multi-hop, never stated, the same order as docs/DEMO_JOURNEY.md and the video
+— with the remaining kinds behind them in their given order. The form moved
+below the list behind one sentence of hand-over ("Or type your own…"), and
+its placeholders now show the journey's first question. The reorder lives in
+src/view/home.ts because it is presentation; the corpus module's order is
+untouched.
+
+**What was run.** `npm run typecheck` exit 0, `npx vitest run tests/unit`
+807 passed 0 failed, server restarted, `npm run screens` 13 captures all
+checked. The regenerated `home-1920x1080.png` shows seven clickable
+questions inside the first 1080px with revised / multi hop / never stated on
+top; the served markup was also checked directly (`class="kind"` order and
+one `formlead` occurrence).

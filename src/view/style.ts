@@ -520,12 +520,24 @@ a:active { color: var(--mark-lift); }
 
 /* ---- the question form -------------------------------------------------- */
 
+/*
+ * The sentence that hands over from the one-click path to the typed one. It is
+ * prose, not a caption: it explains a storage model, which captions cannot do.
+ */
+.formlead {
+  margin: 2.25rem 0 0;
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink-dim);
+  max-width: 66ch;
+}
+
 .ask {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 1rem 1.25rem;
-  margin: 2rem 0 0;
+  margin: 1rem 0 0;
   padding: 1.5rem;
   background: var(--paper-raised);
   border: 1px solid var(--rule-faint);

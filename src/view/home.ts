@@ -8,16 +8,21 @@ import type { AnswerSource } from './proof.js';
 /**
  * The page a reader arrives at, which has one job: get them to a real answer.
  *
- * The form is first and the explanation is second, because a judge with four
- * minutes should be able to click one line and be looking at evidence, and a
- * reader who wants the argument can find it directly underneath. Everything
- * here is a GET: a question is a place, so it has a URL, and a URL can be
- * pasted into a report and clicked by somebody else.
+ * The example questions come first and the form second, because a judge with
+ * four minutes should be one click from evidence, not one form away from it.
+ * The raw subject/predicate/via triple is how the graph stores a question, not
+ * how a person arrives holding one, so the typed path sits underneath for
+ * whoever already knows what they want to ask. Everything here is a GET: a
+ * question is a place, so it has a URL, and a URL can be pasted into a report
+ * and clicked by somebody else.
  *
  * The example questions are corpus facts rather than a curated highlight reel.
  * Each one is the first gold question of its kind, so the set covers every
  * shape the system claims to tell apart, including the three that produce no
- * answer at all. Putting the failures on the front page is the point.
+ * answer at all. Putting the failures on the front page is the point. The
+ * first three follow the demo journey (docs/DEMO_JOURNEY.md) — revised,
+ * multi-hop, never stated — so the page, the video and the submission walk the
+ * same path.
  */
 
 /**
@@ -75,6 +80,22 @@ ${field('predicate', 'Predicate', first?.predicate ?? 'a property', true)}
 ${field('via', 'Via, optional', 'a relation to follow first', false)}
 <button type="submit">Ask</button>
 </form>`;
+}
+
+/**
+ * The demo journey's three questions lead, in the journey's order; the other
+ * kinds keep their given order behind them. The reorder happens here in the
+ * view because it is presentation: the corpus module owes nobody a marketing
+ * sequence.
+ */
+const JOURNEY_KINDS: readonly string[] = ['revised', 'multi_hop', 'never_stated'];
+
+function journeyFirst(questions: readonly Example[]): readonly Example[] {
+  const lead = JOURNEY_KINDS
+    .map((kind) => questions.find((example) => example.kind === kind))
+    .filter((example): example is Example => example !== undefined);
+  const rest = questions.filter((example) => !JOURNEY_KINDS.includes(example.kind));
+  return [...lead, ...rest];
 }
 
 function examples(questions: readonly Example[]): Html {
@@ -180,6 +201,7 @@ export function homePage(
   report: BenchReport,
   source: AnswerSource = 'live',
 ): string {
+  const ordered = journeyFirst(questions);
   return page({
     title: `Lacuna | ${PROMISE}`,
     description: 'Ask a graph of past sessions what it knows, and get the shape of '
@@ -192,7 +214,13 @@ export function homePage(
         index: 1,
         label: 'Ask',
         heading: 'Put a question to the sessions',
-        body: [html`<p class="prose">${OPENING}</p>`, form(questions[0]), examples(questions)],
+        body: [
+          html`<p class="prose">${OPENING}</p>`,
+          examples(ordered),
+          html`<p class="formlead">Or type your own. The graph stores a question as a
+subject, a property, and optionally a relation to follow first.</p>`,
+          form(ordered[0]),
+        ],
       }),
       separator(),
       panel({

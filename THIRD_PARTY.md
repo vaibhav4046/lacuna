@@ -31,11 +31,29 @@ packages rather than bundled here.
 
 ## Lacuna's own dependencies
 
-None yet. No application code exists as of 2026-08-12, so nothing has been added.
-This section fills in as real dependencies land, each with its license.
+One runtime dependency and five development dependencies. The server, the
+HydraDB client, the retrieval layer and the rendered pages are first-party code
+with nothing underneath them.
 
-The intended stack is TypeScript on Node with Next.js. Those licenses get
-recorded here when the dependencies are actually installed, not predicted now.
+| Package | Kind | License | Used for |
+|---|---|---|---|
+| `@modelcontextprotocol/sdk` | runtime | MIT | the MCP adapter only; never imported by the product |
+| `typescript` | dev | Apache-2.0 | the compiler |
+| `@types/node` | dev | MIT | Node type definitions |
+| `tsx` | dev | MIT | running TypeScript directly |
+| `vitest` | dev | MIT | the test suite |
+| `@huggingface/transformers` | dev | Apache-2.0 | the benchmark baselines' embeddings (Xenova/all-MiniLM-L6-v2), so the pipelines Lacuna is measured against are real semantic search. Never loaded on the product's answer path |
+
+### Known advisories, checked and documented rather than chased
+
+`npm audit` on 2026-08-15 reports 4 high advisories, all reached through
+`@huggingface/transformers` → `onnxruntime-node`: `adm-zip` < 0.6.0
+(GHSA-xcpc-8h2w-3j85, a crafted ZIP can trigger a 4GB allocation) and `sharp`
+< 0.35.0 (GHSA-f88m-g3jw-g9cj, inherited libvips CVEs). No fixed upstream
+version exists, and the affected packages sit in a dev dependency that only the
+benchmark baselines load, on local synthetic data, never on the product's
+answer path, so the exposure is accepted and recorded rather than worked
+around.
 
 ## Content and assets
 

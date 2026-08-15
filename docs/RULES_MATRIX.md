@@ -45,7 +45,7 @@ The rules name eight things the repository must contain.
 | Setup and run instructions | `README.md`, "Running it", six steps, verified from a fresh clone by [`artifacts/repro`](../artifacts/repro/README.md) | done |
 | An explanation of how HydraDB is used | `README.md` plus [`docs/HYDRADB_INTEGRATION.md`](HYDRADB_INTEGRATION.md), which names the four reads on the answer path and what the engine refused | done |
 | Required environment or dependency information | `.env.example` with all five keys, README prerequisites, `engines.node >= 20.11.0` | done |
-| Attribution for third-party libraries, APIs, datasets, open-source code | [`THIRD_PARTY.md`](../THIRD_PARTY.md), [`SOURCE_LOG.md`](SOURCE_LOG.md) | in progress |
+| Attribution for third-party libraries, APIs, datasets, open-source code | [`THIRD_PARTY.md`](../THIRD_PARTY.md), [`SOURCE_LOG.md`](SOURCE_LOG.md): HydraDB, all six npm packages with licenses, the synthetic corpus, and the audit findings | done |
 | An open-source license | `LICENSE` | done |
 
 ## Submission (three parts, all required)

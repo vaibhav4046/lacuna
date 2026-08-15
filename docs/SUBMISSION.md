@@ -98,9 +98,9 @@ There is deliberately no LLM anywhere in the demo path. The claims are about
 retrieval and abstention, and a generated sentence on top would make every one
 of them harder to check.
 
-807 unit tests across 36 files run with no database. Three contract suites run
+816 unit tests across 37 files run with no database. Three contract suites run
 every query builder against a live HydraDB node and fail loudly if the node is
-absent rather than quietly mocking it. 849 tests in total with a node running.
+absent rather than quietly mocking it. 858 tests in total with a node running.
 ```
 
 ## 5. Deployed project link, if available
@@ -202,7 +202,7 @@ a separate service on loopback and reached over its HTTP query API, in WSL2 on
 Ubuntu 24.04.
 
 Five dev dependencies: typescript, @types/node, tsx to run TypeScript
-directly, vitest for the 849 tests, and @huggingface/transformers.
+directly, vitest for the 858 tests, and @huggingface/transformers.
 That last one is worth explaining, because it is the only model in the
 repository and it belongs to the opposition: the benchmark baselines embed with
 Xenova/all-MiniLM-L6-v2, 384 dimensions, run locally, so the pipelines Lacuna is

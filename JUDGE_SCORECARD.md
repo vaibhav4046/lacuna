@@ -21,7 +21,7 @@ are tracked, with the video, in [docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
 | A functional product or demo | `npm run serve`, then ask it something. The answer page is four panels: Answer, Timeline, Subgraph, Proof. Screenshots in [artifacts/screens/](artifacts/screens/README.md) | done |
 | Real ingestion and retrieval workflows | 5,642 vertices and 5,705 edges written to a live node, idempotent on re-run, verified by `npm run census` against the generator's plan. Transcripts in [artifacts/ingest/](artifacts/ingest/README.md) | done |
 | A clear use case | [README](README.md), [ADR 0001](docs/adr/0001-track-and-thesis.md) | done |
-| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 807 unit tests plus 42 contract tests against a live node | done |
+| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 816 unit tests plus 42 contract tests against a live node | done |
 
 ## "Judges consider"
 
@@ -29,7 +29,7 @@ are tracked, with the video, in [docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
 
 - **Evidence:** three contract suites in [tests/contract/](tests/contract) run
   every query builder against a live HydraDB node, and a missing node fails them
-  rather than skipping. 807 unit tests, 36 files, no database needed. The query
+  rather than skipping. 816 unit tests, 37 files, no database needed. The query
   layer was written against the Cypher subset the engine actually implements,
   discovered by probing it on day two; the refusals are quoted in the source
   beside the code that works around them.
@@ -105,7 +105,7 @@ lose on by using a graph database as a place to put results.
 
 ## The judge's ten minutes
 
-1. `npm ci && npm test`. 807 tests at the last measured run, no database
+1. `npm ci && npm test`. 816 tests at the last measured run, no database
    required. Seven error lines on stderr are error-path tests provoking failures
    on purpose; the counts underneath are the result, and the line that matters
    says every test passed and none were skipped.

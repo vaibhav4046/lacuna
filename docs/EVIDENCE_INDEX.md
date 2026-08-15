@@ -44,9 +44,9 @@ cell `cell-0`.
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 807 unit tests over 36 files | SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX | [artifacts/verification/2026-08-14b/unit.txt](../artifacts/verification/2026-08-14b/unit.txt) | `npm test` | `FIXTURE` |
+| 816 unit tests over 37 files | SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX | [artifacts/verification/2026-08-15/unit.txt](../artifacts/verification/2026-08-15/unit.txt) | `npm test` | `FIXTURE` |
 | 42 contract tests over 3 files | README, SUBMISSION, JUDGE_SCORECARD | [artifacts/verification/2026-08-14b/contract.txt](../artifacts/verification/2026-08-14b/contract.txt) | `npm run test:contract` | `LIVE` |
-| 849 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
+| 858 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
 | Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-14b/unit.txt](../artifacts/verification/2026-08-14b/unit.txt) | `npm test` | `FIXTURE` |
 | Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-14b/typecheck.txt](../artifacts/verification/2026-08-14b/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
 
@@ -62,7 +62,8 @@ connections, two ambiguous entity names, three 403s from a namespace the token
 cannot read. A run that printed none of them would mean the error paths had
 stopped being exercised.
 
-The jump from 712 to 807 is the CLI and MCP suites landing. The earlier run is
+The jump from 712 to 807 is the CLI and MCP suites landing; 807 to 816 is the
+snapshot-comparison suite landing with the D-078 fix. The earlier runs are
 still on disk at [artifacts/verification/2026-08-14/](../artifacts/verification/2026-08-14/)
 and is not deleted, because a superseded measurement is evidence of when the
 number changed and why. That is the same rule the product applies to claims.
@@ -257,7 +258,8 @@ the state this file exists to make visible rather than to hide.
 Some numbers here go stale the moment new work lands, and saying so is cheaper
 than being caught by it.
 
-**The unit test count.** It has been 712, then 805, and is 807 at the run above.
+**The unit test count.** It has been 712, then 805, then 807, and is 816 at the
+run above.
 It moves whenever a test is added, which is often, and it was written into six
 files at once, which is exactly how a stale count survives. The durable fix was
 to stop repeating it: the README and the scorecard now tell a reader to look at

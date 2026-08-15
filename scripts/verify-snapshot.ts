@@ -4,8 +4,9 @@
  * Runs all sixty gold questions twice — once against the live HydraDB node,
  * once through the snapshot transport — and compares the full Answer objects
  * field by field: resolution, trace, evidence, subgraph, query log. The only
- * fields excluded are the wall-clock ms figures, which measure network versus
- * replay and cannot be equal. Any other difference is a failure.
+ * fields excluded are the wall-clock ms figures and the read epoch, which
+ * measure the run rather than the answer (src/snapshot/compare.ts says why).
+ * Any other difference is a failure.
  *
  *   npx tsx scripts/verify-snapshot.ts
  */
@@ -18,7 +19,7 @@ import { generateCorpus } from '../src/corpus/index.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig, type HydraConfig } from '../src/hydra/config.js';
 import { ask, buildQuestion, parseVia } from '../src/retrieval/index.js';
-import type { Answer } from '../src/retrieval/index.js';
+import { comparableAnswer } from '../src/snapshot/compare.js';
 import { loadSnapshot, snapshotTransport } from '../src/snapshot/replay.js';
 
 const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
@@ -27,24 +28,6 @@ if (!existsSync(ENV_PATH)) {
   process.exit(1);
 }
 process.loadEnvFile(ENV_PATH);
-
-/**
- * Everything except wall-clock timing, which replay is expected to change.
- * The query log is sorted before comparison: the claims and mentions reads
- * run in parallel and land in completion order, which races over the network
- * on the live path and is stable on replay. Two consecutive live runs can
- * disagree on that order too — it is scheduling, not content.
- */
-function comparable(answer: Answer): string {
-  const queries = answer.queries
-    .map((trace) => ({ ...trace, ms: null }))
-    .sort((a, b) => {
-      const left = `${a.cypher} ${JSON.stringify(a.parameters)}`;
-      const right = `${b.cypher} ${JSON.stringify(b.parameters)}`;
-      return left < right ? -1 : left > right ? 1 : 0;
-    });
-  return JSON.stringify({ ...answer, ms: null, queries }, null, 2);
-}
 
 const corpus = generateCorpus();
 const live = new HydraClient(loadHydraConfig());
@@ -74,7 +57,7 @@ for (const question of corpus.questions) {
   const liveAnswer = await ask(live, built);
   const replayAnswer = await ask(replay, built);
 
-  const same = comparable(liveAnswer) === comparable(replayAnswer);
+  const same = comparableAnswer(liveAnswer) === comparableAnswer(replayAnswer);
   const verdict = judge(question.expected, replayAnswer.resolution.outcome);
   if (!same) mismatches += 1;
   if (verdict !== 'correct') wrongVerdicts += 1;
@@ -87,8 +70,8 @@ for (const question of corpus.questions) {
   );
 
   if (!same) {
-    const liveText = comparable(liveAnswer);
-    const replayText = comparable(replayAnswer);
+    const liveText = comparableAnswer(liveAnswer);
+    const replayText = comparableAnswer(replayAnswer);
     const liveLines = liveText.split('\n');
     const replayLines = replayText.split('\n');
     for (let i = 0; i < Math.max(liveLines.length, replayLines.length); i += 1) {

@@ -1,0 +1,16 @@
+
+ RUN  v4.1.10 D:/project/lacuna
+
+request failed: HydraTransportError: request failed before a response arrived (http://127.0.0.1:18443/v1/graphs/default/query) <- connect ECONNREFUSED
+request failed: RetrievalDecodeError: entity name matched 2 nodes, expected at most one
+request failed: HydraTransportError: request failed before a response arrived (http://127.0.0.1:18443/v1/graphs/default/query) <- connect ECONNREFUSED
+request failed: RetrievalDecodeError: entity name matched 2 nodes, expected at most one
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
+
+ Test Files  37 passed (37)
+      Tests  816 passed (816)
+   Start at  04:39:28
+   Duration  13.21s (transform 1.07s, setup 0ms, import 3.81s, tests 2.52s, environment 3ms)
+

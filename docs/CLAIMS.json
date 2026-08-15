@@ -209,14 +209,14 @@
       "capability": "VERIFIED",
       "data": "FIXTURE",
       "measured": {
-        "files": 36,
-        "tests": 807,
-        "duration_seconds": 163.36,
-        "run_on": "2026-08-14"
+        "files": 37,
+        "tests": 816,
+        "duration_seconds": 13.21,
+        "run_on": "2026-08-15"
       },
       "evidence": [
         "tests/unit",
-        "artifacts/verification/2026-08-14b/unit.txt"
+        "artifacts/verification/2026-08-15/unit.txt"
       ],
       "reproduce": "npm test",
       "caveat": "Negative paths are asserted, so the run prints handled errors to stderr on purpose. A green summary line with error text above it is the expected shape."

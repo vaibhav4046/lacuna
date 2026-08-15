@@ -100,7 +100,11 @@ tells you the load worked rather than that it finished. It ends
 With the corpus loaded, `npm run snapshot:verify` replays all sixty gold
 questions through the stored snapshot and asks the live node the same sixty,
 then fails on any mismatch between the two. It needs a running node, because
-comparing a recording against the real thing is the whole point of it.
+comparing a recording against the real thing is the whole point of it. Two
+fields are excluded from the comparison: wall-clock milliseconds and the read
+epoch, which measure the run rather than the answer — every write to the node
+advances the epoch, so it differs whenever anything has been ingested since the
+snapshot was exported.
 
 **6. Serve.**
 

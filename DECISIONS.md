@@ -2275,3 +2275,38 @@ lines in their exact casing, the Farah Haddad trace line, 4 reads on the
 single-entity proof panel and 8 on the multi-hop one, and the BENCHMARKS.md
 opening. Repo-wide grep found the stale figures nowhere else. typecheck 0,
 807/807.
+
+### D-078: The snapshot verifier no longer compares the read epoch
+
+**The problem.** Found by the cold judge simulation, running the README
+commands in printed order on a fresh clone: `npm run snapshot:verify` exited 1
+with 60 answer mismatches and 0 wrong verdicts, every first differing line
+`"readEpoch"`. The verifier's `comparable()` nulled the wall-clock ms figures
+but compared the read epoch, and the epoch is the object-store version a read
+observed — every write to the node advances it, including the idempotent
+re-ingest, which re-puts all 5642 vertices and 5705 edges. The snapshot was
+exported at epoch 6459; the node now answers at 17871. So the check could only
+ever pass in the minutes between an export and the next write, and failed for
+exactly the reason VIDEO_SCRIPT.md already names the epoch a measurement of
+the run: it measures when you asked, not what the answer was. The 0 wrong
+verdicts confirm no content ever differed.
+
+**The fix.** The comparison moved out of the script into
+`src/snapshot/compare.ts` as `comparableAnswer()`, which nulls both run
+measurements — ms and readEpoch, per query trace — and sorts the query log
+before comparing, since the two parallel reads land in completion order.
+Everything else still counts: verdict, value, claims, supersession edges,
+quotations, Cypher with parameters and row counts. The module carries the
+full argument in its header comment; the README's snapshot:verify paragraph
+now states the two exclusions; and `tests/unit/snapshot-compare.test.ts` pins
+nine cases — the epoch and ms and ordering must be ignored, a changed value,
+verdict, row count or parameter must not be. Rejected: re-exporting the
+snapshot, which repairs the symptom until the next write and touches the
+committed artifact for a defect that lives in the comparator.
+
+**What was run.** `npm run typecheck` exit 0; `npx vitest run tests/unit`
+816 of 816 across 37 files (was 807 of 36 — the nine new comparison tests);
+`npm run snapshot:verify` against the live node at epoch 17871, 60 questions,
+0 answer mismatches, 0 wrong verdicts, exit 0. Repo-wide grep swept the old
+counts out of SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX, EVIDENCE_INDEX and
+CLAIMS.json; DECISIONS and STATE keep their historical figures.

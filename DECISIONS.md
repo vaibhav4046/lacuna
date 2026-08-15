@@ -2223,3 +2223,26 @@ ratio cell only renders when a tied system exists to compare against.
 807 of 807 across 36 files; `npm run screens` 13 captures all checked, exit
 0; `artifacts/screens/home-1920x1080.png` inspected — the score and ratio
 lead, the count and median step back, and the ratio keeps its orange mark.
+
+### D-076: Mobile carries the whole page, and the nav stops orphaning a tab
+
+**The problem.** The phone capture weighs 77 KB against 315 KB for desktop,
+which read as a flag that the mobile page might be missing content. It also
+showed a real defect: the five tabs were one character too wide for 375px,
+so VOICE wrapped onto a row of its own, which makes one page of the site
+look like an afterthought of the nav rather than a member of it.
+
+**The fix.** The byte gap is pixel count, not content. A 375x812 capture has
+a tenth of the pixels of 1920x1080, and per pixel the mobile capture is the
+denser of the two (0.256 against 0.145 bytes per pixel). The stylesheet
+hides nothing at any viewport width — its only `display: none` rules are in
+the print block — so the phone gets every panel, every example, the ranked
+strip and the full corpus figures, and that parity is the decision: recorded
+here as deliberate rather than fixed. The one real defect got a real fix: at
+40rem the tabs tighten their tracking from 0.12em to 0.06em and their gap
+from 1.4rem to 0.85rem, which fits all five on one line.
+
+**What was run.** `npm run typecheck` exit 0; `npx vitest run tests/unit`
+807 of 807 across 36 files; `npm run screens` 13 captures all checked, exit
+0; `artifacts/screens/home-375x812.png` inspected — one nav line, ranked
+strip stacked in order, panel one opening beneath it.

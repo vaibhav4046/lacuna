@@ -293,6 +293,13 @@ body {
 
 .tabs a:hover, .ways a:hover { color: var(--ink); border-bottom-color: var(--rule-strong); }
 
+/* At phone width the five tabs are one character too wide for one line, which
+   orphans the last onto a row of its own. Tighter tracking and gap keep the
+   nav whole rather than dropping a page from it. */
+@media (max-width: 40rem) {
+  .tabs { gap: 0.35rem 0.85rem; letter-spacing: 0.06em; }
+}
+
 /*
  * The page you are on is said twice here, in colour and in a rule, because
  * colour on its own is not an answer for a reader who cannot see this one. The

@@ -4,7 +4,7 @@ Shot by shot, cut to 2:49. The rules say three minutes or less and that
 "anything past the 3-minute mark may not be reviewed", so this is built to land
 eleven seconds short rather than trimmed back to the line afterwards.
 
-Everything below was checked against the running product on 2026-08-13, not
+Everything below was checked against the running product on 2026-08-15, not
 recalled. Section heights, the wording on each panel and the example links are
 what the server returns today.
 
@@ -51,9 +51,10 @@ should read Stonecrop, then Millbrace, then Halverd.
 ## Capture setup
 
 - Browser window **1920x1080**, page zoom **125%**.
-- Measured: the content column is 1190px wide and does not reflow between 100%
-  and 125% zoom, so 125% fills 78% of the frame instead of 62% with no layout
-  change. At 100% there is a lot of dead margin on both sides.
+- Measured: the content column is 1448px wide at 100% zoom, which is 75% of the
+  frame. At 125% it renders at 92% of the frame, and the layout does not change
+  shape between the two: no breakpoint sits between those widths, so the only
+  difference is a few pixels of fluid margin. 125% is the setting.
 - Hide the bookmarks bar and any extension icons.
 - The URL bar stays in frame on purpose. It reads `127.0.0.1:3014`, which is the
   point: this is running, not hosted somewhere you cannot check.
@@ -88,6 +89,8 @@ honesty about the benchmark that the repository states in writing anyway.
 ### Shot 1. The problem
 **0:00 to 0:17.** Home page, top. Static, no scrolling. The hero reads
 "Memory that knows what changed, what remains true, and what was never known."
+The benchmark strip sits directly under it; it stays in frame and is not
+narrated here, because shot 7 owns the honest version of that claim.
 
 > A long chat history holds three kinds of fact. Ones that still hold. Ones that
 > were replaced. And ones that were never in there at all. A long-context model
@@ -96,7 +99,8 @@ honesty about the benchmark that the repository states in writing anyway.
 ### Shot 2. What was built
 **0:17 to 0:31.** Scroll down to `03 Corpus`, hold two seconds on the counts
 (72 sessions, 5,268 messages, 118 claims, 66 entities, 117,395 estimated
-tokens), then scroll back up to the Ask form.
+tokens), then scroll back up to `01 Ask`. The typed form sits just below the
+example questions in that panel.
 
 > Lacuna is a memory layer that keeps them apart. Seventy-two sessions and a
 > hundred and eighteen claims, in a HydraDB graph. Ask it for a property of
@@ -121,7 +125,7 @@ Hold three seconds, then scroll to `02 Timeline`.
 
 ### Shot 4. How HydraDB is used
 **1:03 to 1:33.** Same page. Scroll past `03 Subgraph` without stopping, down to
-`04 Proof`. This panel is 1247px tall so it needs about one and a half screens.
+`04 Proof`. This panel is 1276px tall so it needs about one and a half screens.
 Scroll slowly and evenly through all four reads. Do not stop on any single one.
 
 > This is the HydraDB panel, and it is on every answer. Four reads produced that
@@ -157,7 +161,7 @@ contact for the vendor behind replay-queue?"
 
 Stay on the answer panel. It reads **Farah Haddad**, and the "How it got there"
 trace reads "Followed "vendor" from "replay-queue" to "Northfold"". Two
-quotations are shown, from two different sessions eight days apart.
+quotations are shown, from two different sessions two days apart.
 
 > One more. No session says who the contact for replay-queue is. Two say it
 > between them. Lacuna follows vendor from replay-queue to Northfold, reads

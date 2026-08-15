@@ -2246,3 +2246,32 @@ from 1.4rem to 0.85rem, which fits all five on one line.
 807 of 807 across 36 files; `npm run screens` 13 captures all checked, exit
 0; `artifacts/screens/home-375x812.png` inspected — one nav line, ranked
 strip stacked in order, panel one opening beneath it.
+
+### D-077: The video script says what the server says today
+
+**The problem.** docs/VIDEO_SCRIPT.md was checked against the product on
+2026-08-13, two redesign passes ago. Three of its measured claims had gone
+stale: the content column is 1448px wide at 1920, not 1190px; the 04 Proof
+panel on the Bellwether answer is 1276px tall, not 1247px; and the two
+multi-hop quotations are two days apart (2025-03-21 to 2025-03-23), not eight.
+Two stage directions also predated the examples-first layout: the form now sits
+below the example questions, and the benchmark strip now sits under the hero.
+
+**The fix.** Every measured claim in the script was re-measured against the
+running server and rewritten to match: column width and the zoom arithmetic
+(125% fills 92% of the frame against 75% at 100%, with no breakpoint between
+those widths), the Proof panel height, the quotation gap, and the two stage
+directions. docs/VIDEO_CHECKLIST.md added: the tick-through version of the
+script — pre-record state, capture setup, the never-in-frame sweep, one
+verified on-screen string per shot, and the upload gates — so the recording
+session needs the script open for narration only.
+
+**What was run.** Pixels came from a headless-Chrome CDP probe against
+127.0.0.1:3014 (getBoundingClientRect on main.sheet and each section.panel, at
+1920x1080 and at the 1536px CSS viewport that 125% zoom produces). Wording came
+from curl against the live server: hero line, all five corpus counts, Halverd
+and its supersedes sentence, the never-stated headline with both empty-state
+lines in their exact casing, the Farah Haddad trace line, 4 reads on the
+single-entity proof panel and 8 on the multi-hop one, and the BENCHMARKS.md
+opening. Repo-wide grep found the stale figures nowhere else. typecheck 0,
+807/807.

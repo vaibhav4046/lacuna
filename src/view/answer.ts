@@ -85,14 +85,18 @@ const NOTHING_TO_QUOTE = 'There is no quotation, because there is no statement t
 
 export function answerPanel(answer: Answer): Html {
   const answered = answer.resolution.outcome.type === 'answer';
+  // The walk and its quotations are one unit: side by side where the sheet is
+  // wide enough, stacked where it is not. The pairing lives in the stylesheet.
   const body = [
     asked(answer),
     verdict(answer),
     html`<p class="explain">${answer.resolution.explanation}</p>`,
-    trace(answer.resolution.trace),
-    answer.evidence.length > 0
-      ? citations(answer.evidence)
-      : html`<p class="nothing">${NOTHING_TO_QUOTE}</p>`,
+    html`<div class="duo">
+<div>${trace(answer.resolution.trace)}</div>
+<div>${answer.evidence.length > 0
+    ? citations(answer.evidence)
+    : html`<p class="nothing">${NOTHING_TO_QUOTE}</p>`}</div>
+</div>`,
   ];
 
   return panel({

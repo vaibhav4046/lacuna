@@ -74,7 +74,7 @@ export const STYLESHEET = `
   --dur-press: 100ms;
 
   --rail-w: 11rem;
-  --main-w: 60rem;
+  --main-w: 76rem;
   --gutter: clamp(1.25rem, 3.5vw, 3.5rem);
   --edge:   clamp(1.25rem, 4vw, 5rem);
 }
@@ -690,6 +690,25 @@ a:active { color: var(--mark-lift); }
   font-size: var(--t-small);
   color: var(--mark);
   padding-top: 0.15rem;
+}
+
+/*
+ * The walk and the quotations, side by side where the sheet is wide enough.
+ *
+ * The step that names a claim and the quotation that backs it belong on the
+ * same horizon, not a screenful apart. Below the breakpoint the pair stacks
+ * back into reading order, which is also the order a screen reader gets in
+ * either case.
+ */
+.duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 var(--gutter);
+  align-items: start;
+}
+
+@media (min-width: 68rem) {
+  .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ---- citations ---------------------------------------------------------- */

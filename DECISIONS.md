@@ -2066,3 +2066,27 @@ on 2026-08-15, exit 0 each, outputs quoted verbatim in the document;
 confirming all 60 gold questions and their kind counts (12 stable, 8 revised,
 6 retracted, 6 contradicted, 8 multi_hop, 6 unconnected, 8 never_stated,
 6 out_of_scope).
+
+### D-069: The wide layout now fills its right third
+
+**The problem.** At 1920px the sheet stopped at roughly 1556px and everything
+to its right was unpainted ground. A third of every page was dead gutter, and
+on answer pages the walk ("How it got there") and the quotations that back it
+sat a screenful apart, stacked in a 60rem column that never needed to be that
+narrow.
+
+**The fix.** Two changes in the stylesheet and one in the answer view. The
+content column widened from `--main-w: 60rem` to `76rem`, which moves the
+right edge of the sheet to about 1684px at 1920 and leaves symmetric margins
+rather than one dead side. On answer pages the trace and the citations now
+share a `.duo` grid: two columns above 68rem so the step that names a claim
+and the quotation that backs it sit on the same horizon, one column below it
+so the pair stacks back into reading order, which is also the order a screen
+reader gets in either case.
+
+**What was run.** `npm run typecheck` exit 0, `npx vitest run tests/unit`
+807 passed 0 failed, `npm run screens` 13 captures all checked after
+restarting the server (tsx does not hot-reload; the first capture round ran
+against stale modules and was discarded). The regenerated
+`answer-revised-1920x1080.png` and `home-1920x1080.png` were inspected:
+content band ~236..1684, trace and quotations side by side.

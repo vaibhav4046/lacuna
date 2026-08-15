@@ -154,16 +154,16 @@ Prints the committed benchmark report, best configuration of each system family.
 
 ```
   Benchmark, best configuration per family
-  run 2026-08-13T03:15:14.592Z, seed lacuna-demo-v1, embeddings Xenova/all-MiniLM-L6-v2
+  run 2026-08-15T01:46:13.182Z, seed lacuna-demo-v1, embeddings Xenova/all-MiniLM-L6-v2
   72 sessions, 5268 messages, 118 claims
 
-  system                    correct  false  missed  abstain f1  tokens  p50    p95
-  lacuna                    60/60    0      0       1.00        15      243ms  428ms
-  hybrid+2hop@20 +conflict  60/60    0      0       1.00        636     4ms    7ms
-  lexical@20 +conflict      46/60    0      8       0.89        513     1ms    1ms
-  hybrid@20 +conflict       46/60    0      8       0.89        524     4ms    4ms
-  vector@50 +conflict       46/60    0      8       0.89        1310    3ms    3ms
-  recency@50 +conflict      44/60    0      10      0.86        1087    0ms    0ms
+  system                    correct  false  missed  abstain f1  tokens  p50   p95
+  lacuna                    60/60    0      0       1.00        15      80ms  160ms
+  hybrid+2hop@20 +conflict  60/60    0      0       1.00        636     4ms   7ms
+  lexical@20 +conflict      46/60    0      8       0.89        513     1ms   1ms
+  hybrid@20 +conflict       46/60    0      8       0.89        524     4ms   4ms
+  vector@50 +conflict       46/60    0      8       0.89        1310    3ms   4ms
+  recency@50 +conflict      44/60    0      10      0.86        1087    0ms   0ms
 
   read from D:\project\lacuna\artifacts\bench\results.json, not rerun
 ```

@@ -1998,3 +1998,39 @@ Running-it section after the corpus load, saying exactly that.
 with exactly one line on stderr and no stack trace, and `npm run
 serve:snapshot` still boots and serves 200 with no env present at all. With
 the file restored: `tsc --noEmit` exits 0 and all 807 unit tests pass.
+
+### D-067: The benchmark report printed a ratio no measurement produced
+
+**The problem.** `scripts/benchmark.ts` rounded each side's mean context
+tokens to a whole number first and divided second: 636 / 15 = 42.4. The
+measured means are 636.4833 and 15.0917 estimated tokens, and dividing those
+gives 42.2. Nothing anywhere measured 42.4; it was an artifact of rounding
+order, and it had been copied into four documents as if it were a result.
+The wider tie's ratio had the same defect: 1603 / 15 printed as 107 where
+the unrounded means give 106.2.
+
+**The fix.** The generator now divides the unrounded means and rounds once
+at the end, for the headline ratio and for the ablation sentence both. The
+whole benchmark was then re-run rather than the report hand-edited, because
+`results.json` does not store the raw per-question arrays a report needs and
+because a run artifact that was not produced by a run would violate the rule
+that every printed number was measured.
+
+**What the re-run changed and what it could not.** The corpus is generated
+from a fixed seed, so every correctness figure and every mean context token
+count came back byte-identical across all 51 configurations — 60/60 for
+Lacuna and for the tying baseline, 15.0917 and 636.4833 mean tokens, ratio
+now printed as 42.2. Latency is the one column a re-run cannot reproduce:
+Lacuna's p50 came out at 80.3ms against the previous run's 243.4ms, on the
+same code and the same graph, and the documents that quoted 243.4ms now
+quote the run that actually sits in `artifacts/bench/report.txt`. The
+three-run history (188.1, 243.4, 80.3) is stated in STATE.md rather than
+smoothed over; earlier records that name the superseded figures are dated
+and stand as written.
+
+**What was run.** `npm run bench` end to end (report and results
+regenerated, runAt 2026-08-15T01:46:13Z), `npm test` 807 passed 0 failed 0
+skipped against the fresh artifacts, `tsc --noEmit` exit 0, and
+`node bin/lacuna.js bench` re-run so the CLI transcript in docs/CLI.md is
+real output. A repo-wide sweep for `42.4`, `107 times`, `243.4` and `427.7`
+finds them only in dated records and in the code comment explaining the bug.

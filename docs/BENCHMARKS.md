@@ -26,11 +26,11 @@ Best configuration of each approach:
 
 | system | correct | false | abst F1 | ctx tok | p50 ms |
 |---|---|---|---|---|---|
-| lacuna | 60/60 | 0 | 1.000 | 15 | 243.4 |
-| hybrid+2hop@20 +conflict | 60/60 | 0 | 1.000 | 636 | 3.6 |
+| lacuna | 60/60 | 0 | 1.000 | 15 | 80.3 |
+| hybrid+2hop@20 +conflict | 60/60 | 0 | 1.000 | 636 | 3.7 |
 | lexical@20 +conflict | 46/60 | 0 | 0.889 | 513 | 1.0 |
-| hybrid@20 +conflict | 46/60 | 0 | 0.889 | 524 | 3.5 |
-| vector@50 +conflict | 46/60 | 0 | 0.889 | 1310 | 2.6 |
+| hybrid@20 +conflict | 46/60 | 0 | 0.889 | 524 | 3.6 |
+| vector@50 +conflict | 46/60 | 0 | 0.889 | 1310 | 2.8 |
 | recency@50 +conflict | 44/60 | 0 | 0.865 | 1087 | 0.2 |
 
 `correct` means exact: the same decision, and either the same value or the same
@@ -41,7 +41,7 @@ step.
 The table shows the best configuration of each approach, so it lists one row per
 approach. In the full 51-row table there is a second configuration on 60/60:
 `hybrid+2hop@50 +conflict`, the same pipeline with a wider cut-off, at 1,603
-context tokens. Both ties are the same construction; the wider one costs 107
+context tokens. Both ties are the same construction; the wider one costs 106
 times Lacuna's context rather than 42.
 
 ## The baselines were given every advantage
@@ -72,13 +72,13 @@ values and no announced correction. Take any part away:
 The three rules that reader applies are the three distinctions the graph holds
 structurally: a correction supersedes, a withdrawal removes, and a hop that
 lands on a silent entity is a gap rather than an absence. Hand-written into a
-reader they cost four components and 42.4 times the context, 636 estimated
+reader they cost four components and 42.2 times the context, 636 estimated
 tokens per question against 15.
 
 That is the shape of the claim, stated as narrowly as the evidence supports:
 not that the graph answers more questions, but that reaching the same answers
 without one takes a purpose-built pipeline nobody would arrive at except by
-tuning against these answers, and it carries 42.4 times more context to the
+tuning against these answers, and it carries 42.2 times more context to the
 model that has to be trusted with the last step.
 
 The configuration was also not found by a baseline author trying their best. It
@@ -87,7 +87,7 @@ version of the opposing argument this repository could construct, on purpose.
 
 ## What this does not measure
 
-**Latency is not like-for-like.** 243.4ms against 3.6ms, and the comparison is
+**Latency is not like-for-like.** 80.3ms against 3.7ms, and the comparison is
 not a race. Every baseline runs in-process against arrays already in memory.
 Lacuna runs queries over HTTP against a HydraDB node and pays a network round
 trip per hop. The baselines also pay nothing for indexing, which happened

@@ -345,32 +345,35 @@ What exists right now. Updated as things change, and never ahead of them.
   [artifacts/bench/report.txt](artifacts/bench/report.txt), per question rows in
   `results.json`.
 
-  **On correctness it is a tie.** Real output, 2026-08-13:
+  **On correctness it is a tie.** Real output, 2026-08-15:
 
   ```
   system                       correct    rate   false  unsup   abst F1   ctx tok   p50     p95
-  lacuna                       60/60  100.0%      0      0   1.000       15   243.4   427.7
-  hybrid+2hop@20 +conflict     60/60  100.0%      0      0   1.000      636     3.6     6.9
+  lacuna                       60/60  100.0%      0      0   1.000       15    80.3   160.4
+  hybrid+2hop@20 +conflict     60/60  100.0%      0      0   1.000      636     3.7     7.1
   lexical@20 +conflict         46/60   76.7%      0      0   0.889      513     1.0     1.3
-  hybrid@20 +conflict          46/60   76.7%      0      0   0.889      524     3.5     4.2
-  vector@50 +conflict          46/60   76.7%      0      0   0.889     1310     2.6     3.0
-  recency@50 +conflict         44/60   73.3%      0      0   0.865     1087     0.2     0.4
+  hybrid@20 +conflict          46/60   76.7%      0      0   0.889      524     3.6     4.2
+  vector@50 +conflict          46/60   76.7%      0      0   0.889     1310     2.8     3.6
+  recency@50 +conflict         44/60   73.3%      0      0   0.865     1087     0.2     0.5
   ```
 
   Same score, same zero unsupported answers, tied on all eight thread kinds. No
   claim of better recall or better abstention survives this run and none is
   made. What separates them is cost and construction: 15 estimated tokens of
-  context per question against 636, 42.4 times fewer, and 243.4ms against 3.6ms,
-  68.2 times slower. The latency column is not like for like and the report says
+  context per question against 636, 42.2 times fewer, and 80.3ms against 3.7ms,
+  21.8 times slower. The latency column is not like for like and the report says
   so in its own text. Lacuna queries a HydraDB node over HTTP and pays a round
   trip per hop; every baseline runs in process against arrays already in memory
   and paid nothing for indexing, which happened before the clock started.
 
-  It is also the only noisy column. The harness was run twice and Lacuna's p50
-  came out at 188.1ms and then 243.4ms, a 51.0 and a 68.2 times ratio for the
-  same code against the same graph. Every correctness column was identical
-  between the two runs, down to the mean context tokens on all 51 rows. Treat
-  the latency figure as an order of magnitude, not a measurement.
+  It is also the only noisy column. The harness has been run three times and
+  Lacuna's p50 came out at 188.1ms, then 243.4ms, then 80.3ms for the same code
+  against the same graph, a three-fold spread; the third run came after the WSL
+  network relay carrying loopback traffic to the node had been restarted, which
+  is the suspected but unproven reason it is the fastest. Every correctness
+  column was identical across all three runs, down to the mean context tokens
+  on all 51 rows. Treat the latency figure as an order of magnitude, not a
+  measurement.
 
   The tying baseline is four hand built parts, and removing any one of them
   breaks it:

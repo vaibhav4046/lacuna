@@ -154,7 +154,7 @@ the best baseline ties Lacuna on correctness: 60/60 for both. So the claim is
 not "the graph gets more answers right." It is narrower and it survives:
 
 - **Context size.** Lacuna hands the reader 15 tokens. The tying baseline hands
-  it 636, a 42.4x difference, because a similarity index cannot know which of
+  it 636, a 42.2x difference, because a similarity index cannot know which of
   its top-k chunks is the superseded one and has to pass all of them along.
 - **Construction.** The tying configuration is `hybrid + a second retrieval
   round + a conflict-aware reader`. Remove the conflict-aware reader and it
@@ -168,7 +168,7 @@ not "the graph gets more answers right." It is narrower and it survives:
   message they searched and did not find, because they never had a node to be
   absent.
 
-Latency is 243.4ms for Lacuna against 3.6ms for the baseline, and that is not a
+Latency is 80.3ms for Lacuna against 3.7ms for the baseline, and that is not a
 like-for-like comparison: the baselines run in-process over arrays and Lacuna
 runs over HTTP to a real database. Reported, not defended.
 

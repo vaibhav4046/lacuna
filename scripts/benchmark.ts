@@ -276,8 +276,14 @@ const ablations = [
   .map((a) => ({ ...a, row: findRow(a.label) }))
   .filter((a): a is typeof a & { row: Measured } => a.row !== undefined && a.row !== bestBaseline);
 
-const lacunaTokens = Math.round(mean(lacunaRow.contextChars) / CHARS_PER_TOKEN);
-const baselineTokens = Math.round(mean(bestBaseline.contextChars) / CHARS_PER_TOKEN);
+// The ratio divides the unrounded means and rounds once at the end. Rounding
+// each mean to a whole token first and then dividing (636 / 15 = 42.4) prints
+// a ratio no measurement produced; the measured means give 42.2.
+const lacunaTokensExact = mean(lacunaRow.contextChars) / CHARS_PER_TOKEN;
+const baselineTokensExact = mean(bestBaseline.contextChars) / CHARS_PER_TOKEN;
+const lacunaTokens = Math.round(lacunaTokensExact);
+const baselineTokens = Math.round(baselineTokensExact);
+const contextRatio = baselineTokensExact / Math.max(lacunaTokensExact, 1e-9);
 const lacunaP50 = percentile(lacunaRow.latencies, 50);
 const baselineP50 = percentile(bestBaseline.latencies, 50);
 
@@ -295,7 +301,7 @@ say();
 say('  What separates them is cost and construction.');
 say(
   `  Context: ${lacunaTokens} estimated tokens per question against ${baselineTokens}, `
-  + `${(baselineTokens / Math.max(lacunaTokens, 1)).toFixed(1)} times fewer.`,
+  + `${contextRatio.toFixed(1)} times fewer.`,
 );
 say(
   `  Latency: ${lacunaP50.toFixed(1)}ms against ${baselineP50.toFixed(1)}ms, `
@@ -321,7 +327,7 @@ say('  The three rules that reader applies are the three distinctions the graph'
 say('  holds structurally: a correction supersedes, a withdrawal removes, and a');
 say('  hop that lands on a silent entity is a gap rather than an absence. Hand');
 say(
-  `  written into a reader they cost four components and ${(baselineTokens / Math.max(lacunaTokens, 1)).toFixed(0)} times the`,
+  `  written into a reader they cost four components and ${contextRatio.toFixed(0)} times the`,
 );
 say('  context. That is the honest shape of the result.');
 say();

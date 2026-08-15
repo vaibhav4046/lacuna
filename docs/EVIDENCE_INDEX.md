@@ -117,7 +117,7 @@ time against a live node with nothing else running.
 | Lacuna 60/60, and the tie at 60/60 | SUBMISSION, BENCHMARKS, JUDGE_SCORECARD | same | same | `RECORDED` |
 | 15 mean context tokens against 636 | SUBMISSION, BENCHMARKS | same | same | `RECORDED` |
 | 1,310 and 1,603 context tokens for the vector baselines | SUBMISSION, BENCHMARKS | same, and [artifacts/bench/results.json](../artifacts/bench/results.json) | same | `RECORDED` |
-| p50 243.4 ms, p95 427.7 ms | BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | same | `RECORDED` |
+| p50 80.3 ms, p95 160.4 ms | BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | same | `RECORDED` |
 | Xenova/all-MiniLM-L6-v2, 384 dimensions, run locally | SUBMISSION, BENCHMARKS | same | same | `RECORDED` |
 
 **The result is a tie and is stated as one.** `hybrid+2hop@20 +conflict` scores
@@ -127,8 +127,8 @@ the run showed is the same score from four graph reads and 15 context tokens
 against a pipeline needing four hand-tuned components and 636.
 
 **The latency comparison is not like for like, and this sentence belongs next to
-the numbers rather than behind a tooltip.** Lacuna's 243.4 ms is HTTP reads
-against a live graph over loopback. The baselines' 3.6 ms is in-process array
+the numbers rather than behind a tooltip.** Lacuna's 80.3 ms is HTTP reads
+against a live graph over loopback. The baselines' 3.7 ms is in-process array
 scanning inside the same Node process. Those measure different things. The
 context figure is the comparable one; the millisecond figure is there so nobody
 has to discover the trade-off for themselves.

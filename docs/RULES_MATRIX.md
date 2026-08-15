@@ -26,7 +26,7 @@ here.
 | Trigger | Prevention | Status |
 |---|---|---|
 | Work started before August 12, 2026 | Fresh repository, `git init` on 2026-08-12. No pre-hackathon code, assets, or history imported from any prior project. Full history is inspectable and unmodified | done |
-| Missing or private GitHub repository | Public repo required before submission. Not yet created; needs owner approval, tracked in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) | pending |
+| Missing or private GitHub repository | Public at <https://github.com/vaibhav4046/lacuna> since 2026-08-13. Check with `git ls-remote --heads https://github.com/vaibhav4046/lacuna`; the route it took is item 2 in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) | done |
 | No open-source license in the repository | `LICENSE`, canonical Apache-2.0 text fetched from apache.org | done |
 | Missing demo video | 3 minutes or less, recorded near the end of the build | pending |
 | HydraDB not used meaningfully | HydraDB is the storage and traversal engine for the evidence graph. The answer path is four graph reads and no similarity score, itemised in [HYDRADB_INTEGRATION.md](HYDRADB_INTEGRATION.md), executed against a live node by the contract suite. See also ADR 0002 and the HydraDB proof panel | done |
@@ -54,7 +54,7 @@ The rules name eight things the repository must contain.
 |---|---|---|
 | Official form | Project name, short description, problem, what was built, deployed link, how it uses the HydraDB OS repo, tech stack, team members and contributions, repo link, video link | pending |
 | Demo video | 3 minutes or less. Must cover the problem, what was built, a working demo, how the HydraDB repo is used and why it matters. Viewable without requesting access | pending |
-| Public GitHub repository | See table above | pending |
+| Public GitHub repository | Live, see the eligibility table above | done |
 
 Anything past the 3-minute mark may not be reviewed, so the video is cut to
 time, not trimmed to it.

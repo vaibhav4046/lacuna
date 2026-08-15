@@ -6,11 +6,12 @@ for each. Status is what is true today, not what is planned.
 Criteria are quoted from the rules page as captured on 2026-08-12 in
 [artifacts/rules/](artifacts/rules/hackhydra-rules-2026-08-12.txt).
 
-**Last updated: 2026-08-14.** Everything marked `done` below has a command in it
-that a judge can run. Three things are not done and are not rows here because
-they are submission mechanics rather than judging criteria: a public repository,
-a demo video, and a hosted URL. Those are tracked in
-[docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
+**Last updated: 2026-08-15.** Everything marked `done` below has a command in it
+that a judge can run. One thing is not done and is not a row here because it is
+submission mechanics rather than a judging criterion: the demo video. The
+repository is public at <https://github.com/vaibhav4046/lacuna> and a hosted
+copy answers from a recorded snapshot at <https://lacuna-five.vercel.app>; both
+are tracked, with the video, in [docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
 [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md).
 
 ## "A strong submission has"
@@ -61,8 +62,11 @@ lose on by using a graph database as a place to put results.
   clones into a directory that has never held the project and proves the rest.
   Its transcript is committed unedited. The demo corpus is seeded, so the first
   run is not an empty box.
-- **Status:** done, except a hosted URL. The demo runs locally because HydraDB
-  runs locally; see [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md).
+- **Status:** done. A hosted copy is public at
+  <https://lacuna-five.vercel.app>; it answers from a recorded snapshot, which
+  it states about itself on its own pages, because the live node runs locally.
+  The full stack against a live node is the quickstart; the design record for
+  the snapshot shape is D-065 in [DECISIONS.md](DECISIONS.md).
 
 ### 04 Quality of results
 

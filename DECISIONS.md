@@ -2034,3 +2034,35 @@ skipped against the fresh artifacts, `tsc --noEmit` exit 0, and
 `node bin/lacuna.js bench` re-run so the CLI transcript in docs/CLI.md is
 real output. A repo-wide sweep for `42.4`, `107 times`, `243.4` and `427.7`
 finds them only in dated records and in the code comment explaining the bug.
+
+### D-068: One demo journey, three questions, binding order across surfaces
+
+**The problem.** The landing page, the video script and the submission form
+each described the product with whatever examples came to hand when they were
+written. Three surfaces, three different walks through the same graph, and a
+judge who watched the video would not find its questions on the page.
+
+**The fix.** [docs/DEMO_JOURNEY.md](docs/DEMO_JOURNEY.md) fixes one six-step
+path — fact stated, fact corrected twice, ask with the revision chain, a hop
+question, a structural abstention, and the three-surface parity check — and
+names the three questions that carry it: `Bellwether beta_partner` (revised
+twice, chain #2475749815969757 → #2247326196671333 → #797564529472318),
+`replay-queue contact --via vendor` (bridge through Northfold), and
+`Meridian migration_window` (never_stated). The landing page's example
+questions, the video's shots and the form's "what was built" answer follow
+this order from now on; a surface that departs from it is wrong, not
+different.
+
+**Why these three.** One of each hard kind, and each is a place where
+similarity ranking has no mechanism: it cannot know Stonecrop was superseded,
+cannot join a hop it retrieved in halves, and cannot refuse for a structural
+reason. The counts in the document were measured, not estimated: 48 messages
+mention Stonecrop and 36 of them state nothing, which is the decoy pressure
+the corpus was built to apply.
+
+**What was run.** All three questions through the CLI against the live node
+on 2026-08-15, exit 0 each, outputs quoted verbatim in the document;
+`lacuna timeline Bellwether beta_partner` for the chain; a corpus enumeration
+confirming all 60 gold questions and their kind counts (12 stable, 8 revised,
+6 retracted, 6 contradicted, 8 multi_hop, 6 unconnected, 8 never_stated,
+6 out_of_scope).

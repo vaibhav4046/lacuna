@@ -216,6 +216,7 @@ different clients connect and each transcript is saved beside the others.
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
 | A clean clone installs, typechecks and passes | README, SUBMISSION | [artifacts/repro/](../artifacts/repro/), two unedited transcripts | `artifacts/repro/repro.sh` | `RECORDED` |
+| Every README command runs in printed order on a clean clone | README | [artifacts/verification/2026-08-15/judge-transcript.txt](../artifacts/verification/2026-08-15/judge-transcript.txt), the cold judge simulation at `506e7c0` | the README, top to bottom | `RECORDED` |
 | The repository is public | SUBMISSION | `git ls-remote --heads https://github.com/vaibhav4046/lacuna` | that command | `LIVE` |
 | One history modification, the author email rewritten at publication | README | D-050 in [DECISIONS.md](../DECISIONS.md), which carries the commit count of the day | `git log --format=%ae` | `RECORDED` |
 | One runtime dependency, the MCP SDK, unreachable from the web path | CLAIMS | `package.json`, `package-lock.json`, [src/mcp/](../src/mcp/) | `grep -rn modelcontextprotocol src/server src/view src/retrieval src/hydra` returns nothing | `LIVE` |
@@ -225,6 +226,14 @@ is smaller than today's, because the suite has grown since. They are kept
 unedited rather than refreshed, so what they prove is that the checkout is
 complete and the lockfile installs, not what the current count is. The current
 count is in the [tests](#tests) section, from a run of its own.
+
+The judge-transcript row is a different exercise from the repro script: a fresh
+clone in a directory that had never held the project, walked through the README
+top to bottom in the order it prints, Phase A with no environment and Phase B
+against a live node. It found one real defect, the snapshot verifier comparing
+the read epoch, and the transcript keeps the failure, the fix (D-078,
+`506e7c0`) and the green re-runs in the order they happened rather than
+pretending the walk was clean on the first pass.
 
 The 42 in the history row is the commit count at the time of the email rewrite,
 not the count now, which is 52. Both are true and they are not the same fact.

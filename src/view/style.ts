@@ -431,6 +431,15 @@ body {
 .strip .cell.mark { box-shadow: inset 0 2px 0 var(--mark); }
 .strip .cell.mark b { color: var(--mark); }
 
+/* The score and the ratio are the argument; the configuration count is
+   provenance and the median is the price. The last two keep their captions
+   word for word but step down in size and ink, so the ranking reads before
+   the words do. */
+.strip .cell.minor b {
+  font-size: clamp(1.25rem, 0.85rem + 1.1vw, 1.625rem);
+  color: var(--ink-soft);
+}
+
 .strip .cell:hover { background: var(--paper-lift); }
 .strip .cell:hover span { color: var(--ink-soft); }
 

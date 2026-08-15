@@ -2200,3 +2200,26 @@ answer-never-stated-1920x1080.png (asked line prose with mono values, sans
 subheads), bench-1920x1080.png (tally captions prose, table headers still
 caps), interface-fullpage.png (captions and footer prose, params still mono)
 and home-3840x2160.png (form labels sans, placeholders mono, button sans).
+
+### D-075: The strip ranks its four figures
+
+**The problem.** The four benchmark cells on the home page — the score, the
+context ratio, the configuration count and the median — were set at one size,
+which claims they carry one weight. They do not: the score and the ratio are
+the argument, the configuration count is provenance for the run, and the
+median is the price. A strip that sets provenance as large as the claim it
+documents is asking the reader to do the ranking the page should have done.
+
+**The fix.** The last two cells take a `minor` class in `src/view/home.ts`,
+and `src/view/style.ts` steps their numerals down in size and from full ink
+to the soft tone. Nothing was removed and no caption changed a word: "51
+retrieval configurations in the run" and "median question, and the slowest
+in the run" still sit on the front strip beside the claims they qualify,
+because the honest place for a cost is next to the argument it pays for,
+not in a footnote. The class is named rather than positional, because the
+ratio cell only renders when a tied system exists to compare against.
+
+**What was run.** `npm run typecheck` exit 0; `npx vitest run tests/unit`
+807 of 807 across 36 files; `npm run screens` 13 captures all checked, exit
+0; `artifacts/screens/home-1920x1080.png` inspected — the score and ratio
+lead, the count and median step back, and the ratio keeps its orange mark.

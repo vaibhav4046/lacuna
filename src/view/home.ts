@@ -166,11 +166,12 @@ const OPENING = 'Ask for a property of something the sessions talked about. If t
 /**
  * The four figures that decide whether the rest of this page is worth reading.
  *
- * Three of them are the argument and the fourth is the price. Correctness is a
- * tie in the committed run, so the first cell states the score rather than a
- * rank; the separation is context, so the ratio sits beside it; and the median
- * is the axis this product loses on, printed at the same size as the rest
- * instead of in a footnote further down.
+ * They do not carry equal weight, so they are not set at equal weight. The
+ * score and the ratio are the argument; the configuration count is provenance
+ * for the run; the median is the price, and the axis this product loses on.
+ * The last two take the `minor` class and step down in size, but they stay on
+ * the strip with their captions word for word — the honest place for a cost is
+ * beside the claim it pays for, not in a footnote further down.
  *
  * Every number here is derived from `artifacts/bench/results.json` when the
  * page is built, including the ratio, which is taken against the closest system
@@ -191,9 +192,9 @@ function strip(report: BenchReport): Html {
 <span>questions answered correctly</span></a>
 ${nearest === null ? null : html`<a class="cell mark" href="/bench"><b>${roundMs(nearest)}x</b>
 <span>less context than the closest system that tied</span></a>`}
-<a class="cell" href="/bench"><b>${grouped(report.systems.length)}</b>
+<a class="cell minor" href="/bench"><b>${grouped(report.systems.length)}</b>
 <span>retrieval configurations in the run</span></a>
-<a class="cell" href="/bench"><b>${ms(ours.p50Ms)}</b>
+<a class="cell minor" href="/bench"><b>${ms(ours.p50Ms)}</b>
 <span>median question, and the slowest in the run</span></a>
 </div>`;
 }

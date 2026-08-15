@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describeExpected, describeOutcome, judge, percent, percentile, scoreAll } from '../src/bench/score.js';
@@ -32,7 +32,12 @@ import type { Answer } from '../src/retrieval/index.js';
  *   npx tsx scripts/evaluate.ts
  */
 
-process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
+if (!existsSync(ENV_PATH)) {
+  process.stderr.write(`${ENV_PATH} is missing. Copy .env.example to .env.local and fill it in.\n`);
+  process.exit(1);
+}
+process.loadEnvFile(ENV_PATH);
 
 const OUT_DIR = fileURLToPath(new URL('../artifacts/eval', import.meta.url));
 

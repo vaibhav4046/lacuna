@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -45,7 +45,12 @@ import { parseVia } from '../src/retrieval/index.js';
  *   npx tsx scripts/benchmark.ts
  */
 
-process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
+if (!existsSync(ENV_PATH)) {
+  process.stderr.write(`${ENV_PATH} is missing. Copy .env.example to .env.local and fill it in.\n`);
+  process.exit(1);
+}
+process.loadEnvFile(ENV_PATH);
 
 const OUT_DIR = fileURLToPath(new URL('../artifacts/bench', import.meta.url));
 const CACHE_DIR = fileURLToPath(new URL('../.cache/bench', import.meta.url));

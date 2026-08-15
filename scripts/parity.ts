@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -48,7 +49,12 @@ import { parseVia } from '../src/retrieval/index.js';
  * compares carry no credential.
  */
 
-process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
+if (!existsSync(ENV_PATH)) {
+  process.stderr.write(`${ENV_PATH} is missing. Copy .env.example to .env.local and fill it in.\n`);
+  process.exit(1);
+}
+process.loadEnvFile(ENV_PATH);
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MCP_SCRIPT = fileURLToPath(new URL('./mcp.ts', import.meta.url));

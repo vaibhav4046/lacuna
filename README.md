@@ -36,9 +36,8 @@ with no database and no token:
 npm run serve:snapshot
 ```
 
-Then open <http://127.0.0.1:3015>. `npm run snapshot:verify` replays all sixty
-gold questions against the stored replies and fails on any mismatch. The full
-stack against a live node is the next section.
+Then open <http://127.0.0.1:3015>. The full stack against a live node is the
+next section.
 
 ## Running it
 
@@ -97,6 +96,11 @@ npm run census
 is actually in the graph and compares it to what the generator planned, so it
 tells you the load worked rather than that it finished. It ends
 `graph matches the plan exactly`.
+
+With the corpus loaded, `npm run snapshot:verify` replays all sixty gold
+questions through the stored snapshot and asks the live node the same sixty,
+then fails on any mismatch between the two. It needs a running node, because
+comparing a recording against the real thing is the whole point of it.
 
 **6. Serve.**
 

@@ -17,7 +17,7 @@
  * real zero-row answer.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { generateCorpus } from '../src/corpus/index.js';
@@ -36,7 +36,12 @@ import {
   type SnapshotEntry,
 } from '../src/snapshot/replay.js';
 
-process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
+if (!existsSync(ENV_PATH)) {
+  process.stderr.write(`${ENV_PATH} is missing. Copy .env.example to .env.local and fill it in.\n`);
+  process.exit(1);
+}
+process.loadEnvFile(ENV_PATH);
 
 const OUTPUT_PATH = fileURLToPath(
   new URL('../artifacts/snapshot/graph-snapshot.json', import.meta.url),

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
@@ -26,7 +27,12 @@ import { createMcpServer, SERVER_NAME, SERVER_VERSION, type ToolContext } from '
  * and one stray line on it corrupts the session.
  */
 
-process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
+if (!existsSync(ENV_PATH)) {
+  process.stderr.write(`${ENV_PATH} is missing. Copy .env.example to .env.local and fill it in.\n`);
+  process.exit(1);
+}
+process.loadEnvFile(ENV_PATH);
 
 const DEFAULT_PORT = 3015;
 

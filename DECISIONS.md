@@ -1969,3 +1969,32 @@ run.
 **What this does not prove.** No live HydraDB node is behind the URL, no
 writes happen there, and no token is present there. The durability limit
 stands, and the live path remains local, exactly as the ledger records it.
+
+### D-066: A missing .env.local becomes one sentence on stderr instead of a stack trace
+
+**The problem.** Eight scripts — `ask`, `benchmark`, `evaluate`,
+`export-snapshot`, `mcp`, `parity`, `serve`, `verify-snapshot` — called
+`process.loadEnvFile()` unguarded, so on a checkout without `.env.local` each
+of them died with a raw `ENOENT` stack trace. A judge following the README in
+printed order hits exactly that state between step 2 and step 4, and a stack
+trace at that moment reads as a broken project rather than a missing config
+file. `scripts/census.ts` already had a guard; the other eight did not.
+
+**The fix.** Each script now checks `existsSync` on the resolved
+`.env.local` path before loading it, and on absence writes one sentence to
+stderr — the path, and "Copy .env.example to .env.local and fill it in." —
+then exits 1. The guard is inlined per script rather than routed through
+`src/cli/env.ts`, because that loader is deliberately tolerant (it returns
+false so the snapshot server can run with no env at all) and these eight
+scripts need the opposite: a hard, early, explained stop.
+
+**One README sentence moved with it.** The deployed-copy section listed
+`npm run snapshot:verify` among the things that need no database. That was
+wrong: the verifier asks a live node all sixty gold questions and compares
+against the replay, which is its entire point. The sentence now lives in the
+Running-it section after the corpus load, saying exactly that.
+
+**What was run.** With `.env.local` moved aside: all eight scripts exit 1
+with exactly one line on stderr and no stack trace, and `npm run
+serve:snapshot` still boots and serves 200 with no env present at all. With
+the file restored: `tsc --noEmit` exits 0 and all 807 unit tests pass.

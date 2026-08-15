@@ -10,6 +10,7 @@
  *   npx tsx scripts/verify-snapshot.ts
  */
 
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describeExpected, describeOutcome, judge } from '../src/bench/score.js';
@@ -20,7 +21,12 @@ import { ask, buildQuestion, parseVia } from '../src/retrieval/index.js';
 import type { Answer } from '../src/retrieval/index.js';
 import { loadSnapshot, snapshotTransport } from '../src/snapshot/replay.js';
 
-process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+const ENV_PATH = fileURLToPath(new URL('../.env.local', import.meta.url));
+if (!existsSync(ENV_PATH)) {
+  process.stderr.write(`${ENV_PATH} is missing. Copy .env.example to .env.local and fill it in.\n`);
+  process.exit(1);
+}
+process.loadEnvFile(ENV_PATH);
 
 /**
  * Everything except wall-clock timing, which replay is expected to change.

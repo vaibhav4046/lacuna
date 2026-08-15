@@ -369,16 +369,6 @@ body {
   text-wrap: balance;
 }
 
-.masthead-note {
-  margin: 1.75rem 0 0;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--rule-faint);
-  font-family: var(--mono);
-  font-size: var(--t-small);
-  color: var(--ink-faint);
-  max-width: 62ch;
-}
-
 /* ---- the result band ---------------------------------------------------- */
 
 /*
@@ -425,14 +415,14 @@ body {
   color: var(--ink);
 }
 
+/* The caption under each figure is a sentence, so it is set as one. The
+   numeral above it keeps the mono, because the numeral is the thing that was
+   measured. */
 .strip .cell span {
   display: block;
-  margin-top: 0.7rem;
-  font-family: var(--mono);
-  font-size: var(--t-micro);
-  letter-spacing: 0.1em;
-  line-height: 1.65;
-  text-transform: uppercase;
+  margin-top: 0.6rem;
+  font-size: var(--t-small);
+  line-height: 1.5;
   color: var(--ink-dim);
   transition: color var(--dur-hover) var(--ease);
 }
@@ -457,14 +447,14 @@ body {
   color: var(--ink);
 }
 
+/* Subheads are short sentences ("How it got there"), so they are set as
+   headings rather than as machine labels. */
 .panel h3 {
   margin: 2.25rem 0 0.85rem;
-  font-family: var(--mono);
-  font-size: var(--t-micro);
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-dim);
+  font-size: var(--t-body);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .prose { max-width: 66ch; color: var(--ink-soft); }
@@ -488,7 +478,6 @@ body {
 
 .caption {
   margin: 1.1rem 0 0;
-  font-family: var(--mono);
   font-size: var(--t-small);
   line-height: 1.7;
   color: var(--ink-dim);
@@ -548,10 +537,7 @@ a:active { color: var(--mark-lift); }
 .field { display: flex; flex-direction: column; gap: 0.5rem; flex: 1 1 12rem; }
 
 .field label {
-  font-family: var(--mono);
-  font-size: var(--t-micro);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: var(--t-small);
   color: var(--ink-dim);
 }
 
@@ -577,10 +563,10 @@ a:active { color: var(--mark-lift); }
 }
 
 .ask button {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--t-small);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: #000000;
   background: var(--mark);
   border: 1px solid var(--mark);
@@ -635,15 +621,15 @@ a:active { color: var(--mark-lift); }
 
 /* ---- the verdict -------------------------------------------------------- */
 
+/* The asked line is a sentence about the question; the subject and predicate
+   inside it are the machine values, so they take the mono, not the sentence. */
 .asked {
-  font-family: var(--mono);
   font-size: var(--t-small);
-  letter-spacing: 0.04em;
   color: var(--ink-dim);
   margin: 0 0 0.9rem;
 }
 
-.asked b { color: var(--ink-soft); font-weight: 400; }
+.asked b { font-family: var(--mono); color: var(--ink-soft); font-weight: 400; }
 
 .verdict {
   margin: 0;
@@ -881,11 +867,8 @@ code {
 .tally span {
   display: block;
   margin-top: 0.5rem;
-  font-family: var(--mono);
-  font-size: var(--t-micro);
-  letter-spacing: 0.1em;
-  line-height: 1.6;
-  text-transform: uppercase;
+  font-size: var(--t-small);
+  line-height: 1.5;
   color: var(--ink-dim);
 }
 
@@ -1044,7 +1027,6 @@ code {
   margin-top: clamp(3.5rem, 7vw, 5.5rem);
   padding-top: 1.35rem;
   border-top: 1px solid var(--rule-faint);
-  font-family: var(--mono);
   font-size: var(--t-small);
   line-height: 1.75;
   color: var(--ink-dim);

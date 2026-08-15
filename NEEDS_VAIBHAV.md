@@ -184,7 +184,11 @@ Status values: `open`, `done`, `dropped`.
 
 ## 10. A hosted HydraDB API key was described as provided, and never arrived
 
-- **Status:** open, and the recommendation is to close it as not needed
+- **Status:** dropped, 2026-08-15. No key ever arrived, the captured rules ask
+  for the open-source repo rather than a hosted API, and the working local
+  integration is the evidence the submission stands on. If a hosted account
+  materialises before the deadline, say so and this reopens as a second
+  transport, not a replacement.
 - **Why it needs you:** only you can say whether a hosted account exists.
 - **What was asked for.** One of your instructions says a live HydraDB API key
   was provided separately, and names the variables to read it from:

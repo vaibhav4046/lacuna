@@ -673,6 +673,19 @@ a:active { color: var(--mark-lift); }
   padding: 0.4rem 0.85rem;
 }
 
+/* One shape per way a fact can be missing, worn everywhere the reason code
+   appears. The shape does the distinguishing, so the encoding survives without
+   colour; the orange is the palette's absence colour doing its stated job. */
+.glyph {
+  display: inline-block;
+  min-width: 1.5em;
+  font-family: var(--mono);
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mark);
+}
+
 .explain {
   margin: 1.35rem 0 0;
   font-size: var(--t-lede);

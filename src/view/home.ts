@@ -1,6 +1,6 @@
 import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention.js';
 import { type BenchReport, lacuna, tiedWithLacuna } from '../report/bench.js';
-import { grouped, ms, roundMs, sentence } from './format.js';
+import { ABSENCE_MARKS, absenceMark, grouped, ms, roundMs, sentence } from './format.js';
 import { html, type Html } from './html.js';
 import { masthead, page, panel, PROMISE, separator } from './layout.js';
 import type { AnswerSource } from './proof.js';
@@ -100,10 +100,13 @@ function journeyFirst(questions: readonly Example[]): readonly Example[] {
 
 function examples(questions: readonly Example[]): Html {
   if (questions.length === 0) return html`<p class="nothing">No example questions were loaded.</p>`;
-  return html`<ul class="examples">${questions.map((example) => html`<li>
-<span class="kind">${example.kind.replace(/_/g, ' ')}</span>
+  return html`<ul class="examples">${questions.map((example) => {
+    const mark = absenceMark(example.kind);
+    return html`<li>
+<span class="kind">${mark === null ? null : html`<span class="glyph">${mark}</span>`}${example.kind.replace(/_/g, ' ')}</span>
 <a href="${askHref(example)}">${example.text}</a>
-</li>`)}</ul>`;
+</li>`;
+  })}</ul>`;
 }
 
 const ARGUMENT = 'A retriever that ranks passages by similarity has one way of '
@@ -117,7 +120,7 @@ function shapes(): Html {
 <table>
 <thead><tr><th>Reason</th><th>What it means</th></tr></thead>
 <tbody>${ABSTENTION_REASONS.map((reason) => html`<tr>
-<td class="mono">${reason}</td>
+<td class="mono"><span class="glyph">${ABSENCE_MARKS[reason]}</span>${reason}</td>
 <td>${sentence(explainAbstention(reason))}</td>
 </tr>`)}</tbody>
 </table>`;

@@ -2133,3 +2133,28 @@ checked. The regenerated `home-1920x1080.png` shows seven clickable
 questions inside the first 1080px with revised / multi hop / never stated on
 top; the served markup was also checked directly (`class="kind"` order and
 one `formlead` occurrence).
+
+### D-072: The five absences wear one mark each, everywhere they appear
+
+**The problem.** The five ways a fact can be missing appeared in four places
+— the example list, the answer page's reason badge, the home table and the
+interface table — with no visual encoding beyond the code itself. Rows that
+mean structurally different things looked interchangeable, and nothing but
+reading distinguished an absence from an answerable kind.
+
+**The fix.** One mark per reason, defined once in src/view/format.ts and worn
+at all four sites: the empty set for never_stated, a struck circle for
+retracted, inequality for contradicted, the independence sign for unconnected,
+and non-membership for out_of_scope. The shapes carry the distinction rather
+than colour, so the encoding survives greyscale; the code is always printed
+beside the mark, so the mark never has to be learned. In the example list only
+the absence kinds are marked, which makes the marked/unmarked split itself the
+line between "answers" and "named absences". The orange is the palette's
+absence colour doing its stated job.
+
+**What was run.** `npm run typecheck` exit 0, `npx vitest run tests/unit` 807
+passed 0 failed, server restarted, served markup checked (five distinct glyphs
+twice each on home, one in the answer badge, five on the interface page),
+`npm run screens` 13 captures all checked. home-1920x1080.png,
+answer-never-stated-1920x1080.png and interface-fullpage.png inspected — all
+five marks render as shapes, no missing-glyph boxes, codes legible beside them.

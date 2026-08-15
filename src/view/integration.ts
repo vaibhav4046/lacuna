@@ -1,4 +1,5 @@
 import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention.js';
+import { ABSENCE_MARKS } from './format.js';
 import { html, type Html } from './html.js';
 import { mastheadCompact, page, panel, separator } from './layout.js';
 import type { Notice } from './notice.js';
@@ -80,7 +81,8 @@ function replies(): Html {
 <table>
 <thead><tr><th>Abstention</th><th>What it means</th></tr></thead>
 <tbody>${ABSTENTION_REASONS.map((reason) => html`<tr>
-<td class="value mono">${reason}</td><td>${explainAbstention(reason)}</td>
+<td class="value mono"><span class="glyph">${ABSENCE_MARKS[reason]}</span>${reason}</td>
+<td>${explainAbstention(reason)}</td>
 </tr>`)}</tbody>
 </table>
 <p class="caption">These five are one union in

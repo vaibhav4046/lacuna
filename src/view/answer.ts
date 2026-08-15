@@ -1,6 +1,6 @@
 import type { AbstentionReason } from '../model/abstention.js';
 import type { Answer, EvidenceRecord } from '../retrieval/types.js';
-import { shortStamp, words } from './format.js';
+import { ABSENCE_MARKS, shortStamp, words } from './format.js';
 import { html, type Html } from './html.js';
 import { panel } from './layout.js';
 
@@ -47,7 +47,7 @@ function verdict(answer: Answer): Html {
     return html`<p class="verdict">${outcome.text}</p>`;
   }
   return html`<p class="verdict absent">${HEADLINES[outcome.reason]}</p>
-<p class="reason">${outcome.reason}</p>`;
+<p class="reason"><span class="glyph">${ABSENCE_MARKS[outcome.reason]}</span>${outcome.reason}</p>`;
 }
 
 function trace(steps: readonly string[]): Html {

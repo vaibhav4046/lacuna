@@ -9,6 +9,28 @@
  * rather than a convenient one.
  */
 
+import type { AbstentionReason } from '../model/abstention.js';
+
+/**
+ * One mark per way a fact can be missing, worn wherever a reason code is
+ * printed: the example list, the answer page, and both tables that define the
+ * five. The shapes carry the distinction, not the colour they are painted, so
+ * the kinds stay apart in greyscale; and the code is always printed beside the
+ * mark, so the mark never has to be learned to be read past.
+ */
+export const ABSENCE_MARKS: Readonly<Record<AbstentionReason, string>> = {
+  never_stated: '∅',
+  retracted: '⊘',
+  contradicted: '≠',
+  unconnected: '⊥',
+  out_of_scope: '∉',
+};
+
+/** The mark for a kind string, or null when the kind is an answerable one. */
+export function absenceMark(kind: string): string | null {
+  return kind in ABSENCE_MARKS ? ABSENCE_MARKS[kind as AbstentionReason] : null;
+}
+
 /** The day part of an ISO timestamp, or the value unchanged if it is not one. */
 export function shortDate(iso: string): string {
   return /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : iso;

@@ -29,8 +29,9 @@ Status values: `open`, `done`, `dropped`.
 
 - **Status:** done, 2026-08-13.
 - **Where it landed:** <https://github.com/vaibhav4046/lacuna> is public and
-  holds the code. The remote tip is `033c1a8`, `git ls-remote` agrees with the
-  local `HEAD`, and the GitHub API reports the repository as `private: false`.
+  holds the code. At publication the remote tip was `033c1a8`, `git ls-remote`
+  agreed with the local `HEAD`, and the GitHub API reported the repository as
+  `private: false`; later commits push to the same place.
 - **What it took.** `gh repo create` succeeded, then `git push` was rejected:
 
   ```

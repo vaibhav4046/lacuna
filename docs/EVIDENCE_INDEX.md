@@ -216,7 +216,7 @@ different clients connect and each transcript is saved beside the others.
 |---|---|---|---|---|
 | A clean clone installs, typechecks and passes | README, SUBMISSION | [artifacts/repro/](../artifacts/repro/), two unedited transcripts | `artifacts/repro/repro.sh` | `RECORDED` |
 | The repository is public | SUBMISSION | `git ls-remote --heads https://github.com/vaibhav4046/lacuna` | that command | `LIVE` |
-| One history modification, the author email across 42 commits | README | D-050 in [DECISIONS.md](../DECISIONS.md) | `git log --format=%ae` | `RECORDED` |
+| One history modification, the author email rewritten at publication | README | D-050 in [DECISIONS.md](../DECISIONS.md), which carries the commit count of the day | `git log --format=%ae` | `RECORDED` |
 | One runtime dependency, the MCP SDK, unreachable from the web path | CLAIMS | `package.json`, `package-lock.json`, [src/mcp/](../src/mcp/) | `grep -rn modelcontextprotocol src/server src/view src/retrieval src/hydra` returns nothing | `LIVE` |
 
 The clean clone transcripts print the test count of the day they were run, which

@@ -173,7 +173,7 @@ licensed AGPL-3.0; Lacuna's own code is Apache-2.0. See
 All participant-authored work in this repository begins on or after
 August 12, 2026, per the Hack Hydra rules. No pre-hackathon application code,
 assets, or rewritten history has been imported. The history has had exactly one
-modification of its own: the author's email address was changed across all 42
-commits so that a private address would not be published, leaving every date,
-message, parent and file byte identical. It is recorded with its verification in
-D-050 of [DECISIONS.md](DECISIONS.md).
+modification of its own: at publication the author's email address was rewritten
+on every commit that existed, so that a private address would not be published,
+leaving every date, message, parent and file byte identical. The count it
+covered and its verification are in D-050 of [DECISIONS.md](DECISIONS.md).

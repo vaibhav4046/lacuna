@@ -236,11 +236,12 @@ wants a GitHub username, it is the account that owns the repository in field 9.
 https://github.com/vaibhav4046/lacuna
 ```
 
-**Live, public, and holding the code** as of 2026-08-13. The remote tip is
-`033c1a8`, `git ls-remote` agrees with the local `HEAD`, and the GitHub API
-reports `private: false`. This was the one blocker with a disqualification
-attached, since a missing or private repository is on the rules' list of seven
-triggers, and it is closed.
+**Live, public, and holding the code** since 2026-08-13, the day `git
+ls-remote` first agreed with the local `HEAD` and the GitHub API reported
+`private: false`. This was the one blocker with a disqualification attached,
+since a missing or private repository is on the rules' list of seven triggers,
+and it is closed. The tip moves as work lands, which is why the check below is
+a command rather than a hash.
 
 Check it again anyway, in a logged-out browser, on the day you submit. The rules
 say broken links are the most common way entrants lose, and a link that worked a

@@ -64,14 +64,20 @@ export const STYLESHEET = `
   --t-small:   0.8125rem;
   --t-micro:   0.6875rem;
 
-  --r-panel:   16px;
-  --r-control: 13px;
-  --r-pill:    9999px;
-  --r-hair:    4px;
+  /* Radius is zero everywhere per the 2026-08-16 amendment in
+     design/reference/tokens.css. The names stay so nothing referencing
+     them breaks. */
+  --r-panel:   0;
+  --r-control: 0;
+  --r-pill:    0;
+  --r-hair:    0;
 
-  --ease:      cubic-bezier(.2, .7, .2, 1);
-  --dur-hover: 140ms;
-  --dur-press: 100ms;
+  /* Two motion tiers, one curve each: micro for colour, border and
+     background; --ease for anything that moves in space. */
+  --ease-micro: cubic-bezier(0, 0, .2, 1);
+  --ease:       cubic-bezier(.23, 1, .32, 1);
+  --dur-hover:  160ms;
+  --dur-press:  100ms;
 
   --rail-w: 11rem;
   --main-w: 76rem;
@@ -267,7 +273,6 @@ body {
   width: 6px;
   height: 6px;
   margin-left: 0.45rem;
-  border-radius: 1px;
   background: var(--mark);
   vertical-align: 0.06em;
 }
@@ -288,7 +293,7 @@ body {
   color: var(--ink-faint);
   border-bottom: 1px solid transparent;
   padding-bottom: 0.25rem;
-  transition: color var(--dur-hover) var(--ease), border-color var(--dur-hover) var(--ease);
+  transition: color var(--dur-hover) var(--ease-micro), border-color var(--dur-hover) var(--ease-micro);
 }
 
 .tabs a:hover, .ways a:hover { color: var(--ink); border-bottom-color: var(--rule-strong); }
@@ -408,7 +413,7 @@ body {
   background: var(--paper-raised);
   border-bottom: 0;
   box-shadow: inset 0 1px 0 var(--hair);
-  transition: background-color var(--dur-hover) var(--ease);
+  transition: background-color var(--dur-hover) var(--ease-micro);
 }
 
 .strip .cell b {
@@ -431,7 +436,7 @@ body {
   font-size: var(--t-small);
   line-height: 1.5;
   color: var(--ink-dim);
-  transition: color var(--dur-hover) var(--ease);
+  transition: color var(--dur-hover) var(--ease-micro);
 }
 
 /* The one figure the whole argument turns on. */
@@ -506,7 +511,7 @@ a {
   color: var(--ink);
   text-decoration: none;
   border-bottom: 1px solid var(--rule);
-  transition: border-color var(--dur-hover) var(--ease), color var(--dur-hover) var(--ease);
+  transition: border-color var(--dur-hover) var(--ease-micro), color var(--dur-hover) var(--ease-micro);
 }
 
 a:hover { color: var(--mark); border-bottom-color: var(--mark); }
@@ -566,7 +571,7 @@ a:active { color: var(--mark-lift); }
   border-radius: var(--r-control);
   padding: 0.7rem 0.8rem;
   min-width: 0;
-  transition: border-color var(--dur-hover) var(--ease), box-shadow var(--dur-hover) var(--ease);
+  transition: border-color var(--dur-hover) var(--ease-micro), box-shadow var(--dur-hover) var(--ease-micro);
 }
 
 .field input::placeholder { color: var(--ink-dim); }
@@ -590,8 +595,8 @@ a:active { color: var(--mark-lift); }
   padding: 0.75rem 1.5rem;
   cursor: pointer;
   transition:
-    background-color var(--dur-hover) var(--ease),
-    box-shadow var(--dur-hover) var(--ease),
+    background-color var(--dur-hover) var(--ease-micro),
+    box-shadow var(--dur-hover) var(--ease-micro),
     transform var(--dur-press) var(--ease);
 }
 
@@ -614,7 +619,7 @@ a:active { color: var(--mark-lift); }
   align-items: baseline;
   padding: 0.8rem 0;
   border-top: 1px solid var(--rule-faint);
-  transition: background-color var(--dur-hover) var(--ease);
+  transition: background-color var(--dur-hover) var(--ease-micro);
 }
 
 .examples li:last-child { border-bottom: 1px solid var(--rule-faint); }
@@ -792,7 +797,7 @@ td {
   border-bottom: 1px solid var(--rule-faint);
   vertical-align: top;
   color: var(--ink-soft);
-  transition: background-color var(--dur-hover) var(--ease);
+  transition: background-color var(--dur-hover) var(--ease-micro);
 }
 
 /* A row is a system in a fifty one row sweep, so following one across the page
@@ -1024,9 +1029,9 @@ code {
   border: 1px solid var(--rule-faint);
   border-radius: var(--r-pill);
   transition:
-    color var(--dur-hover) var(--ease),
-    border-color var(--dur-hover) var(--ease),
-    background-color var(--dur-hover) var(--ease);
+    color var(--dur-hover) var(--ease-micro),
+    border-color var(--dur-hover) var(--ease-micro),
+    background-color var(--dur-hover) var(--ease-micro);
 }
 
 .states a:hover { color: var(--ink); border-color: var(--rule-strong); background: var(--paper-lift); }

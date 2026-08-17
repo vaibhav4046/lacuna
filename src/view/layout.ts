@@ -65,7 +65,7 @@ export const META_CONTENT_SECURITY_POLICY = DIRECTIVES
 export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">`
   + `<rect width="32" height="32" rx="6" fill="#000000"/>`
   + `<path d="M5 16h7M20 16h7" stroke="#ffffff" stroke-width="2.75" stroke-linecap="round"/>`
-  + `<circle cx="16" cy="16" r="2" fill="#ff5719"/>`
+  + `<circle cx="16" cy="16" r="2" fill="#ffb829"/>`
   + `</svg>\n`;
 
 export const PROMISE = 'Memory that knows what changed, what remains true, '

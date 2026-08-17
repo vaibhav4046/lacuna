@@ -1,24 +1,31 @@
-/* Lacuna design tokens. Immutable per docs/DESIGN_FREEZE.md. */
+/* Lacuna design tokens. Frozen; changes are logged at the foot of this file. */
 :root {
-  --hydra-black: #000000;
-  --hydra-charcoal: #1c1d21;
-  --hydra-elevated: #2a2c33;
-  --hydra-disabled: #6e7180;
-  --hydra-secondary: #9da2b3;
-  --hydra-muted: #bcbfcc;
-  --hydra-white: #ffffff;
-  --hydra-orange: #ff5719;
+  --void-black: #000000;
+  --surface-raised: #161616;
+  --surface-lift: #242424;
+  --surface-sunk: #0a0a0a;
+
+  --text-primary: #ffffff;
+  --text-secondary: #bdbdbd;
+  --text-muted: #9a9a9a;
+  --text-faint: #5e5e5e;
+
+  --accent-violet: #8052ff;       /* interaction, focus, the thing looked at */
+  --accent-violet-lift: #8f66ff;  /* the violet's own hover state             */
+  --evidence-amber: #ffb829;      /* evidence spark: key figures, change points */
+  --healthy-teal: #15846e;        /* connected / healthy indicators only       */
 
   --border-subtle: rgba(255, 255, 255, 0.10);
   --border-medium: rgba(255, 255, 255, 0.15);
   --border-strong: rgba(255, 255, 255, 0.25);
-  --surface-faint: rgba(255, 255, 255, 0.02);
-  --orange-soft: rgba(255, 87, 25, 0.06);
-  --orange-medium: rgba(255, 87, 25, 0.30);
-  --orange-strong: rgba(255, 87, 25, 0.60);
+  --surface-faint: rgba(255, 255, 255, 0.03);
+  --violet-soft: rgba(128, 82, 255, 0.08);
+  --violet-medium: rgba(128, 82, 255, 0.30);
+  --violet-strong: rgba(128, 82, 255, 0.60);
+  --selection: rgba(128, 82, 255, 0.45);
 
-  --font-sans: Geist, Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: 'Space Grotesk', Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
   --text-display: clamp(4.25rem, 10vw, 11rem);
   --text-page-title: clamp(1.75rem, 2.3vw, 3rem);
@@ -77,15 +84,35 @@
 /* ---------------------------------------------------------------------------
    Amendment log
 
-   The header calls these tokens immutable per docs/DESIGN_FREEZE.md. That doc
-   is not in the repo, so this file is the freeze of record and amendments are
-   logged here.
+   This file is the freeze of record; amendments are logged here.
+
+   2026-08-17 -- palette and type. Supersedes the palette rationale below.
+
+   Reason: the deployed product wearing the orange palette was rejected by the
+   owner, and the approved product design arrived as a package whose source of
+   truth, "Lacuna Product.dc.html", now sits beside this file. This file now
+   records that design's frozen system: pure void #000000 with no atmosphere;
+   text #ffffff / #bdbdbd / #9a9a9a / #5e5e5e; interaction violet #8052ff with
+   #8f66ff as its own hover; evidence amber #ffb829 for the figure an argument
+   turns on and the point on a drawing where something changed; teal #15846e
+   reserved for connected/healthy indicators (no surface in the product needs
+   it yet, so the shipped stylesheet omits it); selection at violet 0.45 over
+   white. Space Grotesk carries sentences and JetBrains Mono carries anything
+   a machine produced. Absence is rendered calm grey, never a warning colour:
+   an absent verdict, a gone state and a gap in a timeline all step back
+   rather than light up.
+
+   The 2026-08-16 entry's geometry and motion survive unchanged: radii 0
+   everywhere, two motion tiers, one curve each. Its palette rationale (match
+   the host's orange, no amber) is fully superseded by this entry. The
+   no-webfont rule survives: families are named first and nothing is fetched
+   (D-059). The record for this amendment is D-079 in DECISIONS.md.
 
    2026-08-16 -- radii and motion.
 
    Reason: measured the hackathon host's own site (hackhydra.hydradb.com) and
-   found it already shares Lacuna's exact palette (#ff5719 / #bcbfcc / #6e7180
-   / #9da2b3 / #1c1d21 / #000000) and exact type family (Geist Sans, Geist
+   found it already shares the then-current palette (#ff5719 / #bcbfcc /
+   #6e7180 / #9da2b3 / #1c1d21 / #000000) and type family (Geist Sans, Geist
    Mono, Geist Pixel Square). The palette therefore needed nothing. What
    diverged was geometry and motion.
 
@@ -104,8 +131,4 @@
    everything that moves in space on an ease-out quint, which covers ~80% of
    its distance in the first quarter of its duration and so reads as slow and
    immediate at once.
-
-   Unchanged by this amendment: the 8-hex palette, #6e7180 as stroke/shape
-   only, the 11px type floor, no amber, no CSS filter/blur, transform-only
-   animation, and the field opacities (0.88 public / 0.42 app).
    --------------------------------------------------------------------------- */

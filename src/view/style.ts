@@ -5,39 +5,42 @@
  * nothing from the filesystem. A server that never opens a path cannot be
  * talked into opening the wrong one, and no screen here needs another asset.
  *
- * The direction is the frozen design at design/reference/tokens.css: a black
- * ground, charcoal surfaces raised off it, hairline borders at a tenth and a
- * sixth of white, and one orange that is only ever allowed to mean something.
- * That palette is a decision rather than a default. The design was drawn black
- * and this is the same product wearing it, so the stylesheet commits to one
- * ground and paints it explicitly instead of asking the reader's system what
- * they would prefer.
+ * The direction is the frozen design at design/reference/tokens.css, drawn
+ * from the approved product design (design/reference/Lacuna Product.dc.html):
+ * a pure black ground, neutral charcoal surfaces raised off it, hairline
+ * borders at a tenth and a sixth of white, one violet that always means
+ * interaction or the thing you are looking at, and one amber that always
+ * means evidence. Absence is calm grey rather than a warning colour, because
+ * a missing fact is an answer here, not an error. That palette is a decision
+ * rather than a default, so the stylesheet commits to one ground and paints
+ * it explicitly instead of asking the reader's system what they would prefer.
  *
- * Two rules survive from the earlier draft because they were right. Monospace
+ * Two rules survive from the earlier drafts because they were right. Monospace
  * is reserved for anything the machine produced, so a figure read off a run
  * never wears the same type as a sentence somebody wrote. And there are no web
  * fonts: nothing to license, nothing to fetch, no flash of unstyled text, and a
- * content security policy that never has to name a font host. Geist is named
- * first because the design specifies it, and the stack falls through to the
- * system if it is not installed.
+ * content security policy that never has to name a font host. Space Grotesk
+ * and JetBrains Mono are named first because the design specifies them, and
+ * the stacks fall through to the system if they are not installed.
  *
- * See DECISIONS.md D-059.
+ * See DECISIONS.md D-059 and D-079.
  */
 export const STYLESHEET = `
 :root {
   color-scheme: dark;
 
-  /* Ground and surfaces, from design/reference/tokens.css. */
+  /* Ground and surfaces, from design/reference/tokens.css. The ground is a
+     pure void and the surfaces are neutral greys with no blue cast in them. */
   --paper:        #000000;
-  --paper-raised: #1c1d21;
-  --paper-lift:   #2a2c33;
-  --paper-sunk:   #0e0f12;
+  --paper-raised: #161616;
+  --paper-lift:   #242424;
+  --paper-sunk:   #0a0a0a;
 
   /* Four steps of white, so hierarchy is carried by weight of ink. */
   --ink:       #ffffff;
-  --ink-soft:  #bcbfcc;
-  --ink-faint: #9da2b3;
-  --ink-dim:   #6e7180;
+  --ink-soft:  #bdbdbd;
+  --ink-faint: #9a9a9a;
+  --ink-dim:   #5e5e5e;
 
   /* Borders are white at low alpha rather than a grey, so they sit correctly
      on every surface without a second set of values per surface. */
@@ -46,16 +49,20 @@ export const STYLESHEET = `
   --rule-strong: rgba(255, 255, 255, 0.25);
   --hair:        rgba(255, 255, 255, 0.04);
 
-  /* One orange. It marks absence, the row this product is in, and the thing
-     you are looking at. It is never decoration. */
-  --mark:      #ff5719;
-  --mark-lift: #ff6a33;
-  --mark-soft: rgba(255, 87, 25, 0.60);
-  --mark-wash: rgba(255, 87, 25, 0.08);
-  --mark-glow: rgba(255, 87, 25, 0.30);
+  /* One violet. It marks interaction, the row this product is in, and the
+     thing you are looking at. It is never decoration. */
+  --mark:      #8052ff;
+  --mark-lift: #8f66ff;
+  --mark-soft: rgba(128, 82, 255, 0.60);
+  --mark-wash: rgba(128, 82, 255, 0.08);
+  --mark-glow: rgba(128, 82, 255, 0.30);
 
-  --sans: Geist, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --mono: 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* One amber, for evidence: the figure an argument turns on, the point on a
+     drawing where something changed, and the dot in the product's own mark. */
+  --spark: #ffb829;
+
+  --sans: 'Space Grotesk', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   --t-display: clamp(2.75rem, 1rem + 4.25vw, 4.75rem);
   --t-verdict: clamp(2rem, 1rem + 4vw, 3.75rem);
@@ -96,22 +103,14 @@ html {
 }
 
 /*
- * Two grounds, both fixed to the viewport.
- *
- * The lower one lifts the top of the page a few percent off black so the page
- * has a horizon rather than an edge. The upper one is the single piece of
- * atmosphere on the site: a very low orange, wide and shallow, sitting behind
- * the wordmark. It is fixed rather than scrolled so the sticky bar can be
- * translucent over it without showing a seam.
+ * One ground: the void. The approved design keeps the page pure black with no
+ * atmosphere behind the wordmark, so depth is carried entirely by the raised
+ * surfaces and hairlines sitting on it.
  */
 body {
   margin: 0;
   padding: 0 var(--edge) 6rem;
   background-color: var(--paper);
-  background-image:
-    radial-gradient(78% 42% at 50% -6%, rgba(255, 87, 25, 0.10) 0%, rgba(255, 87, 25, 0) 62%),
-    radial-gradient(120% 78% at 50% 0%, #101116 0%, #000000 58%);
-  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--sans);
   font-size: var(--t-body);
@@ -201,7 +200,7 @@ body {
 
 /*
  * The break between sections. A hairline across the sheet with the first inch
- * of it in orange, which lands in the margin column and lines the section
+ * of it in violet, which lands in the margin column and lines the section
  * numbers up down the page.
  */
 .sep {
@@ -273,7 +272,7 @@ body {
   width: 6px;
   height: 6px;
   margin-left: 0.45rem;
-  background: var(--mark);
+  background: var(--spark);
   vertical-align: 0.06em;
 }
 
@@ -353,7 +352,7 @@ body {
   color: var(--ink);
 }
 
-.wordmark::after { content: '.'; color: var(--mark); }
+.wordmark::after { content: '.'; color: var(--spark); }
 
 .wordmark a { color: inherit; border-bottom-color: transparent; }
 .wordmark a:hover { color: var(--mark); }
@@ -369,15 +368,24 @@ body {
 }
 
 .masthead:has(.compact) { padding-top: clamp(2rem, 4.5vw, 3.25rem); }
-.masthead:has(.compact) .promise { max-width: 60ch; font-size: var(--t-body); }
+.masthead:has(.compact) .promise {
+  max-width: 60ch;
+  font-size: var(--t-body);
+  font-weight: 400;
+  color: var(--ink-soft);
+}
 
+/* The promise opens with the design's frozen headline, "Memory that knows
+   what changed", so on the front page it is set as the hero line: near
+   headline scale, full ink, and a measure that breaks it into two lines. */
 .promise {
   margin: 1.5rem 0 0;
-  font-size: var(--t-lede);
-  line-height: 1.5;
-  letter-spacing: -0.012em;
-  color: var(--ink-soft);
-  max-width: 34ch;
+  font-size: clamp(1.375rem, 1rem + 1.5vw, 2rem);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  max-width: 30ch;
   text-wrap: balance;
 }
 
@@ -439,9 +447,9 @@ body {
   transition: color var(--dur-hover) var(--ease-micro);
 }
 
-/* The one figure the whole argument turns on. */
-.strip .cell.mark { box-shadow: inset 0 2px 0 var(--mark); }
-.strip .cell.mark b { color: var(--mark); }
+/* The one figure the whole argument turns on, in the evidence amber. */
+.strip .cell.mark { box-shadow: inset 0 2px 0 var(--spark); }
+.strip .cell.mark b { color: var(--spark); }
 
 /* The score and the ratio are the argument; the configuration count is
    provenance and the median is the price. The last two keep their captions
@@ -526,7 +534,7 @@ a:active { color: var(--mark-lift); }
 /* Selecting a quotation to paste it into a report is a thing this site expects
    people to do, so the selection is part of the palette rather than the
    browser's blue. */
-::selection { background: var(--mark); color: #000000; }
+::selection { background: rgba(128, 82, 255, 0.45); color: #ffffff; }
 
 /* ---- the question form -------------------------------------------------- */
 
@@ -662,10 +670,13 @@ a:active { color: var(--mark-lift); }
   color: var(--ink);
 }
 
-.verdict.absent { color: var(--mark); }
+/* Absence is calm in this palette: the verdict steps back to grey rather than
+   raising an alarm, because a missing fact is an answer, not an error. */
+.verdict.absent { color: var(--ink-faint); }
 
 /* The reason an answer is missing, set as a badge rather than a sentence, so
-   the five of them are told apart at a glance. */
+   the five of them are told apart at a glance. Grey on grey, same register as
+   the verdict above it. */
 .reason {
   display: inline-block;
   margin: 1.15rem 0 0;
@@ -673,16 +684,16 @@ a:active { color: var(--mark-lift); }
   font-size: var(--t-micro);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--mark);
-  background: var(--mark-wash);
-  border: 1px solid var(--mark-soft);
+  color: var(--ink-faint);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--rule);
   border-radius: var(--r-pill);
   padding: 0.4rem 0.85rem;
 }
 
 /* One shape per way a fact can be missing, worn everywhere the reason code
    appears. The shape does the distinguishing, so the encoding survives without
-   colour; the orange is the palette's absence colour doing its stated job. */
+   colour; the violet only points at the shape. */
 .glyph {
   display: inline-block;
   min-width: 1.5em;
@@ -768,9 +779,9 @@ a:active { color: var(--mark-lift); }
 .nothing {
   margin: 1.35rem 0 0;
   padding: 1.1rem 1.35rem;
-  border-left: 2px solid var(--mark);
+  border-left: 2px solid var(--rule-strong);
   border-radius: 0 var(--r-control) var(--r-control) 0;
-  background: var(--mark-wash);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--ink-soft);
   max-width: 66ch;
 }
@@ -826,16 +837,18 @@ td.value { font-size: 1rem; color: var(--ink); }
   white-space: nowrap;
 }
 
+/* No longer held. Dimmer and hollow rather than alarmed, because superseded
+   is a calm fact about the past, not a warning. */
 .state.gone {
-  color: var(--mark);
-  background: var(--mark-wash);
-  border-color: var(--mark-soft);
+  color: var(--ink-dim);
+  background: transparent;
+  border-color: var(--rule-faint);
 }
 
 /* ---- evidence pages ----------------------------------------------------- */
 
 /* The product's own row, marked rather than moved, so it stays in rank order.
-   The orange edge is on the first cell only, which reads as a bar down the
+   The violet edge is on the first cell only, which reads as a bar down the
    left of the row rather than a box around it. */
 tr.ours td { background: var(--mark-wash); }
 tr.ours td:first-child { box-shadow: inset 2px 0 0 var(--mark); }
@@ -848,8 +861,8 @@ tr.ours td.mono { color: var(--mark); }
 code {
   font-family: var(--mono);
   font-size: 0.9em;
-  color: var(--mark);
-  background: var(--mark-wash);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: var(--r-hair);
   padding: 0.1em 0.35em;
   overflow-wrap: anywhere;
@@ -883,7 +896,7 @@ code {
   color: var(--ink);
 }
 
-.tally .mark b { color: var(--mark); }
+.tally .mark b { color: var(--spark); }
 
 .tally span {
   display: block;
@@ -940,16 +953,16 @@ code {
 /* ---- drawings ----------------------------------------------------------- */
 
 .thread { stroke: var(--ink); stroke-width: 1.5; fill: none; }
-.thread-gap { stroke: var(--mark); stroke-width: 1.5; stroke-dasharray: 2 6; stroke-linecap: round; fill: none; }
+.thread-gap { stroke: var(--ink-dim); stroke-width: 1.5; stroke-dasharray: 2 6; stroke-linecap: round; fill: none; }
 .axis { stroke: var(--rule); stroke-width: 1; fill: none; }
 .tick-live { fill: var(--ink); stroke: none; }
 .tick-gone { fill: var(--paper-lift); stroke: var(--ink-dim); stroke-width: 1.5; }
-.tick-stop { stroke: var(--mark); stroke-width: 2; fill: none; }
+.tick-stop { stroke: var(--spark); stroke-width: 2; fill: none; }
 
 .svg-value { fill: var(--ink); font-family: var(--sans); font-size: 15px; letter-spacing: -0.01em; }
 .svg-value.gone { fill: var(--ink-dim); }
 .svg-date { fill: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; }
-.svg-note { fill: var(--mark); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; }
+.svg-note { fill: var(--ink-faint); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; }
 
 .node { fill: var(--paper-lift); stroke: var(--rule); stroke-width: 1; }
 .node.subject { stroke: var(--ink); stroke-width: 1.5; }
@@ -1110,7 +1123,8 @@ code {
     --rule-faint:   #cccccc;
     --rule-strong:  #666666;
     --hair:         transparent;
-    --mark:         #a83208;
+    --mark:         #5b2fd9;
+    --spark:        #7a5200;
     --mark-wash:    transparent;
     --mark-glow:    transparent;
   }

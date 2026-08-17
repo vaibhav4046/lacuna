@@ -378,6 +378,20 @@ function check(shot: Shot, reading: Reading): void {
 }
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:3014').replace(/\/$/, '');
+
+// Refuse to photograph a dead server. Without this, every navigation lands on
+// Chrome's own connection-error page, and the dark variant of that page is
+// black enough and busy enough to pass both the ground and the density checks.
+// Observed on 2026-08-17: twelve identical false passes at 21,883 bytes each,
+// and only the light-preference capture honest enough to fail. A capture run
+// is evidence, and evidence of the wrong page is worse than no run at all.
+try {
+  const probe = await fetch(`${base}/`, { signal: AbortSignal.timeout(3_000) });
+  if (!probe.ok) fail(`the server at ${base} answered ${probe.status}; not capturing that`);
+} catch {
+  fail(`nothing answering at ${base}. Start it first: npm run serve`);
+}
+
 const chrome = findChrome();
 const port = await freePort();
 const profile = mkdtempSync(join(tmpdir(), 'lacuna-screens-'));

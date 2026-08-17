@@ -940,6 +940,23 @@ What exists right now. Updated as things change, and never ahead of them.
   0 of 141 elements carry any border-radius, both curves live. Typecheck
   clean, 816/816 unit tests pass after the change.
 
+- **The approved design is the served one, and the capture harness now refuses
+  a dead server.** The 2026-08-16 orange palette was rejected by the owner;
+  `src/view/style.ts` now serves the system recorded as the 2026-08-17
+  amendment in [design/reference/tokens.css](design/reference/tokens.css):
+  pure void ground, four steps of white ink, interaction violet `#8052ff`,
+  evidence amber `#ffb829` on the figures arguments turn on, absence in calm
+  grey rather than a warning colour, Space Grotesk and JetBrains Mono named
+  first with nothing fetched. [D-079](DECISIONS.md). All thirteen captures
+  retaken and checked against the running product. Taking them found the
+  harness's blind spot: against a dead server, Chrome's own dark
+  connection-error page passed twelve of thirteen checks at identical 21,883
+  bytes each. `npm run screens` now probes the target before capturing and
+  fails with "Start it first" when nothing answers, verified in both
+  directions — dead port exit 1, live server thirteen for thirteen.
+  [D-080](DECISIONS.md). Full gate on 2026-08-17: typecheck 0, unit 816/816,
+  contract 42/42, screens 13/13.
+
 ## In progress
 
 - Nothing.
@@ -1024,12 +1041,13 @@ same refused operation surfacing on the write path instead of in the
 collector's log.
 
 **The store can wedge: writes start answering 500 while reads keep working,
-and the only recovery found is a reset.** It has happened twice, both on
-2026-08-14. The symptom from the client is `500: internal query execution
-error` on every write, with reads still answering correctly, which makes it
-easy to misread as a bug in whatever write you happened to be running — the
-first diagnosis here blamed bookmark chaining and was wrong, recorded as such
-in [D-054](DECISIONS.md). The engine's own log has the cause, at `WARN` level:
+and the only recovery found is a fresh store.** It has happened three times:
+twice on 2026-08-14, once on 2026-08-17. The symptom from the client is
+`500: internal query execution error` on every write, with reads still
+answering correctly, which makes it easy to misread as a bug in whatever
+write you happened to be running — the first diagnosis here blamed bookmark
+chaining and was wrong, recorded as such in [D-054](DECISIONS.md). The
+engine's own log has the cause, at `WARN` level:
 
 ```
 HTTP suppressed internal graph error
@@ -1039,11 +1057,14 @@ with the underlying error naming the same unimplemented operation as the
 collector noise above: `` object store error: Operation `put_opts` with mode
 `PutMode::Update` not yet implemented by
 LocalFileSystem(file:///var/lib/lacuna/hydradb/store). `` No write-side fix
-exists in this project; the remedy is `npm run reset` and a re-ingest, about a
-minute of wall clock (the second one wrote 5,642 vertices and 5,705 edges in
-64.0s), after which the contract suite passed in full, 42 tests across 3
-files. Both failed stores are kept beside the live one as
-`store.wedged-20260814` and `store.wedged-20260814b` so the failure is
+exists in this project, and `npm run reset` cannot clear it either — the
+third occurrence proved deletes 500 the same way, because a delete is a
+write. The remedy is: stop the node, move the store directory aside, start
+against the fresh path, `npm run ingest`. About a minute of wall clock (the
+third re-ingest wrote 5,642 vertices and 5,705 edges in 60.0s), after which
+the contract suite passed in full, 42 tests across 3 files. All three failed
+stores are kept beside the live one as `store.wedged-20260814`,
+`store.wedged-20260814b` and `store.wedged-20260817` so the failure is
 inspectable rather than only described. [D-058](DECISIONS.md). This is the one
 known way the demo can die mid-run, which is why it is also an operational
 item in [NEEDS_VAIBHAV.md](NEEDS_VAIBHAV.md): check writes before recording,

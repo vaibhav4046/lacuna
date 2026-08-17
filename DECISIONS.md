@@ -2310,3 +2310,69 @@ committed artifact for a defect that lives in the comparator.
 0 answer mismatches, 0 wrong verdicts, exit 0. Repo-wide grep swept the old
 counts out of SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX, EVIDENCE_INDEX and
 CLAIMS.json; DECISIONS and STATE keep their historical figures.
+
+## 2026-08-17
+
+### D-079: The orange palette is out, and the approved design's system is the served one
+
+**The problem.** The deployed product wore the 2026-08-16 palette: black
+ground, the host's orange `#ff5719`, Geist. The owner rejected it, and the
+approved design arrived as a package whose source of truth,
+`Lacuna Product.dc.html`, now sits in `design/reference/`. A product whose
+owner has seen it and said no is wrong no matter how defensible the
+measurements behind the old palette were.
+
+**The fix.** `src/view/style.ts` now serves the approved system, recorded as
+the 2026-08-17 amendment in `design/reference/tokens.css`: pure void
+`#000000`; four steps of text ink, `#ffffff`, `#bdbdbd`, `#9a9a9a`, `#5e5e5e`;
+interaction violet `#8052ff` with `#8f66ff` as its own hover; evidence amber
+`#ffb829` reserved for the figure an argument turns on and the point on a
+drawing where something changed — the benchmark strip's key figure, the
+timeline's change ticks, the tally marks, the wordmark's period, and the
+favicon dot, which moves off the rejected orange. Teal `#15846e` is reserved
+for connected/healthy indicators and no surface needs it yet, so the shipped
+stylesheet omits it rather than carrying an unused constant. Absence renders
+calm grey, never a warning colour: an absent verdict, a gone state and a gap
+in a timeline all step back rather than light up. Print keeps its own legible
+pair, `#5b2fd9` and `#7a5200` on white, with the violet wash gone transparent.
+Space Grotesk carries sentences and JetBrains Mono carries anything a machine
+produced, families named first with nothing fetched, so D-059's no-webfont
+rule survives the redesign untouched. The 2026-08-16 entry's geometry and
+motion — radius 0 everywhere, two motion tiers — survive unchanged.
+
+**What was run.** `npm run typecheck` exit 0; `npx vitest run tests/unit` 816
+of 816 across 37 files. The contract run first hit the store wedge D-058
+records, for the third time — writes 500, reads fine — and `npm run reset`
+could not clear it because deletes are writes too; the D-058 remedy held: node
+stopped, store moved aside as `store.wedged-20260817`, fresh store re-ingested
+5,642 vertices and 5,705 edges in 60.0s with the bookmark byte-identical to
+D-058's record, then 42 of 42 contract in 8.58s. `npm run screens` retook all
+thirteen captures against the fresh store, all checked; the home and
+answer-revised PNGs were opened and read, and show amber on the key figure and
+the tick stops, violet on the rail and the active tab, calm grey on every
+absence, and no orange anywhere.
+
+### D-080: The capture harness refuses to photograph a dead server
+
+**The problem.** With the local server down, `npm run screens` passed twelve
+of its thirteen checks. Chrome's own connection-error page, rendered under a
+dark preference, is black enough for the ground check and busy enough for the
+density check, and all twelve wrote identical 21,883-byte PNGs of it; only the
+light-preference capture failed honestly, at mean 255. A capture run is
+evidence, and twelve validated photographs of the wrong page are worse than no
+run at all: the run exits zero and the committed artifacts quietly stop
+showing the product.
+
+**The fix.** A probe in `scripts/screens.ts`, before Chrome is found: fetch
+the target's root with a three-second timeout, and fail with the server's
+status if it answers badly or with "Start it first: npm run serve" if nothing
+answers. The first draft distinguished error names in the catch and would have
+rethrown a timeout; it was cut to an unconditional catch, because any
+unreachable server means the same thing to a capture run regardless of which
+exception the fetch dressed it in.
+
+**What was run.** `npm run typecheck` exit 0. Negative path:
+`npm run screens http://127.0.0.1:9` printed the refusal and exited 1,
+verified by exit code rather than by the message alone. Positive path:
+`npm run screens` against the live server on 3014, thirteen captures, all
+checked, exit 0.

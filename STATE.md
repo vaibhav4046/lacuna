@@ -2,7 +2,7 @@
 
 What exists right now. Updated as things change, and never ahead of them.
 
-**Last updated: 2026-08-14**
+**Last updated: 2026-08-17**
 
 ## Built and verified
 
@@ -931,6 +931,14 @@ What exists right now. Updated as things change, and never ahead of them.
   [artifacts/verification/2026-08-14f/](artifacts/verification/2026-08-14f/README.md).
   What this is not: a live node. No writes happen at the URL and no token is
   present there; the durability limit below is unchanged.
+- The 2026-08-16 tokens amendment applied to the served stylesheet on
+  2026-08-17 (`ec3602e`): every radius to 0 and motion split into two tiers,
+  a decelerate micro curve for colour/border/background and ease-out quint at
+  160ms for spatial movement, matching the measurements logged at the foot of
+  [design/reference/tokens.css](design/reference/tokens.css). Verified on the
+  running server by computed style: all four radius variables resolve to `0`,
+  0 of 141 elements carry any border-radius, both curves live. Typecheck
+  clean, 816/816 unit tests pass after the change.
 
 ## In progress
 

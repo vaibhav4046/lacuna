@@ -3107,3 +3107,30 @@ between them.
 
 Recorded now rather than after the work, because the tempting shortcut here is
 to set the environment variable, watch it fail, and call the cloud broken.
+
+### D-115: the cloud path is proven at the transport level
+
+A full round trip against HydraDB Cloud, run rather than assumed:
+
+    POST /databases                          200, tenant lacuna
+    GET  /databases/status                   ready_for_ingestion true
+    POST /context/ingest  (multipart)        202, source queued
+    GET  /context/status  (with collection)  indexing_status completed
+    POST /query                              success, 1 chunk, score 0.629, 3670ms
+
+The query response carries `chunks`, `sources`, `graph_context`,
+`temporal_facts` and `temporal_filter`. The cloud exposes graph and temporal
+structure natively, which is the same shape the resolver already consumes, so
+the adapter maps onto existing types rather than needing new ones.
+
+One failure was mine and is worth writing down because it looks like a service
+bug and is not. `GET /context/status` is scoped by collection. Polling a source
+ingested into `collection=backend` without naming that collection returns
+`FILE_NOT_FOUND` with the message "ID not found" for a source that ingested
+successfully. Six consecutive polls reported a false negative before the scope
+was added. The status call needs the same collection scope the ingest used.
+
+The repository at github.com/hydra-db/hydradb is the self-hosted Rust node
+under AGPL-3.0, which is the node already running locally. It is not the cloud
+API. It stays a service this product talks to, and none of its source is
+vendored.

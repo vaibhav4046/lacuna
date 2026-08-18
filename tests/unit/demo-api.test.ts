@@ -27,6 +27,9 @@ beforeAll(async () => {
   const router = new ApiRouter({
     store: new AccountStore(dir),
     secure: false,
+    // The demo route does not touch it, and a doctor that answers keeps the
+    // health branch from being the reason a demo assertion fails.
+    health: async () => ({ command: 'doctor', ok: true, warnings: 0, exitCode: 0, checks: [] }),
     inventory: buildDemo().inventory,
   });
   server = createServer((request, response) => {

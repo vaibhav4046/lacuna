@@ -2832,3 +2832,26 @@ spot.
 
 Worth recording because the next person comparing the two will find this
 difference and be tempted to delete working markup to make a diff go green.
+
+### D-102: the auth screens gain a form element, an error line, and nothing else
+
+Three small deviations from the design on the sign in, sign up and reset
+screens, all of them things a static mockup does not have to think about.
+
+The right hand column is a `<form>` where the design has a `<div>`. Without it
+pressing Enter in the email field does nothing, which fails the keyboard
+requirement for the sake of one tag name. Measured against the compiled oracle
+at 1280x800 the swap is invisible: the column lands at the same 843,274, the
+same 360x252, and the page is the same height.
+
+A form that can fail has to be able to say why, and the design draws no error
+state. The failure line uses the design's own mono treatment and a fixed table
+of sentences chosen by HTTP status, never by anything the server writes into a
+response body. A server that has been made to echo something cannot put that
+something on the page.
+
+The reset screen says a link will be emailed. No mail transport is configured,
+so the server answers 501 and the screen says password reset is not
+configured. Reporting success for something that did not happen is the same
+lie as a status chip nobody checked, and the frozen copy above it does not
+have to move for the button underneath to be honest.

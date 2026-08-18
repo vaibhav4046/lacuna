@@ -2,6 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { MemoryField } from './canvas/MemoryField';
 import { SessionProvider } from './api/session';
 import Landing from './landing/Landing';
+import SignIn from './auth/SignIn';
+import SignUp from './auth/SignUp';
+import Forgot from './auth/Forgot';
 
 /**
  * The canvas mounts once, above the router, the way it sits above every view
@@ -14,6 +17,9 @@ export default function App() {
       <MemoryField />
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/forgot" element={<Forgot />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SessionProvider>

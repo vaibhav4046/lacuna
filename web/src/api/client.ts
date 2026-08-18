@@ -70,3 +70,39 @@ export function useLoaded<T>(path: string): Loaded<T> {
 
   return result;
 }
+
+/** The name of the double-submit cookie the server sets for mutations. */
+const CSRF_COOKIE = 'lacuna_csrf';
+
+function csrfToken(): string {
+  for (const part of document.cookie.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === CSRF_COOKIE) return decodeURIComponent(rest.join('='));
+  }
+  return '';
+}
+
+export interface PostResult {
+  readonly ok: boolean;
+  readonly status: number;
+}
+
+/**
+ * A mutation. Sends the CSRF cookie back in a header so the server can check
+ * that the request came from a page it served, and reports the status rather
+ * than a message: nothing the server writes reaches the page as text, so a
+ * response body can never become copy.
+ */
+export async function postJson(path: string, body: unknown): Promise<PostResult> {
+  try {
+    const response = await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+      body: JSON.stringify(body),
+    });
+    return { ok: response.ok, status: response.status };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}

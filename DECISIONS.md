@@ -2916,3 +2916,33 @@ Two things worth carrying forward. `lacuna doctor` proves a node answers, not
 that it accepts writes, and D-054 already recorded that this engine answers a
 failed query with a bare internal error over HTTP, so the node's own log is
 the first place to look rather than the last.
+
+### D-105: the design draws one empty state, so every empty panel reuses it
+
+The signed-in screens are drawn full, with the sample workspace's own rows in
+them, because a mockup has no empty case. A new account has no rows at all, so
+almost every panel in the product needs a state the design never drew.
+
+The design does draw exactly one: the dashboard's recent runs panel reads "No
+runs yet." in fifteen pixel white over "Work appears when an agent executes a
+task." in thirteen and a half pixel grey. That is the pattern, and every other
+empty panel uses it rather than inventing a second treatment. The sentences are
+new, because the design does not supply them, and they are written in its
+voice: what is not here, then what would put something here.
+
+Three states, not two. A failure is not an empty state: "nothing here" and "we
+could not find out" are different sentences and the difference between them is
+the product. A failed load says so plainly and never renders zero rows. A panel
+still waiting says which stage it is in, in the design's mono, and never a
+percentage or a bar.
+
+### D-106: the sample workspace chip appears when the workspace is the sample
+
+The design's sidebar carries a SAMPLE WORKSPACE line under the workspace name,
+which is the mechanism for shipping the design's own values without pretending
+they are the reader's: the chip is already in the design, so nothing had to be
+invented to label them.
+
+It renders when the workspace is the sample one and not otherwise. A new
+account gets its own name and no chip, which is the only reading under which
+the label means anything.

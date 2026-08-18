@@ -32,6 +32,9 @@ import { FixedWindow } from '../server/ratelimit.js';
 
 /** Six attempts a minute per address is generous for a person and useless for a script. */
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
+/** A workspace name is a label, not an essay. */
+const MAX_WORKSPACE_CHARS = 120;
+
 /** Sign up is rarer and more expensive, so it is tighter. */
 const SIGNUP_LIMIT = { limit: 3, windowMs: 60_000, maxKeys: 4_096 };
 
@@ -194,6 +197,43 @@ export class ApiRouter {
 
       if (path === '/api/auth/signup') return this.#signup(request, response, email, password);
       if (path === '/api/auth/signin') return this.#signin(request, response, email, password);
+    }
+
+    if (path === '/api/workspace' && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const token = cookies[SESSION_COOKIE];
+      const record = typeof token === 'string' && token !== ''
+        ? this.#store.sessionFor(token, this.#now())
+        : null;
+      const account = record === null ? null : this.#store.find(record.email);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const name = body?.['workspace'];
+      if (typeof name !== 'string' || name.trim() === '' || name.length > MAX_WORKSPACE_CHARS) {
+        send(response, 400, { error: 'workspace' });
+        return HANDLED;
+      }
+
+      try {
+        this.#store.update({ ...account, workspace: name.trim(), onboarded: true });
+        send(response, 204, null);
+      } catch (error) {
+        send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+      }
+      return HANDLED;
     }
 
     send(response, 404, { error: 'route' });

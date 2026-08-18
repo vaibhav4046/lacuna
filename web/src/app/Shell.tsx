@@ -1,5 +1,5 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { hydraState, modelState, useHealth } from '../api/health';
+import { hydraState, useHealth, useModelLabel } from '../api/health';
 import { useSession } from '../api/session';
 import { icStyle } from '../design/icons';
 import { MONO, Mark } from '../design/mark';
@@ -34,6 +34,7 @@ export default function Shell() {
   const params = useParams();
   const { loaded } = useSession();
   const health = useHealth();
+  const model = useModelLabel();
 
   const route = params['route'];
   if (!isRouteKey(route)) return <Navigate to={`/app/${DEFAULT_ROUTE}`} replace />;
@@ -100,7 +101,7 @@ export default function Shell() {
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.24em', textTransform: 'uppercase', color: '#BDBDBD' }}>{routeTitle(route, workspace)}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <span style={{ border: '1px solid rgba(255,255,255,0.14)', borderRadius: '5px', padding: '4px 9px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#9A9A9A' }}>⌘ K</span>
-            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#5E5E5E' }}>MODEL · {modelState()}</span>
+            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#5E5E5E' }}>MODEL · {model}</span>
           </div>
         </div>
         <div style={{ flex: 1, padding: '40px 32px 84px' }}>

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { signOut } from '../../api/auth';
 import { postJson } from '../../api/client';
-import { hydraState, modelState, useHealth } from '../../api/health';
+import { hydraState, useHealth, useModelLabel } from '../../api/health';
 import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
 import { SAMPLE_WORKSPACE } from '../Shell';
@@ -24,6 +24,7 @@ export function Settings() {
   const go = useNavigate();
   const { loaded, refresh } = useSession();
   const health = useHealth();
+  const model = useModelLabel();
   const account = loaded.state === 'ready' && loaded.value.signedIn ? loaded.value.session : null;
   const onDemo = account?.workspace === SAMPLE_WORKSPACE;
 
@@ -31,7 +32,7 @@ export function Settings() {
     ['Workspace', account?.workspace ?? '—'],
     ['Signed in as', account?.email ?? '—'],
     ['HydraDB', hydraState(health).toLowerCase()],
-    ['Models', modelState().toLowerCase()],
+    ['Models', model.toLowerCase()],
     ['Voice', 'not configured'],
     ['API keys', 'none issued'],
     ['Appearance', 'dark'],

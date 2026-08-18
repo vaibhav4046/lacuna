@@ -3055,3 +3055,27 @@ suggestion returns a computed result:
 
 A workspace with no claims offers no suggestions and says so. Subject and
 predicate are also free text, so the screen is not limited to what it suggests.
+
+### D-113: one adapter for every OpenAI-compatible endpoint, and it probes
+
+Groq, DeepSeek, Ollama and vLLM all speak the same wire format, so there is one
+adapter rather than four copies of the same fetch with a different base URL.
+The things that actually differ between them — which models exist, whether the
+endpoint answers, how long it takes — are discovered at runtime.
+
+Nothing in that file decides a model is connected. It asks, measures and
+reports. A cloud provider with no key is NOT CONFIGURED; an endpoint that does
+not answer is FAILED with a plain sentence and never a response body, because
+an error body from a provider can carry an echoed key. A local endpoint
+answers without a key, so it is probed whenever a base URL is set rather than
+gated on one: applying the cloud rule to an Ollama on this machine would report
+a working endpoint as unconfigured.
+
+Anthropic is carried as configured and unprobed. Its API does not answer
+`/models` in this shape, so probing it through this adapter would report a
+working key as failed, and listing it as connected would be a state nobody
+checked.
+
+Measured on this machine: Groq answered in 153ms and enumerated its models, so
+the application header now reads a model name it was told rather than one
+written into the source.

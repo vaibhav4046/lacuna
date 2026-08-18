@@ -19,6 +19,7 @@ import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './wo
 import type { WorkspaceView } from './workspace.js';
 import type { HydraClient } from '../hydra/client.js';
 import type { Inventory } from '../report/inventory.js';
+import { headerModel, modelRows } from '../provider/registry.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -233,6 +234,18 @@ export class ApiRouter {
     if (path.startsWith('/api/workspace/') && method === 'GET') {
       const view = this.#viewFor(cookies);
       const part = path.slice('/api/workspace/'.length);
+
+      // Probed rather than listed: these two ask the endpoints and report what
+      // answered, so they run before the static branches below.
+      if (part === 'models') {
+        send(response, 200, await modelRows(process.env));
+        return HANDLED;
+      }
+      if (part === 'model') {
+        send(response, 200, { label: headerModel(await modelRows(process.env)) });
+        return HANDLED;
+      }
+
       const body: unknown = part === 'changes' ? view.changes
         : part === 'conflicts' ? view.conflicts
           : part === 'connections' ? view.connections
@@ -245,8 +258,9 @@ export class ApiRouter {
                       // Nothing is configured for these yet, and an empty list
                       // is the honest answer rather than a 404 the screen would
                       // have to render as a failure.
-                      : part === 'agents' || part === 'tools' || part === 'models' || part === 'evaluations' ? []
+                      : part === 'agents' || part === 'tools' || part === 'evaluations' ? []
                         : null;
+
       if (body === null) {
         send(response, 404, { error: 'route' });
         return HANDLED;

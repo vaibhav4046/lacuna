@@ -59,10 +59,11 @@ export function hydraState(loaded: Loaded<HealthReport>): string {
 }
 
 /**
- * The model chip. No endpoint health check exists to run yet, so there is no
- * model to name: naming one would be the exact claim the gate forbids. This
- * becomes a real probe when the model router lands.
+ * The model chip, read from a real probe. The server asks every configured
+ * endpoint what models it has and how long it took; a model is named here only
+ * because one of them answered and said so.
  */
-export function modelState(): string {
-  return 'NOT CONFIGURED';
+export function useModelLabel(): string {
+  const loaded = useLoaded<{ readonly label: string }>('/api/workspace/model');
+  return loaded.state === 'ready' ? loaded.value.label : UNCHECKED;
 }

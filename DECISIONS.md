@@ -2946,3 +2946,34 @@ invented to label them.
 It renders when the workspace is the sample one and not otherwise. A new
 account gets its own name and no chip, which is the only reading under which
 the label means anything.
+
+### D-107: the canvas engine is extracted, not retyped, and not type checked
+
+The Memory Gravity Field is six hundred lines of numeric canvas code whose
+correctness is defined entirely by the design. It was extracted from the design
+file by line range, the way the icon set was, and the only edits are the class
+scaffolding around it: three lifecycle methods keep their bodies and lose their
+React names, and `this.state` and `this.props` became plain objects the
+component writes into instead of React's.
+
+The file carries `@ts-nocheck`. That is a real cost and it is the smaller one.
+This repository builds with `noUncheckedIndexedAccess`, under which every
+`pts[i][0]` in that code needs an assertion, and there are hundreds. Adding
+them means editing the source, and a verbatim port that has been edited to
+satisfy a type checker is not a verbatim port: every one of those edits is a
+place the behaviour could quietly change. The boundary is typed instead. An
+exported interface declares the four things the component may touch, merged
+into the class declaration, so the calling code is checked normally and the
+engine's internals are the design's business.
+
+The engine drives itself off requestAnimationFrame and keeps its own mutable
+state rather than receiving props per frame, because a React render at sixty
+frames a second is a second scheduler fighting the first one.
+
+### D-108: the field is driven by the URL, not by component state
+
+The design switched `state.view` and the engine read it. Here the view comes
+from the pathname, so a refresh, a back button and a pasted link all put the
+field in the same state as a click did. The mapping is the design's own view
+names: the auth screens are `auth`, onboarding is `onboard`, anything under
+`/app` is `app`, and the engine hides the canvas itself for that last one.

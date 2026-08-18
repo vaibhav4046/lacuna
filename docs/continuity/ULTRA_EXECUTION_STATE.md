@@ -1,8 +1,9 @@
 # Execution state
 
 Status: `ACTIVE`
-Commit: `67a24ee`
-Production: https://lacuna-five.vercel.app (commit `58f8037`, verified)
+Commit: `933dc2a`
+Production: https://lacuna-five.vercel.app (verified, health live against HydraDB Cloud)
+Preview: https://lacuna-j2a378v60-vaibhav4046s-projects.vercel.app (public, 200)
 Rollback tag: `rollback-pre-v6-react-cutover` at `6c5d9e8`
 
 ## Green this session
@@ -71,6 +72,60 @@ Current provisioning state:
 
 So the database exists and is still coming up. Ingestion cannot start until
 `ready_for_ingestion` is true.
+
+## Done since that finding
+
+The cloud adapter exists and is exercised against the live service.
+
+`src/hydra/cloud.ts` covers provision, readiness, ingest, status, query and
+relations, on the node client's contract: timeout per call, cancellable
+AbortSignal, the existing typed errors, measured latency, and never the token
+or a response body inside an error.
+
+Measured against the running service:
+
+    readyForIngestion   true
+    query               2986ms, 1 chunk, score 0.629
+    graph_context       present
+    temporal_facts      present
+    relations           4
+
+The deployed health check is live. `GET /api/health` on production returns
+`ok: true` with four passing checks and `api.hydradb.com answered in 206ms`,
+in the doctor's own shape so no screen needed changing.
+
+Two traps, both mine, both now encoded in the adapter:
+
+- `/context/status` is scoped by collection. Omitting it returns
+  FILE_NOT_FOUND for a source that ingested successfully.
+- The chunk text field is `chunk_content`. Reading `content` or `text` gives an
+  empty string for a chunk the service delivered in full, which presents as an
+  empty retrieval rather than a wrong field name.
+
+## The one thing still missing
+
+`ask()` still reads the self-hosted node. On the deployed URL health is live
+but Ask is not: the four envelope states, the 174 claims and the computed
+blast radius all still run locally against the WSL node.
+
+This is not a small task and should not be estimated as one. It is a second
+retrieval implementation against a different data model — chunks and graph
+paths rather than Cypher rows — and it needs its own tests and its own parity
+run before it can be trusted. Budget a fresh session for it.
+
+Shape of the work:
+
+1. `HydraSource` interface expressing what the resolver actually needs from a
+   store: subject lookup, claims for a subject and predicate, evidence spans,
+   graph neighbours. Both the node client and `HydraCloud` implement it.
+2. `ask()` takes a `HydraSource` rather than a `HydraClient`. Nothing above it
+   changes: the temporal resolver, contradiction policy, evidence gate and
+   Context Pack compiler consume claims, not transport.
+3. Ingest the generated corpus through `POST /context/ingest` and poll
+   `/context/status` with the collection.
+4. Run the 64-question parity sweep against the cloud surface. It must stay
+   `ALL_IDENTICAL`.
+5. Redeploy and re-verify.
 
 ## Exact next command
 

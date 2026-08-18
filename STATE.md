@@ -2,9 +2,21 @@
 
 What exists right now. Updated as things change, and never ahead of them.
 
-**Last updated: 2026-08-18**
+**Last updated: 2026-08-19**
 
 ## Built and verified
+
+- **The deployed product answers questions.** HydraDB Cloud holds the corpus
+  and the claim graph as 159 records; `ask()` reads them through a source seam
+  that also serves the self-hosted node. `npm run parity:cloud` asks all 64
+  gold questions of both stores and compares field by field:
+  `ALL_IDENTICAL: true`, node 342 reads, cloud 119. Evidence in
+  [artifacts/hydra/cloud-parity.json](artifacts/hydra/cloud-parity.json) and
+  [artifacts/hydra/cloud-ingest.json](artifacts/hydra/cloud-ingest.json).
+- **A stranger can watch it work.** https://lacuna-five.vercel.app/judge asks
+  six questions on load and reaches six different outcomes, with no account,
+  nothing recorded, and no branch keyed on the question. Measured on
+  production at 108ms to 283ms a row.
 
 - Repository initialised 2026-08-12. No code, assets or history imported from
   anywhere.

@@ -1,0 +1,24 @@
+production route check
+date: 2026-08-18T08:49:53Z
+base: https://lacuna-five.vercel.app
+
+200     8558 bytes  /
+200    54603 bytes  /memory
+200     8630 bytes  /memory?filter=contradicted
+200    42882 bytes  /memory?filter=current
+200     6959 bytes  /health
+200    21290 bytes  /bench
+200    10508 bytes  /hydradb
+200    10773 bytes  /interface
+200    12917 bytes  /voice
+200    36696 bytes  /lacuna.css
+200      350 bytes  /favicon.svg
+200    33165 bytes  /blast?package=pact-check
+200    11403 bytes  /ask?subject=Bellwether&predicate=beta_partner
+400     3296 bytes  /blast
+400     3308 bytes  /blast?package=%20
+400     3354 bytes  /ask
+404     3352 bytes  /arena
+404     3352 bytes  /nope
+
+POST /ask -> 405

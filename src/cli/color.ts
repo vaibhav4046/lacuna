@@ -15,6 +15,7 @@ export interface Palette {
   readonly heading: (text: string) => string;
   readonly dim: (text: string) => string;
   readonly good: (text: string) => string;
+  readonly warn: (text: string) => string;
   readonly bad: (text: string) => string;
 }
 
@@ -24,6 +25,7 @@ export const PLAIN: Palette = {
   heading: identity,
   dim: identity,
   good: identity,
+  warn: identity,
   bad: identity,
 };
 
@@ -37,6 +39,7 @@ export const ANSI: Palette = {
   heading: wrap('1'),
   dim: wrap('2'),
   good: wrap('32'),
+  warn: wrap('33'),
   bad: wrap('31'),
 };
 

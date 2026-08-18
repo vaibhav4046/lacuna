@@ -26,10 +26,15 @@ export function doctorPayload(report: DoctorReport): unknown {
   return {
     command: 'doctor',
     ok: report.ok,
+    warnings: report.warnings,
     exitCode: report.code,
     checks: report.checks.map((check) => ({
       name: check.name,
-      ok: check.ok,
+      // Both, and not one derived from the other by the reader: `ok` is what a
+      // script greps for and has meant the same thing since the first release,
+      // `state` is the detail it can start reading when it wants to.
+      ok: check.state !== 'fail',
+      state: check.state,
       detail: check.detail,
     })),
   };

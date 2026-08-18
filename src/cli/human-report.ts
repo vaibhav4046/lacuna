@@ -8,27 +8,35 @@ import { columns } from './table.js';
 /**
  * Terminal rendering for the three commands that do not answer a question.
  *
- * PASS and FAIL are words. They are not a green tick and a red cross, and they
- * are not colour alone, because this output gets piped into files and read over
- * SSH sessions that strip escapes. Colour is added on top of the word when the
- * terminal wants it and removed when it does not, and the meaning survives
- * either way.
+ * PASS, WARN and FAIL are words. They are not a green tick and a red cross, and
+ * they are not colour alone, because this output gets piped into files and read
+ * over SSH sessions that strip escapes. Colour is added on top of the word when
+ * the terminal wants it and removed when it does not, and the meaning survives
+ * either way. All three are four characters, which is what keeps the column
+ * aligned once the escapes are in.
+ *
+ * A warning does not change the exit code and the verdict line says so, because
+ * a warning that quietly failed the command would be a failure with a friendly
+ * name.
  */
 
-const PASS = 'PASS';
-const FAIL = 'FAIL';
+const WORDS = { pass: 'PASS', warn: 'WARN', fail: 'FAIL' } as const;
 
 export function renderDoctor(report: DoctorReport, palette: Palette): string {
+  const paint = { pass: palette.good, warn: palette.warn, fail: palette.bad };
   const rows = report.checks.map((check) => [
     check.name,
-    check.ok ? palette.good(PASS) : palette.bad(FAIL),
+    paint[check.state](WORDS[check.state]),
     check.detail,
   ]);
 
+  const failed = report.checks.filter((check) => check.state === 'fail').length;
+  const warned = report.warnings === 0
+    ? ''
+    : ` ${report.warnings} warning(s), which do not affect the exit code.`;
   const verdict = report.ok
-    ? 'All checks passed.'
-    : `${report.checks.filter((check) => !check.ok).length} check(s) failed, `
-      + `exit code ${report.code}.`;
+    ? `All checks passed.${warned}`
+    : `${failed} check(s) failed, exit code ${report.code}.${warned}`;
 
   // The status column is padded from the coloured string, so its width is the
   // escape sequence plus four rather than four. Both values are the same length

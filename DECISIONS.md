@@ -2607,3 +2607,43 @@ place and not the other.
 The operational consequence is worth stating because it changes what is at
 risk. The wedge bites writes only; reads never publish an index. A read-only
 judge run is therefore not exposed to it. Re-ingest and the contract suite are.
+
+### D-090: The doctor gets a third verdict, and only two things may use it
+
+`lacuna doctor` reported PASS or FAIL, and two of its six checks were lying in
+opposite directions.
+
+The first was `artifacts/`. An unwritable directory failed the command with the
+configuration exit code, which reads as "this install is broken". It is not.
+Nothing on the question path writes there. `ask`, `explain` and `timeline` read
+the graph and produce no files, so a read-only checkout answers all 64 gold
+questions correctly and was being told it could not. What actually breaks is
+the four recording commands, so that is now a warning whose text names them.
+
+The second was the opposite lie. A node that is up, authenticated and pointed
+at the right graph, holding nothing, passed every check and then abstained on
+every question with the `unconnected` reason. From outside that looks like a
+broken resolver and is an ingest nobody ran. The probe already had the answer
+in its hand: it counts entities, and it was throwing the count away. Zero is
+now a warning that says the ingest has not run.
+
+Neither changes the exit code. `report()` looks only for `state === 'fail'`, so
+a warning leaves the process at zero and the verdict line says as much, because
+a warning that quietly failed the command would be a failure wearing a friendly
+name. The JSON keeps `ok` per check, now meaning `state !== 'fail'`, alongside
+the new `state`; a script that has been grepping `ok` since the first release
+keeps working and can start reading `state` when it wants to.
+
+Nothing else warns. The temptation with a third state is to spread it around
+for symmetry, and D-086 already declined two extra claim states on the same
+ground: a state that can never be reached is decoration, and decoration in a
+diagnostic is worse than absent because it implies coverage that is not there.
+Six checks, two of which can warn, and both warnings correspond to a checkout
+someone will actually have.
+
+One consequence worth naming: `runDoctor` and `probe` now take an optional
+`fetch`, which only the tests pass. Both warning branches depend on what the
+node returns, and a test that cannot control the node cannot reach either of
+them. The seam is one optional field on an options object, production still
+opens a real socket, and the alternative was two untestable branches on the
+command people run when they are already confused.

@@ -1,0 +1,18 @@
+production against the local snapshot server, same commit, same snapshot
+date: 2026-08-18T08:50:07Z
+prod:  https://lacuna-five.vercel.app
+local: http://127.0.0.1:3015  (npm run serve:snapshot)
+
+Every difference below is a measured duration. Nothing else differs, which
+is the point: the deployed function and the local check run the same
+handler over the same recorded replies.
+
+/                                                    differing lines   0, of which timing   0, other 0
+/memory                                              differing lines   0, of which timing   0, other 0
+/health                                              differing lines   0, of which timing   0, other 0
+/bench                                               differing lines   0, of which timing   0, other 0
+/hydradb                                             differing lines   0, of which timing   0, other 0
+/interface                                           differing lines   0, of which timing   0, other 0
+/voice                                               differing lines   0, of which timing   0, other 0
+/blast?package=pact-check                            differing lines  80, of which timing  80, other 0
+/ask?subject=Bellwether&predicate=beta_partner       differing lines   8, of which timing   8, other 0

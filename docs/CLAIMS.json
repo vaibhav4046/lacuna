@@ -1,6 +1,6 @@
 {
   "about": "Every claim this project makes about itself, with the state of the thing claimed, where its numbers came from, and the file that proves it. The two state vocabularies are the ones in src/model/capability.ts and nowhere else, so a state cannot appear here that the interface pages do not also know. Checked by tests/unit/claims.test.ts, which fails if a state is invented, an id repeats, or an evidence path does not exist on disk.",
-  "generated_at": "2026-08-14",
+  "generated_at": "2026-08-18",
   "states_from": "src/model/capability.ts",
   "capability_states": [
     "NOT_STARTED",
@@ -454,7 +454,11 @@
       "data": "RECORDED",
       "measured": {
         "url": "https://lacuna-five.vercel.app",
-        "routes_200": ["/", "/bench", "/hydradb", "/interface", "/voice", "/lacuna.css", "/favicon.svg"],
+        "routes_200": ["/", "/memory", "/memory?filter=contradicted", "/health", "/blast?package=pact-check",
+          "/ask?subject=Bellwether&predicate=beta_partner", "/bench", "/hydradb", "/interface", "/voice",
+          "/lacuna.css", "/favicon.svg"],
+        "missing_argument": "400 on /ask and /blast with no terms, which is a notice page and not an error",
+        "matches_local_snapshot": "every page byte for byte except the measured durations it prints",
         "unknown_path": 404,
         "post_ask": 405,
         "csp": "default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
@@ -465,6 +469,8 @@
         "artifacts/verification/2026-08-14f/prod-routes.txt",
         "artifacts/verification/2026-08-14f/prod-answers.txt",
         "artifacts/verification/2026-08-14f/snapshot-verify.txt",
+        "artifacts/verification/2026-08-18-prod/prod-routes.txt",
+        "artifacts/verification/2026-08-18-prod/prod-vs-local.txt",
         "artifacts/snapshot/graph-snapshot.json",
         "api/index.ts",
         "src/snapshot/replay.ts",

@@ -51,6 +51,24 @@ of the first failing check, so the difference is visible to a script:
 `artifacts` is a writability test on the directory, not a write. Nothing under
 `artifacts/` is created or modified by any command in this CLI.
 
+Two checks can report `WARN`, which is a third verdict and not a soft failure:
+the exit code stays at zero and the verdict line says so.
+
+```
+  round trip  WARN  MATCH (n:Entity) RETURN count(*) AS n answered in 4.1ms and counted no entities, so every question will abstain as unconnected until ingest runs
+  artifacts   WARN  artifacts/ is not writable, so npm run ingest, eval, bench and snapshot will fail: EACCES: permission denied
+
+  All checks passed. 2 warning(s), which do not affect the exit code.
+```
+
+Both are states a working checkout gets into. A read-only clone cannot write
+under `artifacts/` and still answers every question, because answering reads the
+graph and writes nothing. A node that is up and holds nothing is configured
+correctly and will abstain on everything with the `unconnected` reason, which
+looks like a broken resolver from outside and is an ingest that has not run.
+Reporting either as a failure would send someone looking for an install problem
+they do not have. Nothing else warns.
+
 ### `lacuna status`
 
 What this CLI is pointed at, one count per node label, and the read epoch the
@@ -252,14 +270,16 @@ The configuration object, which holds the bearer token, is never spread into it.
 ```
 
 `doctor`, `status` and `bench` have their own payloads, each with a `command`
-field naming the command that produced it. `doctor` carries `ok`, `exitCode` and
-one object per check.
+field naming the command that produced it. `doctor` carries `ok`, `warnings`,
+`exitCode` and one object per check. Each check carries both `ok` and `state`:
+`ok` is false only for a failure and has meant that since the first release, and
+`state` is `pass`, `warn` or `fail` for a reader that wants the distinction.
 
 ### Colour
 
-Colour is an accent, never the meaning. `PASS` and `FAIL` are words, the answer
-is on a labelled line, and reading the output with every escape stripped loses
-nothing.
+Colour is an accent, never the meaning. `PASS`, `WARN` and `FAIL` are words, the
+answer is on a labelled line, and reading the output with every escape stripped
+loses nothing.
 
 It is disabled when `NO_COLOR` is set to any value including empty, when stdout
 is not a terminal, and when `TERM` is `dumb`.
@@ -303,7 +323,8 @@ There is no code 1. A shell that sees 1 is seeing the runtime fail before the
 CLI got a chance to classify anything.
 
 `doctor` exits with the code of its first failing check, so it reports the same
-distinctions as the commands it is diagnosing.
+distinctions as the commands it is diagnosing. A warning is not a failing check
+and does not change the code.
 
 The mapping lives in [`src/cli/exit.ts`](../src/cli/exit.ts) and is asserted
 against the real error classes in

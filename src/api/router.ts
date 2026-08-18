@@ -102,6 +102,59 @@ function sourceKey(request: IncomingMessage): string {
   return request.socket.remoteAddress ?? 'unknown';
 }
 
+/**
+ * One named part of a workspace view.
+ *
+ * Shared by the signed-in route and the demo route so the two cannot answer
+ * differently for the same name. Null means no such part, which the caller
+ * turns into a 404.
+ */
+function workspacePart(view: WorkspaceView, part: string): unknown {
+  return part === 'changes' ? view.changes
+    : part === 'conflicts' ? view.conflicts
+      : part === 'connections' ? view.connections
+        : part === 'runs' ? view.runs
+          : part === 'health' ? view.health
+            : part === 'memory' ? { rows: view.memory, total: view.memoryTotal, demo: view.demo }
+              : part === 'categories' ? view.categories
+                : part === 'questions' ? view.questions
+                  : part === 'summary' ? view
+                  // Nothing is configured for these yet, and an empty list is
+                  // the honest answer rather than a 404 the screen would have
+                  // to render as a failure.
+                  : part === 'agents' || part === 'tools' || part === 'evaluations' ? []
+                    : null;
+}
+
+/**
+ * A question the answer to which is not on the subject.
+ *
+ * "Who is our contact for the vendor behind X" cannot be answered from X's own
+ * claims: the walk has to land on the vendor first. Derived from a claim the
+ * graph holds rather than written down here, so a regenerated corpus moves the
+ * suggestion instead of stranding it.
+ */
+function hopSuggestions(inventory: Inventory | undefined): readonly { label: string; subject: string; predicate: string }[] {
+  if (inventory === undefined) return [];
+  // Both ends have to hold: a current vendor on the subject, and a current
+  // contact on the vendor it names. A suggestion that satisfies only the first
+  // abstains, correctly, and demonstrates nothing about hopping.
+  const reachable = new Set(
+    inventory.claims
+      .filter((row) => row.predicate === 'contact' && row.state === 'current')
+      .map((row) => row.subject),
+  );
+  const claim = inventory.claims.find((row) => (
+    row.predicate === 'vendor' && row.state === 'current' && reachable.has(row.objectText)
+  ));
+  if (claim === undefined) return [];
+  return [{
+    label: `${claim.subject} · contact — through the vendor behind it`,
+    subject: claim.subject,
+    predicate: 'contact',
+  }];
+}
+
 export class ApiRouter {
   readonly #store: AccountStore;
   readonly #secure: boolean;
@@ -239,6 +292,29 @@ export class ApiRouter {
       if (path === '/api/auth/signin') return this.#signin(request, response, email, password);
     }
 
+    // The demo workspace, without an account.
+    //
+    // A judge, and anyone else who wants to see the product work before
+    // signing up, reads the ingested corpus here. It is the same view the
+    // signed-in demo workspace shows, named explicitly rather than reached by
+    // holding the right session, and it is read only: nothing under /api/demo
+    // writes. Every other workspace stays behind the session, and this one
+    // holds nothing personal to protect.
+    if (path.startsWith('/api/demo/') && method === 'GET') {
+      const inventory = this.#inventory;
+      const view = inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
+      const part = path.slice('/api/demo/'.length);
+      const body = part === 'hops'
+        ? hopSuggestions(inventory)
+        : workspacePart(view, part);
+      if (body === null) {
+        send(response, 404, { error: 'route' });
+        return HANDLED;
+      }
+      send(response, 200, body, this.#csrfCookie(cookies));
+      return HANDLED;
+    }
+
     if (path.startsWith('/api/workspace/') && method === 'GET') {
       const view = this.#viewFor(cookies);
       const part = path.slice('/api/workspace/'.length);
@@ -254,20 +330,7 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      const body: unknown = part === 'changes' ? view.changes
-        : part === 'conflicts' ? view.conflicts
-          : part === 'connections' ? view.connections
-            : part === 'runs' ? view.runs
-              : part === 'health' ? view.health
-                : part === 'memory' ? { rows: view.memory, total: view.memoryTotal, demo: view.demo }
-                  : part === 'categories' ? view.categories
-                    : part === 'questions' ? view.questions
-                      : part === 'summary' ? view
-                      // Nothing is configured for these yet, and an empty list
-                      // is the honest answer rather than a 404 the screen would
-                      // have to render as a failure.
-                      : part === 'agents' || part === 'tools' || part === 'evaluations' ? []
-                        : null;
+      const body = workspacePart(view, part);
 
       if (body === null) {
         send(response, 404, { error: 'route' });

@@ -8,6 +8,7 @@ import SignUp from './auth/SignUp';
 import Forgot from './auth/Forgot';
 import Onboarding from './onboarding/Onboarding';
 import Shell from './app/Shell';
+import { Judge } from './pages/Judge';
 
 /**
  * The canvas mounts once, above the router, the way it sits above every view
@@ -20,6 +21,7 @@ export default function App() {
       <MemoryField />
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/judge" element={<Judge />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot" element={<Forgot />} />

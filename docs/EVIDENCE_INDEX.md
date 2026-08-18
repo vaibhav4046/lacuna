@@ -310,3 +310,23 @@ measured it from outside; its rows are in [Deployment](#deployment) above.
 What remains not covered is voice, an LLM router, and authentication. Those
 remain `UNAVAILABLE` in the ledger and absent from this index, which is the
 same statement made twice on purpose.
+
+**The second store arrived on the seventh run.** Until it did, every claim in
+this file rested on one store: a self-hosted node on loopback, which the
+deployed function cannot reach. Two artifacts change that.
+
+| Claim | Artifact | What it holds |
+| --- | --- | --- |
+| The corpus and the claim graph are in HydraDB Cloud | [artifacts/hydra/cloud-ingest.json](../artifacts/hydra/cloud-ingest.json) | 159 records written, 159 indexed, 0 refused; the sampled entity and the index read back byte identical to what was written |
+| Both stores return the same answers | [artifacts/hydra/cloud-parity.json](../artifacts/hydra/cloud-parity.json) | 64 gold questions asked of the node and of the cloud, compared field by field: `identical: true`, node 342 reads, cloud 119 |
+| A stranger can watch the product work | https://lacuna-five.vercel.app/judge | Six questions computed on load, six different outcomes, `source_state` live on each |
+
+Two fields are excluded from the store comparison and only two: wall clock
+milliseconds, which measure the network, and the read log, which is the one
+thing meant to differ. A question costs three round trips against the node and
+one against the cloud, because one cloud record holds what three Cypher reads
+gather.
+
+What this does not cover: the CLI and the MCP server read the node. That is
+recorded as a deliberate limit in DECISIONS.md D-119 rather than left for a
+reader to discover.

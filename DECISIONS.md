@@ -3164,3 +3164,79 @@ Not yet done, and stated so it is not mistaken for done: the resolver still
 reads the node. The `HydraSource` seam that lets `ask()` choose between node
 and cloud is the next step, and until it exists the deployed application still
 reports no context store.
+
+### D-117: one product over two stores, and what that cost
+
+`ask()` and `blastRadius()` read through `HydraSource` now rather than through
+the node client. Four reads is the whole interface, because four is what the
+resolver and the blast walk actually need: a head by name, a subject with its
+claims and mentions, the citations for one claim, and the claims that name one
+entity as their object. `NodeSource` holds the previous read path unchanged,
+so the seam landed at 936 of 936 unit tests with no behaviour to re-verify.
+
+`CloudSource` reads HydraDB Cloud. The graph goes in as one record per entity
+carrying what three Cypher reads would have gathered, one record per session
+carrying the conversation itself, and one index record. Records are addressed
+by an id derived from the entity name, so a read is a fetch rather than a
+ranked search: the same question reads the same record every time, which a
+temporal resolver requires and a vector search cannot promise. The service's
+`/query` endpoint is a vector search over the conversations, and it is used
+where similarity is the right tool. Neither pretends to be the other.
+
+Evidence and claims are stored apart on purpose. The sessions are what was
+said; the entity records are what those sessions were read to state, when each
+became true, and what replaced what. A store that conflates the two cannot
+tell you what changed, which is the whole product.
+
+`QueryTrace` gained `request` and `cypher` became nullable. A field named
+`cypher` holding `GET /context/inspect?id=...` would have been the small kind
+of lie this product exists to refuse, and the alternative, renaming the field
+across ninety-eight references and the MCP output schema, was a contract break
+to avoid a nullable.
+
+The claim that both stores answer the same is a check, not an assertion.
+`npm run parity:cloud` asks all 64 gold questions of both and compares every
+field but the clock and the read log:
+
+    ALL_IDENTICAL: true
+    reads: node 342, cloud 119
+    median: node 91ms, cloud 212ms
+
+The cloud is slower per read and needs a third of them. Both numbers are the
+architecture rather than an accident: a record fetch crosses the internet, and
+one record holds what three Cypher reads would have gathered.
+
+### D-118: the working product was unreachable, and that was the real gap
+
+Health was live on the deployed URL and Ask was not, so the deployment proved
+a connection rather than a product. Two things were in the way. The resolver
+read the node, which D-117 fixed. And every screen that could show an answer
+sat behind `RequireSession`, while accounts cannot persist on a read-only
+filesystem, so the signed-in product was unreachable by construction.
+
+`/judge` is the answer to the second. It asks six questions on load through
+the same endpoint the signed-in Ask screen posts to, and reaches six different
+outcomes: current state, revised with its superseded count, sources that
+disagree, withdrawn, no evidence, and a two hop answer. No row is recorded and
+no branch is keyed on the question. Measured on production: 108ms to 283ms per
+row, `source_state` live on every one.
+
+`/api/demo/*` serves the demo workspace read only and without a session. It
+reuses the same part switch the signed-in route uses, so the two cannot answer
+differently for the same name, and every other workspace stays behind the
+session.
+
+The hop suggestion requires both ends of the hop. The first version asked for
+a subject with a current vendor, found one whose vendor had no contact, and
+demonstrated a correct abstention where the point was to demonstrate hopping.
+
+### D-119: what still reads only the node, and why that is not a gap
+
+The CLI and the MCP server read the self-hosted node. They could be pointed at
+the cloud through the same seam, and they are not, for two reasons. They are
+local tools run beside a local node, which is the configuration the demo
+actually uses. And `npm run parity:cloud` already establishes that the two
+stores return the same answers, so a terminal reading the node and a browser
+reading the cloud are reading the same claims. Changing the MCP context to
+carry a source rather than a client would put the green 64 question parity
+sweep at risk to prove something a passing check already proves.

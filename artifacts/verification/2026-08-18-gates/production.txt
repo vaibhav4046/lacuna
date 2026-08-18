@@ -1,0 +1,28 @@
+production probe 2026-08-18T10:13:49Z
+target https://lacuna-five.vercel.app
+
+code  time        bytes     path
+200 1.042247s 8558b /
+200 0.390843s 54603b /memory
+200 0.187653s 6959b /health
+200 0.346145s 21290b /bench
+200 0.180929s 10508b /hydradb
+200 0.170431s 10773b /interface
+200 0.164674s 12917b /voice
+400 0.163872s 3296b /blast
+200 0.228509s 11406b /ask?subject=Bellwether&predicate=beta_partner
+200 0.177404s 33165b /blast?package=pact-check
+200 0.183304s 36696b /lacuna.css
+200 0.163514s 350b /favicon.svg
+404 0.173350s 3352b /arena
+
+--- computed content checks ---
+billing-gate ingest-worker ledger-api media-thumbs tenant-router   <- dependents rendered by /blast
+Halverd Stonecrop superseded   <- revision story rendered by /ask
+
+--- security headers ---
+Content-Security-Policy: default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY

@@ -13,6 +13,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "npm --prefix web run build",
+    "web": "npm --prefix web run dev",
     "cli": "node bin/lacuna.js",
     "serve": "tsx scripts/serve.ts",
     "mcp": "tsx scripts/mcp.ts",

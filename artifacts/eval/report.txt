@@ -1,6 +1,6 @@
 Lacuna retrieval evaluation
 corpus seed lacuna-demo-v1
-run at 2026-08-18T08:30:17.764Z
+run at 2026-08-18T10:04:03.482Z
 
 Questions        64
 Exact correct    64  (100.0%)
@@ -34,9 +34,9 @@ Abstention as a decision (positive class: abstained)
 Unsupported answers  0  (0.0% of all questions)
 
 Latency, wall clock per question, one at a time
-  p50   161.4ms
-  p95   359.9ms
-  max   1463ms
+  p50   179.9ms
+  p95   348.4ms
+  max   1964.2ms
 
 Queries per question
   min   1

@@ -161,8 +161,20 @@ export interface MemoryRow {
 }
 export interface HealthCategory { readonly l: string; readonly n: number; readonly col: string }
 
+export interface SuggestedQuestion {
+  readonly label: string;
+  readonly subject: string;
+  readonly predicate: string;
+}
+
 export interface WorkspaceView {
   readonly demo: boolean;
+  /**
+   * Questions this workspace can actually answer, derived from the claims it
+   * holds. A suggestion that returns nothing is a broken button, so every one
+   * of these names a subject and predicate the graph really has.
+   */
+  readonly questions: readonly SuggestedQuestion[];
   readonly changes: readonly WorkspaceChange[];
   readonly conflicts: readonly WorkspaceConflict[];
   readonly connections: readonly WorkspaceConnection[];
@@ -185,6 +197,7 @@ export function emptyWorkspace(): WorkspaceView {
     memory: [],
     memoryTotal: 0,
     categories: [],
+    questions: [],
   };
 }
 
@@ -252,5 +265,46 @@ export function demoWorkspace(inventory: Inventory): WorkspaceView {
       { l: 'Withdrawn', n: withdrawn, col: '#15846E' },
       { l: 'Current', n: current, col: '#8052FF' },
     ],
+    questions: suggestions(inventory),
   };
+}
+
+/**
+ * One question per outcome the resolver can reach, taken from claims the graph
+ * actually holds, so every suggestion returns a real computed result rather
+ * than an abstention caused by a subject nobody ever mentioned.
+ *
+ * The last entry is deliberate: a real subject paired with a predicate no
+ * source states, which is the only honest way to demonstrate an abstention.
+ */
+function suggestions(inventory: Inventory): readonly SuggestedQuestion[] {
+  const out: SuggestedQuestion[] = [];
+  const seen = new Set<string>();
+  const wanted: readonly (readonly [string, string])[] = [
+    ['current', 'is current'],
+    ['historical', 'has been revised'],
+    ['contradicted', 'has sources that disagree'],
+    ['withdrawn', 'was taken back'],
+  ];
+
+  for (const [state, why] of wanted) {
+    const claim = inventory.claims.find((c) => c.state === state && !seen.has(`${c.subject}/${c.predicate}`));
+    if (claim === undefined) continue;
+    seen.add(`${claim.subject}/${claim.predicate}`);
+    out.push({
+      label: `${claim.subject} · ${claim.predicate.replace(/_/g, ' ')} — ${why}`,
+      subject: claim.subject,
+      predicate: claim.predicate,
+    });
+  }
+
+  const anySubject = inventory.claims[0]?.subject;
+  if (anySubject !== undefined) {
+    out.push({
+      label: `${anySubject} · connection pool size — nothing states it`,
+      subject: anySubject,
+      predicate: 'pool_size',
+    });
+  }
+  return out;
 }

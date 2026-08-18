@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postFor } from '../../api/client';
+import { postFor, useLoaded } from '../../api/client';
 import { MONO } from '../../design/mark';
 
 /**
@@ -33,11 +33,16 @@ interface Envelope {
   readonly took_ms: number;
 }
 
-/** The design's two example questions, as subject and predicate pairs. */
-const CHIPS: readonly { readonly l: string; readonly subject: string; readonly predicate: string }[] = [
-  { l: 'Where does session state live now?', subject: 'session-store', predicate: 'runs_on' },
-  { l: 'What is the connection pool size?', subject: 'session-store', predicate: 'pool_size' },
-];
+/**
+ * Suggested questions come from the workspace, not from this file. A chip that
+ * names a subject the graph has never heard of abstains every time and looks
+ * like a broken product rather than a working one.
+ */
+interface Suggestion {
+  readonly label: string;
+  readonly subject: string;
+  readonly predicate: string;
+}
 
 const STATUS_WORD: Readonly<Record<Envelope['status'], string>> = {
   ANSWERED: 'ANSWERED',
@@ -63,18 +68,21 @@ const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flex
 
 export function Ask() {
   const go = useNavigate();
-  const [picked, setPicked] = useState(0);
+  const suggested = useLoaded<readonly Suggestion[]>('/api/workspace/questions');
+  const [asked, setAsked] = useState<string | null>(null);
+  const [subject, setSubject] = useState('');
+  const [predicate, setPredicate] = useState('');
   const [result, setResult] = useState<Envelope | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [evOpen, setEvOpen] = useState(true);
   const [voiceOn, setVoiceOn] = useState(false);
 
-  const chip = CHIPS[picked] ?? CHIPS[0];
+  const chips = suggested.state === 'ready' ? suggested.value : [];
 
-  async function run(index: number) {
-    const question = CHIPS[index];
-    if (question === undefined) return;
-    setPicked(index);
+  async function run(question: Suggestion) {
+    setAsked(question.label);
+    setSubject(question.subject);
+    setPredicate(question.predicate);
     setResult(null);
     setStage('CHECKING CURRENT STATE');
     const envelope = await postFor<Envelope>('/api/ask', { subject: question.subject, predicate: question.predicate });
@@ -86,19 +94,45 @@ export function Ask() {
     });
   }
 
+  async function runTyped() {
+    if (subject.trim() === '' || predicate.trim() === '') return;
+    await run({ label: `${subject.trim()} · ${predicate.trim()}`, subject: subject.trim(), predicate: predicate.trim() });
+  }
+
   return (
     <div style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '14px 18px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
-        <span style={{ fontFamily: MONO, fontSize: '13.5px', color: '#FFFFFF', flex: 1, minWidth: '200px' }}>{chip?.l}</span>
+        <input
+          className="fv-violet"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void runTyped(); }}
+          placeholder="subject"
+          aria-label="Subject"
+          style={{ flex: 1, minWidth: '120px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
+        />
+        <input
+          className="fv-violet"
+          value={predicate}
+          onChange={(e) => setPredicate(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void runTyped(); }}
+          placeholder="predicate"
+          aria-label="Predicate"
+          style={{ flex: 1, minWidth: '120px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
+        />
+        <button className="hv-violet" onClick={() => void runTyped()} style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '7px 12px' }}>ASK</button>
         <button className="hv-edge35" onClick={() => setVoiceOn(!voiceOn)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
         <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#5E5E5E' }}>MODE · FAST</span>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {CHIPS.map((c, i) => (
-          <button key={c.l} className="hv-text" onClick={() => void run(i)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 12px', fontFamily: MONO, fontSize: '11px', letterSpacing: '0.06em', border: '1px solid rgba(255,255,255,0.12)', color: picked === i ? '#FFFFFF' : '#9A9A9A' }}>{c.l}</button>
+        {chips.map((c) => (
+          <button key={c.label} className="hv-text" onClick={() => void run(c)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 12px', fontFamily: MONO, fontSize: '11px', letterSpacing: '0.06em', border: '1px solid rgba(255,255,255,0.12)', color: asked === c.label ? '#FFFFFF' : '#9A9A9A' }}>{c.label}</button>
         ))}
+        {suggested.state === 'ready' && chips.length === 0 ? (
+          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#5E5E5E' }}>NO SUGGESTIONS · THIS WORKSPACE HOLDS NO CLAIMS YET</span>
+        ) : null}
       </div>
 
       {voiceOn ? (
@@ -119,7 +153,7 @@ export function Ask() {
         stage === null ? (
           <div style={{ padding: '22px 4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '15px', color: '#FFFFFF' }}>Nothing asked yet.</span>
-            <span style={{ fontSize: '13.5px', color: '#9A9A9A' }}>Pick a question and the answer arrives with its evidence attached.</span>
+            <span style={{ fontSize: '13.5px', color: '#9A9A9A' }}>Type a subject and a predicate, or pick one of the questions this workspace can answer.</span>
           </div>
         ) : null
       ) : (

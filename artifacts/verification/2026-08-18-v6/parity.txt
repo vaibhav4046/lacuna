@@ -1,0 +1,180 @@
+
+> lacuna@0.0.0 parity
+> tsx scripts/parity.ts
+
+CASE: answered (Bellwether / beta_partner)
+  stdio status=answered claimId=797564529472318 reasonCode=null queries=4
+  http  status=answered claimId=797564529472318 reasonCode=null queries=4
+  cli   status=answered claimId=797564529472318 reasonCode=null queries=4
+  stdio read order: (e:Entity {name: $na | (e {id: $e})<-[:ABOU | (c:Claim)-[:ABOUT]-> | (se:Session)-[:CONTA
+  http  read order: (e:Entity {name: $na | (e {id: $e})<-[:ABOU | (c:Claim)-[:ABOUT]-> | (se:Session)-[:CONTA
+  cli   read order: (e:Entity {name: $na | (c:Claim)-[:ABOUT]-> | (e {id: $e})<-[:ABOU | (se:Session)-[:CONTA
+  IDENTICAL: True
+--- the value all three surfaces returned
+{
+  "status": "answered",
+  "answer": "Halverd",
+  "reasonCode": null,
+  "claimId": 797564529472318,
+  "supersededClaims": [
+    2475749815969757,
+    2247326196671333
+  ],
+  "evidence": [
+    {
+      "spanId": 2004651813666094,
+      "claimId": 797564529472318,
+      "quote": "Correction on Bellwether: the beta partner is now Halverd.",
+      "sessionId": 2188520510674341,
+      "sessionTitle": "Data planning call",
+      "messageId": 3167324786335492,
+      "role": "user",
+      "ts": "2025-04-20T11:48:00.000Z"
+    }
+  ],
+  "evidenceTotal": 1,
+  "sourceState": "live",
+  "queryShape": [
+    {
+      "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+      "parameters": {
+        "e": 3786366697184251
+      },
+      "rows": 4
+    },
+    {
+      "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+      "parameters": {
+        "e": 3786366697184251
+      },
+      "rows": 4
+    },
+    {
+      "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+      "parameters": {
+        "name": "Bellwether"
+      },
+      "rows": 1
+    },
+    {
+      "cypher": "MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS_SPAN]->(sp)-[:SUPPORTS]->(c {id: $c}) RETURN sp.id AS span, sp.quote AS quote, sp.start AS start, sp.end AS end_offset, m.id AS message, m.role AS role, m.ts AS ts, se.id AS session, se.title AS title",
+      "parameters": {
+        "c": 797564529472318
+      },
+      "rows": 1
+    }
+  ]
+}
+
+CASE: abstained (Meridian / migration_window)
+  stdio status=abstained claimId=null reasonCode=never_stated queries=3
+  http  status=abstained claimId=null reasonCode=never_stated queries=3
+  cli   status=abstained claimId=null reasonCode=never_stated queries=3
+  stdio read order: (e:Entity {name: $na | (e {id: $e})<-[:ABOU | (c:Claim)-[:ABOUT]->
+  http  read order: (e:Entity {name: $na | (e {id: $e})<-[:ABOU | (c:Claim)-[:ABOUT]->
+  cli   read order: (e:Entity {name: $na | (c:Claim)-[:ABOUT]-> | (e {id: $e})<-[:ABOU
+  IDENTICAL: True
+--- the value all three surfaces returned
+{
+  "status": "abstained",
+  "answer": null,
+  "reasonCode": "never_stated",
+  "claimId": null,
+  "supersededClaims": [],
+  "evidence": [],
+  "evidenceTotal": 0,
+  "sourceState": "live",
+  "queryShape": [
+    {
+      "cypher": "MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) RETURN c.id AS id, c.predicate AS predicate, c.object_text AS object_text, c.polarity AS polarity, c.valid_from AS valid_from, c.tx_time AS tx_time, newer.id AS superseded_by",
+      "parameters": {
+        "e": 1693986850366836
+      },
+      "rows": 3
+    },
+    {
+      "cypher": "MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIONS]->(o) RETURN c.id AS claim, c.predicate AS predicate, o.id AS other, o.name AS other_name",
+      "parameters": {
+        "e": 1693986850366836
+      },
+      "rows": 2
+    },
+    {
+      "cypher": "MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind",
+      "parameters": {
+        "name": "Meridian"
+      },
+      "rows": 1
+    }
+  ]
+}
+
+SWEEP: 64 gold questions from the evaluation, one line each
+  ok   q-stable-01 status=answered  Meridian / launch_date
+  ok   q-stable-02 status=answered  Ostara / region
+  ok   q-stable-03 status=answered  Vireo / migration_window
+  ok   q-stable-04 status=answered  Cindermark / beta_partner
+  ok   q-stable-05 status=answered  Halcyon / budget_code
+  ok   q-stable-06 status=answered  Larkspur / beta_partner
+  ok   q-stable-07 status=answered  Ninebark / migration_window
+  ok   q-stable-08 status=answered  Quillon / region
+  ok   q-stable-09 status=answered  Saltmarsh / budget_code
+  ok   q-stable-10 status=answered  Thornfield / budget_code
+  ok   q-stable-11 status=answered  Wrenfield / owner
+  ok   q-stable-12 status=answered  Ashgrove / launch_date
+  ok   q-revised-01 status=answered  Bellwether / beta_partner
+  ok   q-revised-02 status=answered  Coppice / owner
+  ok   q-revised-03 status=answered  Dovetail / launch_date
+  ok   q-revised-04 status=answered  Everstone / migration_window
+  ok   q-revised-05 status=answered  Foxglove / beta_partner
+  ok   q-revised-06 status=answered  Gallowtree / budget_code
+  ok   q-revised-07 status=answered  Harrowfield / budget_code
+  ok   q-revised-08 status=answered  Inkwell / beta_partner
+  ok   q-retracted-01 status=abstained Junco / launch_date
+  ok   q-retracted-02 status=abstained Kestrel / beta_partner
+  ok   q-retracted-03 status=abstained Lowbank / launch_date
+  ok   q-retracted-04 status=abstained Marrowdale / owner
+  ok   q-retracted-05 status=abstained ledger-api / status
+  ok   q-retracted-06 status=abstained ingest-worker / owner
+  ok   q-contradicted-01 status=abstained notify-relay / budget_code
+  ok   q-contradicted-02 status=abstained tenant-router / on_call_length
+  ok   q-contradicted-03 status=abstained audit-sink / status
+  ok   q-contradicted-04 status=abstained media-thumbs / migration_window
+  ok   q-contradicted-05 status=abstained search-shard / region
+  ok   q-contradicted-06 status=abstained billing-gate / runbook_owner
+  ok   q-multi_hop-01 status=answered  replay-queue / contact via vendor
+  ok   q-multi_hop-02 status=answered  schema-guard / contact via vendor
+  ok   q-multi_hop-03 status=answered  quota-broker / contact via vendor
+  ok   q-multi_hop-04 status=answered  trace-collector / contact via vendor
+  ok   q-multi_hop-05 status=answered  session-mint / contact via vendor
+  ok   q-multi_hop-06 status=answered  export-runner / contact via vendor
+  ok   q-multi_hop-07 status=answered  edge-cache / contact via vendor
+  ok   q-multi_hop-08 status=answered  dead-letter-sweeper / contact via vendor
+  ok   q-unconnected-01 status=abstained Meridian / contact via vendor
+  ok   q-unconnected-02 status=abstained Ostara / contact via vendor
+  ok   q-unconnected-03 status=abstained Vireo / contact via vendor
+  ok   q-unconnected-04 status=abstained Cindermark / contact via vendor
+  ok   q-unconnected-05 status=abstained Halcyon / contact via vendor
+  ok   q-unconnected-06 status=abstained Larkspur / contact via vendor
+  ok   q-never_stated-01 status=abstained Meridian / migration_window
+  ok   q-never_stated-02 status=abstained Ostara / migration_window
+  ok   q-never_stated-03 status=abstained Vireo / owner
+  ok   q-never_stated-04 status=abstained Cindermark / status
+  ok   q-never_stated-05 status=abstained Halcyon / launch_date
+  ok   q-never_stated-06 status=abstained Larkspur / status
+  ok   q-never_stated-07 status=abstained Ninebark / budget_code
+  ok   q-never_stated-08 status=abstained Quillon / budget_code
+  ok   q-out_of_scope-01 status=abstained Redshank / launch_date
+  ok   q-out_of_scope-02 status=abstained Windrose / owner
+  ok   q-out_of_scope-03 status=abstained Yarrowmere / owner
+  ok   q-out_of_scope-04 status=abstained Zephyrgate / beta_partner
+  ok   q-out_of_scope-05 status=abstained Brackenhall / owner
+  ok   q-out_of_scope-06 status=abstained Duskmoor / region
+  ok   q-blast_radius-01 status=answered  pact-check / depends_on
+  ok   q-blast_radius-02 status=answered  wire-format / depends_on
+  ok   q-blast_radius-03 status=answered  cursor-walk / depends_on
+  ok   q-blast_radius-04 status=answered  hash-fence / depends_on
+SWEEP_IDENTICAL: 64 of 64
+
+ALL_IDENTICAL: True
+PARITY_EXIT=0

@@ -1,0 +1,16 @@
+
+> lacuna@0.0.0 smoke:web
+> tsx scripts/smoke-web.ts
+
+PASS  root answers 200
+PASS  root answers on both spellings of the host
+PASS  the document carries the root element
+PASS  the first paint stylesheet is in the document head
+PASS  the first paint stylesheet is served and paints black
+PASS  the document has a recovery state for a browser without JavaScript
+PASS  the favicon is served
+PASS  a deep route survives a refresh
+PASS  the document references an application entry module
+
+9 of 9 gates passed against http://127.0.0.1:3016
+SMOKE_EXIT=0

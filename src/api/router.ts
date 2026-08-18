@@ -240,7 +240,8 @@ export class ApiRouter {
               : part === 'health' ? view.health
                 : part === 'memory' ? { rows: view.memory, total: view.memoryTotal, demo: view.demo }
                   : part === 'categories' ? view.categories
-                    : part === 'summary' ? view
+                    : part === 'questions' ? view.questions
+                      : part === 'summary' ? view
                       // Nothing is configured for these yet, and an empty list
                       // is the honest answer rather than a 404 the screen would
                       // have to render as a failure.

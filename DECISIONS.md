@@ -3011,3 +3011,47 @@ it.
 
 SYSTEM ERROR is reserved for a dependency that did not answer and is never used
 for an abstention. That distinction is the product.
+
+### D-111: the reported MCP parity defect does not reproduce
+
+The directive names one release blocker: an MCP stdio call returning "the MCP
+server returned something that is not an answer". That string is thrown by
+`scripts/parity.ts` when a surface's payload does not shape as an `AskCore`.
+
+Run in this session against a live node, the sweep is green:
+
+    SWEEP_IDENTICAL: 64 of 64
+    ALL_IDENTICAL: True
+
+The sweep covers three surfaces — MCP over stdio, MCP over Streamable HTTP and
+the CLI — against the same sixty-four gold questions, and compares the
+projected core of every answer field by field. All sixty-four agree on all
+three. The defect was either fixed before this session or the report was
+stale. Nothing was weakened to reach that result: the assertion that produced
+the error message is unchanged and still runs.
+
+Recorded rather than quietly dropped, because a blocker that stops reproducing
+is a thing a reader will look for later.
+
+### D-112: Ask asks questions the workspace can actually answer
+
+Ask shipped with two hardcoded example questions taken from the design's
+marketing copy: `session-store / runs_on` and `session-store / pool_size`.
+Neither subject exists in the ingested graph, so both chips abstained every
+time. A suggestion that always abstains is a broken button, and worse, it makes
+a working abstention engine look like a failure.
+
+Suggestions now come from `/api/workspace/questions`, derived from the claims
+the workspace holds: one per outcome the resolver can reach, plus one real
+subject paired with a predicate no source states, because that is the only
+honest way to demonstrate an abstention. Verified against the live graph, every
+suggestion returns a computed result:
+
+    token-forge / depends_on      ANSWERED     2 evidence   178ms
+    Foxglove / beta_partner       ANSWERED     1 evidence    93ms
+    billing-gate / runbook_owner  CONFLICT     contradicted 101ms
+    Lowbank / launch_date         NO_EVIDENCE  retracted     85ms
+    Foxglove / pool_size          NO_EVIDENCE  never_stated  49ms
+
+A workspace with no claims offers no suggestions and says so. Subject and
+predicate are also free text, so the screen is not limited to what it suggests.

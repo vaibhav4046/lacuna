@@ -40,6 +40,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "hash-wasm": "4.12.0"
   }
 }

@@ -26,6 +26,7 @@ import type { AnswerSource, NodeIdentity } from '../view/proof.js';
 import { STYLESHEET } from '../view/style.js';
 import { voicePage } from '../view/voice.js';
 import { readState, RUNNING_STATE, VOICE_STATES, type VoiceState } from '../voice/states.js';
+import type { ApiRouter } from '../api/router.js';
 import { FixedWindow } from './ratelimit.js';
 
 /**
@@ -67,6 +68,12 @@ export interface ServerOptions {
   /** The committed benchmark run and HydraDB capture, already parsed. */
   readonly artifacts: Artifacts;
   readonly limiter: FixedWindow;
+  /**
+   * The JSON surface the React application talks to. Absent on the snapshot
+   * deployment, where there is no writable account store to back it, and its
+   * absence is why /api there answers 404 rather than something optimistic.
+   */
+  readonly api?: ApiRouter;
   /**
    * Whether answers come from a node over HTTP or from a recorded snapshot.
    * Defaults to live. The snapshot deployment sets this so the home page and
@@ -432,6 +439,17 @@ export function createHandler(options: ServerOptions): Handler {
 
     void (async (): Promise<void> => {
       try {
+        // The JSON surface goes first and owns its own methods. Everything
+        // below it is still GET only, which is the point of putting the split
+        // here rather than loosening the guard for the whole server.
+        const api = options.api;
+        if (api !== undefined) {
+          const path = new URL(target, 'http://lacuna.invalid').pathname;
+          if (path.startsWith('/api/')) {
+            const outcome = await api.handle(request, response, path);
+            if (outcome.handled) return;
+          }
+        }
         if (request.method !== 'GET' && request.method !== 'HEAD') {
           notice(request, response, 'methodNotAllowed', { allow: 'GET, HEAD' });
           return;

@@ -2855,3 +2855,64 @@ so the server answers 501 and the screen says password reset is not
 configured. Reporting success for something that did not happen is the same
 lie as a status chip nobody checked, and the frozen copy above it does not
 have to move for the button underneath to be honest.
+
+### D-103: accounts live outside the graph, in a file the repository ignores
+
+The product needed an auth backend and the obvious place to put accounts was
+HydraDB, since it is already the persistence this product ships with. Two
+things say otherwise.
+
+A release gate counts the graph. `npm run census` asserts 5,752 vertices and
+5,908 edges against a plan and fails if either moves, so the first sign up
+would break a passing gate and the fix would be to loosen the gate. That is
+the wrong direction for a gate whose entire job is to notice when the graph
+changed.
+
+The second reason is the better one. Accounts are not context. They have no
+source, no observed time, no evidence and no temporal state, and the product's
+answer surface retrieves from that graph. An email address and a password hash
+sitting in the same store the retrieval layer walks is a category error with a
+data leak attached.
+
+So accounts and sessions are one directory of append-only JSON lines, at
+`LACUNA_ACCOUNTS_DIR` and defaulting to `.lacuna-store/`, which was already in
+`.gitignore`. Single process, in-memory index, compaction on demand. When the
+directory cannot be written the store reports unavailable and the endpoints
+answer 503, because a read-only filesystem is a real deployment and failing
+plainly there beats appearing to work.
+
+Passwords are argon2id at the OWASP low-memory profile through hash-wasm.
+WebAssembly rather than a native module: there is no toolchain in the
+deployment path, and a password hash that fails to install on one of the
+machines that runs this is not a security control.
+
+### D-104: HydraDB cannot write to a local store it did not create
+
+Found while restoring the contract suite after restarting the node. Every
+write returned HTTP 500 with a bare "internal query execution error"; every
+read was fine. The node's own log had the real sentence:
+
+    object store error: Operation `put_opts` with mode `PutMode::Update`
+    not yet implemented by LocalFileSystem(...)
+
+SlateDB updates its manifest with a conditional put. On a store it has just
+created it uses Create, which the local filesystem backend implements. After a
+restart the manifest already exists, so the next write is an Update, which that
+backend does not implement, and every write fails from then on. This is a
+property of the storage backend, not of the query, which is why a read-only
+probe could not see it and why `lacuna doctor` reported all six checks passing
+against a node that could not accept a single write.
+
+The recovery is to move the store aside, start on an empty one and re-ingest.
+That is safe here precisely because the graph is generated: the corpus is
+seeded, ingest is idempotent on deterministic ids, and the census asserts the
+result. Both were run and the graph matches the plan exactly; the contract
+suite went from two failed setups back to 77 of 77.
+
+The moved-aside store is kept, timestamped, next to the live one. It is the
+only copy of the state that produced the failure.
+
+Two things worth carrying forward. `lacuna doctor` proves a node answers, not
+that it accepts writes, and D-054 already recorded that this engine answers a
+failed query with a bare internal error over HTTP, so the node's own log is
+the first place to look rather than the last.

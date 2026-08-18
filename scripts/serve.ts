@@ -2,6 +2,10 @@ import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
+import { ApiRouter } from '../src/api/router.js';
+import { AccountStore } from '../src/auth/store.js';
+import { runDoctor } from '../src/cli/doctor.js';
+import { doctorPayload } from '../src/cli/json.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
 import { loadArtifacts } from '../src/report/load.js';
@@ -46,6 +50,19 @@ const demo = buildDemo();
 // path in the message rather than on the first request for an evidence page.
 const artifacts = loadArtifacts();
 
+// Accounts live outside the graph and outside the repository. The default is
+// gitignored, and the directory is created on first write rather than at start
+// up, so a read-only checkout still serves every public page.
+const store = new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '.lacuna-store');
+
+// The same six checks `lacuna doctor` runs, in the same order, from the same
+// function. The application shows HYDRADB CONNECTED only when this says so.
+const HEALTH_TIMEOUT_MS = 5_000;
+const health = async (): Promise<unknown> => doctorPayload(await runDoctor(process.env, HEALTH_TIMEOUT_MS, {
+  root: new URL('..', import.meta.url),
+  requiredNode: '>=20.11.0',
+}));
+
 const server = createServer(createHandler({
   client: new HydraClient(config),
   node: describeNode(config),
@@ -56,6 +73,9 @@ const server = createServer(createHandler({
   // One page load is three requests, so this is roughly forty page loads a
   // minute from one address: generous for a reader, a ceiling for a script.
   limiter: new FixedWindow({ limit: 120, windowMs: 60_000, maxKeys: 4_096 }),
+  // Secure cookies need TLS, and this listens on plain HTTP for local work.
+  // Set LACUNA_SECURE_COOKIES=1 when something terminates TLS in front.
+  api: new ApiRouter({ store, secure: process.env['LACUNA_SECURE_COOKIES'] === '1', health }),
 }));
 
 // Defaults here are minutes long, which is a long time to hold a socket open

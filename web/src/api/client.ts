@@ -106,3 +106,23 @@ export async function postJson(path: string, body: unknown): Promise<PostResult>
     return { ok: false, status: 0 };
   }
 }
+
+/**
+ * A mutation that answers with a document. Same CSRF header as postJson; the
+ * difference is that the caller needs the body, so a parse failure is a null
+ * rather than a thrown error in a click handler.
+ */
+export async function postFor<T>(path: string, body: unknown): Promise<T | null> {
+  try {
+    const response = await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}

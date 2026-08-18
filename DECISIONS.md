@@ -2977,3 +2977,37 @@ from the pathname, so a refresh, a back button and a pasted link all put the
 field in the same state as a click did. The mapping is the design's own view
 names: the auth screens are `auth`, onboarding is `onboard`, anything under
 `/app` is `app`, and the engine hides the canvas itself for that last one.
+
+### D-109: the eighteen routes read one workspace, and an empty one is empty
+
+Every signed-in screen reads `/api/workspace/*`, which answers from one view
+object. A workspace nobody has ingested into returns empty lists, and the
+screens render the design's own empty treatment rather than the demo corpus.
+
+The demo corpus is reachable under one name. Settings has an explicit "Open
+demo workspace" action; taking it sets the workspace to the sample name, and
+only then do the reads compute from the ingested graph. The counts come out of
+the same inventory the census asserts, so a number on the dashboard and a
+number in the release gate cannot disagree: 134 current, 22 historical, 12
+contradicted, 6 withdrawn, 174 claims.
+
+Nothing loads the demo silently, which was the point.
+
+### D-110: the answer envelope reaches four of its five states
+
+`/api/ask` runs the same core the CLI and MCP use and maps its result onto the
+canonical envelope. Verified against the live graph, one question each:
+
+    ANSWERED     Meridian / launch_date   "25 July 2026", 1 evidence span, 484ms
+    NO_EVIDENCE  Meridian / pool_size     never_stated, no evidence
+    NO_EVIDENCE  Junco / launch_date      retracted, 2 superseded spans attached
+    CONFLICT     notify-relay/budget_code contradicted, both sides attached
+
+PARTIAL is in the type and is never produced. The resolver answers or it
+abstains with a reason; there is no partial answer in the core, and inventing a
+threshold at which an answer becomes partial would be a status the product
+computed from nothing. The screen can render it the moment the core can reach
+it.
+
+SYSTEM ERROR is reserved for a dependency that did not answer and is never used
+for an abstention. That distinction is the product.

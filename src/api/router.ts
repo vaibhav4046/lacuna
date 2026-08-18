@@ -15,6 +15,10 @@ import {
 } from '../auth/http.js';
 import { AccountStore, SESSION_TTL_MS, StoreUnavailable, mintToken } from '../auth/store.js';
 import { FixedWindow } from '../server/ratelimit.js';
+import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './workspace.js';
+import type { WorkspaceView } from './workspace.js';
+import type { HydraClient } from '../hydra/client.js';
+import type { Inventory } from '../report/inventory.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -32,6 +36,9 @@ import { FixedWindow } from '../server/ratelimit.js';
 
 /** Six attempts a minute per address is generous for a person and useless for a script. */
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
+/** A question should not sit behind a browser spinner for longer than this. */
+const ASK_TIMEOUT_MS = 10_000;
+
 /** A workspace name is a label, not an essay. */
 const MAX_WORKSPACE_CHARS = 120;
 
@@ -44,6 +51,10 @@ export interface ApiOptions {
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
   readonly health: (() => Promise<unknown>) | null;
+  /** The context store. Absent on a deployment that serves a snapshot. */
+  readonly client?: HydraClient;
+  /** The ingested corpus, which is what the demo workspace is made of. */
+  readonly inventory?: Inventory;
   readonly now?: () => number;
 }
 
@@ -86,6 +97,8 @@ export class ApiRouter {
   readonly #store: AccountStore;
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
+  readonly #client: HydraClient | undefined;
+  readonly #inventory: Inventory | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
@@ -94,6 +107,8 @@ export class ApiRouter {
     this.#store = options.store;
     this.#secure = options.secure;
     this.#health = options.health;
+    this.#client = options.client;
+    this.#inventory = options.inventory;
     this.#now = options.now ?? (() => Date.now());
   }
 
@@ -105,6 +120,22 @@ export class ApiRouter {
       httpOnly: false,
       secure: this.#secure,
     })];
+  }
+
+  /**
+   * What this session's workspace contains. Empty unless the workspace is the
+   * one explicitly named as the demo, which is the only path that reaches the
+   * ingested corpus.
+   */
+  #viewFor(cookies: Readonly<Record<string, string>>): WorkspaceView {
+    const token = cookies[SESSION_COOKIE];
+    const record = typeof token === 'string' && token !== ''
+      ? this.#store.sessionFor(token, this.#now())
+      : null;
+    const account = record === null ? null : this.#store.find(record.email);
+    if (account === null || account.workspace !== DEMO_WORKSPACE) return emptyWorkspace();
+    const inventory = this.#inventory;
+    return inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
   }
 
   #sessionCookie(token: string): string {
@@ -197,6 +228,64 @@ export class ApiRouter {
 
       if (path === '/api/auth/signup') return this.#signup(request, response, email, password);
       if (path === '/api/auth/signin') return this.#signin(request, response, email, password);
+    }
+
+    if (path.startsWith('/api/workspace/') && method === 'GET') {
+      const view = this.#viewFor(cookies);
+      const part = path.slice('/api/workspace/'.length);
+      const body: unknown = part === 'changes' ? view.changes
+        : part === 'conflicts' ? view.conflicts
+          : part === 'connections' ? view.connections
+            : part === 'runs' ? view.runs
+              : part === 'health' ? view.health
+                : part === 'memory' ? { rows: view.memory, total: view.memoryTotal, demo: view.demo }
+                  : part === 'categories' ? view.categories
+                    : part === 'summary' ? view
+                      // Nothing is configured for these yet, and an empty list
+                      // is the honest answer rather than a 404 the screen would
+                      // have to render as a failure.
+                      : part === 'agents' || part === 'tools' || part === 'models' || part === 'evaluations' ? []
+                        : null;
+      if (body === null) {
+        send(response, 404, { error: 'route' });
+        return HANDLED;
+      }
+      send(response, 200, body);
+      return HANDLED;
+    }
+
+    if (path === '/api/ask' && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const client = this.#client;
+      if (client === undefined) {
+        send(response, 200, {
+          status: 'SYSTEM_ERROR', answer: null, evidence: [], revisions: [], conflicts: [],
+          abstain_reason: 'no context store is configured', context_pack_id: null,
+          trace_id: '0x00000000', source_state: 'unavailable', took_ms: 0,
+        });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const subject = body?.['subject'];
+      const predicate = body?.['predicate'];
+      const via = body?.['via'];
+      if (typeof subject !== 'string' || typeof predicate !== 'string') {
+        send(response, 400, { error: 'question' });
+        return HANDLED;
+      }
+      send(response, 200, await askEnvelope(
+        client, subject, predicate, typeof via === 'string' && via !== '' ? via : null, ASK_TIMEOUT_MS,
+      ));
+      return HANDLED;
     }
 
     if (path === '/api/workspace' && method === 'POST') {

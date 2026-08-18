@@ -75,7 +75,14 @@ const server = createServer(createHandler({
   limiter: new FixedWindow({ limit: 120, windowMs: 60_000, maxKeys: 4_096 }),
   // Secure cookies need TLS, and this listens on plain HTTP for local work.
   // Set LACUNA_SECURE_COOKIES=1 when something terminates TLS in front.
-  api: new ApiRouter({ store, secure: process.env['LACUNA_SECURE_COOKIES'] === '1', health }),
+  api: new ApiRouter({
+    store,
+    secure: process.env['LACUNA_SECURE_COOKIES'] === '1',
+    health,
+    // The same client and the same corpus the pages use. One core.
+    client: new HydraClient(config),
+    inventory: demo.inventory,
+  }),
 }));
 
 // Defaults here are minutes long, which is a long time to hold a socket open

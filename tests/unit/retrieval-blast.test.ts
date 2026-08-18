@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { HydraClient } from '../../src/hydra/client.js';
+import type { HydraConfig } from '../../src/hydra/config.js';
 import {
   affectedText,
+  blastRadius,
   computeBlast,
   liveDependencyEdges,
   MAX_BLAST_DEPTH,
@@ -164,6 +167,51 @@ describe('computeBlast', () => {
     expect(radius.packagesTouched).toEqual(['a', 'b']);
   });
 
+  it('reaches a service through two disjoint routes and still lists it once', () => {
+    // A diamond. Two packages take the change, one service sits under both, and
+    // the service is one service. The trace has to agree: two claims followed,
+    // one new entity reached, which is the dedup happening during the walk
+    // rather than in a pass over the results afterwards.
+    const radius = computeBlast(
+      ROOT,
+      graph(
+        [1, [
+          edge({ entityId: 2, entityName: 'cursor-walk' }),
+          edge({ entityId: 3, entityName: 'page-cache' }),
+        ]],
+        [2, [service(4, 'checkout')]],
+        [3, [service(4, 'checkout')]],
+      ),
+    );
+
+    expect(radius.affected).toHaveLength(1);
+    expect(radius.affected[0]?.entityName).toBe('checkout');
+    expect(radius.affected[0]?.depth).toBe(2);
+    expect(radius.packagesTouched).toEqual(['cursor-walk', 'page-cache']);
+    expect(radius.trace).toContain(
+      'Depth 2: followed 2 live "depends_on" claims and reached 1 new entity.',
+    );
+  });
+
+  it('counts a service once when two separate claims record the same dependency', () => {
+    // Two conversations can each record that checkout depends on this package.
+    // That is two claims and one dependency, and the radius is a list of
+    // services, so the service appears once, cited to the claim that got there.
+    const radius = computeBlast(
+      ROOT,
+      graph([1, [service(2, 'checkout'), { ...service(2, 'checkout'), claimId: 21 }]]),
+    );
+
+    expect(radius.affected).toHaveLength(1);
+    expect(radius.affected[0]?.path).toEqual([
+      { claimId: 20, entityId: 2, entityName: 'checkout', entityKind: 'service' },
+    ]);
+    expect(radius.ignored).toBe(0);
+    expect(radius.trace).toContain(
+      'Depth 1: followed 2 live "depends_on" claims and reached 1 new entity.',
+    );
+  });
+
   it('stops at the depth cap rather than walking an unbounded chain', () => {
     // Ids 2..8 in a line. The cap admits six hops, so the service hanging off
     // the seventh is out of reach, and the walk says so by not claiming it.
@@ -264,5 +312,60 @@ describe('affectedText', () => {
 
   it('is empty when nothing is affected, which is not the same as an error', () => {
     expect(affectedText(computeBlast(ROOT, graph()))).toBe('');
+  });
+});
+
+describe('blastRadius', () => {
+  /**
+   * The one case the pure pass cannot express: a name with no node at all.
+   * `computeBlast` is handed a root, so it can only be asked about a package
+   * that exists. Whether an unknown name is cheap, and whether it says "no
+   * radius" rather than "nothing depends on it", is decided in the fetch loop.
+   *
+   * The transport is fake and nothing here opens a socket.
+   */
+
+  const CONFIG: HydraConfig = {
+    baseUrl: 'http://127.0.0.1:18443',
+    namespace: 'test-namespace',
+    graph: 'default',
+    cell: 'cell-0',
+    token: 'token-that-is-never-rendered',
+  };
+
+  /** A node that holds nothing: every statement answers with no rows. */
+  function empty(): Response {
+    return new Response(
+      JSON.stringify({
+        query_id: 'blast-suite',
+        columns: ['id', 'kind'],
+        rows: [],
+        read_epoch: 11,
+        next_cursor: null,
+        bookmark: null,
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }
+
+  it('spends one query on a package that is not in the graph', async () => {
+    let calls = 0;
+    const client = new HydraClient(CONFIG, {
+      fetch: async (): Promise<Response> => {
+        calls += 1;
+        return empty();
+      },
+    });
+
+    const answer = await blastRadius(client, 'no-such-package');
+
+    // A null radius and an empty one are different answers. This package has no
+    // node, so there is nothing to have a radius, and walking anyway would buy
+    // round trips to learn what the first query already established.
+    expect(answer.root).toBeNull();
+    expect(answer.radius).toBeNull();
+    expect(answer.evidence).toEqual([]);
+    expect(answer.queries).toHaveLength(1);
+    expect(calls).toBe(1);
   });
 });

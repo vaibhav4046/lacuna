@@ -53,7 +53,15 @@ export interface ApiOptions {
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
   readonly health: (() => Promise<unknown>) | null;
   /** The context store. Absent on a deployment that serves a snapshot. */
-  readonly source?: HydraSource;
+  /**
+   * A source per request rather than a shared one.
+   *
+   * The cloud source memoises the records it reads, which is what makes a hop
+   * cost one fetch instead of two. Sharing that memo across requests would let
+   * a warm instance answer from a record the store has since replaced, which
+   * is the one bug this product has no business having.
+   */
+  readonly source?: () => HydraSource;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   readonly now?: () => number;
@@ -98,7 +106,7 @@ export class ApiRouter {
   readonly #store: AccountStore;
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
-  readonly #source: HydraSource | undefined;
+  readonly #source: (() => HydraSource) | undefined;
   readonly #inventory: Inventory | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
@@ -274,8 +282,8 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      const source = this.#source;
-      if (source === undefined) {
+      const openSource = this.#source;
+      if (openSource === undefined) {
         send(response, 200, {
           status: 'SYSTEM_ERROR', answer: null, evidence: [], revisions: [], conflicts: [],
           abstain_reason: 'no context store is configured', context_pack_id: null,
@@ -298,7 +306,7 @@ export class ApiRouter {
         return HANDLED;
       }
       send(response, 200, await askEnvelope(
-        source, subject, predicate, typeof via === 'string' && via !== '' ? via : null, ASK_TIMEOUT_MS,
+        openSource(), subject, predicate, typeof via === 'string' && via !== '' ? via : null, ASK_TIMEOUT_MS,
       ));
       return HANDLED;
     }

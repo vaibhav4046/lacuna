@@ -1,0 +1,15 @@
+{
+  "questions": 64,
+  "identical": true,
+  "mismatches": [],
+  "reads": {
+    "node": 342,
+    "cloud": 119
+  },
+  "medianMs": {
+    "node": 91,
+    "cloud": 212
+  },
+  "database": "lacuna",
+  "collection": "backend"
+}

@@ -81,7 +81,7 @@ const server = createServer(createHandler({
     secure: process.env['LACUNA_SECURE_COOKIES'] === '1',
     health,
     // The same client and the same corpus the pages use. One core.
-    source: new NodeSource(new HydraClient(config)),
+    source: () => new NodeSource(new HydraClient(config)),
     inventory: demo.inventory,
   }),
 }));

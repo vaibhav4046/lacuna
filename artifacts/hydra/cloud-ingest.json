@@ -1,0 +1,16 @@
+{
+  "database": "lacuna",
+  "collection": "backend",
+  "written": 87,
+  "accepted": 87,
+  "refused": 0,
+  "indexed": 87,
+  "failed": [],
+  "entities": 86,
+  "claims": 174,
+  "sessions": 72,
+  "sampleEntity": "Kestrel",
+  "sampleReadBackMatches": true,
+  "indexReadBackMatches": true,
+  "seconds": 281
+}

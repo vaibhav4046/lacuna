@@ -7,12 +7,14 @@
  * which is what the URL served before this build and stays reachable so no
  * existing link breaks.
  *
- * What this deployment honestly is: there is no HydraDB reachable from a
- * Vercel function and no writable filesystem for the account store, so the
- * application says so rather than pretending. Sessions report the store as
- * unavailable, health reports the node as unconfigured, and the workspace
- * reads answer with the recorded corpus's own inventory. Every one of those is
- * a state the product already knows how to draw.
+ * What this deployment is: questions are answered live, out of HydraDB Cloud,
+ * through the same resolver the local node path uses. npm run parity:cloud
+ * asks every gold question of both stores and compares the answers field by
+ * field, so "the same product" is a check rather than a claim.
+ *
+ * What it still is not: there is no writable filesystem here, so the account
+ * store reports unavailable and the endpoints that need it answer 503. The
+ * product knows how to draw that state and says so rather than pretending.
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -20,6 +22,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ApiRouter } from '../src/api/router.js';
 import { AccountStore } from '../src/auth/store.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
+import { CloudSource } from '../src/hydra/cloud-source.js';
 import { buildDemo } from '../src/server/examples.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
 
@@ -80,6 +83,10 @@ const api = new ApiRouter({
   secure: true,
   health: cloudHealth,
   inventory: buildDemo().inventory,
+  // A source per request: the memo inside one lives exactly as long as the
+  // question that filled it, so a warm instance cannot answer from a record
+  // the store has since replaced.
+  ...(cloud === null ? {} : { source: (): CloudSource => new CloudSource(cloud) }),
 });
 
 export default function handler(request: IncomingMessage, response: ServerResponse): void {

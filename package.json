@@ -31,7 +31,9 @@
     "screens": "tsx scripts/screens.ts",
     "test": "vitest run tests/unit",
     "test:contract": "vitest run tests/contract",
-    "test:all": "vitest run"
+    "test:all": "vitest run",
+    "ingest:cloud": "tsx scripts/ingest-cloud.ts",
+    "parity:cloud": "tsx scripts/cloud-parity.ts"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",

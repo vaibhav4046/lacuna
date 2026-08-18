@@ -69,6 +69,26 @@ export interface CloudAnswer {
   readonly latencyMs: number;
 }
 
+/** One pre-extracted record, as this product writes it. */
+export interface AppRecord {
+  readonly id: string;
+  readonly title: string;
+  /** The service's own category vocabulary. `custom` for records it did not parse. */
+  readonly type: string;
+  readonly timestamp: string;
+  readonly text: string;
+  readonly metadata?: Readonly<Record<string, string | number>>;
+  /** Explicit graph edges, declared rather than inferred. */
+  readonly relations?: readonly string[];
+}
+
+export interface InspectedSource {
+  readonly id: string;
+  /** The service's stored envelope, JSON, with the ingested text inside it. */
+  readonly envelope: string;
+  readonly latencyMs: number;
+}
+
 const DEFAULT_TIMEOUT_MS = 30_000;
 const INGEST_TIMEOUT_MS = 120_000;
 
@@ -162,6 +182,81 @@ export class HydraCloud {
       status: String(pick(first, 'status') ?? 'unknown'),
       error: (pick(first, 'error') as string | null) ?? null,
     };
+  }
+
+  /**
+   * Uploads pre-extracted records, each under an id this side chose.
+   *
+   * `app_knowledge` is the endpoint's path for content a connector already
+   * parsed, and it is the one that accepts a stable id: an uploaded file gets
+   * whatever id the service assigns, which cannot be recomputed from a name at
+   * read time. Ids chosen here are derived from the graph, so a later read
+   * addresses a record without a lookup table travelling alongside it.
+   *
+   * `relations.ids` are declared rather than left to extraction where the
+   * graph already states them, which is what makes `/context/relations` show
+   * the product's own edges rather than only the ones inference found.
+   */
+  async ingestApp(records: readonly AppRecord[]): Promise<readonly IngestResult[]> {
+    const form = new FormData();
+    form.set('database', this.#config.database);
+    form.set('collection', this.#config.collection);
+    form.set('type', 'knowledge');
+    form.set('upsert', 'true');
+    form.set('app_knowledge', JSON.stringify(records.map((record) => ({
+      id: record.id,
+      database: this.#config.database,
+      collection: this.#config.collection,
+      title: record.title,
+      type: record.type,
+      timestamp: record.timestamp,
+      content: { text: record.text },
+      additional_metadata: record.metadata ?? {},
+      ...(record.relations && record.relations.length > 0
+        ? { relations: { ids: [...record.relations] } }
+        : {}),
+    }))));
+
+    const { body } = await this.#send('/context/ingest', { method: 'POST', body: form }, INGEST_TIMEOUT_MS);
+    const results = pick(pick(body, 'data'), 'results');
+    if (!Array.isArray(results)) return [];
+    return results.map((entry): IngestResult => ({
+      id: String(pick(entry, 'id') ?? ''),
+      filename: String(pick(entry, 'filename') ?? ''),
+      status: String(pick(entry, 'status') ?? 'unknown'),
+      error: (pick(entry, 'error') as string | null) ?? null,
+    }));
+  }
+
+  /**
+   * The stored record for one id, verbatim.
+   *
+   * This is the read the deterministic path uses. It is addressed by id rather
+   * than ranked by similarity, so the same question reads the same record
+   * every time, which is what lets a temporal resolver sit above a service
+   * whose other endpoint is a vector search.
+   */
+  async inspect(id: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<InspectedSource | null> {
+    const query = new URLSearchParams({
+      database: this.#config.database,
+      collection: this.#config.collection,
+      id,
+      mode: 'content',
+    });
+    let body: unknown;
+    let latencyMs: number;
+    try {
+      ({ body, latencyMs } = await this.#send(`/context/inspect?${query.toString()}`, { method: 'GET' }, timeoutMs));
+    } catch (error) {
+      // A record that is not there is an answer, not a fault: it is what an
+      // out of scope name looks like when the store is addressed by id.
+      if (error instanceof HydraQueryError && (error.status === 404 || error.status === 400)) return null;
+      throw error;
+    }
+    const data = pick(body, 'data');
+    const raw = pick(data, 'content');
+    if (typeof raw !== 'string' || raw === '') return null;
+    return { id, envelope: raw, latencyMs };
   }
 
   /**

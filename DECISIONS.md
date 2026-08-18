@@ -3134,3 +3134,33 @@ The repository at github.com/hydra-db/hydradb is the self-hosted Rust node
 under AGPL-3.0, which is the node already running locally. It is not the cloud
 API. It stays a service this product talks to, and none of its source is
 vendored.
+
+### D-116: the cloud adapter, and the field name that looked like an empty result
+
+`src/hydra/cloud.ts` speaks the five cloud endpoints the product needs:
+provision, readiness, ingest, status, query and relations. Same discipline as
+the node client — a timeout on every call, an AbortSignal callers can cancel,
+typed errors reusing the existing `HydraQueryError` and `HydraTransportError`,
+measured latency, and never the token or a response body in an error message,
+because a cloud error body can echo the request that produced it.
+
+Verified against the live service:
+
+    readyForIngestion   true
+    query               2986ms, 1 chunk, score 0.629
+    graph_context       present
+    temporal_facts      present
+    relations           4
+
+One mapping bug is worth recording because of how it presents. The chunk text
+field is `chunk_content`. Reading `content` or `text` returns an empty string
+for a chunk the service delivered in full, so the first run reported a scored
+result with nothing in it, which reads as an empty retrieval rather than as a
+field name that does not exist. The mapping now names the real fields:
+`chunk_content`, `relevancy_score`, `source_title`, `source_type` and
+`source_last_updated_time`, which is enough to render evidence.
+
+Not yet done, and stated so it is not mistaken for done: the resolver still
+reads the node. The `HydraSource` seam that lets `ask()` choose between node
+and cloud is the next step, and until it exists the deployed application still
+reports no context store.

@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "build": "npm --prefix web run build",
     "web": "npm --prefix web run dev",
+    "smoke:web": "tsx scripts/smoke-web.ts",
     "cli": "node bin/lacuna.js",
     "serve": "tsx scripts/serve.ts",
     "mcp": "tsx scripts/mcp.ts",

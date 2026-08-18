@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { Recovery } from './app/Recovery';
 import './styles.css';
 
 /**
@@ -15,8 +16,10 @@ if (root === null) throw new Error('#root is missing from index.html');
 
 createRoot(root).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <Recovery>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </Recovery>
   </StrictMode>,
 );

@@ -1,0 +1,58 @@
+/*
+ * The first paint, before any JavaScript runs.
+ *
+ * Everything else in this application is styled from a stylesheet the module
+ * graph imports, which means it does not exist until the bundle has been
+ * fetched, parsed and executed. Until this file existed, that gap was a white
+ * page: a white flash on every cold load, and a permanently white page if the
+ * bundle failed, the network stalled or a policy blocked the script.
+ *
+ * A same-origin stylesheet in the document head paints before any of that and
+ * needs no script-src, no nonce and no inline style. Black is the product's
+ * background, so black is what an empty page looks like.
+ */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #000000;
+  color: #FFFFFF;
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* The recovery state. Plain, black, and legible without the application. */
+.boot-recovery {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 80px clamp(24px, 6vw, 110px);
+  box-sizing: border-box;
+}
+
+.boot-recovery h1 {
+  margin: 0;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: #FFFFFF;
+}
+
+.boot-recovery p {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #9A9A9A;
+}
+
+.boot-recovery span {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #5E5E5E;
+}

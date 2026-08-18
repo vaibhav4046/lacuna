@@ -13,6 +13,13 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Bound to the loopback address rather than the name. Vite's default host
+    // is "localhost", which Node resolves to ::1 on Windows and then binds
+    // there only, so http://127.0.0.1:3016 is refused while
+    // http://localhost:3016 works. A refused connection renders as a white
+    // browser error page, which is what a broken product looks like from the
+    // outside, and it is how this one was reported.
+    host: '127.0.0.1',
     port: 3016,
     strictPort: true,
     proxy: {

@@ -4,10 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<!-- Paints black before any script runs. See web/public/boot.css. -->
+<link rel="stylesheet" href="/boot.css">
 <title>Lacuna</title>
 </head>
 <body>
 <div id="root"></div>
+<noscript>
+  <div class="boot-recovery">
+    <h1>Lacuna needs JavaScript.</h1>
+    <p>The context field and the signed-in product are drawn in the browser. Enable JavaScript for this site and reload.</p>
+    <span>NOTHING LOADED</span>
+  </div>
+</noscript>
 <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

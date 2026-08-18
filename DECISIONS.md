@@ -3079,3 +3079,31 @@ checked.
 Measured on this machine: Groq answered in 153ms and enumerated its models, so
 the application header now reads a model name it was told rather than one
 written into the source.
+
+### D-114: HydraDB Cloud is a different API, and that is a build not a setting
+
+The deployed product could not reach a context store because the node it was
+built against runs on loopback inside WSL. The operator supplied a HydraDB
+Cloud key to fix that, and the key works: probing `GET /databases/status`
+returned 400 INVALID_INPUT "database is required" rather than 401, which is
+the proof the bearer token was accepted and the request reached the
+application layer. Round trip 40.8ms. `POST /databases` then provisioned a
+database named lacuna, and its graph and knowledge store are already up.
+
+The key is not the whole fix. HydraDB Cloud at api.hydradb.com is API version
+2.0.1, a REST application API with thirty-one paths: `/context/ingest`,
+`/context/status`, `/query`, `/context/relations`, `/context/inspect`,
+`/databases`. The node this product was built against speaks Cypher over
+`/v1/graphs/{graph}/query` with tagged value rows and a cell id. Those are
+different protocols, so `src/hydra/client.ts` cannot talk to the cloud and
+pointing `HYDRA_HTTP_URL` at it would fail on the first request rather than
+behave differently.
+
+What that costs is one adapter, not a rewrite. The temporal resolver, the
+contradiction policy, the evidence gate and the Context Pack compiler consume
+claims, not transport, so they do not change. What changes is the seam under
+them: a second `HydraSource` implementation and one place where `ask()` picks
+between them.
+
+Recorded now rather than after the work, because the tempting shortcut here is
+to set the environment variable, watch it fail, and call the cloud broken.

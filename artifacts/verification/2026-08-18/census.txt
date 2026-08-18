@@ -1,0 +1,26 @@
+
+> lacuna@0.0.0 census
+> tsx scripts/census.ts
+
+target  http://127.0.0.1:18443 namespace local graph default cell cell-0
+seed    lacuna-demo-v1
+
+label            graph  planned
+  Session           72       72
+  Message         5246     5246
+  EvidenceSpan     174      174
+  Claim            174      174
+  Entity            86       86
+
+edge             graph  planned
+  CONTAINS        5246     5246
+  HAS_SPAN         174      174
+  SUPPORTS         174      174
+  ABOUT            174      174
+  MENTIONS         106      106
+  SUPERSEDES        22       22
+  CONTRADICTS       12       12
+
+graph matches the plan exactly
+
+CENSUS_EXIT=0

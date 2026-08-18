@@ -51,6 +51,7 @@ const server = createServer(createHandler({
   node: describeNode(config),
   examples: demo.examples,
   facts: demo.facts,
+  inventory: demo.inventory,
   artifacts,
   // One page load is three requests, so this is roughly forty page loads a
   // minute from one address: generous for a reader, a ceiling for a script.

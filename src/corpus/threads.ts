@@ -8,7 +8,7 @@ import {
 } from './predicates.js';
 import type { Rng } from './rng.js';
 import type { ClaimKind, GoldQuestion, PredicateName, ThreadKind } from './types.js';
-import { OUT_OF_SCOPE_SUBJECTS, PROJECTS, SERVICES, VENDORS } from './vocab.js';
+import { OUT_OF_SCOPE_SUBJECTS, PACKAGES, PROJECTS, SERVICES, VENDORS } from './vocab.js';
 
 /**
  * Thread planning decides what is claimed, corrected, withdrawn and never said.
@@ -57,6 +57,26 @@ const OUT_OF_SCOPE_COUNT = 6;
 const BACKGROUND_CLAIMS = 42;
 const BACKGROUND_REVISE_CHANCE = 0.25;
 const VALUE_ATTEMPTS = 64;
+
+/** Random dependencies on top of each service's anchored first package. */
+const SERVICE_EXTRA_DEPENDENCY_MAX = 2;
+/** Random dependencies from a package onto later indexed packages. */
+const PACKAGE_DEPENDENCY_MAX = 2;
+/**
+ * A forced chain of package indices, head depending on middle depending on
+ * tail, so a transitive closure of depth three exists on every seed.
+ */
+const DEPENDENCY_CHAIN = [0, 5, 12] as const;
+/** Service indices forced onto the chain head, so one package is shared. */
+const SHARED_DEPENDENT_SERVICES = [0, 1] as const;
+/** The service whose dependency gets corrected, old index and new index. */
+const REVISED_DEPENDENCY_SERVICE = 3;
+const REVISED_DEPENDENCY_OLD = 19;
+const REVISED_DEPENDENCY_NEW = 7;
+/** Chain tail, chain head, chain middle, and the revision's new target. */
+const BLAST_PACKAGE_INDICES = [12, 0, 5, 7] as const;
+/** How many distinct packages the live dependency claims must touch. */
+const MIN_PACKAGES_TOUCHED = 15;
 
 function pad(index: number): string {
   return String(index + 1).padStart(2, '0');
@@ -365,6 +385,123 @@ export function planThreads(rng: Rng): ThreadPlan {
     });
   }
 
+  // Dependencies: every service depends on shared packages, and packages
+  // depend on later listed packages, so the graph has transitive depth and no
+  // cycles. A forced chain and a forced shared package make the interesting
+  // shapes seed independent; everything else is drawn from the rng. The
+  // planner walks its own edge sets to compute each expected blast radius,
+  // which lives only in the gold questions and is never ingested: the product
+  // has to recompute the same set from the graph at runtime.
+  const [chainHead, chainMid, chainTail] = DEPENDENCY_CHAIN;
+  const serviceDeps: Set<number>[] = SERVICES.map(() => new Set<number>());
+  const packageDeps: Set<number>[] = PACKAGES.map(() => new Set<number>());
+
+  at(packageDeps, chainHead, 'chain head').add(chainMid);
+  at(packageDeps, chainMid, 'chain middle').add(chainTail);
+  for (const index of SHARED_DEPENDENT_SERVICES) {
+    at(serviceDeps, index, 'shared dependent').add(chainHead);
+  }
+  for (let i = 0; i < SERVICES.length; i += 1) {
+    const deps = at(serviceDeps, i, 'service dependencies');
+    deps.add(i % PACKAGES.length);
+    const extras = rng.int(SERVICE_EXTRA_DEPENDENCY_MAX + 1);
+    for (let e = 0; e < extras; e += 1) {
+      deps.add(rng.int(PACKAGES.length));
+    }
+  }
+  for (let j = 0; j < PACKAGES.length - 1; j += 1) {
+    const deps = at(packageDeps, j, 'package dependencies');
+    const extras = rng.int(PACKAGE_DEPENDENCY_MAX + 1);
+    for (let e = 0; e < extras; e += 1) {
+      deps.add(rng.between(j + 1, PACKAGES.length - 1));
+    }
+  }
+
+  // The revised pair is emitted by hand below, so neither index may also
+  // arrive as a plain assertion.
+  const revisedDeps = at(serviceDeps, REVISED_DEPENDENCY_SERVICE, 'revised service deps');
+  revisedDeps.delete(REVISED_DEPENDENCY_OLD);
+  revisedDeps.delete(REVISED_DEPENDENCY_NEW);
+
+  const packageValue = (index: number): PredicateValue => {
+    const name = at(PACKAGES, index, 'package name');
+    return { text: name, entity: name };
+  };
+
+  for (let i = 0; i < SERVICES.length; i += 1) {
+    const service = at(SERVICES, i, 'dependent service');
+    const dependencyClaims: PlannedClaim[] = [];
+    for (const dep of [...at(serviceDeps, i, 'service dependencies')].sort((a, b) => a - b)) {
+      dependencyClaims.push(ledger.claim(service, 'depends_on', 'assert', packageValue(dep), null));
+    }
+    if (i === REVISED_DEPENDENCY_SERVICE) {
+      const old = ledger.claim(
+        service,
+        'depends_on',
+        'assert',
+        packageValue(REVISED_DEPENDENCY_OLD),
+        null,
+      );
+      dependencyClaims.push(old);
+      dependencyClaims.push(
+        ledger.claim(service, 'depends_on', 'revise', packageValue(REVISED_DEPENDENCY_NEW), old.key),
+      );
+    }
+    threads.push({ id: `t-dependency-s${pad(i)}`, kind: 'dependency', claims: dependencyClaims });
+  }
+  for (let j = 0; j < PACKAGES.length; j += 1) {
+    const deps = at(packageDeps, j, 'package dependencies');
+    if (deps.size === 0) {
+      continue;
+    }
+    const subject = at(PACKAGES, j, 'depending package');
+    const dependencyClaims: PlannedClaim[] = [];
+    for (const dep of [...deps].sort((a, b) => a - b)) {
+      dependencyClaims.push(ledger.claim(subject, 'depends_on', 'assert', packageValue(dep), null));
+    }
+    threads.push({ id: `t-dependency-p${pad(j)}`, kind: 'dependency', claims: dependencyClaims });
+  }
+
+  // The revision leaves the old edge dead and the new edge live.
+  const liveServiceDeps = serviceDeps.map((deps) => new Set(deps));
+  at(liveServiceDeps, REVISED_DEPENDENCY_SERVICE, 'revised live deps').add(REVISED_DEPENDENCY_NEW);
+
+  const affectedServices = (packageIndex: number): readonly string[] => {
+    const affected = new Set<string>();
+    const seen = new Set<number>([packageIndex]);
+    const frontier = [packageIndex];
+    while (frontier.length > 0) {
+      const current = frontier.pop();
+      if (current === undefined) {
+        break;
+      }
+      for (let i = 0; i < liveServiceDeps.length; i += 1) {
+        if (at(liveServiceDeps, i, 'live service deps').has(current)) {
+          affected.add(at(SERVICES, i, 'affected service'));
+        }
+      }
+      for (let j = 0; j < packageDeps.length; j += 1) {
+        if (at(packageDeps, j, 'package dependencies').has(current) && !seen.has(j)) {
+          seen.add(j);
+          frontier.push(j);
+        }
+      }
+    }
+    return [...affected].sort();
+  };
+
+  BLAST_PACKAGE_INDICES.forEach((packageIndex, position) => {
+    const subject = at(PACKAGES, packageIndex, 'blast package');
+    questions.push({
+      id: `q-blast_radius-${pad(position)}`,
+      kind: 'blast_radius',
+      text: `If ${subject} changes, which services are affected?`,
+      subject,
+      predicate: 'depends_on',
+      expected: { type: 'affected', services: affectedServices(packageIndex) },
+    });
+  });
+
   // Background: claims nobody asks about. They exist so the graph is not a thin
   // scaffold of exactly the answers, and so retrieval has real competition.
   const candidates = rng.shuffled([
@@ -467,6 +604,10 @@ export function validatePlan(plan: ThreadPlan): void {
       continue;
     }
 
+    if (question.expected.type === 'affected') {
+      continue;
+    }
+
     const reason = question.expected.reason;
     if (reason === 'never_stated') {
       const found = pairOf(question.subject, question.predicate);
@@ -551,4 +692,139 @@ export function validatePlan(plan: ThreadPlan): void {
   if (!chained) {
     throw new CorpusError('no fact was revised twice, so nothing exercises a supersession chain');
   }
+
+  // Dependency invariants, rebuilt from the claims alone. The planner's index
+  // sets are deliberately not consulted here: if the emitted claims do not
+  // carry the whole graph, this is where that fails.
+  const serviceNames = new Set(SERVICES);
+  const packageNames = new Set(PACKAGES);
+  const liveDependencies: { readonly from: string; readonly to: string }[] = [];
+  for (const claim of claims) {
+    if (claim.predicate !== 'depends_on' || claim.kind === 'retract' || superseded.has(claim.key)) {
+      continue;
+    }
+    if (claim.objectEntity === null) {
+      throw new CorpusError(`${claim.key} depends on nothing nameable`);
+    }
+    if (!packageNames.has(claim.objectEntity)) {
+      throw new CorpusError(`${claim.key} depends on ${claim.objectEntity}, which is not a package`);
+    }
+    if (!serviceNames.has(claim.subject) && !packageNames.has(claim.subject)) {
+      throw new CorpusError(`${claim.key} hangs a dependency on ${claim.subject}`);
+    }
+    liveDependencies.push({ from: claim.subject, to: claim.objectEntity });
+  }
+
+  const touchedPackages = new Set<string>();
+  for (const edge of liveDependencies) {
+    touchedPackages.add(edge.to);
+    if (packageNames.has(edge.from)) {
+      touchedPackages.add(edge.from);
+    }
+  }
+  if (touchedPackages.size < MIN_PACKAGES_TOUCHED) {
+    throw new CorpusError(
+      `dependencies touch ${touchedPackages.size} packages, need ${MIN_PACKAGES_TOUCHED}`,
+    );
+  }
+
+  const packageEdges = liveDependencies.filter((edge) => packageNames.has(edge.from));
+  const transitive = packageEdges.some((edge) =>
+    packageEdges.some((next) => next.from === edge.to),
+  );
+  if (!transitive) {
+    throw new CorpusError('no package depends on a package with dependencies of its own');
+  }
+
+  const dependentsByPackage = new Map<string, Set<string>>();
+  for (const edge of liveDependencies) {
+    if (!serviceNames.has(edge.from)) {
+      continue;
+    }
+    const dependents = dependentsByPackage.get(edge.to) ?? new Set<string>();
+    dependents.add(edge.from);
+    dependentsByPackage.set(edge.to, dependents);
+  }
+  if (![...dependentsByPackage.values()].some((dependents) => dependents.size >= 2)) {
+    throw new CorpusError('no package is shared by two services');
+  }
+
+  const revisedDependency = claims.some(
+    (claim) => claim.predicate === 'depends_on' && claim.kind === 'revise',
+  );
+  if (!revisedDependency) {
+    throw new CorpusError('no dependency was ever revised');
+  }
+
+  for (const start of packageNames) {
+    const walked = new Set<string>([start]);
+    const walk = [start];
+    while (walk.length > 0) {
+      const current = walk.pop();
+      if (current === undefined) {
+        break;
+      }
+      for (const edge of packageEdges) {
+        if (edge.from !== current) {
+          continue;
+        }
+        if (edge.to === start) {
+          throw new CorpusError(`package dependencies cycle through ${start}`);
+        }
+        if (!walked.has(edge.to)) {
+          walked.add(edge.to);
+          walk.push(edge.to);
+        }
+      }
+    }
+  }
+
+  for (const question of plan.questions) {
+    if (question.expected.type !== 'affected') {
+      continue;
+    }
+    const recomputed = affectedFromClaims(liveDependencies, question.subject, serviceNames);
+    if (recomputed.length === 0) {
+      throw new CorpusError(`${question.id} has an empty blast radius`);
+    }
+    if (recomputed.join('|') !== [...question.expected.services].join('|')) {
+      throw new CorpusError(
+        `${question.id} expects [${question.expected.services.join(', ')}] but the claims give [${recomputed.join(', ')}]`,
+      );
+    }
+  }
+}
+
+/**
+ * The blast radius a package's change reaches, walked over live dependency
+ * edges against their direction. This is the check's own walk, over claims
+ * rather than the planner's index sets, so agreement between the two means the
+ * emitted claims really carry the graph the questions were scored against.
+ */
+function affectedFromClaims(
+  edges: readonly { readonly from: string; readonly to: string }[],
+  pkg: string,
+  services: ReadonlySet<string>,
+): readonly string[] {
+  const affected = new Set<string>();
+  const seen = new Set<string>([pkg]);
+  const frontier = [pkg];
+  while (frontier.length > 0) {
+    const current = frontier.pop();
+    if (current === undefined) {
+      break;
+    }
+    for (const edge of edges) {
+      if (edge.to !== current) {
+        continue;
+      }
+      if (services.has(edge.from)) {
+        affected.add(edge.from);
+      } else if (!seen.has(edge.from)) {
+        seen.add(edge.from);
+        frontier.push(edge.from);
+      }
+    }
+  }
+  return [...affected].sort();
 }

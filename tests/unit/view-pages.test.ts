@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { HydraConfig } from '../../src/hydra/config.js';
-import { lacuna, tiedWithLacuna } from '../../src/report/bench.js';
+import { closestRivals, lacuna } from '../../src/report/bench.js';
 import { loadArtifacts } from '../../src/report/load.js';
 import { buildDemo } from '../../src/server/examples.js';
 import { grouped, ms, roundMs } from '../../src/view/format.js';
@@ -212,16 +212,20 @@ describe('the figures at the top of the home page', () => {
     expect(rendered).toContain(`<b>${ours.correct}/${ours.total}</b>`);
   });
 
-  it('takes the context ratio against the closest system that tied', () => {
-    const tied = tiedWithLacuna(REPORT);
-    expect(tied.length).toBeGreaterThan(0);
+  it('takes the context ratio against the best baseline in the run', () => {
+    const rivals = closestRivals(REPORT);
+    expect(rivals.length).toBeGreaterThan(0);
 
-    const ratios = tied.map((system) => system.meanEstimatedTokens / ours.meanEstimatedTokens);
+    const ratios = rivals.map((system) => system.meanEstimatedTokens / ours.meanEstimatedTokens);
     const nearest = Math.min(...ratios);
 
-    // Every tie carried more context, so the smallest ratio is still above one,
-    // and picking the smallest is what stops the band flattering itself with
-    // the worst baseline in the sweep.
+    // The comparison used to be against the systems that matched Lacuna's
+    // score, and when the corpus grew and none of them did, the cell vanished
+    // instead of reporting a lead. It is now against whichever systems scored
+    // highest apart from Lacuna, which exists in every run. They all carried
+    // more context, so the smallest ratio is still above one, and picking the
+    // smallest is what stops the band flattering itself with the worst
+    // baseline in the sweep.
     expect(nearest).toBeGreaterThan(1);
     expect(rendered).toContain(`<b>${roundMs(nearest)}x</b>`);
     expect(roundMs(nearest)).toBeLessThanOrEqual(roundMs(Math.max(...ratios)));

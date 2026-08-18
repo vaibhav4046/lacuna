@@ -1,5 +1,5 @@
 import type { HydraConfig } from '../hydra/config.js';
-import type { Answer, QueryTrace } from '../retrieval/types.js';
+import type { QueryTrace } from '../retrieval/types.js';
 import { count, ms, roundMs } from './format.js';
 import { html, join, type Html } from './html.js';
 import { panel } from './layout.js';
@@ -44,6 +44,18 @@ export interface NodeIdentity {
  * that lets a reader believe a replay was a round trip has stopped being proof.
  */
 export type AnswerSource = 'live' | 'snapshot';
+
+/**
+ * Everything this panel needs, which is less than an answer.
+ *
+ * A blast radius is not an `Answer` and never will be, but the reads behind it
+ * are printed the same way and have to be, or the page with the widest fan out
+ * would be the one page whose cost a reader has to take on trust.
+ */
+export interface Measured {
+  readonly queries: readonly QueryTrace[];
+  readonly ms: number;
+}
 
 export function describeNode(config: HydraConfig): NodeIdentity {
   return { namespace: config.namespace, graph: config.graph, cell: config.cell };
@@ -177,7 +189,7 @@ const SNAPSHOT_NOTE = 'This deployment replays a recorded snapshot. Each read be
 const OVERLAP = 'The reads add up to more than the wall clock because the ones that do '
   + 'not depend on each other are issued together.';
 
-function cost(answer: Answer, rows: number, total: number): Html {
+function cost(answer: Measured, rows: number, total: number): Html {
   // Compared at the resolution both numbers are printed to. Two figures that
   // land on the same tenth must not carry a sentence between them saying one
   // is larger than the other.
@@ -188,9 +200,10 @@ ${overlapped ? OVERLAP : null} ${epochs(answer.queries)}</p>`;
 }
 
 export function proofPanel(
-  answer: Answer,
+  answer: Measured,
   node: NodeIdentity,
   source: AnswerSource = 'live',
+  index = 4,
 ): Html {
   const { queries } = answer;
   const total = queries.reduce((sum, trace) => sum + trace.ms, 0);
@@ -212,5 +225,5 @@ than a version read from the node</p>`,
     queries.length === 0 ? null : cost(answer, rows, total),
   ];
 
-  return panel({ index: 4, label: 'Proof', heading: 'What was actually run', body });
+  return panel({ index, label: 'Proof', heading: 'What was actually run', body });
 }

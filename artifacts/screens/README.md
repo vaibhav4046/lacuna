@@ -1,10 +1,10 @@
 # Screens
 
-Thirteen captures of the running product. Not mockups, not renders, not a design
+Fourteen captures of the running product. Not mockups, not renders, not a design
 file: a browser was pointed at `http://127.0.0.1:3014`, that process read a live
 HydraDB node over HTTP, and this is the pixels that came back.
 
-Captured 2026-08-14 by `npm run screens`, which drives headless Chrome over the
+Captured 2026-08-18 by `npm run screens`, which drives headless Chrome over the
 DevTools Protocol, writes each PNG, then reads it back off disk and checks it.
 The server was `npm run serve` on loopback `:3014`, reading HydraDB `v0.1.1`
 (commit `02a40025d2d57e97ab2754c8256219cdbfeab379`) on loopback `:18443`,
@@ -33,6 +33,7 @@ the point of the fourth row.
 | `answer-revised-fullpage.png` | `/ask?subject=Bellwether&predicate=beta_partner` | 1920x1080 | full page | dark |
 | `answer-multihop-fullpage.png` | `/ask?subject=replay-queue&predicate=contact&via=vendor` | 1920x1080 | full page | dark |
 | `answer-never-stated-1920x1080.png` | `/ask?subject=Meridian&predicate=migration_window` | 1920x1080 | viewport | dark |
+| `blast-fullpage.png` | `/blast?package=pact-check` | 1920x1080 | full page | dark |
 
 The full-page captures are the ones that show a whole page rather than the part
 of it that fits: four panels on an answer, the sweep table on the benchmark, the
@@ -53,7 +54,7 @@ instead of beside it, and nothing scrolls sideways.
 
 `home-light-preference-1920x1080.png` answers whether the ground is a choice or a
 default. Chrome was told the reader prefers light and the page came back
-identical: 315100 bytes, the same byte count as `home-1920x1080.png`, which was
+identical: 83650 bytes, the same byte count as `home-1920x1080.png`, which was
 captured at the same size preferring dark. The stylesheet contains no
 `prefers-color-scheme` block at all, so there is nothing for the preference to
 switch. One ground, stated once in the sheet and once in a `color-scheme` meta
@@ -62,21 +63,22 @@ element so the browser paints the scrollbars to match.
 ## The numbers differ between images, and that is the point
 
 Each page prints the reads it just made. `answer-revised-fullpage.png` says
-"4 reads, 10 rows, 344.9 ms inside the client and 256 ms end to end".
-`answer-multihop-fullpage.png` says "8 reads, 11 rows, 417.5 ms inside the client
-and 307.6 ms end to end". Neither figure is a benchmark and neither is carried
+"4 reads, 10 rows, 165.7 ms inside the client and 133.3 ms end to end".
+`answer-multihop-fullpage.png` says "8 reads, 13 rows, 722.2 ms inside the client
+and 516.2 ms end to end". Neither figure is a benchmark and neither is carried
 anywhere else. They are what those round trips cost on this machine at that
 moment, which is why two captures of two different questions do not agree and
 are not supposed to.
 
-Both proof panels also print the read epoch every query reported, 5844 in both,
+Both proof panels also print the read epoch every query reported, 6293 in both,
 and say in the same breath that this is an observation rather than a guarantee
-the store makes. An earlier set of these captures showed epoch 36889. The number
-went down because the store underneath it is not the same store: the write path
-wedged on a `PutMode::Update` the local object store has not implemented, the
-directory was moved aside, and the corpus was ingested again into an empty one.
-That is recorded as [D-058](../../DECISIONS.md). An epoch counts writes against
-one store and means nothing across two.
+the store makes. Across three sets of these captures the number has read 36889,
+then 5844, then 6293. It goes down because the store underneath it is not the
+same store: the write path wedged on a `PutMode::Update` the local object store
+has not implemented, the directory was moved aside, and the corpus was ingested
+again into an empty one. That has now happened twice and is recorded as
+[D-058](../../DECISIONS.md). An epoch counts writes against one store and means
+nothing across two.
 
 ## What the capture script checks
 

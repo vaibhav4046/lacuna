@@ -9,7 +9,7 @@ points each one at the raw output that produced it. A number in this repository
 that is not in this table is either a defect or a number nobody has to trust.
 
 The rule the two files share is that evidence is a path, not a paraphrase. A row
-here that says 60/60 does not restate the score, it names the file that printed
+here that says 64/64 does not restate the score, it names the file that printed
 it and the command that wrote the file, so the check is opening something rather
 than believing something.
 
@@ -34,9 +34,15 @@ behind the number is rather than how good the number is:
 | `FIXTURE` | Made up input, used to exercise a code path |
 | `UNAVAILABLE` | The thing does not exist yet and nothing is claimed |
 
-Unless a row says otherwise, everything below was produced at commit
-`e33afc574b05aab12b7d04f1899a42f5d33e2144` on Node v24.12.0, against HydraDB
-v0.1.1 at commit `02a40025d2d57e97ab2754c8256219cdbfeab379` serving
+Two commits produced the rows below, and which one a row came from is readable
+from the dated directory it names. Everything measured on 2026-08-18, which is
+the tests, the corpus, the evaluation, the benchmark and the parity sweep, was
+produced at commit `afcb81a406879d43ffebdf2c4a0b3f91b0e96b69`, after the corpus
+grew a dependency topology and the blast-radius question kind. The rows pointing
+at earlier dated directories were produced at commit
+`e33afc574b05aab12b7d04f1899a42f5d33e2144` and are kept rather than re-run, for
+the reason [What moves](#what-moves) gives. Both ran on Node v24.12.0, against
+HydraDB v0.1.1 at commit `02a40025d2d57e97ab2754c8256219cdbfeab379` serving
 `127.0.0.1:18443` from WSL2 on Ubuntu 24.04, namespace `local`, graph `default`,
 cell `cell-0`.
 
@@ -44,18 +50,18 @@ cell `cell-0`.
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 816 unit tests over 37 files | SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX | [artifacts/verification/2026-08-15/unit.txt](../artifacts/verification/2026-08-15/unit.txt) | `npm test` | `FIXTURE` |
-| 42 contract tests over 3 files | README, SUBMISSION, JUDGE_SCORECARD | [artifacts/verification/2026-08-14b/contract.txt](../artifacts/verification/2026-08-14b/contract.txt) | `npm run test:contract` | `LIVE` |
-| 858 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
-| Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-14b/unit.txt](../artifacts/verification/2026-08-14b/unit.txt) | `npm test` | `FIXTURE` |
-| Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-14b/typecheck.txt](../artifacts/verification/2026-08-14b/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
+| 893 unit tests over 39 files | SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
+| 50 contract tests over 3 files | README, SUBMISSION, JUDGE_SCORECARD | [artifacts/verification/2026-08-18/contract.txt](../artifacts/verification/2026-08-18/contract.txt) | `npm run test:contract` | `LIVE` |
+| 943 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
+| Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
+| Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-18/typecheck.txt](../artifacts/verification/2026-08-18/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
 
 The unit count and the contract count are two different things and the
 distinction is the point of keeping them apart. The unit suite needs no database
 and will pass on a laptop with nothing installed. The contract suite runs every
 query builder against a real node and **skips rather than fails** when no node
-answers, so the number 42 only means something next to the fact that the node was
-up: the run recorded above had 42 tests execute and none skip.
+answers, so the number 50 only means something next to the fact that the node was
+up: the run recorded above had 50 tests execute and none skip.
 
 The seven stderr lines are asserted negative paths, not failures. Two refused
 connections, two ambiguous entity names, three 403s from a namespace the token
@@ -63,7 +69,10 @@ cannot read. A run that printed none of them would mean the error paths had
 stopped being exercised.
 
 The jump from 712 to 807 is the CLI and MCP suites landing; 807 to 816 is the
-snapshot-comparison suite landing with the D-078 fix. The earlier runs are
+snapshot-comparison suite landing with the D-078 fix; 816 to 893 is the
+blast-radius work, which added two files, `tests/unit/retrieval-blast.test.ts`
+and `tests/unit/ground-truth-isolation.test.ts`, and widened cases in the files
+already there. The earlier runs are
 still on disk at [artifacts/verification/2026-08-14/](../artifacts/verification/2026-08-14/)
 and is not deleted, because a superseded measurement is evidence of when the
 number changed and why. That is the same rule the product applies to claims.
@@ -72,12 +81,12 @@ number changed and why. That is the same rule the product applies to claims.
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 72 sessions | README, SUBMISSION | [artifacts/ingest/README.md](../artifacts/ingest/README.md) | `npm run ingest && npm run census` | `SEEDED_DEMO` |
-| 5,268 messages | README, SUBMISSION | same | same | `SEEDED_DEMO` |
-| 118 claims, 118 evidence spans | README, SUBMISSION | same | same | `SEEDED_DEMO` |
-| 66 entities | SUBMISSION | same | same | `SEEDED_DEMO` |
-| 22 SUPERSEDES, 12 CONTRADICTS, 49 MENTIONS edges | HYDRADB_INTEGRATION | same | same | `SEEDED_DEMO` |
-| roughly 117,395 tokens of transcript | SUBMISSION, BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | `npm run bench` | `SEEDED_DEMO` |
+| 72 sessions | README, SUBMISSION | [artifacts/verification/2026-08-18/census.txt](../artifacts/verification/2026-08-18/census.txt) | `npm run ingest && npm run census` | `SEEDED_DEMO` |
+| 5,246 messages | README, SUBMISSION | same | same | `SEEDED_DEMO` |
+| 174 claims, 174 evidence spans | README, SUBMISSION | same | same | `SEEDED_DEMO` |
+| 86 entities | SUBMISSION | same | same | `SEEDED_DEMO` |
+| 22 SUPERSEDES, 12 CONTRADICTS, 106 MENTIONS edges | HYDRADB_INTEGRATION | same | same | `SEEDED_DEMO` |
+| roughly 117,041 tokens of transcript | SUBMISSION, BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | `npm run bench` | `SEEDED_DEMO` |
 
 The corpus is synthetic on purpose. No private conversation is in it, and the
 whole thing rebuilds from the seed `lacuna-demo-v1` by committed code, which is
@@ -88,21 +97,27 @@ totals alone would let a missing node and a stray node cancel out, so it also
 reads every stored key back and names anything the plan did not write. The line
 `graph matches the plan exactly` means both checks passed.
 
+The rows above point at the census rather than at
+[artifacts/ingest/README.md](../artifacts/ingest/README.md), which is the
+transcript of the 2026-08-13 load and still prints that day's smaller counts.
+That file is deliberately not restated, because a transcript edited to agree
+with a later run has stopped being a transcript. It says so in its own header.
+
 ## Evaluation
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 60 questions, 60 exact correct | README, SUBMISSION, JUDGE_SCORECARD, BENCHMARKS | [artifacts/eval/report.txt](../artifacts/eval/report.txt) | `npm run eval` | `SEEDED_DEMO` |
-| Eight question kinds, all at 100% | BENCHMARKS | same | same | `SEEDED_DEMO` |
+| 64 questions, 64 exact correct | README, SUBMISSION, JUDGE_SCORECARD, BENCHMARKS | [artifacts/eval/report.txt](../artifacts/eval/report.txt) | `npm run eval` | `SEEDED_DEMO` |
+| Nine question kinds, all at 100% | BENCHMARKS | same | same | `SEEDED_DEMO` |
 | Abstention precision, recall and F1 of 1.000 | JUDGE_SCORECARD, BENCHMARKS | same | same | `SEEDED_DEMO` |
 | 32 questions where abstaining was correct | BENCHMARKS | same | same | `SEEDED_DEMO` |
 | 0 unsupported answers, 0 false answers | SUBMISSION, BENCHMARKS | same | same | `SEEDED_DEMO` |
 | Five reason codes | README, SUBMISSION | [artifacts/eval/cases.json](../artifacts/eval/cases.json) | `npm run eval` | `SEEDED_DEMO` |
-| p50 158.7 ms, p95 274.8 ms per question | BENCHMARKS | [artifacts/eval/report.txt](../artifacts/eval/report.txt) | `npm run eval` | `LIVE` |
+| p50 114.1 ms, p95 184.4 ms per question | BENCHMARKS | [artifacts/eval/report.txt](../artifacts/eval/report.txt) | `npm run eval` | `LIVE` |
 
 What a perfect score here does and does not say is written into the artifact
 itself: the same generator wrote the corpus and the questions it is scored
-against, so 60/60 is a statement that the pipeline does what the structure says,
+against, so 64/64 is a statement that the pipeline does what the structure says,
 not that the pipeline is right about the world. It is a correctness check, and
 the benchmark below is where it gets compared to something.
 
@@ -115,21 +130,22 @@ time against a live node with nothing else running.
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
 | 51 configurations, 6 approaches | SUBMISSION, BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | `npm run bench` | `RECORDED` |
-| Lacuna 60/60, and the tie at 60/60 | SUBMISSION, BENCHMARKS, JUDGE_SCORECARD | same | same | `RECORDED` |
-| 15 mean context tokens against 636 | SUBMISSION, BENCHMARKS | same | same | `RECORDED` |
-| 1,310 and 1,603 context tokens for the vector baselines | SUBMISSION, BENCHMARKS | same, and [artifacts/bench/results.json](../artifacts/bench/results.json) | same | `RECORDED` |
-| p50 80.3 ms, p95 160.4 ms | BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | same | `RECORDED` |
+| Lacuna 64/64, and the best baseline at 63/64 | SUBMISSION, BENCHMARKS, JUDGE_SCORECARD | same | same | `RECORDED` |
+| 18 mean context tokens against 1,843 | SUBMISSION, BENCHMARKS | same | same | `RECORDED` |
+| 527 and 1,311 context tokens for the vector baselines | SUBMISSION, BENCHMARKS | same, and [artifacts/bench/results.json](../artifacts/bench/results.json) | same | `RECORDED` |
+| p50 92.2 ms, p95 169.5 ms | BENCHMARKS | [artifacts/bench/report.txt](../artifacts/bench/report.txt) | same | `RECORDED` |
 | Xenova/all-MiniLM-L6-v2, 384 dimensions, run locally | SUBMISSION, BENCHMARKS | same | same | `RECORDED` |
 
-**The result is a tie and is stated as one.** `hybrid+2hop@20 +conflict` scores
-60/60 with the same zero unsupported answers. No claim of better recall or better
-abstention survives this run and none is made anywhere in the repository. What
-the run showed is the same score from four graph reads and 15 context tokens
-against a pipeline needing four hand-tuned components and 636.
+**The result is a one-question lead and is stated as one.**
+`hybrid+2hop@50 +conflict` scores 63/64, with the same zero unsupported answers
+on both. One question is not a claim of better recall or better abstention, and
+none is made anywhere in the repository. What the run showed is that score from
+four graph reads and 18 context tokens, against a pipeline needing four
+hand-tuned components and 1,843 tokens to come one question short.
 
 **The latency comparison is not like for like, and this sentence belongs next to
-the numbers rather than behind a tooltip.** Lacuna's 80.3 ms is HTTP reads
-against a live graph over loopback. The baselines' 3.7 ms is in-process array
+the numbers rather than behind a tooltip.** Lacuna's 92.2 ms is HTTP reads
+against a live graph over loopback. The baselines' 3.9 ms is in-process array
 scanning inside the same Node process. Those measure different things. The
 context figure is the comparable one; the millisecond figure is there so nobody
 has to discover the trade-off for themselves.
@@ -157,7 +173,7 @@ because shortest path needs two known endpoints and a question arrives with one.
 
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| Thirteen screen captures | SUBMISSION, JUDGE_SCORECARD | [artifacts/screens/README.md](../artifacts/screens/README.md) | `npm run screens` | `RECORDED` |
+| Fourteen screen captures | SUBMISSION, JUDGE_SCORECARD | [artifacts/screens/README.md](../artifacts/screens/README.md) | `npm run screens` | `RECORDED` |
 | The pages ship no JavaScript | README, SUBMISSION | [src/view/layout.ts](../src/view/layout.ts) and the CSP it emits | `npm test`, asserted in `tests/unit` | `LIVE` |
 | No secret appears in any capture | SECURITY, screens README | [src/view/proof.ts](../src/view/proof.ts), asserted in `tests/unit/view-pages.test.ts` | `npm test` | `LIVE` |
 
@@ -175,7 +191,7 @@ That last check is not decorative. It is what caught a proof panel printing
 | Four tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_health` | MCP | same, the `tools/list` response | same | `LIVE` |
 | The command line answers and abstains with the same typed result | CLAIMS, CLI | [cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json), [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) | `node bin/lacuna.js ask Bellwether beta_partner --json` | `LIVE` |
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
-| MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-14d/parity.txt](../artifacts/verification/2026-08-14d/parity.txt) | `npm run parity` | `LIVE` |
+| MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty-four eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-18/parity.txt](../artifacts/verification/2026-08-18/parity.txt) | `npm run parity` | `LIVE` |
 | Four reads for the answered question, three for the abstention | CLAIMS, HYDRADB_INTEGRATION | same, and the two command line captures | same | `LIVE` |
 | A third-party client connected over both transports using the documented config block | MCP | [artifacts/verification/2026-08-14e/](../artifacts/verification/2026-08-14e/README.md) | `npx --yes @modelcontextprotocol/inspector@2.2.0 --cli --config artifacts/verification/2026-08-14e/inspector-config.json --server lacuna --method tools/list` | `LIVE` |
 
@@ -184,13 +200,13 @@ exists. All three surfaces build their output from that one module — the two M
 transports through one server, the command line through its own process — so
 agreement is structural rather than something separate code paths happen to
 arrive at, and the check exists to catch the day that stops being true. The
-parity row and the third-party client row are the two rows in this table from
-later runs of the day rather than the commit at the top of this file: the
-sixty-question sweep was added to `scripts/parity.ts` after that commit, and
-[the fourth run's README](../artifacts/verification/2026-08-14d/README.md)
-records the exact tree it measured, along with the timing-dependent comparison
-bug the sweep caught in its own referee on its first run. The third-party
-client row is the fifth run,
+sweep started at sixty questions on 2026-08-14 and covers sixty-four now that
+the blast-radius questions are in the gold set; the earlier run is still on disk
+at [the fourth run's README](../artifacts/verification/2026-08-14d/README.md),
+which records the exact tree it measured along with the timing-dependent
+comparison bug the sweep caught in its own referee on its first run. The
+third-party client row is the one row in this table not from the commit at the
+top of this file: it is the fifth run of 2026-08-14,
 [written up in its own README](../artifacts/verification/2026-08-14e/README.md),
 which names the tree it ran against.
 
@@ -236,7 +252,7 @@ the read epoch, and the transcript keeps the failure, the fix (D-078,
 pretending the walk was clean on the first pass.
 
 The 42 in the history row is the commit count at the time of the email rewrite,
-not the count now, which is 52. Both are true and they are not the same fact.
+not the count now, which is 84. Both are true and they are not the same fact.
 
 ## Deployment
 
@@ -245,7 +261,7 @@ not the count now, which is 52. Both are true and they are not the same fact.
 | <https://lacuna-five.vercel.app> serves every page, 404s unknown paths, 405s POST | README, CLAIMS, SUBMISSION | [artifacts/verification/2026-08-14f/prod-routes.txt](../artifacts/verification/2026-08-14f/prod-routes.txt) | `curl` against the URL, listed in [that run's README](../artifacts/verification/2026-08-14f/README.md) | `RECORDED` |
 | The deployed copy returns the recorded answer for one question of each kind, and discloses the replay on its own pages | README, CLAIMS | [artifacts/verification/2026-08-14f/prod-answers.txt](../artifacts/verification/2026-08-14f/prod-answers.txt) | same | `RECORDED` |
 | The deployed copy sends the same CSP and nosniff headers as the local server | CLAIMS | [artifacts/verification/2026-08-14f/prod-routes.txt](../artifacts/verification/2026-08-14f/prod-routes.txt) | same | `RECORDED` |
-| The snapshot replays all sixty gold questions with zero mismatches | README, CLAIMS | [artifacts/verification/2026-08-14f/snapshot-verify.txt](../artifacts/verification/2026-08-14f/snapshot-verify.txt) | `npm run snapshot:verify` | `RECORDED` |
+| The snapshot replays all sixty-four gold questions with zero mismatches | README, CLAIMS | [artifacts/verification/2026-08-18/snapshot-verify.txt](../artifacts/verification/2026-08-18/snapshot-verify.txt) | `npm run snapshot:verify` | `RECORDED` |
 
 The deployment is a replay, not a hosted node. Every reply it serves was
 produced by the live node at export time and stored byte for byte in
@@ -267,8 +283,8 @@ the state this file exists to make visible rather than to hide.
 Some numbers here go stale the moment new work lands, and saying so is cheaper
 than being caught by it.
 
-**The unit test count.** It has been 712, then 805, then 807, and is 816 at the
-run above.
+**The unit test count.** It has been 712, then 805, then 807, then 816, and is
+893 at the run above.
 It moves whenever a test is added, which is often, and it was written into six
 files at once, which is exactly how a stale count survives. The durable fix was
 to stop repeating it: the README and the scorecard now tell a reader to look at
@@ -281,8 +297,8 @@ lands.
 were promised in this section as pending and are now in [Surfaces](#surfaces)
 above. The HTTP transport left the pending list on the day's third run, when
 the parity script drove it end to end with a real SDK client; the two-question
-coverage caveat left on the fourth, when the parity check grew the evaluation's
-sixty questions; and the third-party client left on the fifth, when the MCP
+coverage caveat left on the fourth, when the parity check grew to sweep the
+whole evaluation; and the third-party client left on the fifth, when the MCP
 Inspector's CLI consumed the documented config block and drove both transports.
 What is still pending is narrower than it was: no editor or agent runtime has
 held an interactive session with this server. A client run from a terminal is

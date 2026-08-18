@@ -1,12 +1,13 @@
 Lacuna retrieval evaluation
 corpus seed lacuna-demo-v1
-run at 2026-08-13T06:32:53.842Z
+run at 2026-08-18T08:30:17.764Z
 
-Questions        60
-Exact correct    60  (100.0%)
+Questions        64
+Exact correct    64  (100.0%)
 
 By thread kind
   kind            n   correct   rate
+  blast_radius    4         4   100.0%
   contradicted    6         6   100.0%
   multi_hop       8         8   100.0%
   never_stated    8         8   100.0%
@@ -33,14 +34,14 @@ Abstention as a decision (positive class: abstained)
 Unsupported answers  0  (0.0% of all questions)
 
 Latency, wall clock per question, one at a time
-  p50   158.7ms
-  p95   274.8ms
-  max   308.1ms
+  p50   161.4ms
+  p95   359.9ms
+  max   1463ms
 
 Queries per question
   min   1
-  max   8
-  total 276
+  max   42
+  total 342
 
 What this measures, and what it does not
   The corpus is generated, and the graph is built from the same annotations

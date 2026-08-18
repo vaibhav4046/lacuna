@@ -2,13 +2,24 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { HydraClient } from '../hydra/client.js';
 import { HydraError } from '../hydra/errors.js';
+import { CLAIM_STATES, type ClaimState, type Inventory } from '../report/inventory.js';
 import type { Artifacts } from '../report/load.js';
-import { ask, buildQuestion, MAX_TERM_CHARS, RetrievalError } from '../retrieval/index.js';
+import {
+  ask,
+  blastRadius,
+  buildPackageName,
+  buildQuestion,
+  MAX_TERM_CHARS,
+  RetrievalError,
+} from '../retrieval/index.js';
 import { arenaPage } from '../view/arena.js';
 import { askPage } from '../view/ask.js';
+import { blastPage } from '../view/blast.js';
+import { healthPage } from '../view/health.js';
 import { homePage, type CorpusFacts, type Example } from '../view/home.js';
 import { hydradbPage } from '../view/hydradb.js';
 import { integrationPage, type ServiceLimits } from '../view/integration.js';
+import { memoryPage } from '../view/memory.js';
 import { CONTENT_SECURITY_POLICY, FAVICON } from '../view/layout.js';
 import { noticePage, type Notice } from '../view/notice.js';
 import type { AnswerSource, NodeIdentity } from '../view/proof.js';
@@ -18,7 +29,7 @@ import { readState, RUNNING_STATE, VOICE_STATES, type VoiceState } from '../voic
 import { FixedWindow } from './ratelimit.js';
 
 /**
- * The whole product surface: six pages, one stylesheet, one icon.
+ * The whole product surface: nine pages, one stylesheet, one icon.
  *
  * Everything is a GET. There is no POST endpoint, no JSON body parser and no
  * upload path, so the entire input surface of this server is a URL, and the
@@ -51,6 +62,8 @@ export interface ServerOptions {
   readonly node: NodeIdentity;
   readonly examples: readonly Example[];
   readonly facts: CorpusFacts;
+  /** Every claim and its state, counted off the same corpus as the examples. */
+  readonly inventory: Inventory;
   /** The committed benchmark run and HydraDB capture, already parsed. */
   readonly artifacts: Artifacts;
   readonly limiter: FixedWindow;
@@ -93,9 +106,10 @@ const NOTICES = {
     title: 'Not found',
     heading: 'There is no page here',
     lines: [
-      'This server has six pages: the question form, the answer to one question, '
-      + 'the benchmark, the database evidence, the interface and the voice surface. '
-      + 'Anything else is a typed URL or a stale link.',
+      'This server has nine pages: the question form, the answer to one question, '
+      + 'the claims the graph holds, the health of those claims, the blast radius of '
+      + 'one package, the benchmark, the database evidence, the interface and the '
+      + 'voice surface. Anything else is a typed URL or a stale link.',
     ],
   },
   methodNotAllowed: {
@@ -126,6 +140,26 @@ const NOTICES = {
       'Ask for a named thing and a property of it: subject "Meridian", predicate '
       + '"vendor". Add a via to follow one relation first, as in predicate "contact" '
       + 'via "vendor".',
+    ],
+  },
+  missingPackage: {
+    code: 400,
+    title: 'No package named',
+    heading: 'A blast radius needs a package',
+    lines: [
+      'Name the package a change would land in: package "pact-check". What comes '
+      + 'back is whatever depends on it in these sessions, at any depth, walked '
+      + 'when you ask rather than stored.',
+    ],
+  },
+  badPackage: {
+    code: 400,
+    title: 'Package name rejected',
+    heading: 'That package name was not usable',
+    lines: [
+      'A name has to be between 1 and 200 characters and contain no control '
+      + 'characters. The submitted value is not repeated here, for the same reason '
+      + 'the question pages do not repeat theirs.',
     ],
   },
   badTerms: {
@@ -199,6 +233,19 @@ export function createHandler(options: ServerOptions): Handler {
     'utf8',
   );
   const bench = Buffer.from(arenaPage(options.artifacts.bench), 'utf8');
+  const health = Buffer.from(healthPage(options.inventory), 'utf8');
+
+  /*
+   * Five renders of the memory table, once, for the same reason the voice page
+   * is rendered per state: the filter is one of a closed set, so a request
+   * either names one of them or gets the unfiltered page, and no renderer is
+   * ever reached carrying a value the request chose.
+   */
+  const memory = Buffer.from(memoryPage(options.inventory, null), 'utf8');
+  const filtered = new Map<ClaimState, Buffer>(CLAIM_STATES.map((state) => [
+    state,
+    Buffer.from(memoryPage(options.inventory, state), 'utf8'),
+  ]));
   const database = Buffer.from(hydradbPage(options.artifacts.hydra, node), 'utf8');
 
   /**
@@ -286,6 +333,17 @@ export function createHandler(options: ServerOptions): Handler {
       send(request, response, 200, HTML, home, { 'cache-control': 'no-store' });
       return;
     }
+    if (url.pathname === '/memory') {
+      const asked = url.searchParams.get('filter');
+      const state = CLAIM_STATES.find((candidate) => candidate === asked);
+      const body = state === undefined ? memory : filtered.get(state) ?? memory;
+      send(request, response, 200, HTML, body, { 'cache-control': 'no-store' });
+      return;
+    }
+    if (url.pathname === '/health') {
+      send(request, response, 200, HTML, health, { 'cache-control': 'no-store' });
+      return;
+    }
     if (url.pathname === '/bench') {
       send(request, response, 200, HTML, bench, { 'cache-control': 'no-store' });
       return;
@@ -305,6 +363,29 @@ export function createHandler(options: ServerOptions): Handler {
       send(request, response, 200, HTML, voices.get(asked)!, {
         'cache-control': 'no-store',
       });
+      return;
+    }
+    if (url.pathname === '/blast') {
+      const asked = url.searchParams.get('package');
+      if (asked === null) {
+        notice(request, response, 'missingPackage');
+        return;
+      }
+
+      // Guarded here rather than in the query builder, because the guard down
+      // there raises a transport error and this is a rejected input.
+      let name;
+      try {
+        name = buildPackageName(asked);
+      } catch (error) {
+        if (!isInputError(error)) throw error;
+        notice(request, response, 'badPackage');
+        return;
+      }
+
+      const radius = await blastRadius(client, name, { timeoutMs: QUERY_TIMEOUT_MS });
+      const walked = Buffer.from(blastPage(radius, node, answerSource), 'utf8');
+      send(request, response, 200, HTML, walked, { 'cache-control': 'no-store' });
       return;
     }
     if (url.pathname !== '/ask') {

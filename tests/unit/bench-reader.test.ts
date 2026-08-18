@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { bridgeFrom, read } from '../../src/bench/reader.js';
+import { blastReach, bridgeFrom, read, readBlast } from '../../src/bench/reader.js';
 import type { BenchOutcome } from '../../src/bench/types.js';
+import type { ClaimAnnotation, EntityKind } from '../../src/corpus/types.js';
 import { claim, question, sequence } from '../support/bench-fixtures.js';
 
 /**
@@ -375,5 +376,193 @@ describe('bridgeFrom', () => {
 
   it('returns null over an empty retrieved set', () => {
     expect(bridgeFrom([], 'Meridian', 'vendor')).toBeNull();
+  });
+});
+
+/** "dependent depends on dependency", the one claim shape a blast radius walks. */
+function dep(dependent: string, dependency: string, over: Partial<ClaimAnnotation> = {}): ClaimAnnotation {
+  return claim({
+    subject: dependent,
+    predicate: 'depends_on',
+    objectText: dependency,
+    objectEntity: dependency,
+    ...over,
+  });
+}
+
+function kindsOf(entries: readonly (readonly [string, EntityKind])[]): ReadonlyMap<string, EntityKind> {
+  return new Map<string, EntityKind>(entries);
+}
+
+describe('blastReach', () => {
+  it('reaches what depends on the root directly', () => {
+    const retrieved = sequence([{ claims: [dep('checkout', 'wire-format')] }]);
+
+    expect(blastReach(retrieved, 'wire-format')).toEqual(['checkout']);
+  });
+
+  it('follows the chain past the first hop', () => {
+    const retrieved = sequence([
+      { claims: [dep('cursor-walk', 'wire-format')] },
+      { claims: [dep('checkout', 'cursor-walk')] },
+    ]);
+
+    expect(blastReach(retrieved, 'wire-format')).toEqual(['cursor-walk', 'checkout']);
+  });
+
+  it('returns the closest names first', () => {
+    // Breadth first, because the order is what a second retrieval round searches
+    // in, and a depth-first order would spend the budget on one branch.
+    const retrieved = sequence([
+      { claims: [dep('cursor-walk', 'wire-format')] },
+      { claims: [dep('checkout', 'cursor-walk')] },
+      { claims: [dep('quota-ring', 'wire-format')] },
+    ]);
+
+    expect(blastReach(retrieved, 'wire-format')).toEqual(['cursor-walk', 'quota-ring', 'checkout']);
+  });
+
+  it('never includes the root', () => {
+    const retrieved = sequence([{ claims: [dep('checkout', 'wire-format')] }]);
+
+    expect(blastReach(retrieved, 'wire-format')).not.toContain('wire-format');
+  });
+
+  it('terminates on a cycle and names each reached entity once', () => {
+    // The corpus does not generate cycles. A retrieved set is a fragment of the
+    // record rather than the record, so the walk cannot assume that.
+    const retrieved = sequence([
+      { claims: [dep('b', 'a')] },
+      { claims: [dep('a', 'b')] },
+      { claims: [dep('c', 'b')] },
+    ]);
+
+    expect(blastReach(retrieved, 'a')).toEqual(['b', 'c']);
+  });
+
+  it('drops a dependency that announced itself as withdrawn', () => {
+    const retrieved = sequence([
+      { claims: [dep('checkout', 'wire-format', { kind: 'retract' })] },
+      { claims: [dep('quota-ring', 'wire-format')] },
+    ]);
+
+    expect(blastReach(retrieved, 'wire-format')).toEqual(['quota-ring']);
+  });
+
+  it('keeps a dependency that was silently replaced', () => {
+    // The reader is not shown supersession, and inferring it from two claims
+    // that do not announce an order is the thing under test rather than a
+    // shortcut this layer gets to take.
+    const retrieved = sequence([
+      {
+        claims: [
+          dep('tenant-router', 'moss-index', { validFrom: '2026-01-01T00:00:00.000Z' }),
+          dep('tenant-router', 'hash-fence', { validFrom: '2026-02-01T00:00:00.000Z' }),
+        ],
+      },
+    ]);
+
+    expect(blastReach(retrieved, 'moss-index')).toEqual(['tenant-router']);
+  });
+
+  it('ignores a claim on another predicate', () => {
+    const retrieved = sequence([
+      {
+        claims: [
+          claim({ subject: 'checkout', predicate: 'owner', objectText: 'Priya', objectEntity: 'Priya' }),
+        ],
+      },
+    ]);
+
+    expect(blastReach(retrieved, 'Priya')).toEqual([]);
+  });
+
+  it('ignores a dependency stated as text rather than as a name', () => {
+    const retrieved = sequence([
+      { claims: [dep('checkout', 'wire-format', { objectEntity: null })] },
+    ]);
+
+    expect(blastReach(retrieved, 'wire-format')).toEqual([]);
+  });
+
+  it('reaches nothing over an empty retrieved set', () => {
+    expect(blastReach([], 'wire-format')).toEqual([]);
+  });
+});
+
+describe('readBlast', () => {
+  it('answers with the services it reached, sorted', () => {
+    // Sorted rather than in walk order, because the scorer compares this string
+    // against the gold answer and a set has no order to preserve.
+    const retrieved = sequence([
+      { claims: [dep('quota-ring', 'wire-format')] },
+      { claims: [dep('checkout', 'quota-ring')] },
+      { claims: [dep('admin', 'wire-format')] },
+    ]);
+    const kinds = kindsOf([
+      ['quota-ring', 'package'],
+      ['checkout', 'service'],
+      ['admin', 'service'],
+    ]);
+
+    expect(readBlast({ root: 'wire-format', retrieved, kinds })).toEqual({
+      type: 'answer',
+      text: 'admin, checkout',
+    });
+  });
+
+  it('leaves the packages it walked through out of the answer', () => {
+    const retrieved = sequence([
+      { text: 'cursor-walk pulls wire-format in.', claims: [dep('cursor-walk', 'wire-format')] },
+    ]);
+    const kinds = kindsOf([['cursor-walk', 'package']]);
+
+    // Reached, and correctly reached, but the question asked which services.
+    expect(blastReach(retrieved, 'wire-format')).toEqual(['cursor-walk']);
+    expect(reasonOf(readBlast({ root: 'wire-format', retrieved, kinds }))).toBe('never_stated');
+  });
+
+  it('abstains never_stated when the root is in view and nothing depends on it', () => {
+    const retrieved = sequence([{ text: 'wire-format came up in review.', claims: [] }]);
+
+    expect(reasonOf(readBlast({ root: 'wire-format', retrieved, kinds: kindsOf([]) }))).toBe(
+      'never_stated',
+    );
+  });
+
+  it('abstains never_stated when only a claim names the root', () => {
+    const retrieved = sequence([
+      { text: 'The dependency list changed.', claims: [dep('wire-format', 'clock-skew')] },
+    ]);
+
+    expect(reasonOf(readBlast({ root: 'wire-format', retrieved, kinds: kindsOf([]) }))).toBe(
+      'never_stated',
+    );
+  });
+
+  it('abstains out_of_scope when nothing retrieved mentions the root', () => {
+    const retrieved = sequence([{ text: 'The migration window moved again.', claims: [] }]);
+
+    expect(reasonOf(readBlast({ root: 'wire-format', retrieved, kinds: kindsOf([]) }))).toBe(
+      'out_of_scope',
+    );
+  });
+
+  it('abstains out_of_scope when nothing was retrieved at all', () => {
+    expect(reasonOf(readBlast({ root: 'wire-format', retrieved: [], kinds: kindsOf([]) }))).toBe(
+      'out_of_scope',
+    );
+  });
+
+  it('treats an unknown kind as not a service', () => {
+    // A name the index has no kind for is a name this reader cannot claim is
+    // affected, and guessing from the shape of the string is not reading.
+    const retrieved = sequence([
+      { text: 'checkout pulls wire-format in.', claims: [dep('checkout', 'wire-format')] },
+    ]);
+
+    expect(reasonOf(readBlast({ root: 'wire-format', retrieved, kinds: kindsOf([]) }))).toBe(
+      'never_stated',
+    );
   });
 });

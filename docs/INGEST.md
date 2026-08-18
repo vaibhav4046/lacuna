@@ -77,7 +77,7 @@ Reads back the key already stored on every id the run is about to write. It goes
 first because the point is to refuse before touching anything.
 
 The read cannot use `HydraClient.query`, which follows cursors and accumulates
-rows capped at 5,000: the corpus has 5,268 messages, so the largest label alone
+rows capped at 5,000: the corpus has 5,246 messages, so the largest label alone
 exceeds the cap. Raising the cap would mean holding every row of every label in
 memory in order to test each against a set and then throw it away. The check does
 not need rows, it needs a verdict. So it drives `queryPage` directly, one page of
@@ -86,7 +86,9 @@ nothing. See DECISIONS.md D-018.
 
 It also returns how many planned ids were already present, which is what makes a
 second ingest visibly a no-op rather than merely a fast one. `already 0` against
-an empty graph, `already 5642` against a full one.
+an empty graph, and against a full one the whole planned vertex set, which for
+this corpus is 5,752: 72 sessions, 5,246 messages, 174 evidence spans, 174
+claims and 86 entities.
 
 ### vertices
 
@@ -110,7 +112,7 @@ One request per edge. Not a choice: the engine refuses batched edge writes.
 followed by SET", and a multi-hop pattern with "only one-hop edge patterns are
 executable in Query engine MERGE". See DECISIONS.md D-011.
 
-5,705 round trips is the bulk of every run, so the phase runs a bounded pool with
+5,908 round trips is the bulk of every run, so the phase runs a bounded pool with
 8 in flight. Duplicate edges are dropped at plan time rather than sent twice,
 since `MERGE` would make the second write a no-op anyway and a redundant round
 trip is the expensive part here.
@@ -124,7 +126,7 @@ write returned most recently, which is not necessarily the latest.
 
 Every edge `MERGE` has to observe both of its endpoints, which the vertex phase
 wrote. So the edge phase captures the bookmark the vertex phase ended on and
-sends that same pinned selector on all 5,705 writes. A pinned selector does not
+sends that same pinned selector on all 5,908 writes. A pinned selector does not
 care who won the race.
 
 The cost is that the pool drains without a bookmark known to be after everything,
@@ -138,7 +140,9 @@ compare two of them. See DECISIONS.md D-019.
 ## Timeouts
 
 The default is 30 seconds per request, which is also the highest the server will
-accept. Both ends of that were measured against the live node on 2026-08-13:
+accept. Both ends of that were measured against the live node on 2026-08-13, and
+the output below is that run unedited. The corpus has grown since, so the count
+it prints is smaller than today's; the two limits it establishes have not moved.
 
 ```
 over the cap: HydraDB returned 429: client_query_runtime_ms rejected by admission control: actual 120000 exceeds limit 30000
@@ -147,9 +151,9 @@ over the cap: HydraDB returned 429: client_query_runtime_ms rejected by admissio
 ```
 
 So a request asking for more than 30,000 ms is refused by admission control
-before it runs, and the client's own 5,000 ms default is not enough to count
-5,268 `CONTAINS` edges. 30,000 is the only setting that works for both the ingest
-and the census, and it is what both scripts use.
+before it runs, and the client's own 5,000 ms default is not enough to count the
+`CONTAINS` edges, of which there are now 5,246. 30,000 is the only setting that
+works for both the ingest and the census, and it is what both scripts use.
 
 ## Idempotence, and what merging cannot do
 
@@ -194,7 +198,9 @@ graph you just created.
 ## Measured cost
 
 From [artifacts/ingest/](../artifacts/ingest/README.md), on the WSL2 loopback
-node, 5,642 vertices and 5,705 edges:
+node. Those runs predate the package topology the blast questions needed, so
+they moved 5,642 vertices and 5,705 edges where the plan now builds 5,752 and
+5,908. The timings are the ones that were measured and are left as they were:
 
 | phase | into an empty graph | into a full one |
 | --- | --- | --- |
@@ -204,10 +210,10 @@ node, 5,642 vertices and 5,705 edges:
 | total | 89.0s | 80.3s |
 
 Verify costs nothing on an empty graph because there is nothing to read back, and
-7.9s on a full one because there are 5,642 rows to page through. Edges dominate
-both, and move around between runs (86.6s and 67.3s here, 62.2s and 47.7s on two
-earlier runs against the same node), because 5,705 separate round trips through a
-bounded pool measures the machine as much as the engine.
+7.9s on a full one because there are thousands of rows to page through. Edges
+dominate both, and move around between runs (86.6s and 67.3s here, 62.2s and
+47.7s on two earlier runs against the same node), because one round trip per edge
+through a bounded pool measures the machine as much as the engine.
 
 None of this is a benchmark. It is the cost of setting the demo up. The benchmark
 harness is separate work and is not built yet.

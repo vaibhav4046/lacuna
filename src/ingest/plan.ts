@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { MULTI_VALUED_PREDICATES } from '../corpus/predicates.js';
 import type { ClaimAnnotation, Corpus, Message, Session } from '../corpus/types.js';
 import { IdRegistry, KEY_SEPARATOR } from '../model/ids.js';
 import { IngestError } from './errors.js';
@@ -358,6 +359,10 @@ function addSupersedes(
  * anything: that is what keeps an ordinary revision from being mistaken for a
  * disagreement.
  *
+ * Multi-valued predicates are exempt. A service that depends on three packages
+ * holds three true claims at once, and drawing CONTRADICTS edges between them
+ * would turn every dependency list into a false dispute.
+ *
  * The edge is written both ways. Relationship patterns in this Cypher subset
  * are directed, so a single edge would make "what contradicts this claim" a
  * two-query question.
@@ -374,6 +379,9 @@ function addContradictions(builder: PlanBuilder, claims: readonly ClaimRecord[])
   for (const record of claims) {
     const { annotation } = record;
     if (superseded.has(annotation.key) || polarityOf(annotation) === 'negative') {
+      continue;
+    }
+    if (MULTI_VALUED_PREDICATES.has(annotation.predicate)) {
       continue;
     }
     const group = `${annotation.subject}${KEY_SEPARATOR}${annotation.predicate}`;

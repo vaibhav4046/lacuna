@@ -1,5 +1,5 @@
 import type { AbstentionReason } from '../model/abstention.js';
-import type { ClaimAnnotation, GoldQuestion, Message } from '../corpus/types.js';
+import type { ClaimAnnotation, EntityKind, GoldQuestion, Message } from '../corpus/types.js';
 
 /**
  * Shapes for the comparison between Lacuna and the retrieval approaches it
@@ -32,6 +32,17 @@ export interface CorpusIndex {
   readonly messages: readonly IndexedMessage[];
   /** Every name the corpus makes a claim about. Used to tell absent from unstated. */
   readonly subjects: ReadonlySet<string>;
+  /**
+   * What each named entity is, so a baseline walking a dependency closure can
+   * say which of the things it reached were services.
+   *
+   * This is another piece of the perfect extractor the baselines are handed. A
+   * real pipeline would have to infer the kind from the prose; giving it away
+   * keeps the blast radius comparison about how far a flat retriever can reach,
+   * which is the part under test, rather than about whether it can tell a
+   * package name from a service name.
+   */
+  readonly kinds: ReadonlyMap<string, EntityKind>;
 }
 
 /**

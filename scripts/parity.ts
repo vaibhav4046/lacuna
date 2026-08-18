@@ -23,7 +23,7 @@ import { parseVia } from '../src/retrieval/index.js';
  * a verdict about it. Then every gold question from the evaluation runs through
  * the same three surfaces, one compact line each. The sweep exists because the
  * two-question check used to be the whole check, and every document describing
- * it had to carry the caveat that two is not sixty. Now the claim and the
+ * it had to carry the caveat that two is not the corpus. Now the claim and the
  * coverage are the same shape.
  *
  * All three surfaces wrap the same resolver, so this cannot fail on the
@@ -89,11 +89,11 @@ const CASES: readonly Question[] = [
 ];
 
 /**
- * The sixty gold questions, built exactly the way the evaluation builds them:
- * same generated corpus, same `parseVia` on the question text. Parity does not
- * judge these against their expected answers, because scripts/evaluate.ts
- * already does and a second scorer would be a second definition of correct.
- * Here they are sixty distinct values that all three surfaces must agree on.
+ * Every gold question, built exactly the way the evaluation builds them: same
+ * generated corpus, same `parseVia` on the question text. Parity does not judge
+ * these against their expected answers, because scripts/evaluate.ts already
+ * does and a second scorer would be a second definition of correct. Here they
+ * are distinct values that all three surfaces must agree on.
  */
 function sweepQuestions(): readonly Question[] {
   return generateCorpus().questions.map((question) => ({
@@ -232,6 +232,12 @@ async function startStdio(): Promise<StdioSession> {
       const result = message['result'];
       if (!isRecord(result)) {
         throw new Error(`lacuna_ask failed: ${JSON.stringify(message['error'])}`);
+      }
+      // A tool-level failure carries its reason in the text content and no
+      // structured payload, so without this the gate would report only that it
+      // did not recognise what came back.
+      if (result['isError'] === true) {
+        throw new Error(`lacuna_ask failed: ${JSON.stringify(result['content'])}`);
       }
       return asAskCore(result['structuredContent'], 'the MCP server');
     },
@@ -384,9 +390,19 @@ async function run(): Promise<boolean> {
     print(`SWEEP: ${sweep.length} gold questions from the evaluation, one line each`);
     let identical = 0;
     for (const question of sweep) {
-      const fromStdio = await session.ask(question);
-      const fromHttp = await overHttp(listener, question);
-      const fromCli = await overCli(question);
+      // A surface that throws mid-sweep says what went wrong but not what it
+      // was asked, and the sweep is the only place that knows.
+      const asked = async <T>(work: Promise<T>): Promise<T> => {
+        try {
+          return await work;
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          throw new Error(`${question.label} (${question.subject} / ${question.predicate}): ${detail}`);
+        }
+      };
+      const fromStdio = await asked(session.ask(question));
+      const fromHttp = await asked(overHttp(listener, question));
+      const fromCli = await asked(overCli(question));
 
       const stdio = comparable(fromStdio);
       const http = comparable(fromHttp);

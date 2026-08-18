@@ -50,7 +50,8 @@ function verdict(answer: Answer): Html {
 <p class="reason"><span class="glyph">${ABSENCE_MARKS[outcome.reason]}</span>${outcome.reason}</p>`;
 }
 
-function trace(steps: readonly string[]): Html {
+/** Exported because a blast radius walks too, and prints its walk the same way. */
+export function trace(steps: readonly string[]): Html {
   return html`<h3>How it got there</h3>
 <ol class="trace">${steps.map((step) => html`<li>${step}</li>`)}</ol>`;
 }
@@ -59,7 +60,7 @@ function trace(steps: readonly string[]): Html {
  * Quotations, grouped by the claim they support and in the order the graph
  * returned them, so two spans backing one claim read as one citation.
  */
-function citations(evidence: readonly EvidenceRecord[]): Html {
+export function citations(evidence: readonly EvidenceRecord[]): Html {
   const byClaim = new Map<number, EvidenceRecord[]>();
   for (const span of evidence) {
     const held = byClaim.get(span.claimId);

@@ -2,8 +2,8 @@ export { Bm25 } from './bm25.js';
 export { cosine, EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, embedCached, loadEmbedder } from './embed.js';
 export type { Embedder } from './embed.js';
 export { buildIndex, tokenize } from './index-corpus.js';
-export { bridgeFrom, read } from './reader.js';
-export type { ReadInput } from './reader.js';
+export { blastReach, bridgeFrom, read, readBlast } from './reader.js';
+export type { BlastReadInput, ReadInput } from './reader.js';
 export {
   hybridRetriever,
   lexicalRetriever,

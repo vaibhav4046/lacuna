@@ -98,7 +98,7 @@ narrated here, because shot 7 owns the honest version of that claim.
 
 ### Shot 2. What was built
 **0:17 to 0:31.** Scroll down to `03 Corpus`, hold two seconds on the counts
-(72 sessions, 5,268 messages, 118 claims, 66 entities, 117,395 estimated
+(72 sessions, 5,246 messages, 174 claims, 86 entities, 117,041 estimated
 tokens), then scroll back up to `01 Ask`. The typed form sits just below the
 example questions in that panel.
 
@@ -179,7 +179,7 @@ contradiction that is not there.
 reads "The headline is a tie."
 
 > The benchmark headline is a tie. Two hand-built hybrid baselines also score
-> sixty out of sixty, across fifty-one configurations. What separates them is
+> sixty-four out of sixty-four, across fifty-one configurations. What separates them is
 > fifteen context tokens against six hundred and thirty-six. That is in the
 > repository, in those words.
 

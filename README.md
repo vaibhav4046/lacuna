@@ -92,13 +92,13 @@ npm run ingest
 npm run census
 ```
 
-`ingest` writes 72 sessions, 5268 messages and 118 claims. `census` counts what
+`ingest` writes 72 sessions, 5246 messages and 174 claims. `census` counts what
 is actually in the graph and compares it to what the generator planned, so it
 tells you the load worked rather than that it finished. It ends
 `graph matches the plan exactly`.
 
-With the corpus loaded, `npm run snapshot:verify` replays all sixty gold
-questions through the stored snapshot and asks the live node the same sixty,
+With the corpus loaded, `npm run snapshot:verify` replays all sixty-four gold
+questions through the stored snapshot and asks the live node the same sixty-four,
 then fails on any mismatch between the two. It needs a running node, because
 comparing a recording against the real thing is the whole point of it. Two
 fields are excluded from the comparison: wall-clock milliseconds and the read
@@ -125,6 +125,28 @@ artifacts/repro/repro.sh
 That is the script behind [artifacts/repro](artifacts/repro/README.md), which
 holds an unedited transcript of a run.
 
+## Demo data
+
+The corpus is generated rather than collected. [`src/corpus`](src/corpus) builds
+it from the seed `lacuna-demo-v1` against a fixed epoch, with no clock and no
+`Math.random` anywhere in it, so the same seed always yields the same 72
+sessions, 5246 messages, 86 entities and 174 claims. A different seed yields a
+different corpus of the same shape.
+
+What comes back out is not generated. Traversals, blast radius, revision chains,
+contradictions, evidence paths and abstentions are computed against the graph
+when the question is asked. The expected answers exist only in the evaluation
+harness, and
+[tests/unit/ground-truth-isolation.test.ts](tests/unit/ground-truth-isolation.test.ts)
+holds that separation structurally: the query path reaches no module that
+carries them, and ingestion plans a byte-identical graph when every expected
+answer is replaced with rubbish.
+
+```bash
+npm run ingest && npm run census
+npm run eval
+```
+
 ## Asking it from somewhere other than a browser
 
 The pages are one adapter over the answer path, not the answer path. The same
@@ -149,12 +171,12 @@ npm run parity
 ```
 
 That asks two questions with full payloads printed, one answered and one
-abstained, then sweeps all sixty gold questions from the evaluation through
+abstained, then sweeps all sixty-four gold questions from the evaluation through
 three surfaces: the MCP server over stdio, the same server over its HTTP
 transport with a real SDK client, and the command line in its own process. It
-compares every result field by field, ends `SWEEP_IDENTICAL: 60 of 60` and
+compares every result field by field, ends `SWEEP_IDENTICAL: 64 of 64` and
 `ALL_IDENTICAL: True`, and the saved output is
-[artifacts/verification/2026-08-14d/parity.txt](artifacts/verification/2026-08-14d/parity.txt).
+[artifacts/verification/2026-08-18/parity.txt](artifacts/verification/2026-08-18/parity.txt).
 The pages are not in that comparison: they share the resolver underneath but
 render their own markup rather than the projection.
 

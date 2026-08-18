@@ -1,4 +1,5 @@
 import { generateCorpus } from '../corpus/index.js';
+import { buildInventory, type Inventory } from '../report/inventory.js';
 import { parseVia } from '../retrieval/index.js';
 import type { CorpusFacts, Example } from '../view/home.js';
 
@@ -18,6 +19,13 @@ import type { CorpusFacts, Example } from '../view/home.js';
 export interface Demo {
   readonly examples: readonly Example[];
   readonly facts: CorpusFacts;
+  /**
+   * Every claim, its state and the structural counts, derived from the same
+   * corpus rather than from a second pass over the graph. The Memory and Health
+   * pages are pure functions of this, so they are rendered once at boot with
+   * everything else.
+   */
+  readonly inventory: Inventory;
 }
 
 export function buildDemo(seed?: string): Demo {
@@ -37,6 +45,7 @@ export function buildDemo(seed?: string): Demo {
 
   return {
     examples: [...firstOfKind.values()],
+    inventory: buildInventory(corpus),
     facts: {
       sessions: corpus.stats.sessions,
       messages: corpus.stats.messages,

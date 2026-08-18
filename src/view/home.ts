@@ -1,5 +1,5 @@
 import { ABSTENTION_REASONS, explainAbstention } from '../model/abstention.js';
-import { type BenchReport, lacuna, tiedWithLacuna } from '../report/bench.js';
+import { type BenchReport, closestRivals, lacuna } from '../report/bench.js';
 import { ABSENCE_MARKS, absenceMark, grouped, ms, roundMs, sentence } from './format.js';
 import { html, type Html } from './html.js';
 import { masthead, page, panel, PROMISE, separator } from './layout.js';
@@ -51,8 +51,17 @@ export interface CorpusFacts {
   readonly seed: string;
 }
 
-/** The same shape the form produces, so a link and a submission are one route. */
+/**
+ * The same shape the form produces, so a link and a submission are one route.
+ *
+ * A blast radius is the exception, and it is one because it is not a question
+ * about a property. It names a package and asks what a change to it reaches, so
+ * it has a route of its own and the subject is the whole of its input.
+ */
 export function askHref(example: Example): string {
+  if (example.kind === 'blast_radius') {
+    return `/blast?package=${encodeURIComponent(example.subject)}`;
+  }
   const parts = [
     `subject=${encodeURIComponent(example.subject)}`,
     `predicate=${encodeURIComponent(example.predicate)}`,
@@ -174,24 +183,27 @@ const OPENING = 'Ask for a property of something the sessions talked about. If t
  * beside the claim it pays for, not in a footnote further down.
  *
  * Every number here is derived from `artifacts/bench/results.json` when the
- * page is built, including the ratio, which is taken against the closest system
- * that matched the score rather than the most flattering one. A figure typed
- * into this file would be a figure that outlives the run it came from, and this
- * repository has spent its documentation arguing against exactly that.
+ * page is built, including the ratio, which is taken against the strongest
+ * baseline in the run rather than the most flattering one. A figure typed into
+ * this file would be a figure that outlives the run it came from, and this
+ * repository has spent its documentation arguing against exactly that. The
+ * ratio used to be taken against the systems that matched Lacuna's score, and
+ * when the corpus grew and none of them did any more, the cell disappeared
+ * rather than reporting a lead.
  */
 function strip(report: BenchReport): Html {
   const ours = lacuna(report);
   if (ours === undefined) return html``;
-  const tied = tiedWithLacuna(report);
-  const nearest = tied.length === 0
+  const rivals = closestRivals(report);
+  const nearest = rivals.length === 0
     ? null
-    : Math.min(...tied.map((system) => system.meanEstimatedTokens / ours.meanEstimatedTokens));
+    : Math.min(...rivals.map((system) => system.meanEstimatedTokens / ours.meanEstimatedTokens));
 
   return html`<div class="strip full">
 <a class="cell" href="/bench"><b>${ours.correct}/${ours.total}</b>
 <span>questions answered correctly</span></a>
 ${nearest === null ? null : html`<a class="cell mark" href="/bench"><b>${roundMs(nearest)}x</b>
-<span>less context than the closest system that tied</span></a>`}
+<span>less context than the best baseline in the run</span></a>`}
 <a class="cell minor" href="/bench"><b>${grouped(report.systems.length)}</b>
 <span>retrieval configurations in the run</span></a>
 <a class="cell minor" href="/bench"><b>${ms(ours.p50Ms)}</b>

@@ -89,11 +89,18 @@ per-question query counts in [artifacts/eval/report.txt](../artifacts/eval/repor
 | Subject that was never mentioned | 1 |
 | Direct question | 3 + 1 per cited claim |
 | Question needing one hop | 6 + 1 per cited claim |
+| Blast radius | 2 + 1 per node reached, breadth first |
 
 Independent reads are issued together rather than in sequence, so wall clock
-tracks the deepest dependency and not the total. Over the 60 evaluation
-questions that is 276 queries, minimum 1 and maximum 8, at p50 158.7ms and p95
-274.8ms end to end including the HTTP hop.
+tracks the deepest dependency and not the total. Over the 64 evaluation
+questions that is 342 queries, minimum 1 and maximum 42, at p50 114.1ms and p95
+184.4ms end to end including the HTTP hop.
+
+The 42 is a blast-radius question. That shape has no fixed cost: it walks
+`depends_on` outward until nothing new is reached, one read per frontier node,
+so what it costs is a property of the dependency graph rather than of the
+question. The bound is `MAX_BLAST_DEPTH`, six hops, for the same reason
+`supersededByClaim` is bounded.
 
 The 1 is worth its own sentence. An out-of-scope question costs one query
 because the first lookup already answers it, and `entityByName` returning zero
@@ -114,8 +121,8 @@ comes first.
 
 **`MERGE` executes only one-hop edge patterns.** There is no batched edge write.
 This is the single largest cost in the system and it is visible in the ingest
-timing: 5,642 vertices in 15 batched requests took 2.2 seconds; 5,705 edges, one
-request each, took 86.6 seconds. The design absorbed it rather than working
+timing: on the 2026-08-13 run, 5,642 vertices in 15 batched requests took 2.2
+seconds; 5,705 edges, one request each, took 86.6 seconds. The design absorbed it rather than working
 around it, because ingest is offline and read latency is what a judge measures.
 
 **`RETURN` supports `<binding>.<property>` and `count(*)`, nothing else.** No
@@ -150,25 +157,28 @@ keeps the token server-side and the wire format inspectable in the proof panel.
 ## Where the advantage actually is
 
 Read [BENCHMARKS.md](BENCHMARKS.md) for the full run. The honest summary is that
-the best baseline ties Lacuna on correctness: 60/60 for both. So the claim is
-not "the graph gets more answers right." It is narrower and it survives:
+the lead over the best baseline is one question: 64/64 against 63/64, with the
+same zero unsupported answers on both. So the claim is not "the graph gets far
+more answers right." It is narrower and it survives:
 
-- **Context size.** Lacuna hands the reader 15 tokens. The tying baseline hands
-  it 636, a 42.2x difference, because a similarity index cannot know which of
-  its top-k chunks is the superseded one and has to pass all of them along.
-- **Construction.** The tying configuration is `hybrid + a second retrieval
-  round + a conflict-aware reader`. Remove the conflict-aware reader and it
-  drops to 54/60 with six confidently wrong answers. Remove the second round
-  and it drops to 46/60. Remove both, which is what an ordinary vector memory
-  is, and it is 40/60 with six wrong. That configuration was not found by a
-  baseline author, it was found by tuning against the answers, and the two
-  components it needs are hand-built approximations of the two things the graph
-  gives structurally: knowing what superseded what, and following one hop.
+- **Context size.** Lacuna hands the reader 18 tokens. The closest baseline
+  hands it 1,843, a 100.9x difference, because a similarity index cannot know
+  which of its top-k chunks is the superseded one and has to pass all of them
+  along.
+- **Construction.** The closest configuration is `hybrid + a second retrieval
+  round + a conflict-aware reader`, at a cut-off of 50. Remove the
+  conflict-aware reader and it drops to 57/64 with six confidently wrong
+  answers. Remove the second round and it drops to 48/64. Remove both, which is
+  what an ordinary vector memory is, and it is 42/64 with six wrong. That
+  configuration was not found by a baseline author, it was found by tuning
+  against the answers, and the two components it needs are hand-built
+  approximations of the two things the graph gives structurally: knowing what
+  superseded what, and following one hop.
 - **Provable abstention.** The baselines can decline. They cannot say which
   message they searched and did not find, because they never had a node to be
   absent.
 
-Latency is 80.3ms for Lacuna against 3.7ms for the baseline, and that is not a
+Latency is 92.2ms for Lacuna against 3.9ms for the baseline, and that is not a
 like-for-like comparison: the baselines run in-process over arrays and Lacuna
 runs over HTTP to a real database. Reported, not defended.
 

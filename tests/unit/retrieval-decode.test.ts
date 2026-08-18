@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { RetrievalDecodeError } from '../../src/retrieval/errors.js';
 import {
   decodeClaims,
+  decodeDependents,
   decodeEntity,
   decodeEvidence,
   decodeMentions,
@@ -129,6 +130,84 @@ describe('decodeMentions', () => {
 
   it('rejects a mention with no name to show', () => {
     expect(() => decodeMentions([{ claim: 1, predicate: 'vendor', other: 200, other_name: null }]))
+      .toThrow(RetrievalDecodeError);
+  });
+});
+
+describe('decodeDependents', () => {
+  function dependentRow(over: Partial<Row> = {}): Row {
+    return {
+      claim: 1,
+      predicate: 'depends_on',
+      polarity: 'positive',
+      dependent: 200,
+      dependent_name: 'checkout',
+      dependent_kind: 'service',
+      superseded_by: null,
+      ...over,
+    };
+  }
+
+  it('reads the entity that depends on ours, not the one asked about', () => {
+    // The direction is the whole point. This query walks inbound: the row names
+    // the depender, and a decoder that read it as the dependency would send the
+    // blast walk off in the direction nothing is affected by.
+    expect(decodeDependents([dependentRow()])).toEqual([
+      {
+        claimId: 1,
+        predicate: 'depends_on',
+        polarity: 'positive',
+        entityId: 200,
+        entityName: 'checkout',
+        entityKind: 'service',
+        supersededBy: [],
+      },
+    ]);
+  });
+
+  it('collapses the rows of one claim into one edge', () => {
+    // Same reason as decodeClaims: a claim with two superseders arrives twice,
+    // and counting rows as edges would walk one dependency twice.
+    const edges = decodeDependents([
+      dependentRow({ superseded_by: 7 }),
+      dependentRow({ superseded_by: 9 }),
+    ]);
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.supersededBy).toEqual([7, 9]);
+  });
+
+  it('sorts by claim id, so the walk that consumes this is deterministic', () => {
+    const edges = decodeDependents([
+      dependentRow({ claim: 5, dependent: 500, dependent_name: 'admin' }),
+      dependentRow({ claim: 2, dependent: 200, dependent_name: 'checkout' }),
+      dependentRow({ claim: 3, dependent: 300, dependent_name: 'api' }),
+    ]);
+
+    expect(edges.map((edge) => edge.claimId)).toEqual([2, 3, 5]);
+  });
+
+  it('keeps a withdrawal, and lets the walk decide what to do with it', () => {
+    // Filtering here would hide the count the trace reports. A retracted
+    // dependency is a fact about the graph, not a row to drop on the floor.
+    const [edge] = decodeDependents([dependentRow({ polarity: 'negative' })]);
+
+    expect(edge?.polarity).toBe('negative');
+  });
+
+  it('tolerates a dependent with no kind', () => {
+    const [edge] = decodeDependents([dependentRow({ dependent_kind: null })]);
+
+    expect(edge?.entityKind).toBeNull();
+  });
+
+  it('throws when one claim id names two different dependents', () => {
+    expect(() => decodeDependents([dependentRow(), dependentRow({ dependent: 999 })]))
+      .toThrow(/two different dependents/);
+  });
+
+  it('rejects a dependent with no name to walk to', () => {
+    expect(() => decodeDependents([dependentRow({ dependent_name: null })]))
       .toThrow(RetrievalDecodeError);
   });
 });

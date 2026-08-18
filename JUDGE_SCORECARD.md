@@ -6,7 +6,7 @@ for each. Status is what is true today, not what is planned.
 Criteria are quoted from the rules page as captured on 2026-08-12 in
 [artifacts/rules/](artifacts/rules/hackhydra-rules-2026-08-12.txt).
 
-**Last updated: 2026-08-15.** Everything marked `done` below has a command in it
+**Last updated: 2026-08-18.** Everything marked `done` below has a command in it
 that a judge can run. One thing is not done and is not a row here because it is
 submission mechanics rather than a judging criterion: the demo video. The
 repository is public at <https://github.com/vaibhav4046/lacuna> and a hosted
@@ -19,9 +19,9 @@ are tracked, with the video, in [docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
 | Requirement | Evidence | Status |
 |---|---|---|
 | A functional product or demo | `npm run serve`, then ask it something. The answer page is four panels: Answer, Timeline, Subgraph, Proof. Screenshots in [artifacts/screens/](artifacts/screens/README.md) | done |
-| Real ingestion and retrieval workflows | 5,642 vertices and 5,705 edges written to a live node, idempotent on re-run, verified by `npm run census` against the generator's plan. Transcripts in [artifacts/ingest/](artifacts/ingest/README.md) | done |
+| Real ingestion and retrieval workflows | 5,752 vertices and 5,908 edges written to a live node, idempotent on re-run, verified by `npm run census` against the generator's plan. Transcripts in [artifacts/ingest/](artifacts/ingest/README.md) | done |
 | A clear use case | [README](README.md), [ADR 0001](docs/adr/0001-track-and-thesis.md) | done |
-| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 816 unit tests plus 42 contract tests against a live node | done |
+| A thoughtful technical implementation | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md), [docs/HYDRADB_INTEGRATION.md](docs/HYDRADB_INTEGRATION.md), 893 unit tests plus 50 contract tests against a live node | done |
 
 ## "Judges consider"
 
@@ -29,7 +29,7 @@ are tracked, with the video, in [docs/RULES_MATRIX.md](docs/RULES_MATRIX.md) and
 
 - **Evidence:** three contract suites in [tests/contract/](tests/contract) run
   every query builder against a live HydraDB node, and a missing node fails them
-  rather than skipping. 816 unit tests, 37 files, no database needed. The query
+  rather than skipping. 893 unit tests, 39 files, no database needed. The query
   layer was written against the Cypher subset the engine actually implements,
   discovered by probing it on day two; the refusals are quoted in the source
   beside the code that works around them.
@@ -75,12 +75,13 @@ lose on by using a graph database as a place to put results.
   [artifacts/eval/report.txt](artifacts/eval/report.txt). 51 configurations
   across recency, lexical, vector, hybrid and hybrid-plus-hop retrieval, both
   reader modes, fixed seed, raw output committed.
-- **Status:** done, and the result is a tie on correctness. Two baseline
-  configurations also score 60/60. What separates them is 15 context tokens
-  against 636 and 1,603, and the fact that both tying configurations are the
-  same four hand-built components reproducing three distinctions the graph holds
-  structurally. Reported that way in the benchmark document because that is what
-  the run said.
+- **Status:** done, and the lead is one question. Lacuna answers 64 of 64 and
+  the best baseline configuration answers 63, both with zero unsupported
+  answers. What separates them beyond that one question is 18 context tokens
+  against 1,843, and the fact that the configuration coming closest is four
+  hand-built components reproducing distinctions the graph holds structurally.
+  Reported that way in the benchmark document because that is what the run
+  said.
 
 ### 05 Originality
 
@@ -101,11 +102,11 @@ lose on by using a graph database as a place to put results.
 | A particularly strong graph data model | [ADR 0002](docs/adr/0002-temporal-evidence-graph.md): bitemporal claims, immutable evidence spans, revision as a DAG. Loaded and verified by `npm run census` | done |
 | A novel retrieval or reasoning approach | Five-code abstention derived from structure, with the traversal attached as proof | done |
 | An interesting use of relationships, traversal or context | One hop for bridge questions, a bounded variable-length walk for revision chains, and a four-hop provenance pattern fetched in a single request | done |
-| A use case hard to pull off with vector or relational approaches | The ablation in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). A hand-built hybrid pipeline with a hop and a conflict-aware reader did match Lacuna, and that is reported as the result it is, along with what it took to get there | done |
+| A use case hard to pull off with vector or relational approaches | The ablation in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). A hand-built hybrid pipeline with a hop and a conflict-aware reader came within one question of Lacuna, and that is reported as the result it is, along with what it took to get there | done |
 
 ## The judge's ten minutes
 
-1. `npm ci && npm test`. 816 tests at the last measured run, no database
+1. `npm ci && npm test`. 893 tests at the last measured run, no database
    required. Seven error lines on stderr are error-path tests provoking failures
    on purpose; the counts underneath are the result, and the line that matters
    says every test passed and none were skipped.
@@ -119,7 +120,7 @@ lose on by using a graph database as a place to put results.
    row count and timing, and the read epoch the node reported, so a judge can
    run any line of it against their own node.
 6. [docs/BENCHMARKS.md](docs/BENCHMARKS.md), which opens by saying the headline
-   is a tie.
+   is a one-question lead.
 
 In one command, against a fresh clone rather than the working copy:
 

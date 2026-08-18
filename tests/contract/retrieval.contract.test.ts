@@ -8,9 +8,13 @@ import type { GoldQuestion } from '../../src/corpus/types.js';
 import { HydraClient } from '../../src/hydra/client.js';
 import { loadHydraConfig } from '../../src/hydra/config.js';
 import {
+  affectedText,
   ask,
+  blastRadius,
+  buildPackageName,
   buildQuestion,
   entityByName,
+  parseBlast,
   parseVia,
   resolve,
   supersededByClaim,
@@ -46,6 +50,17 @@ const REPRESENTATIVES = [
   'q-out_of_scope-01',
 ] as const;
 
+/** All four, because each names a different position in the dependency graph. */
+const BLAST_QUESTIONS = [
+  'q-blast_radius-01',
+  'q-blast_radius-02',
+  'q-blast_radius-03',
+  'q-blast_radius-04',
+] as const;
+
+/** A blast walk crosses several frontiers, each one a round trip. */
+const BLAST_TIMEOUT_MS = 60_000;
+
 const corpus = generateCorpus();
 let client: HydraClient;
 
@@ -59,6 +74,15 @@ function gold(id: string): GoldQuestion {
 
 function askGold(question: GoldQuestion) {
   return ask(client, buildQuestion(question.subject, question.predicate, parseVia(question.text)));
+}
+
+/** A blast question with its expected services narrowed out of the union. */
+function affectedGold(id: string): { question: GoldQuestion; services: readonly string[] } {
+  const question = gold(id);
+  if (question.expected.type !== 'affected') {
+    throw new Error(`${id} is not a blast question, the corpus changed under the suite`);
+  }
+  return { question, services: question.expected.services };
 }
 
 beforeAll(async () => {
@@ -91,11 +115,14 @@ describe('retrieval against the live graph', () => {
         type: 'answer',
         text: question.expected.text,
       });
-    } else {
+    } else if (question.expected.type === 'abstain') {
       expect(resolution.outcome).toEqual({
         type: 'abstain',
         reason: question.expected.reason,
       });
+    } else {
+      // Blast questions go through the blast contract suite, not ask().
+      throw new Error(`${question.id} expects a blast radius, which this suite does not ask`);
     }
   });
 
@@ -265,5 +292,86 @@ describe('cost and guards on the live node', () => {
     await expect(
       ask(client, buildQuestion('Meridian', 'launch_date'), { timeoutMs: 1 }),
     ).rejects.toThrow();
+  });
+});
+
+describe('blast radius against the live graph', () => {
+  /**
+   * The traversal, run for real.
+   *
+   * The corpus states one dependency at a time, in ordinary sentences, spread
+   * across sessions that never mention each other. Nothing anywhere holds the
+   * list of services a package change reaches. If these come out right, they
+   * came out of the graph, because there is nowhere else for them to have come
+   * from.
+   */
+  it.each(BLAST_QUESTIONS)('%s reaches the services the graph implies', async (id) => {
+    const { question, services } = affectedGold(id);
+
+    // Read off the sentence, not off the thread kind. A question that had to be
+    // told it was a blast question would be a question the corpus answered.
+    const named = parseBlast(question.text);
+    if (named === null) {
+      throw new Error(`${id} does not read as a blast question: ${question.text}`);
+    }
+    expect(named).toBe(question.subject);
+
+    const answer = await blastRadius(client, buildPackageName(named));
+
+    expect(answer.radius).not.toBeNull();
+    expect(affectedText(answer.radius!)).toBe(services.join(', '));
+  }, BLAST_TIMEOUT_MS);
+
+  it('reaches services that nothing in the corpus connects to the package', async () => {
+    // The transitive case, which is the whole argument for a graph. A service
+    // arriving at depth two was never named alongside this package in any
+    // conversation; the walk found it by way of a package that was.
+    const { question } = affectedGold('q-blast_radius-01');
+    const answer = await blastRadius(client, buildPackageName(question.subject));
+    const radius = answer.radius!;
+
+    const transitive = radius.affected.filter((service) => service.depth > 1);
+    expect(transitive.length).toBeGreaterThan(0);
+    expect(radius.packagesTouched.length).toBeGreaterThan(0);
+
+    for (const service of transitive) {
+      // One hop per step, ending at the service, so the path is a route rather
+      // than a set of names collected on the way.
+      expect(service.path).toHaveLength(service.depth);
+      expect(service.path.at(-1)?.entityName).toBe(service.entityName);
+      expect(service.path.at(-1)?.entityKind).toBe('service');
+      for (const step of service.path.slice(0, -1)) {
+        expect(radius.packagesTouched).toContain(step.entityName);
+      }
+    }
+  }, BLAST_TIMEOUT_MS);
+
+  it('quotes a conversation for every hop on every path', async () => {
+    // A radius that cannot show the sentence behind each hop is a diagram.
+    const { question } = affectedGold('q-blast_radius-03');
+    const answer = await blastRadius(client, buildPackageName(question.subject));
+    const quoted = new Map(answer.evidence.map((span) => [span.claimId, span]));
+    const steps = answer.radius!.affected.flatMap((service) => service.path);
+
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) {
+      expect(quoted.get(step.claimId)?.quote ?? '', `claim ${step.claimId}`).not.toBe('');
+      expect(quoted.get(step.claimId)?.sessionTitle ?? '', `claim ${step.claimId}`).not.toBe('');
+    }
+  }, BLAST_TIMEOUT_MS);
+
+  it('spends one query on a package the graph does not hold', async () => {
+    const answer = await blastRadius(client, buildPackageName('nightjar-spindle'));
+
+    expect(answer.root).toBeNull();
+    expect(answer.radius).toBeNull();
+    expect(answer.evidence).toEqual([]);
+    expect(answer.queries).toHaveLength(1);
+  });
+
+  it('treats a package name carrying Cypher as a name', async () => {
+    const answer = await blastRadius(client, buildPackageName("wire-format'}) RETURN 1 //"));
+
+    expect(answer.root).toBeNull();
   });
 });

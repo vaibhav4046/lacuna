@@ -95,6 +95,33 @@ export function mentionsFrom(entityId: number): PreparedQuery {
 }
 
 /**
+ * Every claim that names this entity as its object, and whose claim it is.
+ *
+ * `mentionsFrom` read backwards. There the question is "what does this entity's
+ * record point at"; here it is "whose records point at this entity", which is
+ * the step a blast radius walks: a package is the object of each `depends_on`
+ * claim about its dependents, so walking MENTIONS in reverse finds them.
+ *
+ * The OPTIONAL MATCH rides along for the same reason it does in `claimsAbout`:
+ * a superseded dependency is history, not an edge, and fetching liveness here
+ * costs one round trip per frontier node instead of one per dependent found.
+ * Polarity comes back too, because a withdrawal that names no replacement
+ * still carries no MENTIONS edge today, and a read that would silently follow
+ * one if that changed is a read that should not be written.
+ */
+export function dependentsOf(entityId: number): PreparedQuery {
+  return {
+    cypher:
+      'MATCH (o {id: $o})<-[:MENTIONS]-(c)-[:ABOUT]->(e) '
+      + 'OPTIONAL MATCH (newer)-[:SUPERSEDES]->(c) '
+      + 'RETURN c.id AS claim, c.predicate AS predicate, c.polarity AS polarity, '
+      + 'e.id AS dependent, e.name AS dependent_name, e.kind AS dependent_kind, '
+      + 'newer.id AS superseded_by',
+    parameters: { o: assertVertexId(entityId, 'entityId') },
+  };
+}
+
+/**
  * The whole citation for one claim: the quotation, where in the message it sits,
  * which message it was, and which session that message belongs to.
  *

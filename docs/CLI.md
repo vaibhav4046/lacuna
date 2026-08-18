@@ -61,14 +61,14 @@ counts were answered at.
   namespace   local
   graph       default
   cell        cell-0
-  read epoch  5967
+  read epoch  6416
 
   Nodes in the graph
   Session       72
-  Message       5268
-  EvidenceSpan  118
-  Claim         118
-  Entity        66
+  Message       5246
+  EvidenceSpan  174
+  Claim         174
+  Entity        86
 ```
 
 ### `lacuna ask <subject> <predicate>`
@@ -82,10 +82,10 @@ A  Halverd
    This replaced 2 earlier values and nothing has superseded it.
 
    Cited from
-     Platform handover notes, 2025-03-11, user
+     Data planning call, 2025-04-20, user
        "Correction on Bellwether: the beta partner is now Halverd."
 
-   4 queries, 170.1ms
+   4 queries, 168.1ms
 ```
 
 When the sessions never settled the question, that is the output, and it exits
@@ -96,7 +96,7 @@ Q  Meridian migration_window
 A  No answer (never_stated)
    No answer given, because nothing in the sessions ever stated this.
 
-   3 queries, 97.7ms
+   3 queries, 109.2ms
 ```
 
 ### `lacuna explain <subject> <predicate>`
@@ -112,15 +112,15 @@ A  Halverd
    How it got there
      1. Found "Bellwether" as a project with 4 claims about it.
      2. Read 3 "beta_partner" claims about "Bellwether", 2 of them superseded.
-     3. One current claim stands: "Halverd", stated 2025-03-11T10:12:00.000Z.
+     3. One current claim stands: "Halverd", stated 2025-04-20T11:48:00.000Z.
 
    What it asked HydraDB
-     1.  MATCH (e:Entity {name: $name}) RETURN e.i...  1 row   49.4ms  epoch 5967
-     2.  MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OP...  4 rows  28.7ms  epoch 5967
-     3.  MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIO...  4 rows  62.3ms  epoch 5967
-     4.  MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS...  1 row   30.4ms  epoch 5967
+     1.  MATCH (e:Entity {name: $name}) RETURN e.i...  1 row   45.7ms  epoch 6416
+     2.  MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) OP...  4 rows  26.3ms  epoch 6416
+     3.  MATCH (e {id: $e})<-[:ABOUT]-(c)-[:MENTIO...  4 rows  53.9ms  epoch 6416
+     4.  MATCH (se:Session)-[:CONTAINS]->(m)-[:HAS...  1 row   25.1ms  epoch 6416
 
-   4 queries, 143.6ms
+   4 queries, 126.4ms
 ```
 
 The statements are truncated for the table. `--json` carries them in full.
@@ -137,11 +137,11 @@ A  Halverd
 
    Claims on Bellwether beta_partner, oldest first
      claim              valid from                recorded                  value      state
-     #2475749815969757  2025-03-03T10:18:00.000Z  2025-03-03T10:18:00.000Z  Stonecrop  superseded by #2247326196671333
-     #2247326196671333  2025-03-07T11:06:00.000Z  2025-03-07T11:06:00.000Z  Millbrace  superseded by #797564529472318
-     #797564529472318   2025-03-11T10:12:00.000Z  2025-03-11T10:12:00.000Z  Halverd    current, answered with this
+     #2475749815969757  2025-04-12T09:00:00.000Z  2025-04-12T09:00:00.000Z  Stonecrop  superseded by #2247326196671333
+     #2247326196671333  2025-04-18T11:06:00.000Z  2025-04-18T11:06:00.000Z  Millbrace  superseded by #797564529472318
+     #797564529472318   2025-04-20T11:48:00.000Z  2025-04-20T11:48:00.000Z  Halverd    current, answered with this
 
-   4 queries, 160.9ms
+   4 queries, 135.9ms
 ```
 
 `valid from` is when the claim became true. `recorded` is when it entered the
@@ -154,16 +154,16 @@ Prints the committed benchmark report, best configuration of each system family.
 
 ```
   Benchmark, best configuration per family
-  run 2026-08-15T01:46:13.182Z, seed lacuna-demo-v1, embeddings Xenova/all-MiniLM-L6-v2
-  72 sessions, 5268 messages, 118 claims
+  run 2026-08-18T01:43:41.928Z, seed lacuna-demo-v1, embeddings Xenova/all-MiniLM-L6-v2
+  72 sessions, 5246 messages, 174 claims
 
   system                    correct  false  missed  abstain f1  tokens  p50   p95
-  lacuna                    60/60    0      0       1.00        15      80ms  160ms
-  hybrid+2hop@20 +conflict  60/60    0      0       1.00        636     4ms   7ms
-  lexical@20 +conflict      46/60    0      8       0.89        513     1ms   1ms
-  hybrid@20 +conflict       46/60    0      8       0.89        524     4ms   4ms
-  vector@50 +conflict       46/60    0      8       0.89        1310    3ms   4ms
-  recency@50 +conflict      44/60    0      10      0.86        1087    0ms   0ms
+  lacuna                    64/64    0      0       1.00        18      92ms  169ms
+  hybrid+2hop@50 +conflict  63/64    0      0       1.00        1843    4ms   15ms
+  lexical@20 +conflict      48/64    0      8       0.89        516     1ms   1ms
+  hybrid@20 +conflict       48/64    0      8       0.89        529     4ms   5ms
+  vector@50 +conflict       47/64    0      8       0.89        1311    3ms   4ms
+  recency@50 +conflict      46/64    0      9       0.88        1029    0ms   0ms
 
   read from D:\project\lacuna\artifacts\bench\results.json, not rerun
 ```
@@ -203,12 +203,12 @@ A  Farah Haddad
    Followed "vendor" to Northfold (entity 1635203334682294, through claim 4026755961307662)
 
    Cited from
-     Platform planning call, 2025-03-21, user
+     Growth operations check-in, 2025-05-04, user
        "replay-queue is supplied by Northfold."
-     Data handover notes, 2025-03-23, user
+     Platform operations check-in, 2025-05-06, user
        "Our contact at Northfold is Farah Haddad."
 
-   8 queries, 280.3ms
+   8 queries, 223.6ms
 ```
 
 The hop is named in the output: which relation was followed, to which entity,
@@ -342,13 +342,13 @@ npm run parity
 That spawns the MCP server over stdio, connects to it again over its HTTP
 transport with the SDK's own client, and runs this CLI in its own process. Two
 questions run first with their full payloads printed, one answered and one
-abstained, and then all sixty gold questions from the evaluation sweep through
-the same three surfaces, one line each, `--via` included for the multi-hop
-ones. Every question compares status, answer, reason code, claim id, superseded
-claims, evidence, evidence total, source state, and the set of reads with their
-parameters and row counts. It ends `SWEEP_IDENTICAL: 60 of 60` and
+abstained, and then all sixty-four gold questions from the evaluation sweep
+through the same three surfaces, one line each, `--via` included for the
+multi-hop ones. Every question compares status, answer, reason code, claim id,
+superseded claims, evidence, evidence total, source state, and the set of reads
+with their parameters and row counts. It ends `SWEEP_IDENTICAL: 64 of 64` and
 `ALL_IDENTICAL: True`. The saved output is
-[artifacts/verification/2026-08-14d/parity.txt](../artifacts/verification/2026-08-14d/parity.txt).
+[artifacts/verification/2026-08-18/parity.txt](../artifacts/verification/2026-08-18/parity.txt).
 
 One thing is deliberately excluded: the order the reads appear in. They are
 issued together and land as the node answers them, so the order varies between

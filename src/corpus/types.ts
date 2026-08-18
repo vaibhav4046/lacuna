@@ -21,7 +21,8 @@ export type PredicateName =
   | 'beta_partner'
   | 'on_call_length'
   | 'runbook_owner'
-  | 'data_region_policy';
+  | 'data_region_policy'
+  | 'depends_on';
 
 export const PREDICATE_NAMES: readonly PredicateName[] = [
   'launch_date',
@@ -36,6 +37,7 @@ export const PREDICATE_NAMES: readonly PredicateName[] = [
   'on_call_length',
   'runbook_owner',
   'data_region_policy',
+  'depends_on',
 ];
 
 export type ThreadKind =
@@ -47,6 +49,8 @@ export type ThreadKind =
   | 'unconnected'
   | 'never_stated'
   | 'out_of_scope'
+  | 'dependency'
+  | 'blast_radius'
   | 'background';
 
 /**
@@ -101,7 +105,15 @@ export interface Session {
 
 export type ExpectedAnswer =
   | { readonly type: 'answer'; readonly text: string; readonly claimKey: string }
-  | { readonly type: 'abstain'; readonly reason: AbstentionReason };
+  | { readonly type: 'abstain'; readonly reason: AbstentionReason }
+  /**
+   * A blast radius: the services reachable by walking `depends_on` edges
+   * against their direction, sorted by name. Computed by the planner's own
+   * walk over the edges it planned, and lives only here, in the gold
+   * questions, which are never ingested. The product must recompute the same
+   * set from the graph at runtime, and the evaluation compares the two.
+   */
+  | { readonly type: 'affected'; readonly services: readonly string[] };
 
 export interface GoldQuestion {
   readonly id: string;
@@ -118,7 +130,7 @@ export interface GoldQuestion {
  * the claim annotations: the corpus knows, because it drew the name from a
  * pool, and ingestion would otherwise have to guess from sentence position.
  */
-export type EntityKind = 'project' | 'service' | 'vendor' | 'person';
+export type EntityKind = 'project' | 'service' | 'vendor' | 'person' | 'package';
 
 export interface CorpusEntity {
   readonly name: string;

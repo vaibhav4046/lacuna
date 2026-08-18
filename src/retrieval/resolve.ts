@@ -1,3 +1,4 @@
+import { MULTI_VALUED_PREDICATES } from '../corpus/predicates.js';
 import { explainAbstention } from '../model/abstention.js';
 import { RetrievalConsistencyError } from './errors.js';
 import type {
@@ -193,6 +194,25 @@ export function resolve(view: SubgraphView): Resolution {
 
   const distinctText = new Set(positives.map((claim) => claim.objectText));
   if (distinctText.size > 1) {
+    if (MULTI_VALUED_PREDICATES.has(question.predicate)) {
+      // Several live values on a multi-valued predicate are a list, not a
+      // disagreement: a service that depends on three packages holds three
+      // true claims at once.
+      const values = [...distinctText].sort();
+      const newest = positives.reduce((a, b) => (compareClaims(a, b) >= 0 ? a : b));
+      trace.push(
+        `${values.length} current claims stand together: `
+        + `${values.map((value) => `"${value}"`).join(', ')}.`,
+      );
+      return {
+        outcome: { type: 'answer', claimId: newest.id, text: values.join(', ') },
+        explanation: `All ${values.length} values hold at once, because `
+          + `"${question.predicate}" names a list rather than a single fact.`,
+        considered,
+        hop,
+        trace,
+      };
+    }
     const values = [...distinctText].map((text) => `"${text}"`).join(' and ');
     trace.push(`Two current claims disagree: ${values}. Nothing supersedes either.`);
     return abstain('contradicted', considered, hop, trace);
@@ -231,6 +251,16 @@ export function citedClaims(resolution: Resolution): readonly number[] {
   }
   if (resolution.outcome.type === 'answer') {
     add(resolution.outcome.claimId);
+    const first = resolution.considered[0];
+    if (first !== undefined && MULTI_VALUED_PREDICATES.has(first.predicate)) {
+      // A list answer quotes every claim on the list, not just the newest:
+      // three cited dependencies need three places a reader can check.
+      for (const claim of resolution.considered.filter(isLive)) {
+        if (claim.polarity === 'positive') {
+          add(claim.id);
+        }
+      }
+    }
     return ids;
   }
 

@@ -7,10 +7,17 @@ command printed above it, captured 2026-08-13 against HydraDB `v0.1.1` (commit
 24.04, HTTP query API on loopback `:18443`, namespace `local`, graph `default`,
 cell `cell-0`.
 
+The corpus has grown since that date. The package topology the blast-radius
+questions needed took it to 5,752 vertices and 5,908 edges, counted by
+`npm run census` on 2026-08-18 and saved at
+[artifacts/verification/2026-08-18/census.txt](../verification/2026-08-18/census.txt).
+Nothing below has been restated to match. These are the numbers that run
+produced, and a transcript edited to agree with a later run is not a transcript.
+
 What it is here to prove, in the order the claims depend on each other:
 
 1. The demo corpus goes into HydraDB. Not a fixture, not a subset. 5,642
-   vertices and 5,705 edges.
+   vertices and 5,705 edges on the day of this run.
 2. Running it twice leaves the same graph. `already 5642` on the second run,
    and the counts read back afterwards are identical.
 3. What is in the graph is exactly what the plan says should be there, with

@@ -5,6 +5,7 @@ import {
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
+  type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import type { HydraClient } from '../hydra/client.js';
@@ -19,7 +20,7 @@ import {
   renderJson,
   timelineResult,
 } from './result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from './tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TOOLS } from './tools.js';
 
 /**
  * The MCP server, and the dispatch under it.
@@ -163,6 +164,45 @@ function required(source: Record<string, unknown>, role: string): string {
 }
 
 /**
+ * The arguments a tool advertises, enforced.
+ *
+ * Every input schema this server publishes closes the object with
+ * `additionalProperties: false`, which is a promise that a field the schema
+ * does not name is a mistake rather than something to quietly drop. Nothing was
+ * keeping it. The SDK's low-level `Server` hands `params.arguments` through
+ * untouched, and the readers below only reach for the keys they want, so a
+ * caller who sent a `limit` expecting it to bound the answer got the whole
+ * answer and no sign the field had been ignored. A contract a client is told
+ * about and the server does not apply is worse than no contract, because the
+ * client has no way to find out.
+ *
+ * The allowed names are read off the same `TOOLS` array the list handler
+ * returns, so this can never drift from what the client was shown. The types
+ * and the required fields are still checked by the readers underneath: those
+ * are the parts a wrong value fails on, and they were already right.
+ */
+function checkArguments(tool: Tool, args: unknown): void {
+  if (args === undefined || args === null) {
+    return;
+  }
+  if (typeof args !== 'object' || Array.isArray(args)) {
+    throw new McpError(ErrorCode.InvalidParams, 'arguments must be an object');
+  }
+  if (tool.inputSchema.additionalProperties !== false) {
+    return;
+  }
+
+  const declared = tool.inputSchema.properties ?? {};
+  const unknown = Object.keys(args).filter((key) => !Object.hasOwn(declared, key));
+  if (unknown.length > 0) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `${tool.name} does not take ${unknown.map((key) => `"${key}"`).join(', ')}`,
+    );
+  }
+}
+
+/**
  * Arguments in, a validated question out.
  *
  * `buildQuestion` is the only way a caller's text reaches the graph. It caps
@@ -260,12 +300,14 @@ export async function callTool(
 ): Promise<CallToolResult> {
   const timeoutMs = context.timeoutMs ?? TOOL_TIMEOUT_MS;
 
+  const tool = TOOLS.find((one) => one.name === name);
+  if (tool === undefined) {
+    throw new McpError(ErrorCode.MethodNotFound, `unknown tool "${name}"`);
+  }
+  checkArguments(tool, args);
+
   if (name === HEALTH_TOOL) {
     return toolResult({ ...(await health(context)) });
-  }
-
-  if (name !== ASK_TOOL && name !== EXPLAIN_TOOL && name !== TIMELINE_TOOL) {
-    throw new McpError(ErrorCode.MethodNotFound, `unknown tool "${name}"`);
   }
 
   const question = readQuestion(args);
@@ -283,6 +325,7 @@ export async function callTool(
     if (name === EXPLAIN_TOOL) {
       return toolResult({ ...explainResult(answer, context.node) });
     }
+    // The lookup above admitted four names and the other three have returned.
     return toolResult({ ...timelineResult(answer, context.node) });
   } catch (error) {
     const mcpError = toMcpError(error);

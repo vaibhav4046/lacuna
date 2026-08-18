@@ -67,4 +67,11 @@ yarn-error.log*
 # Local assistant tooling state. Not part of the project.
 .claude/
 
+# The raw design drop. `design/reference/` holds the artifacts the product was
+# built against and is committed on purpose; this is the unpacked archive it was
+# taken out of, two hundred files of variants, uploads and vendor handoff notes.
+# Keeping the source of an asset is provenance. Keeping the shipping crate is
+# not.
+design/incoming2/
+
 .vercel

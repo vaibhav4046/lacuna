@@ -1,6 +1,6 @@
 import { tokenize } from '../../src/bench/index-corpus.js';
 import type { CorpusIndex, IndexedMessage } from '../../src/bench/types.js';
-import type { ClaimAnnotation, GoldQuestion } from '../../src/corpus/types.js';
+import type { ClaimAnnotation, EntityKind, GoldQuestion } from '../../src/corpus/types.js';
 
 /**
  * Fixture builders shared by the bench unit tests.
@@ -63,14 +63,21 @@ export function sequence(overrides: readonly Partial<IndexedMessage>[]): Indexed
   return overrides.map((over, ordinal) => message({ ordinal, ...over }));
 }
 
-export function corpusIndex(messages: readonly IndexedMessage[]): CorpusIndex {
+/**
+ * Entity kinds default to empty, because only the blast cases care what a name
+ * is and a case that does care should say so where it can be read.
+ */
+export function corpusIndex(
+  messages: readonly IndexedMessage[],
+  kinds: ReadonlyMap<string, EntityKind> = new Map(),
+): CorpusIndex {
   const subjects = new Set<string>();
   for (const item of messages) {
     for (const annotation of item.claims) {
       subjects.add(annotation.subject);
     }
   }
-  return { messages, subjects };
+  return { messages, subjects, kinds };
 }
 
 export function question(over: Partial<GoldQuestion> = {}): GoldQuestion {

@@ -156,6 +156,70 @@ export function decodeMentions(rows: readonly Row[]): readonly Mention[] {
   }));
 }
 
+/** One claim naming this entity as its object: an inbound dependency edge. */
+export interface DependentEdge {
+  readonly claimId: number;
+  readonly predicate: string;
+  readonly polarity: Polarity;
+  /** The entity the claim is about, which is the thing that depends on ours. */
+  readonly entityId: number;
+  readonly entityName: string;
+  readonly entityKind: string | null;
+  /** Ids of the claims that supersede this one. Empty means current. */
+  readonly supersededBy: readonly number[];
+}
+
+/**
+ * Groups the dependent rows by claim id, for the same reason `decodeClaims`
+ * does: the OPTIONAL MATCH multiplies a claim with two superseders into two
+ * rows, and treating a row as an edge would walk the same dependency twice.
+ * Sorted by claim id so the walk that consumes this is deterministic.
+ */
+export function decodeDependents(rows: readonly Row[]): readonly DependentEdge[] {
+  const byId = new Map<number, {
+    record: Omit<DependentEdge, 'supersededBy'>;
+    supersededBy: number[];
+  }>();
+
+  for (const row of rows) {
+    const claimId = requireNumber(row, 'claim');
+    const kind = row['dependent_kind'];
+    const record = {
+      claimId,
+      predicate: requireString(row, 'predicate'),
+      polarity: requirePolarity(row, 'polarity'),
+      entityId: requireNumber(row, 'dependent'),
+      entityName: requireString(row, 'dependent_name'),
+      entityKind: typeof kind === 'string' ? kind : null,
+    };
+
+    const existing = byId.get(claimId);
+    if (existing === undefined) {
+      byId.set(claimId, { record, supersededBy: [] });
+    } else if (
+      existing.record.entityId !== record.entityId
+      || existing.record.predicate !== record.predicate
+      || existing.record.polarity !== record.polarity
+    ) {
+      throw new RetrievalDecodeError(
+        `claim ${claimId} came back naming two different dependents`,
+      );
+    }
+
+    const superseder = optionalNumber(row, 'superseded_by');
+    if (superseder !== null) {
+      const target = byId.get(claimId)!;
+      if (!target.supersededBy.includes(superseder)) {
+        target.supersededBy.push(superseder);
+      }
+    }
+  }
+
+  return [...byId.values()]
+    .map(({ record, supersededBy }) => ({ ...record, supersededBy }))
+    .sort((a, b) => a.claimId - b.claimId);
+}
+
 /**
  * Citations for one claim, ordered by where they sit in the conversation.
  *

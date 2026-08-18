@@ -2,7 +2,7 @@
 
 What exists right now. Updated as things change, and never ahead of them.
 
-**Last updated: 2026-08-17**
+**Last updated: 2026-08-18**
 
 ## Built and verified
 
@@ -956,6 +956,36 @@ What exists right now. Updated as things change, and never ahead of them.
   directions — dead port exit 1, live server thirteen for thirteen.
   [D-080](DECISIONS.md). Full gate on 2026-08-17: typecheck 0, unit 816/816,
   contract 42/42, screens 13/13.
+
+- **The corpus now carries a package topology, and the blast radius is walked
+  rather than looked up.** Added 2026-08-18: repositories, services and shared
+  packages with transitive dependency edges, a dependency that was revised
+  mid-history, and four gold questions that ask what a package change reaches.
+  `blastRadius()` answers them by starting at the package, reading its
+  dependents from the graph and repeating to a depth cap of six, returning each
+  affected service with the path and the claim that carried every hop. Nothing
+  about that walk is stored: `tests/unit/ground-truth-isolation.test.ts` proves
+  the query path imports no module holding an expected answer, that no
+  production source names one, and that ingestion plans a byte-identical graph
+  when every expected answer in the corpus is replaced with the string `JUNK`.
+  [D-081](DECISIONS.md), and the short version is the README's
+  [Demo data](README.md#demo-data) section.
+
+- **The full gate on 2026-08-18, against the corpus that ships.** Typecheck 0.
+  Unit 893 of 893 across 39 files, contract 50 of 50 across 3. Ingest and census
+  end `graph matches the plan exactly` at 72 sessions, 5,246 messages, 174
+  claims, 86 entities. `npm run eval` scores 64 of 64 exact, every thread kind
+  at 100%, abstention F1 1.000 with 32 true positives and no false ones, p50
+  114.1ms. `npm run bench` puts Lacuna at 64 of 64 on 18 estimated context
+  tokens against 63 of 64 on 1,843 for the best of 51 baseline configurations,
+  and the one question that separates them is a blast radius. `npm run snapshot`
+  recorded 519 replies and `npm run snapshot:verify` replayed all sixty-four
+  with 0 answer mismatches and 0 wrong verdicts. `npm run parity` ends
+  `SWEEP_IDENTICAL: 64 of 64` and `ALL_IDENTICAL: True` across stdio, HTTP and
+  the CLI; transcript in
+  [artifacts/verification/2026-08-18/](artifacts/verification/2026-08-18/README.md).
+  `npm run screens` took 14 captures, all checked, the new one being the blast
+  page at full height so the query trace is in the photograph.
 
 ## In progress
 

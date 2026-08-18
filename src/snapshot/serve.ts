@@ -43,6 +43,7 @@ export function createSnapshotHandler(root?: string): Handler {
     node: describeNode(config),
     examples: demo.examples,
     facts: demo.facts,
+    inventory: demo.inventory,
     artifacts: loadArtifacts(root),
     // Behind a hosting proxy every request can arrive from the same socket
     // address, which folds all readers into one bucket. The per-address

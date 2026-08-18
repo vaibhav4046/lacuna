@@ -7,14 +7,19 @@
  * written verbatim to artifacts/snapshot/graph-snapshot.json; nothing is
  * synthesised, reformatted or re-encoded.
  *
- * Coverage argument: the ask flow only ever issues four query shapes, keyed
+ * Coverage argument: the read paths only ever issue five query shapes, keyed
  * by entity name, entity id or claim id (src/retrieval/fetch.ts). Entities
  * are enumerated from the corpus roster, claim ids are collected from the
- * claims-about replies (including superseded-by ids, which point at claims
- * about the same entity), and bridge hops resolve entity names the corpus
- * validator already proved are in the roster. One extra entity-by-name reply
- * is recorded for a name proven absent, so unknown subjects replay the node's
- * real zero-row answer.
+ * claims-about and dependents replies (including superseded-by ids, which
+ * point at claims about the same entity), and bridge hops resolve entity
+ * names the corpus validator already proved are in the roster. One extra
+ * entity-by-name reply is recorded for a name proven absent, so unknown
+ * subjects replay the node's real zero-row answer.
+ *
+ * The dependents shape is the one the blast walk consumes, and it is recorded
+ * for every entity rather than for the packages the demo happens to ask
+ * about: the walk decides where to go next from what the graph returns, so
+ * the recording cannot assume which entities it will reach.
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -26,6 +31,7 @@ import { HydraClient, type FetchLike, type QueryPage } from '../src/hydra/client
 import { loadHydraConfig } from '../src/hydra/config.js';
 import {
   claimsAbout,
+  dependentsOf,
   entityByName,
   evidenceForClaim,
   mentionsFrom,
@@ -141,6 +147,15 @@ async function main(): Promise<void> {
     }
 
     await client.query(mentionsFrom(entityId));
+
+    // The hop claims the blast walk quotes are claims about the depender, so
+    // the loop above has already collected them. Collecting them again from
+    // this reply costs one column read and removes the argument.
+    const dependents = await client.query(dependentsOf(entityId));
+    const claimColumn = column(dependents, 'claim');
+    for (let row = 0; row < dependents.rows.length; row += 1) {
+      claimIds.add(numberAt(dependents, row, claimColumn));
+    }
   }
 
   for (const claimId of [...claimIds].sort((a, b) => a - b)) {

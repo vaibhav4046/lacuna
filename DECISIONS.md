@@ -2376,3 +2376,234 @@ exception the fetch dressed it in.
 verified by exit code rather than by the message alone. Positive path:
 `npm run screens` against the live server on 3014, thirteen captures, all
 checked, exit 0.
+
+---
+
+## 2026-08-18
+
+### D-081: The blast radius is walked when asked, and the answer lives nowhere else
+
+**The problem.** The clarification the organisers issued draws one line: a
+generated input corpus is fine, a generated output is not. The relational
+question the track is really about — change this package, what breaks — is the
+easiest thing in the project to fake. A map from package name to service list
+would pass every screenshot and every demo, and would be worth nothing.
+
+**The decision.** `blastRadius()` in `src/retrieval/blast.ts` starts at the
+package entity, reads its dependents from the graph, and repeats on each one to
+a depth cap of `MAX_BLAST_DEPTH = 6`, keeping the first path that reached each
+service. Nothing about the walk is precomputed: the depth, the path, the claim
+that carried each hop and the number of queries it took are all products of that
+run, which is why the page prints the query trace rather than summarising it.
+`depends_on` is the only entry in `MULTI_VALUED_PREDICATES`, because a package
+having several dependents is not a contradiction, and the resolver would
+otherwise read the second edge as one.
+
+The expected service lists exist in exactly one place, `src/corpus/threads.ts`,
+and are handed to `scripts/evaluate.ts` to score against.
+`tests/unit/ground-truth-isolation.test.ts` asserts the separation structurally
+rather than by convention: the import closure of `src/ingest/plan.ts` and
+`src/retrieval/index.ts` touches no module carrying an answer, no production
+source names `.expected` or `GoldQuestion` or `ExpectedAnswer`, and `buildPlan`
+produces a byte-identical graph when every expected answer in the corpus is
+replaced with the string `JUNK`. The last of those is the strongest form of the
+claim: not that ingestion does not read the answers, but that it could not have.
+
+**What was run.** `npm run eval` scores 64 of 64 exact, blast_radius 4 of 4.
+`npm run bench` puts Lacuna at 64 of 64 against 63 for the best baseline
+configuration, and the single question that separates them is
+`q-blast_radius-01`: `hybrid+2hop@50 +conflict` retrieves the right neighbourhood
+and still states the wrong set of services, because the set is a transitive
+closure and the closure is an edge walk, not a retrieval.
+
+### D-082: The blast page refuses a bad package name in its own words
+
+The question pages reject an unusable subject or predicate with the `badTerms`
+notice. The blast page could have reused it — the validation is the same, 1 to
+200 characters and no control characters — and the first draft did.
+
+It now has its own `badPackage` notice. The reason is the second sentence of
+each: `badTerms` says the page will not quote whatever was typed at it because a
+page that exists to quote a graph should not also quote its input, and it says
+"subject or predicate". A page that takes one package name and says "subject or
+predicate" is telling the reader to go and check which of the two fields it
+means, when there is only one field. The duplication is eleven words. The
+alternative was a notice that reads as though it were written for a different
+page, which is how error text stops being read.
+
+### D-083: The snapshot collects the hop claims twice rather than argue about it
+
+`scripts/export-snapshot.ts` walks every entity and records the reply to each of
+the five production query shapes. The blast walk quotes a claim for each hop, and
+those claims are claims about the depending service, so the `claimsAbout` pass
+has already collected their ids before the `dependentsOf` pass runs. Collecting
+them again from the `dependentsOf` reply is one extra column read and a `Set`
+that absorbs the duplicates.
+
+The alternative was to reason about it — to argue in a comment that the earlier
+pass covers them and leave the second read out. That argument is correct today
+and is one corpus change away from being wrong, and the failure mode is a
+snapshot that is missing evidence for exactly the questions the blast page
+answers. The read is cheap and the argument is not.
+
+### D-084: Parity now names the question that failed, and the failure it was written for has not returned
+
+**What happened.** `npm run parity` failed once at the sixteenth sweep question,
+`q-revised-04` (Everstone / migration_window), with "the MCP server returned
+something that is not an answer" and exit 1.
+
+**What was changed.** Two pieces of instrumentation in `scripts/parity.ts`: a
+sweep failure is now wrapped with the question's label, subject and predicate,
+and an MCP result carrying `isError` is raised with its content rather than
+falling through to be read as a missing answer. `failedResult()` in
+`src/mcp/server.ts` deliberately omits `structuredContent` on an error, so the
+old message was what a tool-level failure looked like from the outside.
+
+**What is honest to say about it.** The instrumentation never fired. The run
+that followed it, and every run since including the one saved as
+`artifacts/verification/2026-08-18/parity.txt`, ends `SWEEP_IDENTICAL: 64 of 64`
+and `ALL_IDENTICAL: True`. The cause is unproven. The two candidates that
+survive are the 10-second `TOOL_TIMEOUT_MS` firing under sustained load in a
+long-lived stdio session, and a transient error from the node. Neither has
+evidence behind it, so neither is written down as the answer, and this entry
+does not say the failure was fixed. It says the failure has not recurred and
+that the next one will arrive named.
+
+### D-085: The fourteenth capture photographs the whole blast page, trace included
+
+`npm run screens` took thirteen captures; it now takes fourteen, the new one
+being `/blast?package=pact-check` at full page height rather than a viewport
+crop. That page runs to 13,827 pixels, because under the answer and the reached
+paths it prints every query the walk actually issued.
+
+Cropping it to a viewport would have produced a tidier image of the answer. The
+answer is the least interesting third of that page: thirteen service names are
+what a lookup table would also print. The trace underneath is the part that
+cannot be faked, so the capture keeps it, at the cost of being the tallest
+artifact in the set.
+
+### D-086: The approved design shipped as pages, minus the parts that needed JavaScript to exist
+
+The product design (`design/reference/Lacuna Product.dc.html` and the handoff
+shipped beside it) is now the shell every route is served inside: a fixed rail
+carrying the mark and the grouped routes, a hairline bar naming the route you
+are on, the page in what is left. Three surfaces the design drew and the
+product did not have were built out of it: `/memory`, `/health`, and the
+inventory report that feeds them both.
+
+Four things in the design were deliberately not reproduced.
+
+The particle canvas behind the shell. The design's own handoff says the app
+view hides it, so it is decoration that the product never sees, and dropping
+it is what keeps `script-src 'none'` in the content security policy true
+rather than aspirational. Every piece of state the design's component tracked,
+which route and which filter, is state a URL already carries, so the rail is
+anchors and the filters are query parameters. Arriving at
+`/memory?filter=contradicted` and clicking through to it land on the same
+bytes.
+
+The search field on `/memory`. That page renders all one hundred and seventy
+four claims at once, so the browser's own find already searches every one of
+them. A server round trip to do the same job worse would have been the only
+JavaScript on the site. The filter chips stayed, because counting is the one
+thing the browser's find cannot do.
+
+Two of the design's six claim states. `STATE_MEANINGS` has four: current,
+historical, contradicted, withdrawn. The design also drew a proposal state and
+an unsupported state. Neither exists in the graph, and a state the ingest can
+never produce is a legend entry that would sit permanently at zero, or worse,
+a category somebody would eventually feel obliged to fill.
+
+The health spiral and the score it wrapped. `/health` prints a four segment bar
+drawn from the same four counts instead. The reason is in `src/view/health.ts`
+at length and is not a rendering preference: a score has to weigh a
+contradiction against a retraction against an unquoted claim, the weights would
+be invented, and the invented number would be the most quotable thing on the
+site and the least defensible.
+
+One thing was renamed rather than dropped. The bench tie helper became
+`closestRivals`, because the home page and the arena page both need the same
+answer to the same question, which is who is nearest, not who tied.
+
+The absence marks on `/memory` are the vocabulary the answer pages already use,
+not a second set invented for a table. A retraction carries the sign an
+abstention gets when the answer was retracted, a contradiction the sign it gets
+when two claims disagree. They are the same two facts from opposite ends: the
+table is looking at the claim, the answer page at the question the claim failed
+to settle.
+
+### D-087: Tool arguments are checked where they are dispatched, because the low-level server checks nothing
+
+**What was wrong.** All four MCP tools advertise `additionalProperties: false`
+in their input schema and none of them enforced it. `createMcpServer` registers
+a thin delegate to `callTool`, and the SDK's low-level `Server` performs no
+input validation at all. That is `McpServer`'s job, and `McpServer` wants Zod,
+which is the dependency this project declined in order to keep the runtime list
+at one entry. `readQuestion` then reads only the keys it wants and ignores the
+rest. So a client could send a field the schema forbade and get a normal answer
+back, which makes the published schema a description of intent rather than a
+contract.
+
+**What was changed.** `checkArguments(tool, args)` runs at the single dispatch
+point in `src/mcp/server.ts`, before any handler sees the arguments. It reads
+the allowed key set off the same `TOOLS` array that `tools/list` returns, so
+the enforced contract and the advertised contract cannot drift: adding a
+property to a schema admits it, and nothing else does.
+
+**Why not per tool.** Four handlers validating their own arguments is four
+places for the fifth tool to forget. The dispatch point already resolves the
+tool by name and already raises `MethodNotFound` for an unknown one, so it is
+the one place every call must pass through.
+
+### D-088: A test deliberately logs to the console while the transport is running
+
+Stdio MCP puts JSON-RPC frames and anybody's stray `console.log` on the same
+descriptor. The entry point rebinds the console to stderr, which is the right
+fix, and until now nothing proved it held under a log that arrives after
+startup.
+
+`tests/support/noisy-console.mjs` is preloaded with `--import` before the MCP
+entry point and then writes through `console.log`, `info`, `warn`, `error` and
+`debug` every twenty five milliseconds for the life of the process. The timing
+matters more than the noise: the writes go through the timer queue, so each
+callback resolves `console.log` when it fires and picks up whatever the entry
+point rebound it to, exactly as a log line left inside a tool handler would.
+Logging at import time would only have proven that a preload runs before the
+module it precedes.
+
+The contract test asserts both halves. `session.stdout` must not contain the
+marker, and `session.stderr` must. A guard that only checked stdout would pass
+just as well if the preload had silently failed to run.
+
+### D-089: The wedged store has a cause now, and it is not the garbage collector
+
+D-058 named the symptom and left the cause open, guessing at slatedb's embedded
+GC. That guess was wrong, and the evidence that made it attractive is a red
+herring: `node.log` holds 7,784 mentions of `put_opts`, of which 7,751 are
+`error collecting garbage`. Those are noise on a background loop. The real
+write-path failures are the remaining thirty or so, and they cluster exactly at
+the moments the store wedged. The first `HTTP suppressed internal graph error`
+is at log line 6879, `2026-08-14T00:06:05.690342Z`.
+
+The cause is `publish_graph_index` in `/opt/hydradb/src/engine/index_store.rs`.
+It runs a compare-and-swap retry loop whose match arms tolerate
+`AlreadyExists`, `Precondition` and `NotFound` and retry, and `NotImplemented`
+is not among them, so it falls through to `Err(err) => return Err(err.into())`
+and surfaces as HTTP 500 `internal query execution error`. `LocalFileSystem`
+has no conditional update. The first publish for a given cell and edge type
+takes `PutMode::Create` and succeeds; every republish takes `PutMode::Update`
+and dies. Moving the store aside resets every manifest to non-existent, which
+puts the next write back on the `Create` branch, which is precisely why the
+ritual remedy works and why it works only until the next republish.
+
+An intermediate hypothesis blamed writer lease renewal and is refuted by
+reading `writer_lease.rs`, which already handles the identical object-store gap
+on purpose: it matches `Err(ObjectStoreError::NotImplemented { .. }) if
+same_holder` and falls back to an unconditional `put`, with a comment
+explaining that overwrite is safe for the still-valid incumbent and that stale
+takeovers stay fail-closed. The gap is known upstream. It is handled in one
+place and not the other.
+
+The operational consequence is worth stating because it changes what is at
+risk. The wedge bites writes only; reads never publish an index. A read-only
+judge run is therefore not exposed to it. Re-ingest and the contract suite are.

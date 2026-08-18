@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { format } from 'node:util';
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
@@ -81,6 +82,33 @@ function parseArgs(argv: readonly string[]): Options {
   return { transport, port: parsePort(port) };
 }
 
+/**
+ * Hands stdout to the protocol and gives the console somewhere else to go.
+ *
+ * Nothing in this repository writes to stdout, and the deliberate diagnostics
+ * all go to stderr already. What this defends against is the accident: a
+ * dependency printing a deprecation notice, a debug line left in during a
+ * change, anything at all reaching `console.log` while the JSON-RPC stream is
+ * open. One stray line on fd 1 corrupts the frame it lands in, and the client
+ * reports a parse error rather than the thing that actually happened, which is
+ * the worst kind of failure to debug. Rebinding costs nothing and turns that
+ * accident into a readable line on stderr.
+ *
+ * Only the stdio branch does this. Under HTTP, stdout is nobody's transport
+ * and a console line there is merely untidy.
+ */
+function sendConsoleToStderr(): void {
+  const toStderr = (...parts: readonly unknown[]): void => {
+    process.stderr.write(`${format(...parts)}
+`);
+  };
+  console.log = toStderr;
+  console.info = toStderr;
+  console.debug = toStderr;
+  console.warn = toStderr;
+  console.error = toStderr;
+}
+
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const config = loadHydraConfig();
@@ -90,6 +118,7 @@ async function main(): Promise<void> {
   };
 
   if (options.transport === 'stdio') {
+    sendConsoleToStderr();
     const server = createMcpServer(context);
     await server.connect(new StdioServerTransport());
     process.stderr.write(

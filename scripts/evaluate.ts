@@ -3,12 +3,20 @@ import { fileURLToPath } from 'node:url';
 
 import { describeExpected, describeOutcome, judge, percent, percentile, scoreAll } from '../src/bench/score.js';
 import type { Scored, Verdict } from '../src/bench/score.js';
+import type { BenchOutcome } from '../src/bench/types.js';
 import { generateCorpus } from '../src/corpus/index.js';
 import type { GoldQuestion } from '../src/corpus/types.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
-import { ask, buildQuestion, parseVia } from '../src/retrieval/index.js';
-import type { Answer } from '../src/retrieval/index.js';
+import {
+  affectedText,
+  ask,
+  blastRadius,
+  buildPackageName,
+  buildQuestion,
+  parseBlast,
+  parseVia,
+} from '../src/retrieval/index.js';
 
 /**
  * Runs every gold question against the live graph and reports what happened.
@@ -43,45 +51,108 @@ const OUT_DIR = fileURLToPath(new URL('../artifacts/eval', import.meta.url));
 
 interface Case {
   readonly question: GoldQuestion;
-  readonly answer: Answer;
   readonly verdict: Verdict;
   readonly expected: string;
   readonly actual: string;
+  /**
+   * The bench shape rather than the resolver's, because a blast radius answers
+   * with a set of names and has no single claim to point at.
+   */
+  readonly outcome: BenchOutcome;
+  /** What was put to the graph, which is not always the prose that was asked. */
+  readonly subject: string;
+  readonly predicate: string;
+  readonly via: string | null;
+  readonly explanation: string;
+  readonly trace: readonly string[];
+  readonly citations: number;
+  readonly ms: number;
+  readonly queries: number;
 }
+
+/** A case before it has been judged: everything the run itself produced. */
+type Run = Omit<Case, 'question' | 'verdict' | 'expected' | 'actual'>;
 
 const corpus = generateCorpus();
 const client = new HydraClient(loadHydraConfig());
 const cases: Case[] = [];
 
+async function runAsk(question: GoldQuestion): Promise<Run> {
+  const built = buildQuestion(question.subject, question.predicate, parseVia(question.text));
+  const answer = await ask(client, built);
+  return {
+    outcome: answer.resolution.outcome,
+    subject: built.subject,
+    predicate: built.predicate,
+    via: built.via,
+    explanation: answer.resolution.explanation,
+    trace: answer.resolution.trace,
+    citations: answer.evidence.length,
+    ms: answer.ms,
+    queries: answer.queries.length,
+  };
+}
+
+/**
+ * A blast radius asks for a closure rather than a value, so it goes through the
+ * same call the /blast page makes rather than through ask(). The two answers
+ * have different shapes and are flattened here into the one record the report
+ * prints from, which is the only reason this script knows there are two.
+ *
+ * Nothing is recomputed on the way past. The affected set is whatever the walk
+ * reached, serialised by the same function the benchmark compares against, and
+ * the closing line of the traversal's own trace stands in for the paragraph a
+ * resolver would have written.
+ */
+async function runBlast(question: GoldQuestion, name: string): Promise<Run> {
+  const walked = await blastRadius(client, buildPackageName(name));
+  const radius = walked.radius;
+  return {
+    outcome: radius === null
+      ? { type: 'abstain', reason: 'out_of_scope' }
+      : { type: 'answer', text: affectedText(radius) },
+    subject: name,
+    predicate: question.predicate,
+    via: null,
+    explanation: radius === null
+      ? `No answer given, because "${name}" is not a name the graph holds.`
+      : radius.trace[radius.trace.length - 1]!,
+    trace: radius?.trace ?? [],
+    citations: walked.evidence.length,
+    ms: walked.ms,
+    queries: walked.queries.length,
+  };
+}
+
 process.stdout.write(`Running ${corpus.questions.length} gold questions.\n\n`);
 
 for (const question of corpus.questions) {
-  const built = buildQuestion(question.subject, question.predicate, parseVia(question.text));
-  const answer = await ask(client, built);
-  const verdict = judge(question.expected, answer.resolution.outcome);
+  const name = parseBlast(question.text);
+  const run = name === null ? await runAsk(question) : await runBlast(question, name);
+  const verdict = judge(question.expected, run.outcome);
   cases.push({
     question,
-    answer,
+    ...run,
     verdict,
     expected: describeExpected(question),
-    actual: describeOutcome(answer.resolution.outcome),
+    actual: describeOutcome(run.outcome),
   });
   process.stdout.write(
     `${verdict === 'correct' ? 'ok  ' : 'FAIL'}  ${question.id.padEnd(22)}`
-    + `${String(answer.ms).padStart(7)}ms  ${String(answer.queries.length).padStart(2)}q  `
-    + `${verdict === 'correct' ? describeOutcome(answer.resolution.outcome) : `${verdict}: got ${describeOutcome(answer.resolution.outcome)}, wanted ${describeExpected(question)}`}\n`,
+    + `${String(run.ms).padStart(7)}ms  ${String(run.queries).padStart(2)}q  `
+    + `${verdict === 'correct' ? describeOutcome(run.outcome) : `${verdict}: got ${describeOutcome(run.outcome)}, wanted ${describeExpected(question)}`}\n`,
   );
 }
 
 const scored: Scored[] = cases.map((c) => ({
   question: c.question,
-  outcome: c.answer.resolution.outcome,
+  outcome: c.outcome,
   verdict: c.verdict,
 }));
 const metrics = scoreAll(scored);
 
-const latencies = [...cases.map((c) => c.answer.ms)].sort((a, b) => a - b);
-const queries = cases.map((c) => c.answer.queries.length);
+const latencies = [...cases.map((c) => c.ms)].sort((a, b) => a - b);
+const queries = cases.map((c) => c.queries);
 
 const lines: string[] = [];
 const say = (line = ''): void => {
@@ -156,17 +227,17 @@ writeFileSync(
       id: c.question.id,
       kind: c.question.kind,
       text: c.question.text,
-      subject: c.answer.question.subject,
-      predicate: c.answer.question.predicate,
-      via: c.answer.question.via,
+      subject: c.subject,
+      predicate: c.predicate,
+      via: c.via,
       expected: c.expected,
       actual: c.actual,
       verdict: c.verdict,
-      explanation: c.answer.resolution.explanation,
-      trace: c.answer.resolution.trace,
-      citations: c.answer.evidence.length,
-      ms: c.answer.ms,
-      queries: c.answer.queries.length,
+      explanation: c.explanation,
+      trace: c.trace,
+      citations: c.citations,
+      ms: c.ms,
+      queries: c.queries,
     })),
     null,
     2,

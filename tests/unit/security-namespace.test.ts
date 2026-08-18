@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { loadArtifacts } from '../../src/report/load.js';
+import { buildDemo } from '../../src/server/examples.js';
 import { FixedWindow } from '../../src/server/ratelimit.js';
 import { createHandler } from '../../src/server/server.js';
 import type { CorpusFacts, Example } from '../../src/view/home.js';
@@ -42,6 +43,14 @@ import type { NodeIdentity } from '../../src/view/proof.js';
  * inspecting configuration, which is why this drives the real handler over a
  * real socket with a real `HydraClient` behind a fake transport.
  */
+
+/*
+ * The real inventory, not a fixture. It costs under a tenth of a second to
+ * build and it is what the Memory and Health pages render, so a route test
+ * that used a hand written stand in would be testing a page the product never
+ * serves.
+ */
+const INVENTORY = buildDemo().inventory;
 
 const CONFIG: HydraConfig = {
   baseUrl: 'http://127.0.0.1:18443',
@@ -143,6 +152,7 @@ async function start(upstream: () => Response = emptyPage): Promise<Harness> {
     node: NODE,
     examples: [EXAMPLE],
     facts: FACTS,
+    inventory: INVENTORY,
     artifacts: loadArtifacts(),
     limiter: new FixedWindow({ limit: 1_000, windowMs: 1_000, maxKeys: 8 }),
     log: (): void => {},

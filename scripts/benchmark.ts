@@ -24,7 +24,7 @@ import { generateCorpus } from '../src/corpus/index.js';
 import type { ThreadKind } from '../src/corpus/types.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
-import { parseVia } from '../src/retrieval/index.js';
+import { parseBlast, parseVia } from '../src/retrieval/index.js';
 
 /**
  * Lacuna against the retrieval approaches it claims to beat, on one corpus,
@@ -109,6 +109,12 @@ process.stdout.write(
 const relationalPredicates = new Set(
   corpus.questions.filter((q) => parseVia(q.text) !== null).map((q) => q.predicate),
 );
+// A blast radius names no relation to follow, so it does not land in the set
+// above, but the two round baseline searches it one dependency hop at a time and
+// every one of those hops is a query it has to have embedded in advance.
+for (const question of corpus.questions) {
+  if (parseBlast(question.text) !== null) relationalPredicates.add(question.predicate);
+}
 const queryTexts = [...corpus.questions.map((q) => q.text)];
 for (const predicate of relationalPredicates) {
   for (const entity of corpus.entities) {

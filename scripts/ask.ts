@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { describeExpected } from '../src/bench/score.js';
 import { generateCorpus } from '../src/corpus/index.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
@@ -126,11 +127,7 @@ if (positional !== undefined && !positional.startsWith('--')) {
   const question = buildQuestion(gold.subject, gold.predicate, parseVia(gold.text));
   const answer = await ask(client, question);
   show(answer, gold.text);
-  print(
-    `   expected: ${gold.expected.type === 'answer'
-      ? `answer "${gold.expected.text}"`
-      : `abstain ${gold.expected.reason}`} (thread kind: ${gold.kind})`,
-  );
+  print(`   expected: ${describeExpected(gold)} (thread kind: ${gold.kind})`);
   print('');
 } else {
   const subject = flag('subject');

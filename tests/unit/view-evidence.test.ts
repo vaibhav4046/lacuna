@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ABSTENTION_REASONS, explainAbstention } from '../../src/model/abstention.js';
-import { lacuna, tiedWithLacuna } from '../../src/report/bench.js';
+import { closestRivals, lacuna } from '../../src/report/bench.js';
 import { loadArtifacts } from '../../src/report/load.js';
 import { shortCommit } from '../../src/report/provenance.js';
 import {
@@ -108,12 +108,21 @@ describe('the benchmark page', () => {
     expect(lacuna(REPORT)).toBeDefined();
   });
 
-  it('states the tie and names every configuration that matched', () => {
-    const tied = tiedWithLacuna(REPORT);
-    expect(tied.length).toBeGreaterThan(0);
+  it('names every configuration the comparison is drawn against', () => {
+    const ours = lacuna(REPORT)!;
+    const rivals = closestRivals(REPORT);
+    expect(rivals.length).toBeGreaterThan(0);
 
-    expect(ARENA).toContain('Correctness is a tie');
-    for (const system of tied) {
+    // Which sentence the page is allowed to print is decided by the run, not by
+    // whoever last edited the page. A tie says so; a lead names the score it is
+    // ahead of. The earlier version of this test only knew about the tie, and a
+    // corpus that grew turned that into a page with no comparison on it at all.
+    if (rivals[0]!.correct === ours.correct) {
+      expect(ARENA).toContain('Correctness is a tie');
+    } else {
+      expect(ARENA).toContain(`The best of the rest scored ${rivals[0]!.correct}`);
+    }
+    for (const system of rivals) {
       expect(ARENA).toContain(escape(system.label));
     }
   });
@@ -129,21 +138,24 @@ describe('the benchmark page', () => {
     expect(ARENA).toContain('median, and the slowest here');
   });
 
-  it('is entitled to the headline it puts on the tie', () => {
+  it('is entitled to the headline it puts on the result', () => {
     const ours = lacuna(REPORT)!;
+    const rivals = closestRivals(REPORT);
 
-    // "Same answers, less text" is only true if the systems that matched the
-    // answers all carried more text.
-    for (const system of tiedWithLacuna(REPORT)) {
+    // Either headline claims less text, so either headline needs the baselines
+    // it is compared against to have carried more of it.
+    for (const system of rivals) {
       expect(system.meanEstimatedTokens).toBeGreaterThan(ours.meanEstimatedTokens);
     }
-    expect(ARENA).toContain('Same answers, less text');
+    expect(ARENA).toContain(rivals[0]!.correct === ours.correct
+      ? 'Same answers, less text'
+      : 'A better score on less text');
   });
 
   it('computes the context ratio rather than printing a remembered one', () => {
     const ours = lacuna(REPORT)!;
 
-    for (const system of tiedWithLacuna(REPORT)) {
+    for (const system of closestRivals(REPORT)) {
       const ratio = roundMs(system.meanEstimatedTokens / ours.meanEstimatedTokens);
       expect(ARENA).toContain(`${ratio}x`);
     }
@@ -155,16 +167,20 @@ describe('the benchmark page', () => {
     }
   });
 
-  it('keeps the two counts spelled out in its prose true of the run', () => {
+  it('counts its opening paragraph off the run rather than spelling it out', () => {
     const ours = lacuna(REPORT)!;
+    const families = new Set(REPORT.systems.map((system) => system.family)).size;
 
-    // The opening paragraph writes both of these as words, and words do not
-    // interpolate. Nothing else stands between a re-run with a different sweep
-    // and a page that is wrong in its first sentence.
-    expect(ARENA).toContain('Sixty questions');
-    expect(ours.total).toBe(60);
-    expect(ARENA).toContain('fifty one');
-    expect(REPORT.systems.length).toBe(51);
+    // These were words in the page once, "Sixty questions" and "fifty one", and
+    // words do not interpolate: a corpus that grew to sixty-four left the first
+    // sentence of the benchmark false with nothing to catch it. Every figure in
+    // that paragraph is now read out of the report, and the old spellings are
+    // asserted absent so they cannot come back as prose.
+    expect(ARENA).toContain(`${ours.total} questions`);
+    expect(ARENA).toContain(`${families} families of retrieval`);
+    expect(ARENA).toContain(`${REPORT.systems.length} configurations in total`);
+    expect(ARENA).not.toContain('Sixty questions');
+    expect(ARENA).not.toContain('fifty one');
   });
 
   it('prints the seed and the run time it was built from', () => {

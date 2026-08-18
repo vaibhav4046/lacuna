@@ -56,6 +56,36 @@ export const SERVICES: readonly string[] = [
 ];
 
 /**
+ * Shared internal packages. Objects of `depends_on` claims from services, and
+ * both subjects and objects of `depends_on` claims between packages, which is
+ * what gives the dependency graph its transitive depth. A package only ever
+ * depends on a package listed after it, so the graph is acyclic by
+ * construction rather than by luck.
+ */
+export const PACKAGES: readonly string[] = [
+  'wire-format',
+  'clock-skew',
+  'retry-ladder',
+  'token-forge',
+  'span-tape',
+  'cursor-walk',
+  'quota-ring',
+  'hash-fence',
+  'queue-comb',
+  'leaf-cache',
+  'shard-map',
+  'drift-gauge',
+  'pact-check',
+  'byte-sieve',
+  'lock-spine',
+  'warm-start',
+  'null-mask',
+  'tide-buffer',
+  'gate-latch',
+  'moss-index',
+];
+
+/**
  * Suppliers. These are both objects of `vendor` claims and subjects of their
  * own `contact` claims, which is what makes a two hop question possible.
  */

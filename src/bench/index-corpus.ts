@@ -67,5 +67,10 @@ export function buildIndex(corpus: Corpus): CorpusIndex {
     }
   }
 
-  return { messages, subjects };
+  // Taken from the roster rather than inferred from the prose, for the reason
+  // the annotations themselves are taken rather than parsed: the extraction step
+  // is not what is being compared here.
+  const kinds = new Map(corpus.entities.map((entity) => [entity.name, entity.kind]));
+
+  return { messages, subjects, kinds };
 }

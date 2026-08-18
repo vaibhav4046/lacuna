@@ -14,8 +14,11 @@
  * view layer can print any field without a guard.
  *
  * Only the fields a page uses are kept. `cases`, the per question record, is
- * 60 entries for each of 51 systems and none of it is rendered, so it is
- * dropped here rather than carried into a page's memory.
+ * one entry per question for every system in the sweep and none of it is
+ * rendered, so it is dropped here rather than carried into a page's memory.
+ * The counts are deliberately not written down: they are a property of the run
+ * that last wrote the file, and a comment that names them is a comment that
+ * goes stale the next time the corpus grows.
  */
 
 export class ReportError extends Error {
@@ -256,11 +259,19 @@ export function bestPerFamily(report: BenchReport): readonly SystemResult[] {
   return [...best.values()];
 }
 
-/** Every other system that matched the product's score, which may be several. */
-export function tiedWithLacuna(report: BenchReport): readonly SystemResult[] {
-  const ours = lacuna(report);
-  if (ours === undefined) return [];
-  return ranked(report).filter(
-    (system) => system.family !== LACUNA && system.correct === ours.correct,
-  );
+/**
+ * The best any other system managed, which may be several systems at once.
+ *
+ * This used to return only the configurations that matched Lacuna's score, and
+ * that was a function with a run baked into it: when the corpus grew and nothing
+ * matched any more, it returned nothing, and both pages that used it quietly
+ * dropped the comparison rather than reporting a lead. The closest rival exists
+ * in every run. Whether it tied is then a question the caller asks by comparing
+ * the scores, which is a sentence on a page rather than a missing table.
+ */
+export function closestRivals(report: BenchReport): readonly SystemResult[] {
+  const others = ranked(report).filter((system) => system.family !== LACUNA);
+  const best = others[0];
+  if (best === undefined) return [];
+  return others.filter((system) => system.correct === best.correct);
 }

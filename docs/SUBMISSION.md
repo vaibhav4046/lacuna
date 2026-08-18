@@ -64,8 +64,8 @@ it, ask it for a property of something the sessions discussed, and get one of
 two things: a current value with the sentences that stated it, or a refusal that
 carries a reason.
 
-The demo corpus is 72 sessions, 5,268 messages, 118 claims and 66 entities,
-roughly 117,395 tokens of transcript, generated from the seed lacuna-demo-v1 by
+The demo corpus is 72 sessions, 5,246 messages, 174 claims and 86 entities,
+roughly 117,041 tokens of transcript, generated from the seed lacuna-demo-v1 by
 committed code. It is synthetic on purpose: no private conversation is in it,
 and the whole corpus can be rebuilt and checked from one command.
 
@@ -98,9 +98,9 @@ There is deliberately no LLM anywhere in the demo path. The claims are about
 retrieval and abstention, and a generated sentence on top would make every one
 of them harder to check.
 
-816 unit tests across 37 files run with no database. Three contract suites run
+893 unit tests across 39 files run with no database. Four contract suites run
 every query builder against a live HydraDB node and fail loudly if the node is
-absent rather than quietly mocking it. 858 tests in total with a node running.
+absent rather than quietly mocking it. 970 tests in total with a node running.
 ```
 
 ## 5. Deployed project link, if available
@@ -202,7 +202,7 @@ a separate service on loopback and reached over its HTTP query API, in WSL2 on
 Ubuntu 24.04.
 
 Five dev dependencies: typescript, @types/node, tsx to run TypeScript
-directly, vitest for the 858 tests, and @huggingface/transformers.
+directly, vitest for the 970 tests, and @huggingface/transformers.
 That last one is worth explaining, because it is the only model in the
 repository and it belongs to the opposition: the benchmark baselines embed with
 Xenova/all-MiniLM-L6-v2, 384 dimensions, run locally, so the pipelines Lacuna is
@@ -282,12 +282,13 @@ judges must be able to watch without requesting access.
 
 ## What this draft deliberately does not claim
 
-The benchmark result is a tie. Two hand-built hybrid baselines also score 60/60
-across 51 configurations, and [docs/BENCHMARKS.md](BENCHMARKS.md) opens by saying
-so. No field above claims Lacuna wins on correctness. What it claims is what the
-run actually showed: the same score from four graph reads and 15 context tokens,
-against pipelines needing four hand-tuned components and 636 or 1,603 tokens to
-get there.
+The benchmark result is a one-question lead. Lacuna answers 64 of 64 and the
+closest of 51 baseline configurations, `hybrid+2hop@50 +conflict`, answers 63,
+and [docs/BENCHMARKS.md](BENCHMARKS.md) opens by saying so. No field above
+claims that margin as a win on correctness. What it claims is what the run
+actually showed: that score from four graph reads and 18 context tokens, against
+a pipeline needing four hand-tuned components and 1,843 tokens to come one
+question short.
 
 If a judge opens the benchmark document expecting to catch an overclaim in this
 form, the two documents agree. That is worth more than a stronger sentence here.

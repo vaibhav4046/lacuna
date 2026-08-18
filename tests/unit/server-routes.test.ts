@@ -6,6 +6,7 @@ import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { lacuna } from '../../src/report/bench.js';
 import { type Artifacts, loadArtifacts } from '../../src/report/load.js';
+import { buildDemo } from '../../src/server/examples.js';
 import { FixedWindow } from '../../src/server/ratelimit.js';
 import { createHandler, MAX_URL_CHARS } from '../../src/server/server.js';
 import type { CorpusFacts, Example } from '../../src/view/home.js';
@@ -27,6 +28,14 @@ import { RUNNING_STATE, STATE_FACTS, VOICE_STATES } from '../../src/voice/states
  * query, so the answer page in these tests is rendered by the real renderer from
  * a real resolution rather than from a fixture.
  */
+
+/*
+ * The real inventory, not a fixture. It costs under a tenth of a second to
+ * build and it is what the Memory and Health pages render, so a route test
+ * that used a hand written stand in would be testing a page the product never
+ * serves.
+ */
+const INVENTORY = buildDemo().inventory;
 
 const CONFIG: HydraConfig = {
   baseUrl: 'http://127.0.0.1:18443',
@@ -121,6 +130,7 @@ async function start(options: HarnessOptions = {}): Promise<Harness> {
     node: NODE,
     examples: [EXAMPLE],
     facts: FACTS,
+    inventory: INVENTORY,
     artifacts: ARTIFACTS,
     limiter: options.limiter ?? new FixedWindow({ limit: 100, windowMs: 1_000, maxKeys: 8 }),
     log: (line: string): void => {

@@ -47,7 +47,7 @@ export interface AskOptions {
  * on the page and not on the rows, and the epoch is the part that shows which
  * version of the store an answer was read from.
  */
-class QueryRecorder {
+export class QueryRecorder {
   readonly #trips: QueryTrace[] = [];
 
   get trips(): readonly QueryTrace[] {
@@ -73,7 +73,7 @@ class QueryRecorder {
 }
 
 /** One decimal place, which is the resolution a wall clock reading deserves. */
-function round(ms: number): number {
+export function round(ms: number): number {
   return Math.round(ms * 10) / 10;
 }
 

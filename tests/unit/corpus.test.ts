@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SEED, generateCorpus } from '../../src/corpus/index.js';
-import type { ClaimAnnotation, Corpus, GoldQuestion, Message } from '../../src/corpus/index.js';
+import type {
+  ClaimAnnotation,
+  Corpus,
+  EntityKind,
+  GoldQuestion,
+  Message,
+} from '../../src/corpus/index.js';
 import { ABSTENTION_REASONS } from '../../src/model/abstention.js';
 import { OUT_OF_SCOPE_SUBJECTS } from '../../src/corpus/vocab.js';
+import { parseBlast } from '../../src/retrieval/question.js';
 
 /**
  * The corpus is the yardstick every later number is measured against, so these
@@ -397,5 +404,314 @@ describe('unconnected', () => {
 
     expect(hops.size).toBe(1);
     expect([...gaps]).toEqual([...hops]);
+  });
+});
+
+/**
+ * The dependency graph, rebuilt here from the emitted claims and nothing else.
+ *
+ * The generator validates the same properties on its own way out, which is
+ * where a broken corpus should fail: at generation, loudly, before anything is
+ * ingested. These are the second opinion. They read the corpus the way a
+ * consumer reads it, through the public shape, so a validation that quietly
+ * stopped checking something would still be caught here.
+ */
+
+interface Edge {
+  readonly from: string;
+  readonly to: string;
+}
+
+function kindsOf(source: Corpus): ReadonlyMap<string, EntityKind> {
+  return new Map(source.entities.map((entity) => [entity.name, entity.kind]));
+}
+
+/** Every claim that a later claim replaced, and so no longer speaks for the record. */
+function supersededKeys(source: Corpus): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const claim of allClaims(source)) {
+    if (claim.supersedes !== null) {
+      keys.add(claim.supersedes);
+    }
+  }
+  return keys;
+}
+
+function liveDependencies(source: Corpus): readonly Edge[] {
+  const superseded = supersededKeys(source);
+  const edges: Edge[] = [];
+  for (const claim of allClaims(source)) {
+    if (claim.predicate !== 'depends_on' || claim.kind === 'retract') {
+      continue;
+    }
+    if (superseded.has(claim.key) || claim.objectEntity === null) {
+      continue;
+    }
+    edges.push({ from: claim.subject, to: claim.objectEntity });
+  }
+  return edges;
+}
+
+/**
+ * The services a change to `pkg` reaches, walked against the direction of the
+ * edges. Written out here rather than imported so that agreement with the
+ * stored answer means two independent walks agree, which is the only version
+ * of that check worth running.
+ */
+function affectedBy(
+  edges: readonly Edge[],
+  pkg: string,
+  kinds: ReadonlyMap<string, EntityKind>,
+): readonly string[] {
+  const affected = new Set<string>();
+  const seen = new Set<string>([pkg]);
+  const frontier = [pkg];
+  while (frontier.length > 0) {
+    const current = frontier.pop()!;
+    for (const edge of edges) {
+      if (edge.to !== current) {
+        continue;
+      }
+      if (kinds.get(edge.from) === 'service') {
+        affected.add(edge.from);
+      } else if (!seen.has(edge.from)) {
+        seen.add(edge.from);
+        frontier.push(edge.from);
+      }
+    }
+  }
+  return [...affected].sort();
+}
+
+describe('dependency topology', () => {
+  const kinds = kindsOf(corpus);
+  const edges = liveDependencies(corpus);
+
+  it('hangs every dependency off a service or a package, and onto a package', () => {
+    expect(edges.length).toBeGreaterThan(50);
+    for (const edge of edges) {
+      expect(kinds.get(edge.to), `${edge.from} -> ${edge.to}`).toBe('package');
+      expect(['service', 'package'], `${edge.from} -> ${edge.to}`).toContain(kinds.get(edge.from));
+    }
+  });
+
+  it('spreads across enough of the package pool to make a reach non-trivial', () => {
+    // Counted over the packages the edges touch, in either position: a package
+    // nothing depends on and that depends on nothing is not part of the graph.
+    const touched = new Set<string>();
+    for (const edge of edges) {
+      touched.add(edge.to);
+      if (kinds.get(edge.from) === 'package') {
+        touched.add(edge.from);
+      }
+    }
+    expect(touched.size).toBeGreaterThanOrEqual(15);
+  });
+
+  it('has a package chain a service reaches only transitively', () => {
+    // The property the whole blast radius scenario rests on. A service that
+    // depends on a package that depends on another package is affected by a
+    // change it has no direct edge to, and only a walk can find that.
+    const packageEdges = edges.filter((edge) => kinds.get(edge.from) === 'package');
+    const chain = packageEdges.find((edge) =>
+      packageEdges.some((next) => next.from === edge.to),
+    );
+    expect(chain, 'a package that depends on a package with dependencies').toBeDefined();
+
+    const root = must(chain, 'the chain').to;
+    const indirect = affectedBy(edges, root, kinds).filter(
+      (service) => !edges.some((edge) => edge.from === service && edge.to === root),
+    );
+    expect(indirect.length).toBeGreaterThan(0);
+  });
+
+  it('shares at least one package between two services', () => {
+    const dependents = new Map<string, Set<string>>();
+    for (const edge of edges) {
+      if (kinds.get(edge.from) !== 'service') {
+        continue;
+      }
+      const set = dependents.get(edge.to) ?? new Set<string>();
+      set.add(edge.from);
+      dependents.set(edge.to, set);
+    }
+    const shared = [...dependents.values()].filter((set) => set.size >= 2);
+    expect(shared.length).toBeGreaterThan(0);
+  });
+
+  it('revises a dependency without retracting it', () => {
+    // A service that swapped one package for another. The old edge is gone
+    // from the live set and the new one is in it, which is the temporal case
+    // the graph has to get right or the reach comes back stale.
+    const revisions = allClaims(corpus).filter(
+      (claim) => claim.predicate === 'depends_on' && claim.kind === 'revise',
+    );
+    expect(revisions.length).toBeGreaterThan(0);
+
+    for (const revision of revisions) {
+      const replaced = must(revision.supersedes, `what ${revision.key} supersedes`);
+      const old = must(claimsByKey.get(replaced), `the replaced claim ${replaced}`).claim;
+      expect(old.subject).toBe(revision.subject);
+      expect(old.objectEntity).not.toBe(revision.objectEntity);
+
+      expect(edges).toContainEqual({ from: revision.subject, to: revision.objectEntity });
+      expect(edges).not.toContainEqual({ from: old.subject, to: old.objectEntity });
+    }
+  });
+
+  it('leaves no cycle among the packages', () => {
+    // Not a stylistic preference. A cycle would make the reach depend on where
+    // the walk started, and a blast radius that depends on the walk order is
+    // not an answer.
+    const packageEdges = edges.filter((edge) => kinds.get(edge.from) === 'package');
+    for (const start of new Set(packageEdges.map((edge) => edge.from))) {
+      const seen = new Set<string>();
+      const frontier = [start];
+      while (frontier.length > 0) {
+        const current = frontier.pop()!;
+        for (const edge of packageEdges) {
+          if (edge.from !== current) {
+            continue;
+          }
+          expect(edge.to, `cycle through ${start}`).not.toBe(start);
+          if (!seen.has(edge.to)) {
+            seen.add(edge.to);
+            frontier.push(edge.to);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('blast radius questions', () => {
+  const kinds = kindsOf(corpus);
+  const edges = liveDependencies(corpus);
+  const questions = corpus.questions.filter((question) => question.expected.type === 'affected');
+
+  it('asks about several packages', () => {
+    expect(questions.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(questions.map((question) => question.subject)).size).toBe(questions.length);
+    for (const question of questions) {
+      expect(kinds.get(question.subject), question.id).toBe('package');
+    }
+  });
+
+  it('names the package in the sentence, where the parser can read it', () => {
+    // The evaluation dispatches on the sentence rather than on the thread kind,
+    // so a question whose subject cannot be recovered from its own text would
+    // silently fall through to the wrong query path.
+    for (const question of questions) {
+      expect(parseBlast(question.text), question.id).toBe(question.subject);
+    }
+  });
+
+  it('expects a sorted, unique set of real services', () => {
+    for (const question of questions) {
+      if (question.expected.type !== 'affected') {
+        continue;
+      }
+      const services = question.expected.services;
+      expect(services.length, question.id).toBeGreaterThan(0);
+      expect(new Set(services).size, question.id).toBe(services.length);
+      expect([...services], question.id).toEqual([...services].sort());
+      for (const service of services) {
+        expect(kinds.get(service), `${question.id} names ${service}`).toBe('service');
+      }
+    }
+  });
+
+  it('agrees with a walk recomputed from the claims alone', () => {
+    // The one case that would catch a stored answer drifting from the corpus it
+    // is supposed to describe. Nothing here reads the planner's own index.
+    for (const question of questions) {
+      if (question.expected.type !== 'affected') {
+        continue;
+      }
+      expect(affectedBy(edges, question.subject, kinds), question.id).toEqual([
+        ...question.expected.services,
+      ]);
+    }
+  });
+
+  it('reaches at least one service that has no direct edge to the package', () => {
+    // Without this the questions are answerable by a single lookup, and the
+    // graph traversal is decoration.
+    const transitive = questions.filter((question) => {
+      if (question.expected.type !== 'affected') {
+        return false;
+      }
+      return question.expected.services.some(
+        (service) => !edges.some((edge) => edge.from === service && edge.to === question.subject),
+      );
+    });
+    expect(transitive.length).toBeGreaterThan(0);
+  });
+});
+
+describe('a different seed', () => {
+  // Determinism is checked above. This checks the other half: that the seed
+  // moves the shape without moving the properties. A generator that only ever
+  // produces one usable dataset is a fixture with extra steps.
+  const other = generateCorpus('lacuna-demo-v1-alt');
+  const kinds = kindsOf(other);
+  const edges = liveDependencies(other);
+
+  it('produces a different dataset', () => {
+    expect(other.seed).not.toBe(corpus.seed);
+    const asked = new Set(corpus.questions.map((question) => question.text));
+    const moved = other.questions.filter((question) => !asked.has(question.text));
+    expect(moved.length).toBeGreaterThan(0);
+  });
+
+  it('keeps every claim key unique and every supersession pointing at a real claim', () => {
+    const keys = new Set<string>();
+    for (const claim of allClaims(other)) {
+      expect(keys.has(claim.key), claim.key).toBe(false);
+      keys.add(claim.key);
+    }
+    for (const claim of allClaims(other)) {
+      if (claim.supersedes !== null) {
+        expect(keys.has(claim.supersedes), `${claim.key} supersedes ${claim.supersedes}`).toBe(true);
+      }
+    }
+  });
+
+  it('still points every answered question at a claim that is in the transcript', () => {
+    const located = locate(other);
+    for (const question of other.questions) {
+      if (question.expected.type !== 'answer') {
+        continue;
+      }
+      // Not asserted against `question.subject`: a hop question is answered by
+      // a claim about the entity at the far end of the edge, which is the
+      // reason that question shape exists.
+      const found = must(located.get(question.expected.claimKey), `${question.id}'s claim`);
+      expect(found.claim.objectText, question.id).toBe(question.expected.text);
+      expect(found.message.text, question.id).toContain(question.expected.text);
+    }
+  });
+
+  it('still covers every abstention reason', () => {
+    const reasons = new Set(
+      other.questions
+        .filter((question) => question.expected.type === 'abstain')
+        .map((question) => (question.expected.type === 'abstain' ? question.expected.reason : '')),
+    );
+    expect([...reasons].sort()).toEqual([...ABSTENTION_REASONS].sort());
+  });
+
+  it('still builds a dependency graph the blast questions can be recomputed from', () => {
+    const questions = other.questions.filter((question) => question.expected.type === 'affected');
+    expect(questions.length).toBeGreaterThan(0);
+    for (const question of questions) {
+      if (question.expected.type !== 'affected') {
+        continue;
+      }
+      expect(question.expected.services.length, question.id).toBeGreaterThan(0);
+      expect(affectedBy(edges, question.subject, kinds), question.id).toEqual([
+        ...question.expected.services,
+      ]);
+    }
   });
 });

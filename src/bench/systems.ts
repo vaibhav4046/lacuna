@@ -1,7 +1,15 @@
 import type { GoldQuestion } from '../corpus/types.js';
 import type { HydraClient } from '../hydra/client.js';
-import { ask, buildQuestion, parseVia } from '../retrieval/index.js';
-import { bridgeFrom, read } from './reader.js';
+import {
+  affectedText,
+  ask,
+  blastRadius,
+  buildPackageName,
+  buildQuestion,
+  parseBlast,
+  parseVia,
+} from '../retrieval/index.js';
+import { blastReach, bridgeFrom, read, readBlast } from './reader.js';
 import type { BenchResult, BenchSystem, CorpusIndex, IndexedMessage, ReaderMode, Retriever } from './types.js';
 
 /**
@@ -36,6 +44,15 @@ function charsOf(messages: readonly IndexedMessage[]): number {
   return messages.reduce((total, message) => total + message.text.length, 0);
 }
 
+/** One entry per message, so a second round is not billed twice for an overlap. */
+function dedupe(messages: readonly IndexedMessage[]): IndexedMessage[] {
+  const seen = new Map<number, IndexedMessage>();
+  for (const message of messages) {
+    seen.set(message.ordinal, message);
+  }
+  return [...seen.values()];
+}
+
 /** Retrieve once, read once. What a straightforward pipeline does. */
 export function flatSystem(
   retriever: Retriever,
@@ -49,7 +66,13 @@ export function flatSystem(
     async answer(question: GoldQuestion): Promise<BenchResult> {
       const started = performance.now();
       const retrieved = resolveAll(index, retriever.rank(question, k));
-      const outcome = read({ question, retrieved, mode });
+      // A blast radius asks for a closure rather than a value, so it gets a
+      // reader that walks one. Which questions those are is read off the
+      // sentence, not off the thread kind the corpus filed it under.
+      const root = parseBlast(question.text);
+      const outcome = root === null
+        ? read({ question, retrieved, mode })
+        : readBlast({ root, retrieved, kinds: index.kinds });
       return {
         outcome,
         contextChars: charsOf(retrieved),
@@ -81,6 +104,32 @@ export function twoHopSystem(
     async answer(question: GoldQuestion): Promise<BenchResult> {
       const started = performance.now();
       const first = resolveAll(index, retriever.rank(question, k));
+
+      // A blast radius gets the same courtesy the relational questions get, and
+      // then some: a second round on every name the first round reached, not
+      // just one bridge. That is the strongest thing a flat index can do here,
+      // and it is charged for all of it. What it still cannot do is a third
+      // round, because a two round pipeline is what a two round pipeline is,
+      // and the chains in this corpus are longer than two.
+      const root = parseBlast(question.text);
+      if (root !== null) {
+        const rounds = [first];
+        for (const name of [root, ...blastReach(first, root)]) {
+          const followUp: GoldQuestion = {
+            ...question,
+            subject: name,
+            text: followUpText(question.predicate, name),
+          };
+          rounds.push(resolveAll(index, retriever.rank(followUp, k)));
+        }
+        const union = dedupe(rounds.flat());
+        return {
+          outcome: readBlast({ root, retrieved: union, kinds: index.kinds }),
+          contextChars: charsOf(union),
+          ms: performance.now() - started,
+        };
+      }
+
       const direct = read({ question, retrieved: first, mode });
 
       const via = parseVia(question.text);
@@ -103,13 +152,9 @@ export function twoHopSystem(
       const second = resolveAll(index, retriever.rank(followUp, k));
       const outcome = read({ question, retrieved: second, mode, subject: bridge });
 
-      const seen = new Map<number, IndexedMessage>();
-      for (const message of [...first, ...second]) {
-        seen.set(message.ordinal, message);
-      }
       return {
         outcome,
-        contextChars: charsOf([...seen.values()]),
+        contextChars: charsOf(dedupe([...first, ...second])),
         ms: performance.now() - started,
       };
     },
@@ -122,6 +167,23 @@ export function lacunaSystem(client: HydraClient): BenchSystem {
     description: 'graph traversal over HydraDB, with the ordered decision procedure',
     async answer(question: GoldQuestion): Promise<BenchResult> {
       const started = performance.now();
+
+      // The same call the /blast page makes, against the same graph. Nothing
+      // about the benchmark reaches into the traversal, and the traversal does
+      // not know it is being scored.
+      const name = parseBlast(question.text);
+      if (name !== null) {
+        const walked = await blastRadius(client, buildPackageName(name));
+        const cited = walked.evidence.reduce((total, record) => total + record.quote.length, 0);
+        return {
+          outcome: walked.radius === null
+            ? { type: 'abstain', reason: 'out_of_scope' }
+            : { type: 'answer', text: affectedText(walked.radius) },
+          contextChars: cited,
+          ms: performance.now() - started,
+        };
+      }
+
       const built = buildQuestion(question.subject, question.predicate, parseVia(question.text));
       const answer = await ask(client, built);
 

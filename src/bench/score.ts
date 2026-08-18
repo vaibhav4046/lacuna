@@ -39,14 +39,22 @@ export function judge(expected: ExpectedAnswer, actual: BenchOutcome): Verdict {
     if (actual.type === 'abstain') return 'missed_answer';
     return actual.text === expected.text ? 'correct' : 'wrong_answer_text';
   }
+  if (expected.type === 'affected') {
+    // The canonical form of a blast radius is the affected service names,
+    // sorted, joined with ", ". Every system serialises its computed set the
+    // same way, so this compares sets, not phrasing.
+    if (actual.type === 'abstain') return 'missed_answer';
+    return actual.text === expected.services.join(', ') ? 'correct' : 'wrong_answer_text';
+  }
   if (actual.type === 'answer') return 'false_answer';
   return actual.reason === expected.reason ? 'correct' : 'wrong_reason';
 }
 
 export function describeExpected(question: GoldQuestion): string {
-  return question.expected.type === 'answer'
-    ? `answer "${question.expected.text}"`
-    : `abstain ${question.expected.reason}`;
+  const { expected } = question;
+  if (expected.type === 'answer') return `answer "${expected.text}"`;
+  if (expected.type === 'affected') return `affected [${expected.services.join(', ')}]`;
+  return `abstain ${expected.reason}`;
 }
 
 export function describeOutcome(outcome: BenchOutcome): string {
@@ -101,7 +109,7 @@ export function scoreAll(scored: readonly Scored[]): Metrics {
   const truePositive = shouldAbstain.filter((item) => item.outcome.type === 'abstain').length;
   const falseNegative = shouldAbstain.length - truePositive;
   const falsePositive = scored.filter(
-    (item) => item.question.expected.type === 'answer' && item.outcome.type === 'abstain',
+    (item) => item.question.expected.type !== 'abstain' && item.outcome.type === 'abstain',
   ).length;
 
   const precision =

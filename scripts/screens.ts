@@ -57,6 +57,13 @@ const SHOTS: readonly Shot[] = [
   },
   { file: 'bench-1920x1080.png', url: '/bench', width: 1_920, height: 1_080, prefers: 'dark', whole: false },
   { file: 'bench-fullpage.png', url: '/bench', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
+  { file: 'memory-1920x1080.png', url: '/memory', width: 1_920, height: 1_080, prefers: 'dark', whole: false },
+  {
+    file: 'memory-contradicted-fullpage.png',
+    url: '/memory?filter=contradicted',
+    width: 1_920, height: 1_080, prefers: 'dark', whole: true,
+  },
+  { file: 'health-fullpage.png', url: '/health', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
   { file: 'hydradb-fullpage.png', url: '/hydradb', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
   { file: 'interface-fullpage.png', url: '/interface', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
   { file: 'voice-fullpage.png', url: '/voice', width: 1_920, height: 1_080, prefers: 'dark', whole: true },
@@ -79,6 +86,11 @@ const SHOTS: readonly Shot[] = [
     file: 'answer-never-stated-1920x1080.png',
     url: '/ask?subject=Meridian&predicate=migration_window',
     width: 1_920, height: 1_080, prefers: 'dark', whole: false,
+  },
+  {
+    file: 'blast-fullpage.png',
+    url: '/blast?package=pact-check',
+    width: 1_920, height: 1_080, prefers: 'dark', whole: true,
   },
 ];
 

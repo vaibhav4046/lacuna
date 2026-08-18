@@ -86,6 +86,7 @@ export const STYLESHEET = `
   --dur-hover:  160ms;
   --dur-press:  100ms;
 
+  --side-w: 13.5rem;
   --rail-w: 11rem;
   --main-w: 76rem;
   --gutter: clamp(1.25rem, 3.5vw, 3.5rem);
@@ -109,7 +110,7 @@ html {
  */
 body {
   margin: 0;
-  padding: 0 var(--edge) 6rem;
+  padding: 0;
   background-color: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
@@ -119,31 +120,173 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---- the ruled sheet ---------------------------------------------------- */
+/* ---- the app shell ------------------------------------------------------ */
 
-.doc {
+/*
+ * Two columns: the rail, which never scrolls away, and everything else. The
+ * design puts the routes down the left and one hairline bar across the top,
+ * and the reason it holds up is that neither of them ever moves, so a reader
+ * two pages deep still knows where they are without looking for it.
+ */
+.app {
+  display: grid;
+  grid-template-columns: var(--side-w) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.side {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.35rem 1.15rem 1.5rem;
+  border-right: 1px solid var(--rule-faint);
+  background-color: var(--paper);
+}
+
+/* The mark and the name, which are also the way home. */
+.side-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0 0.35rem 1.6rem;
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom-color: transparent;
+}
+
+.side-mark svg { flex: none; overflow: visible; }
+.side-mark:hover { color: var(--mark); }
+
+.rail-nav { flex: 1 1 auto; overflow-y: auto; }
+
+.rail-group {
+  margin: 1.15rem 0 0.5rem;
+  padding: 0 0.35rem;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.rail-nav > .rail-group:first-child { margin-top: 0; }
+
+.rail-list { list-style: none; margin: 0; padding: 0; }
+
+/*
+ * The route you are on is marked three ways: the tick in the margin, the ink
+ * going to full white, and aria-current in the markup, which is the one that
+ * carries for a reader who is not looking at the colour.
+ */
+.rail-list a {
+  display: block;
+  position: relative;
+  padding: 0.4rem 0.35rem 0.4rem 0.75rem;
+  font-size: var(--t-small);
+  color: var(--ink-faint);
+  border-bottom-color: transparent;
+  transition: color var(--dur-hover) var(--ease-micro),
+    background-color var(--dur-hover) var(--ease-micro);
+}
+
+.rail-list a::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  width: 2px;
+  background-color: transparent;
+}
+
+.rail-list a:hover { color: var(--ink); background-color: var(--hair); }
+
+.rail-list a[aria-current="page"] {
+  color: var(--ink);
+  background-color: var(--mark-wash);
+}
+
+.rail-list a[aria-current="page"]::before { background-color: var(--mark); }
+
+/* What this workspace is, said plainly at the bottom of the rail rather than
+   implied by an avatar and a name the product does not have. */
+.side-foot {
+  padding: 1.5rem 0.35rem 0;
+  border-top: 1px solid var(--rule-faint);
+  font-size: var(--t-micro);
+  line-height: 1.7;
+}
+
+.side-key {
+  margin: 0;
+  font-family: var(--mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.side-val { margin: 0.25rem 0 0; font-family: var(--mono); color: var(--ink-soft); }
+.side-note { margin: 0.5rem 0 0; color: var(--ink-dim); }
+
+.pane { display: flex; flex-direction: column; min-width: 0; }
+
+/*
+ * The bar across the top says two things: which route this is, and where the
+ * page got its figures. Both are the sort of thing a reader checks once and
+ * then stops thinking about, which is why they are small, quiet and always in
+ * the same place.
+ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1.5rem;
+  padding: 0.85rem var(--edge);
+  background-color: var(--paper);
+  border-bottom: 1px solid var(--rule-faint);
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .topbar {
+    background-color: rgba(0, 0, 0, 0.62);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
+  }
+}
+
+.topbar-route { color: var(--ink); }
+.topbar-source { color: var(--ink-dim); }
+
+/*
+ * The sheet is the page itself, and it carries the ruled column structure the
+ * whole product is set on. A panel inside it asks for subgrid, and subgrid
+ * resolves against the immediate parent grid rather than against the nearest
+ * ancestor that happens to have the right columns, so the columns have to be
+ * declared here rather than further out.
+ */
+.sheet {
   display: grid;
   grid-template-columns: [rail] var(--rail-w) [main] minmax(0, var(--main-w)) [end];
   column-gap: var(--gutter);
+  align-content: start;
+  width: 100%;
   max-width: calc(var(--rail-w) + var(--main-w) + 3.5rem);
   margin: 0 auto;
-}
-
-.doc > * { grid-column: main; }
-.doc > .full { grid-column: rail / end; }
-
-/*
- * The sheet is everything between the bar and the footer, and it has to span
- * the document and declare the same columns again. A panel inside it asks for
- * subgrid, and subgrid resolves against the immediate parent grid rather than
- * against the nearest ancestor that happens to have the right columns. Without
- * this rule every panel loses its margin and the labels fall into the measure.
- */
-.sheet {
-  grid-column: rail / end;
-  display: grid;
-  grid-template-columns: subgrid;
-  align-content: start;
+  padding: 0 var(--edge) 5rem;
 }
 
 .sheet > * { grid-column: main; }
@@ -214,71 +357,39 @@ body {
   background-repeat: no-repeat;
 }
 
+/*
+ * Below this width the margin column has nowhere to go, and below the second
+ * the rail stops being a column at all: it lies down across the top, which is
+ * what a phone has room for, and the routes wrap as a strip.
+ */
 @media (max-width: 62rem) {
   :root { --rail-w: 0px; }
-  .doc, .sheet, .panel { column-gap: 0; }
+  .sheet, .panel { column-gap: 0; }
   .panel { background-image: none; }
   .rail { grid-column: main; justify-self: start; text-align: left; padding-top: 0; }
   .sep { background-image: linear-gradient(90deg, var(--mark) 0 1.5rem, transparent 1.5rem); }
 }
 
-/* ---- the page bar ------------------------------------------------------- */
+@media (max-width: 52rem) {
+  .app { grid-template-columns: minmax(0, 1fr); }
 
-/*
- * Few enough pages that they all fit on one line, and a judge with four
- * minutes should never have to scroll to learn the rest of them exist.
- *
- * The solid version is the fallback, because a translucent bar over content
- * that is not blurred is unreadable. Where the browser can blur what passes
- * under it, it does, and the bar becomes a piece of glass with a hairline
- * under it instead of a block sitting on the page.
- */
-.bar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-  padding: 0.9rem 0 0.85rem;
-  background-color: var(--paper);
-  border-bottom: 1px solid var(--rule-faint);
-}
-
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .bar {
-    background-color: rgba(0, 0, 0, 0.62);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
-    backdrop-filter: blur(16px) saturate(150%);
+  .side {
+    position: static;
+    height: auto;
+    padding: 1rem var(--edge) 1.1rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule-faint);
   }
+
+  .side-mark { padding-bottom: 0.9rem; }
+  .rail-nav { display: flex; flex-wrap: wrap; gap: 0 1.25rem; }
+  .rail-group { display: none; }
+  .rail-list { display: flex; flex-wrap: wrap; gap: 0 0.35rem; }
+  .rail-list a { padding-left: 0.6rem; }
+  .side-foot { display: none; }
 }
 
-.bar-mark {
-  font-family: var(--sans);
-  font-size: var(--t-small);
-  font-weight: 500;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: var(--ink);
-  border-bottom-color: transparent;
-}
-
-/* The mark itself, drawn in CSS so the markup carries no decoration. */
-.bar-mark::after {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 0.45rem;
-  background: var(--spark);
-  vertical-align: 0.06em;
-}
-
-.bar-mark:hover { color: var(--mark); }
-
-.tabs, .ways {
+.ways {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 1.4rem;
@@ -288,20 +399,20 @@ body {
   text-transform: uppercase;
 }
 
-.tabs a, .ways a {
+.ways a {
   color: var(--ink-faint);
   border-bottom: 1px solid transparent;
   padding-bottom: 0.25rem;
   transition: color var(--dur-hover) var(--ease-micro), border-color var(--dur-hover) var(--ease-micro);
 }
 
-.tabs a:hover, .ways a:hover { color: var(--ink); border-bottom-color: var(--rule-strong); }
+.ways a:hover { color: var(--ink); border-bottom-color: var(--rule-strong); }
 
-/* At phone width the five tabs are one character too wide for one line, which
+/* At phone width the routes are one character too wide for one line, which
    orphans the last onto a row of its own. Tighter tracking and gap keep the
    nav whole rather than dropping a page from it. */
 @media (max-width: 40rem) {
-  .tabs { gap: 0.35rem 0.85rem; letter-spacing: 0.06em; }
+  .ways { gap: 0.35rem 0.85rem; letter-spacing: 0.06em; }
 }
 
 /*
@@ -309,7 +420,7 @@ body {
  * colour on its own is not an answer for a reader who cannot see this one. The
  * markup says it a third time in aria-current, which is the copy that carries.
  */
-.tabs a[aria-current="page"], .ways a[aria-current="page"] {
+.ways a[aria-current="page"] {
   color: var(--ink);
   border-bottom-color: var(--mark);
 }
@@ -820,6 +931,8 @@ tr:hover td { background: rgba(255, 255, 255, 0.035); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.mono { font-family: var(--mono); color: var(--ink-faint); white-space: nowrap; }
 td.value { font-size: 1rem; color: var(--ink); }
+td.mark-cell { width: 1.75rem; padding-right: 0; }
+td.mark-cell.past .glyph { color: var(--ink-dim); }
 
 /* A capability or data state, set as a badge because it is a fixed vocabulary
    of five words and not a sentence. */
@@ -1058,14 +1171,15 @@ code {
 /* ---- foot --------------------------------------------------------------- */
 
 .foot {
-  margin-top: clamp(3.5rem, 7vw, 5.5rem);
-  padding-top: 1.35rem;
+  margin-top: auto;
+  padding: 1.35rem var(--edge) 2.5rem;
   border-top: 1px solid var(--rule-faint);
   font-size: var(--t-small);
   line-height: 1.75;
   color: var(--ink-dim);
-  max-width: 74ch;
 }
+
+.foot > * { max-width: 74ch; }
 
 /* Scoped to the prose, so the repeated bar below keeps the link treatment it
    shares with the bar at the top rather than picking up a faint underline on
@@ -1087,7 +1201,6 @@ code {
  */
 @media (prefers-reduced-motion: reduce) {
   a,
-  .tabs a,
   .ways a,
   .states a,
   .strip .cell,
@@ -1134,7 +1247,7 @@ code {
   /* Navigation and a text box are the two things paper cannot do anything
      with. What survives is the evidence, which is the reason to print a page
      here at all. */
-  .skip, .bar, .ask, .foot { display: none; }
+  .skip, .side, .topbar, .ask, .foot { display: none; }
   .panel { break-inside: avoid; }
   .figure, .strip, .tally, .ask { box-shadow: none; }
   .orb-ring.live { filter: none; }

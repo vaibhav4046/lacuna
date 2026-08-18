@@ -1,0 +1,73 @@
+
+> lacuna@0.0.0 snapshot:verify
+> tsx scripts/verify-snapshot.ts
+
+Comparing 64 gold questions, live node versus snapshot (519 recorded replies).
+
+ok    q-stable-01           answer "25 July 2026"
+ok    q-stable-02           answer "Singapore"
+ok    q-stable-03           answer "the weekend of 16 October 2025"
+ok    q-stable-04           answer "Stonecrop"
+ok    q-stable-05           answer "BC-7365"
+ok    q-stable-06           answer "Northfold"
+ok    q-stable-07           answer "the weekend of 28 February 2025"
+ok    q-stable-08           answer "Frankfurt"
+ok    q-stable-09           answer "BC-2337"
+ok    q-stable-10           answer "BC-7665"
+ok    q-stable-11           answer "Mei Lin Chow"
+ok    q-stable-12           answer "14 November 2025"
+ok    q-revised-01          answer "Halverd"
+ok    q-revised-02          answer "Priya Raman"
+ok    q-revised-03          answer "11 December 2025"
+ok    q-revised-04          answer "the weekend of 3 January 2026"
+ok    q-revised-05          answer "Stonecrop"
+ok    q-revised-06          answer "BC-2688"
+ok    q-revised-07          answer "BC-6228"
+ok    q-revised-08          answer "Ironwick"
+ok    q-retracted-01        abstain retracted
+ok    q-retracted-02        abstain retracted
+ok    q-retracted-03        abstain retracted
+ok    q-retracted-04        abstain retracted
+ok    q-retracted-05        abstain retracted
+ok    q-retracted-06        abstain retracted
+ok    q-contradicted-01     abstain contradicted
+ok    q-contradicted-02     abstain contradicted
+ok    q-contradicted-03     abstain contradicted
+ok    q-contradicted-04     abstain contradicted
+ok    q-contradicted-05     abstain contradicted
+ok    q-contradicted-06     abstain contradicted
+ok    q-multi_hop-01        answer "Farah Haddad"
+ok    q-multi_hop-02        answer "Hiroshi Tanabe"
+ok    q-multi_hop-03        answer "Priya Raman"
+ok    q-multi_hop-04        answer "Daniel Okafor"
+ok    q-multi_hop-05        answer "Yara Bekele"
+ok    q-multi_hop-06        answer "Tomas Herrera"
+ok    q-multi_hop-07        answer "Lucas Duarte"
+ok    q-multi_hop-08        answer "Anneke Vos"
+ok    q-unconnected-01      abstain unconnected
+ok    q-unconnected-02      abstain unconnected
+ok    q-unconnected-03      abstain unconnected
+ok    q-unconnected-04      abstain unconnected
+ok    q-unconnected-05      abstain unconnected
+ok    q-unconnected-06      abstain unconnected
+ok    q-never_stated-01     abstain never_stated
+ok    q-never_stated-02     abstain never_stated
+ok    q-never_stated-03     abstain never_stated
+ok    q-never_stated-04     abstain never_stated
+ok    q-never_stated-05     abstain never_stated
+ok    q-never_stated-06     abstain never_stated
+ok    q-never_stated-07     abstain never_stated
+ok    q-never_stated-08     abstain never_stated
+ok    q-out_of_scope-01     abstain out_of_scope
+ok    q-out_of_scope-02     abstain out_of_scope
+ok    q-out_of_scope-03     abstain out_of_scope
+ok    q-out_of_scope-04     abstain out_of_scope
+ok    q-out_of_scope-05     abstain out_of_scope
+ok    q-out_of_scope-06     abstain out_of_scope
+ok    q-blast_radius-01     answer "audit-sink, billing-gate, dead-letter-sweeper, export-runner, ingest-worker, ledger-api, media-thumbs, notify-relay, quota-broker, replay-queue, session-mint, tenant-router, trace-collector"
+ok    q-blast_radius-02     answer "ingest-worker, ledger-api"
+ok    q-blast_radius-03     answer "ingest-worker, ledger-api, media-thumbs"
+ok    q-blast_radius-04     answer "billing-gate, export-runner, tenant-router"
+
+64 questions, 0 answer mismatches, 0 wrong verdicts on replay.
+SNAPSHOT_VERIFY_EXIT=0

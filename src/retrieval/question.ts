@@ -23,6 +23,13 @@ export const MAX_TERM_CHARS = 200;
  */
 const VIA_PATTERN = /\bfor the ([a-z][a-z0-9_]*) behind\b/i;
 
+/**
+ * "If <package> changes, which services are affected?" is a request for a
+ * closure rather than a value. Anchored at both ends so a sentence that merely
+ * mentions a change cannot be mistaken for one.
+ */
+const BLAST_PATTERN = /^if (.+?) changes, which services are affected\?$/i;
+
 const SPACE = 0x20;
 const DELETE = 0x7f;
 const LAST_C1 = 0x9f;
@@ -72,8 +79,35 @@ export function buildQuestion(
   };
 }
 
+/**
+ * The same guard, for the one input that is not a question.
+ *
+ * A blast radius takes a package name and nothing else. The name still has to
+ * clear the cap and the control character check before it reaches the graph,
+ * and it has to fail as a rejected input rather than as a transport error: the
+ * guard inside the query builder throws a `HydraGuardError`, which this server
+ * reports as the graph being unreachable. It is not. It is a bad name.
+ */
+export function buildPackageName(name: string): string {
+  return assertTerm(name, 'package name');
+}
+
 /** The relation the question asks to follow, or null when it asks directly. */
 export function parseVia(text: string): string | null {
   const found = VIA_PATTERN.exec(text);
   return found === null ? null : found[1]!.toLowerCase();
+}
+
+/**
+ * The package a blast radius question names, or null when it is not one.
+ *
+ * Read off the sentence for the same reason `parseVia` is: a system under
+ * comparison must not be allowed to look at the label the corpus filed the
+ * question under. A thread kind is scoring metadata. A sentence is the input.
+ * If a baseline is going to lose this comparison it should lose it on how far
+ * it can reach, not on being told in advance which questions it may not win.
+ */
+export function parseBlast(text: string): string | null {
+  const found = BLAST_PATTERN.exec(text.trim());
+  return found === null ? null : found[1]!;
 }

@@ -1,6 +1,6 @@
 import type { Rng } from './rng.js';
 import type { PredicateName } from './types.js';
-import { MONTHS, PEOPLE, REGIONS, STATUSES, VENDORS } from './vocab.js';
+import { MONTHS, PACKAGES, PEOPLE, REGIONS, STATUSES, VENDORS } from './vocab.js';
 
 /**
  * How each predicate is asked, asserted, corrected and withdrawn.
@@ -144,7 +144,25 @@ const SPECS: Readonly<Record<PredicateName, PredicateSpec>> = {
     retract: (s) => `${s} has no data region policy any more.`,
     value: (rng) => plain(rng.pick(REGIONS)),
   },
+  depends_on: {
+    name: 'depends_on',
+    ask: (s) => `What does ${s} depend on?`,
+    assert: (s, v) => `${s} depends on ${v}.`,
+    revise: (s, v) => `Correction on ${s}: it depends on ${v} now.`,
+    retract: (s) => `We removed the dependency from ${s} and put nothing in its place.`,
+    value: (rng) => entity(rng.pick(PACKAGES)),
+  },
 };
+
+/**
+ * Predicates where several live assertions coexist by design: a service that
+ * depends on three packages holds three true claims, not one contradiction.
+ * Ingestion consults this set before drawing CONTRADICTS edges, and resolution
+ * consults it before abstaining over multiple live values.
+ */
+export const MULTI_VALUED_PREDICATES: ReadonlySet<string> = new Set<PredicateName>([
+  'depends_on',
+]);
 
 export function predicateSpec(name: PredicateName): PredicateSpec {
   return SPECS[name];

@@ -34,7 +34,7 @@ and every on-screen string below was verified against the running server on
 | Shot | Page | Confirm before moving on |
 |---|---|---|
 | 1 | `/` top | "Memory that knows what changed, what remains true, and what was never known." |
-| 2 | `/` at `03 Corpus` | 72 sessions · 5,268 messages · 118 claims · 66 entities · 117,395 estimated tokens |
+| 2 | `/` at `03 Corpus` | 72 sessions · 5,246 messages · 174 claims · 86 entities · 117,041 estimated tokens |
 | 3 | Bellwether answer | **Halverd**, then "This replaced 2 earlier values and nothing has superseded it." |
 | 4 | same page, `04 Proof` | Four reads, Cypher printed whole, version and pinned commit at the bottom |
 | 5 | Meridian answer | **Never stated.**, then NOTHING WAS EVER STATED HERE, then NO PATH TO ANY STATEMENT |

@@ -1,6 +1,6 @@
 {
   "url": "https://lacuna-five.vercel.app",
-  "commit": "58f8037",
+  "commit": "live",
   "deployedAt": "2026-08-18T22:27:00Z",
   "verified": {
     "root": 200,
@@ -14,12 +14,12 @@
     "consoleErrors": 0,
     "scenes": 28,
     "canvasLitSamples": 262,
-    "background": "rgb(0, 0, 0)"
+    "background": "rgb(0, 0, 0)",
+    "apiHealth": "ok true, 4 of 4 checks pass, api.hydradb.com answered in 206ms"
   },
   "honestLimits": [
-    "No HydraDB is reachable from a Vercel function, so health reports no node and the workspace reads answer from the recorded corpus inventory.",
-    "The filesystem is read-only, so the account store reports unavailable and sign up answers 503.",
-    "The full signed-in product with live HydraDB runs locally against the node in WSL."
+    "Health is a real round trip to HydraDB Cloud. The answer engine still reads the self-hosted node, so Ask on the deployed URL does not yet run against the cloud.",
+    "The filesystem is read-only, so the account store reports unavailable and sign up answers 503. Accounts are durable only on a run with a writable directory."
   ],
   "rollbackTag": "rollback-pre-v6-react-cutover"
 }

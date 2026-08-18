@@ -85,7 +85,7 @@ export function renderExplain(answer: Answer, palette: Palette): string {
       ...columns(
         answer.queries.map((trip, at) => [
           `${at + 1}.`,
-          truncate(trip.cypher, CYPHER_WIDTH),
+          truncate(trip.cypher ?? trip.request, CYPHER_WIDTH),
           `${trip.rows} ${trip.rows === 1 ? 'row' : 'rows'}`,
           `${trip.ms}ms`,
           trip.readEpoch === null ? 'no epoch' : `epoch ${trip.readEpoch}`,

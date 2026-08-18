@@ -135,15 +135,15 @@ function comparable(answer: AskCore): string {
   // The sweep caught fifteen questions doing exactly that. Parameters break the
   // tie so the comparison is over the set of reads, as the doc above promises.
   out['queryShape'] = answer.queries
-    .map((query) => ({ cypher: query.cypher, parameters: query.parameters, rows: query.rows }))
-    .sort((left, right) => left.cypher.localeCompare(right.cypher)
+    .map((query) => ({ read: query.request, parameters: query.parameters, rows: query.rows }))
+    .sort((left, right) => left.read.localeCompare(right.read)
       || JSON.stringify(left.parameters).localeCompare(JSON.stringify(right.parameters)));
   return JSON.stringify(out, null, 2);
 }
 
 /** The trace order, short enough to read on one line. */
 function readOrder(answer: AskCore): string {
-  return answer.queries.map((query) => query.cypher.slice(6, 26)).join(' | ');
+  return answer.queries.map((query) => query.request.slice(6, 26)).join(' | ');
 }
 
 interface StdioSession {

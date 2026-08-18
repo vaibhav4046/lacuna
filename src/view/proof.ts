@@ -118,7 +118,7 @@ function read(trace: QueryTrace, index: number): Html {
 <span>${ms(trace.ms)}</span>
 <span>${trace.readEpoch === null ? 'no epoch reported' : `epoch ${trace.readEpoch}`}</span>
 </p>
-<pre>${trace.cypher}</pre>
+<pre>${trace.cypher ?? trace.request}</pre>
 ${parameters(trace.parameters)}
 </div>`;
 }

@@ -127,7 +127,14 @@ export interface EvidenceRecord {
  * transport rather than in a query. See DECISIONS.md D-042.
  */
 export interface QueryTrace {
-  readonly cypher: string;
+  /**
+   * The Cypher issued, when the store speaks Cypher. Null for HydraDB Cloud,
+   * which is a REST application API: a field named `cypher` holding an HTTP
+   * request would be the kind of small lie this product exists to refuse.
+   */
+  readonly cypher: string | null;
+  /** The read as issued, whichever store answered. Always present. */
+  readonly request: string;
   readonly parameters: Readonly<Record<string, unknown>>;
   readonly rows: number;
   readonly ms: number;

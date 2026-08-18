@@ -6,6 +6,7 @@ import { ApiRouter } from '../src/api/router.js';
 import { AccountStore } from '../src/auth/store.js';
 import { runDoctor } from '../src/cli/doctor.js';
 import { doctorPayload } from '../src/cli/json.js';
+import { NodeSource } from '../src/hydra/node-source.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
 import { loadArtifacts } from '../src/report/load.js';
@@ -80,7 +81,7 @@ const server = createServer(createHandler({
     secure: process.env['LACUNA_SECURE_COOKIES'] === '1',
     health,
     // The same client and the same corpus the pages use. One core.
-    client: new HydraClient(config),
+    source: new NodeSource(new HydraClient(config)),
     inventory: demo.inventory,
   }),
 }));

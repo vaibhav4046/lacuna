@@ -24,6 +24,7 @@ import { describeExpected, describeOutcome, judge } from '../src/bench/score.js'
 import type { BenchOutcome } from '../src/bench/types.js';
 import { generateCorpus } from '../src/corpus/index.js';
 import type { GoldQuestion } from '../src/corpus/types.js';
+import { NodeSource } from '../src/hydra/node-source.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig, type HydraConfig } from '../src/hydra/config.js';
 import {
@@ -46,7 +47,7 @@ if (!existsSync(ENV_PATH)) {
 process.loadEnvFile(ENV_PATH);
 
 const corpus = generateCorpus();
-const live = new HydraClient(loadHydraConfig());
+const live = new NodeSource(new HydraClient(loadHydraConfig()));
 
 const snapshot = loadSnapshot();
 const replayConfig: HydraConfig = {
@@ -58,7 +59,7 @@ const replayConfig: HydraConfig = {
   cell: snapshot.node.cell,
   token: 'snapshot-replay-unused',
 };
-const replay = new HydraClient(replayConfig, { fetch: snapshotTransport(snapshot) });
+const replay = new NodeSource(new HydraClient(replayConfig, { fetch: snapshotTransport(snapshot) }));
 
 process.stdout.write(
   `Comparing ${corpus.questions.length} gold questions, live node versus `

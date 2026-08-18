@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { generateCorpus } from '../../src/corpus/index.js';
 import type { GoldQuestion } from '../../src/corpus/types.js';
+import { NodeSource } from '../../src/hydra/node-source.js';
 import { HydraClient } from '../../src/hydra/client.js';
 import { loadHydraConfig } from '../../src/hydra/config.js';
 import {
@@ -63,6 +64,7 @@ const BLAST_TIMEOUT_MS = 60_000;
 
 const corpus = generateCorpus();
 let client: HydraClient;
+let source: NodeSource;
 
 function gold(id: string): GoldQuestion {
   const found = corpus.questions.find((question) => question.id === id);
@@ -73,7 +75,7 @@ function gold(id: string): GoldQuestion {
 }
 
 function askGold(question: GoldQuestion) {
-  return ask(client, buildQuestion(question.subject, question.predicate, parseVia(question.text)));
+  return ask(source, buildQuestion(question.subject, question.predicate, parseVia(question.text)));
 }
 
 /** A blast question with its expected services narrowed out of the union. */
@@ -94,6 +96,7 @@ beforeAll(async () => {
   }
   process.loadEnvFile(ENV_PATH);
   client = new HydraClient(loadHydraConfig());
+  source = new NodeSource(client);
 
   // Reaching an empty store would turn every abstention case green for the
   // wrong reason: out_of_scope is exactly what an empty graph returns.
@@ -221,7 +224,7 @@ describe('retrieval against the live graph', () => {
 describe('cost and guards on the live node', () => {
   it('spends one query on a name the graph does not hold', async () => {
     const { queries, resolution } = await ask(
-      client,
+      source,
       buildQuestion('Redshank', 'launch_date'),
     );
 
@@ -232,7 +235,7 @@ describe('cost and guards on the live node', () => {
   it('records the statement it ran, not just that it ran one', async () => {
     // The proof screen renders these. If they were ever a summary rather than
     // the statement issued, the screen would be a drawing of a query.
-    const { queries } = await ask(client, buildQuestion('Redshank', 'launch_date'));
+    const { queries } = await ask(source, buildQuestion('Redshank', 'launch_date'));
     const trip = queries[0]!;
 
     expect(trip.cypher).toBe(entityByName('Redshank').cypher);
@@ -265,7 +268,7 @@ describe('cost and guards on the live node', () => {
     // If the builder interpolated, this would either error or return rows. It
     // returns an ordinary out of scope, because the name is a parameter.
     const { resolution } = await ask(
-      client,
+      source,
       buildQuestion("Meridian'}) RETURN 1 //", 'launch_date'),
     );
 
@@ -290,7 +293,7 @@ describe('cost and guards on the live node', () => {
 
   it('honours a timeout that is too small to complete', async () => {
     await expect(
-      ask(client, buildQuestion('Meridian', 'launch_date'), { timeoutMs: 1 }),
+      ask(source, buildQuestion('Meridian', 'launch_date'), { timeoutMs: 1 }),
     ).rejects.toThrow();
   });
 });
@@ -316,7 +319,7 @@ describe('blast radius against the live graph', () => {
     }
     expect(named).toBe(question.subject);
 
-    const answer = await blastRadius(client, buildPackageName(named));
+    const answer = await blastRadius(source, buildPackageName(named));
 
     expect(answer.radius).not.toBeNull();
     expect(affectedText(answer.radius!)).toBe(services.join(', '));
@@ -327,7 +330,7 @@ describe('blast radius against the live graph', () => {
     // arriving at depth two was never named alongside this package in any
     // conversation; the walk found it by way of a package that was.
     const { question } = affectedGold('q-blast_radius-01');
-    const answer = await blastRadius(client, buildPackageName(question.subject));
+    const answer = await blastRadius(source, buildPackageName(question.subject));
     const radius = answer.radius!;
 
     const transitive = radius.affected.filter((service) => service.depth > 1);
@@ -349,7 +352,7 @@ describe('blast radius against the live graph', () => {
   it('quotes a conversation for every hop on every path', async () => {
     // A radius that cannot show the sentence behind each hop is a diagram.
     const { question } = affectedGold('q-blast_radius-03');
-    const answer = await blastRadius(client, buildPackageName(question.subject));
+    const answer = await blastRadius(source, buildPackageName(question.subject));
     const quoted = new Map(answer.evidence.map((span) => [span.claimId, span]));
     const steps = answer.radius!.affected.flatMap((service) => service.path);
 
@@ -361,7 +364,7 @@ describe('blast radius against the live graph', () => {
   }, BLAST_TIMEOUT_MS);
 
   it('spends one query on a package the graph does not hold', async () => {
-    const answer = await blastRadius(client, buildPackageName('nightjar-spindle'));
+    const answer = await blastRadius(source, buildPackageName('nightjar-spindle'));
 
     expect(answer.root).toBeNull();
     expect(answer.radius).toBeNull();
@@ -370,7 +373,7 @@ describe('blast radius against the live graph', () => {
   });
 
   it('treats a package name carrying Cypher as a name', async () => {
-    const answer = await blastRadius(client, buildPackageName("wire-format'}) RETURN 1 //"));
+    const answer = await blastRadius(source, buildPackageName("wire-format'}) RETURN 1 //"));
 
     expect(answer.root).toBeNull();
   });

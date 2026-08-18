@@ -17,7 +17,7 @@ import { AccountStore, SESSION_TTL_MS, StoreUnavailable, mintToken } from '../au
 import { FixedWindow } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './workspace.js';
 import type { WorkspaceView } from './workspace.js';
-import type { HydraClient } from '../hydra/client.js';
+import type { HydraSource } from '../hydra/source.js';
 import type { Inventory } from '../report/inventory.js';
 import { headerModel, modelRows } from '../provider/registry.js';
 
@@ -53,7 +53,7 @@ export interface ApiOptions {
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
   readonly health: (() => Promise<unknown>) | null;
   /** The context store. Absent on a deployment that serves a snapshot. */
-  readonly client?: HydraClient;
+  readonly source?: HydraSource;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   readonly now?: () => number;
@@ -98,7 +98,7 @@ export class ApiRouter {
   readonly #store: AccountStore;
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
-  readonly #client: HydraClient | undefined;
+  readonly #source: HydraSource | undefined;
   readonly #inventory: Inventory | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
@@ -108,7 +108,7 @@ export class ApiRouter {
     this.#store = options.store;
     this.#secure = options.secure;
     this.#health = options.health;
-    this.#client = options.client;
+    this.#source = options.source;
     this.#inventory = options.inventory;
     this.#now = options.now ?? (() => Date.now());
   }
@@ -274,8 +274,8 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      const client = this.#client;
-      if (client === undefined) {
+      const source = this.#source;
+      if (source === undefined) {
         send(response, 200, {
           status: 'SYSTEM_ERROR', answer: null, evidence: [], revisions: [], conflicts: [],
           abstain_reason: 'no context store is configured', context_pack_id: null,
@@ -298,7 +298,7 @@ export class ApiRouter {
         return HANDLED;
       }
       send(response, 200, await askEnvelope(
-        client, subject, predicate, typeof via === 'string' && via !== '' ? via : null, ASK_TIMEOUT_MS,
+        source, subject, predicate, typeof via === 'string' && via !== '' ? via : null, ASK_TIMEOUT_MS,
       ));
       return HANDLED;
     }

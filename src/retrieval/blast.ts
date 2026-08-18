@@ -1,13 +1,6 @@
-import type { HydraClient } from '../hydra/client.js';
-import {
-  decodeDependents,
-  decodeEntity,
-  decodeEvidence,
-  type DependentEdge,
-  type EntityHead,
-} from './decode.js';
+import type { HydraSource } from '../hydra/source.js';
+import type { DependentEdge, EntityHead } from './decode.js';
 import { DEFAULT_QUERY_TIMEOUT_MS, QueryRecorder, round, type AskOptions } from './fetch.js';
-import { dependentsOf, entityByName, evidenceForClaim } from './queries.js';
 import type { EvidenceRecord, QueryTrace } from './types.js';
 
 /**
@@ -211,7 +204,7 @@ export function affectedText(radius: BlastRadius): string {
  * an answer.
  */
 export async function blastRadius(
-  client: HydraClient,
+  source: HydraSource,
   packageName: string,
   options: AskOptions = {},
 ): Promise<BlastAnswer> {
@@ -219,7 +212,7 @@ export async function blastRadius(
   const counter = new QueryRecorder();
   const started = performance.now();
 
-  const root = decodeEntity(await counter.run(client, entityByName(packageName), timeoutMs));
+  const root = counter.take(await source.entity(packageName, timeoutMs));
   if (root === null) {
     return {
       packageName,
@@ -235,14 +228,12 @@ export async function blastRadius(
   const seen = new Set<number>([root.id]);
   let frontier: readonly number[] = [root.id];
   for (let depth = 1; depth <= MAX_BLAST_DEPTH && frontier.length > 0; depth += 1) {
-    const fetched = await Promise.all(
-      frontier.map(async (id) => {
-        const rows = await counter.run(client, dependentsOf(id), timeoutMs);
-        return [id, decodeDependents(rows)] as const;
-      }),
+    const reads = await Promise.all(
+      frontier.map(async (id) => [id, await source.dependents(id, timeoutMs)] as const),
     );
     const next: number[] = [];
-    for (const [id, edges] of fetched) {
+    for (const [id, read] of reads) {
+      const edges = counter.take(read);
       adjacency.set(id, edges);
       for (const edge of liveDependencyEdges(edges)) {
         if (!seen.has(edge.entityId)) {
@@ -259,18 +250,15 @@ export async function blastRadius(
   const cited = [...new Set(
     radius.affected.flatMap((service) => service.path.map((step) => step.claimId)),
   )];
-  const fetched = await Promise.all(
-    cited.map(async (claimId) => decodeEvidence(
-      claimId,
-      await counter.run(client, evidenceForClaim(claimId), timeoutMs),
-    )),
+  const reads = await Promise.all(
+    cited.map(async (claimId) => source.evidence(claimId, timeoutMs)),
   );
 
   return {
     packageName,
     root,
     radius,
-    evidence: fetched.flat(),
+    evidence: reads.flatMap((read) => counter.take(read)),
     queries: counter.trips,
     ms: round(performance.now() - started),
   };

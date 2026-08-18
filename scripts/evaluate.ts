@@ -6,6 +6,7 @@ import type { Scored, Verdict } from '../src/bench/score.js';
 import type { BenchOutcome } from '../src/bench/types.js';
 import { generateCorpus } from '../src/corpus/index.js';
 import type { GoldQuestion } from '../src/corpus/types.js';
+import { NodeSource } from '../src/hydra/node-source.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
 import {
@@ -75,11 +76,12 @@ type Run = Omit<Case, 'question' | 'verdict' | 'expected' | 'actual'>;
 
 const corpus = generateCorpus();
 const client = new HydraClient(loadHydraConfig());
+const source = new NodeSource(client);
 const cases: Case[] = [];
 
 async function runAsk(question: GoldQuestion): Promise<Run> {
   const built = buildQuestion(question.subject, question.predicate, parseVia(question.text));
-  const answer = await ask(client, built);
+  const answer = await ask(source, built);
   return {
     outcome: answer.resolution.outcome,
     subject: built.subject,
@@ -105,7 +107,7 @@ async function runAsk(question: GoldQuestion): Promise<Run> {
  * resolver would have written.
  */
 async function runBlast(question: GoldQuestion, name: string): Promise<Run> {
-  const walked = await blastRadius(client, buildPackageName(name));
+  const walked = await blastRadius(source, buildPackageName(name));
   const radius = walked.radius;
   return {
     outcome: radius === null

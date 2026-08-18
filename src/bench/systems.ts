@@ -1,5 +1,6 @@
 import type { GoldQuestion } from '../corpus/types.js';
 import type { HydraClient } from '../hydra/client.js';
+import { NodeSource } from '../hydra/node-source.js';
 import {
   affectedText,
   ask,
@@ -173,7 +174,7 @@ export function lacunaSystem(client: HydraClient): BenchSystem {
       // not know it is being scored.
       const name = parseBlast(question.text);
       if (name !== null) {
-        const walked = await blastRadius(client, buildPackageName(name));
+        const walked = await blastRadius(new NodeSource(client), buildPackageName(name));
         const cited = walked.evidence.reduce((total, record) => total + record.quote.length, 0);
         return {
           outcome: walked.radius === null
@@ -185,7 +186,7 @@ export function lacunaSystem(client: HydraClient): BenchSystem {
       }
 
       const built = buildQuestion(question.subject, question.predicate, parseVia(question.text));
-      const answer = await ask(client, built);
+      const answer = await ask(new NodeSource(client), built);
 
       // What the answering step had in front of it: the quotations it cited and
       // the claims it weighed before deciding.

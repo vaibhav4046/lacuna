@@ -9,6 +9,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import type { HydraClient } from '../hydra/client.js';
+import { NodeSource } from '../hydra/node-source.js';
 import { ask, buildQuestion, RetrievalError, type RetrievalQuestion } from '../retrieval/index.js';
 import { entityByName } from '../retrieval/queries.js';
 
@@ -246,6 +247,7 @@ export async function health(context: ToolContext): Promise<HealthResult> {
       queries: [
         {
           cypher: probe.cypher,
+          request: probe.cypher,
           parameters: probe.parameters,
           rows: page.rows.length,
           ms,
@@ -314,7 +316,7 @@ export async function callTool(
 
   try {
     const answer = await withDeadline(
-      ask(context.client, question, { timeoutMs }),
+      ask(new NodeSource(context.client), question, { timeoutMs }),
       timeoutMs,
       name,
     );

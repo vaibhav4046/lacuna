@@ -1,4 +1,5 @@
 import { HydraClient } from '../hydra/client.js';
+import { NodeSource } from '../hydra/node-source.js';
 import { loadHydraConfig } from '../hydra/config.js';
 import { ask } from '../retrieval/fetch.js';
 import { buildQuestion } from '../retrieval/question.js';
@@ -29,5 +30,5 @@ export async function runQuestion(
   const config = loadHydraConfig(env);
   const client = new HydraClient(config);
   const question = buildQuestion(request.subject, request.predicate, request.via);
-  return ask(client, question, { timeoutMs });
+  return ask(new NodeSource(client), question, { timeoutMs });
 }

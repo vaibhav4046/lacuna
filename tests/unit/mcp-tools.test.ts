@@ -71,6 +71,7 @@ function evidence(over: Partial<EvidenceRecord> = {}): EvidenceRecord {
 function query(over: Partial<QueryTrace> = {}): QueryTrace {
   return {
     cypher: 'MATCH (e:Entity {name: $name}) RETURN e.id',
+    request: 'MATCH (e:Entity {name: $name}) RETURN e.id',
     parameters: { name: 'Bellwether' },
     rows: 1,
     ms: 2.4,

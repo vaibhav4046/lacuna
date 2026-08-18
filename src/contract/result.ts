@@ -59,7 +59,10 @@ export interface EvidenceItem {
 }
 
 export interface QueryItem {
-  readonly cypher: string;
+  /** The Cypher issued, or null when the store that answered does not speak it. */
+  readonly cypher: string | null;
+  /** The read as issued, whichever store answered. */
+  readonly request: string;
   /** Bound values. Never spliced into the query text. */
   readonly parameters: Readonly<Record<string, unknown>>;
   readonly rows: number;
@@ -124,6 +127,7 @@ export function toEvidenceItem(record: EvidenceRecord): EvidenceItem {
 export function toQueryItem(trace: QueryTrace): QueryItem {
   return {
     cypher: trace.cypher,
+    request: trace.request,
     parameters: trace.parameters,
     rows: trace.rows,
     ms: trace.ms,

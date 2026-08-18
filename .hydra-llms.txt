@@ -1,0 +1,1453 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.hydradb.com/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# HydraDB Agent Integration Guide
+
+> LLM-facing reference for building against the current HydraDB docs, API, SDKs, and cookbooks.
+
+# HydraDB Agent Integration Guide
+
+This document is a self-contained reference designed for AI coding agents. It covers everything needed to understand, install, configure, and integrate HydraDB into any project -- from zero prior knowledge to production-ready usage.
+
+### TL;DR: Critical endpoints
+
+1. **`POST /databases`** (`client.databases.create()`): Provision an isolated database workspace.
+2. **`GET /databases/status`** (`client.databases.status()`): Poll until `infra.ready_for_ingestion` is true.
+3. **`POST /context/ingest`** (`client.context.ingest()`): Ingest documents, app records, or memories under `type="knowledge"` or `type="memory"`.
+4. **`GET /context/status`** (`client.context.status()`): Poll status using `ids` until `indexing_status` is `completed` or `graph_creation`.
+5. **`POST /query`** (`client.query()`): Retrieve context via `type: "knowledge"`, `"memory"`, or `"all"`.
+6. **`POST /feedback`** (`client.feedback.submit()`): Tell us when a query did not give you what you needed. See [Sending feedback](#sending-feedback).
+
+***
+
+## 1. Critical rules for LLMs
+
+### API versioning and auth
+
+* Base URL: `https://api.hydradb.com`
+* Raw HTTP calls must include:
+  * `Authorization: Bearer <api_key>`
+  * `API-Version: 2`
+* Official SDKs set `API-Version: 2` automatically.
+* Use `HYDRA_DB_API_KEY` as the environment variable in examples.
+
+### Response envelope
+
+Core raw HTTP responses (`/databases`, `/context/*`, and `/query`) are wrapped:
+
+```json theme={"dark"}
+{
+  "success": true,
+  "data": {},
+  "error": null,
+  "meta": {
+    "request_id": "...",
+    "latency_ms": 12.3
+  }
+}
+```
+
+* Parse core raw HTTP payloads from `data`.
+* The SDKs return the full envelope object; read the payload from its `data` field (e.g. `response.data`). On failure they raise a typed exception rather than returning an envelope with `error` set.
+* Log `meta.request_id` for failed requests.
+* `meta` may also carry an optional `deprecation` list (with a `Deprecation: true` response header) when a request uses a legacy `/tenants` route or a deprecated field (`tenant_id`/`sub_tenant_id`, or `sub_tenant_ids` on `/query`). Every entry has `deprecated`, `message`, and `deprecated_since`. `deprecated_field` and `preferred_field` are **optional**: the `sub_tenant_ids` notice on `/query` carries them, the `tenant_id`/`sub_tenant_id` notice does not. Read `message` for the migration, and do not key logic off the two optional fields. It is a non-breaking nudge. The status code is unchanged. Prefer the `/databases` routes and `database`/`collection`/`collections` fields to avoid it. Treat `meta` as an open object: ignore keys you do not recognize.
+* Exception: webhook management endpoints (`/webhooks/indexing*`) return their documented response object directly, without the `{ success, data, error, meta }` envelope.
+
+### Core endpoints
+
+| Task                                    | Use this endpoint / SDK method                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Create database                         | `POST /databases` · `client.databases.create()`                                                              |
+| Check database readiness                | `GET /databases/status` · `client.databases.status()`                                                        |
+| List databases                          | `GET /databases` · `client.databases.list()`                                                                 |
+| List collections                        | `GET /databases/collections` · TS `client.databases.collections()` / Python `client.databases.collections()` |
+| Database stats                          | `GET /databases/stats` · `client.databases.stats()`                                                          |
+| Ingest documents, app sources, memories | `POST /context/ingest` · `client.context.ingest()`                                                           |
+| Check indexing                          | `GET /context/status` · `client.context.status()`                                                            |
+| Search knowledge/memories/both          | `POST /query` · `client.query()`                                                                             |
+| Report back on query results            | `POST /feedback` · `client.feedback.submit()`                                                                |
+| List sources/memories                   | `POST /context/list` · `client.context.list()`                                                               |
+| Inspect source content                  | `GET /context/inspect` · `client.context.inspect()`                                                          |
+| Delete sources/memories                 | `DELETE /context` · `client.context.delete()`                                                                |
+| Inspect graph relations                 | `GET /context/relations` · `client.context.relations()`                                                      |
+| Indexing webhooks                       | `/webhooks/indexing*`                                                                                        |
+
+### Async lifecycle
+
+Two operations are asynchronous:
+
+1. **Database creation**: after `POST /databases`, poll `GET /databases/status` until infrastructure is ready.
+2. **Ingestion**: after `POST /context/ingest`, poll `GET /context/status` until the content is searchable or fully complete.
+
+Searchable status:
+
+* `graph_creation`: searchable, graph may still be incomplete.
+* `completed`: fully indexed and graphed.
+
+Failure status:
+
+* Docs use `errored`; OpenAPI also exposes `failed` in one enum. Treat both as terminal failures.
+
+### Search parameter naming
+
+The canonical request field for `POST /query` is `type`:
+
+* `type: "knowledge"`
+* `type: "memory"`
+* `type: "all"`
+
+Use the same `type` enum across context lifecycle APIs and search. Search additionally accepts `"all"` to query knowledge and memories together.
+
+### Metadata naming
+
+* `metadata`: schema-aligned, declared at database creation, fast filter path. Sent as a top-level request field on `/context/ingest`.
+* `additional_metadata`: canonical free-form metadata; anything not present in the `metadata` schema. Also a top-level request field.
+* `document_metadata`: on file uploads only, binds a source `id` to each uploaded file. It is not a metadata envelope  -  do not nest `metadata` or `additional_metadata` inside it.
+* `metadata_filters` top-level keys match the `metadata` schema.
+* `metadata_filters.additional_metadata` scopes free-form metadata.
+
+### Sending feedback
+
+**If a query did not give you what you needed  -  nothing relevant came back, the top result was wrong, or you had to fall back to another source  -  please tell us with `POST /feedback`.** You are the only party that knows whether the retrieved context actually answered the question, and that judgement is what tunes retrieval.
+
+It is entirely optional, and there is no penalty for skipping it. Send it when you have something specific to report; a report on a query that disappointed you is worth far more than a stream of routine ones. If a query worked well and you want to say so, `rating: "positive"` is welcome too  -  it tells us what to preserve.
+
+Rules, when you do send it:
+
+* **Take `request_id` from the query's own response  -  never invent one.** It is in `meta.request_id`, and in the `X-Request-ID` response header. Send it back **verbatim**: an id you made up, or one from another query, correlates to nothing.
+* Set `source: "agent"`. It separates your reports from human ones, which fail in different ways.
+* Say **what** was wrong, not that something was wrong. "Returned the 2023 policy, current one is in the Q3 handbook" is actionable; "bad results" is not.
+* Do not block the user on it. Feedback is fire-and-forget: if the **feedback call itself** fails, drop it and carry on  -  never retry in a loop, and never surface that error to the user.
+* Feedback never changes the query's result. It is a signal, not a correction, and reading it back is not possible.
+
+```python theme={"dark"}
+result = client.query(database="acme_corp", query="What is our refund policy?")
+
+# ... use result.data.chunks to answer the user ...
+
+try:
+    client.feedback.submit(
+        request_id=result.meta.request_id,
+        feedback="Top chunk was the 2023 policy; the current one is in the Q3 handbook.",
+        rating="negative",
+        source="agent",
+        database="acme_corp",
+    )
+except Exception:
+    pass  # fire-and-forget: a failed report must never reach the user
+```
+
+Catch broadly. The point is that **nothing** escapes  -  narrowing to the SDK error type would still let a timeout or a DNS failure surface an error the user cannot act on, from a call they did not ask for.
+
+**"Did not give me what I needed" is not the same as "errored".** A query that returned `200` with unhelpful results is exactly what this endpoint is for. A query that never returned  -  `4xx`/`5xx`, or the SDK raised  -  is not: handle the error and move on rather than reporting it. Feedback is a judgement about retrieval quality, and a query that produced no results has no retrieval to judge. Fix the request instead: a `404` means the database name is wrong, a `429` means back off, a `400` means the body was malformed.
+
+**If you know the right answer, send it as `ground_truth`.** When you are running against a labelled set, or you know which document should have been returned, that is a far stronger signal than a comment  -  it can be scored without a human reading it. With `ground_truth` present, `feedback` prose is optional:
+
+```python theme={"dark"}
+try:
+    client.feedback.submit(
+        request_id=result.meta.request_id,
+        source="agent",
+        ground_truth={
+            "answer": expected_answer,          # what a correct response looks like
+            "source_ids": ["policy_2024"],      # sources that actually contain it
+        },
+    )
+except Exception:
+    pass
+```
+
+Send `answer`, `source_ids`, or both. Do **not** guess: only send ground truth you actually have. A fabricated answer key is worse than none, because it is scored as if it were true.
+
+Limit: 100 submissions per minute per organization  -  far above what reporting only the queries that fell short will ever reach. If you do hit `429`, honour `Retry-After` or simply skip that report  -  never spin.
+
+### Do not mix scopes accidentally
+
+* `database` (formerly `tenant_id`) is the hard isolation boundary.
+* `collection` (formerly `sub_tenant_id`) is a logical partition inside a database, typically user/workspace/team.
+* Use the same `collection` on writes and reads. Data written under one collection should not be expected to appear from another.
+* Do not use `metadata_filters` as a substitute for `collection`.
+
+***
+
+## 2. Core primitives
+
+### Databases and collections
+
+A database is an isolated workspace. A collection partitions data inside a database.
+
+Recommended patterns:
+
+| Use case              | Pattern                                                           |
+| --------------------- | ----------------------------------------------------------------- |
+| B2B SaaS              | one `database` per customer; `collection` for workspace/team/user |
+| B2C app               | one app/customer database; `collection = user_id`                 |
+| Environment isolation | separate `database`s for prod/staging                             |
+| Shared knowledge      | database-wide/default collection or consistent shared scope       |
+| User memories         | `collection = user_id`                                            |
+
+### Knowledge
+
+Knowledge is shared context: documents, PDFs, Markdown, CSVs, Slack threads, Notion pages, Gmail threads, tickets, webpages, etc.
+
+* Ingest with `POST /context/ingest`, `type=knowledge`.
+* Search with `POST /query`, `type: "knowledge"`.
+* Use for content that should be reusable across users.
+* Mutability is explicit: re-ingest with the same ID and `upsert: true`, or delete.
+
+### Memories
+
+Memories are user/workspace/session-scoped context: preferences, conversation history, behavioral signals, decisions, inferred traits.
+
+* Ingest with `POST /context/ingest`, `type=memory`.
+* Search with `POST /query`, `type: "memory"` or `type: "all"`.
+* Always pass the same `collection` used at ingestion.
+* Use `infer: true` when the input is raw signal and HydraDB should extract the durable preference/fact.
+* Use `infer: false` when the memory is already structured and should be stored verbatim.
+
+### Query
+
+`POST /query` is the single retrieval endpoint.
+
+It can search:
+
+* Knowledge only: `type: "knowledge"`
+* Memories only: `type: "memory"`
+* Both stores together: `type: "all"`
+
+It supports:
+
+* `query_by: "hybrid"` for semantic + BM25 retrieval.
+* `query_by: "text"` for BM25 keyword/phrase search.
+* `mode: "fast"` for low latency.
+* `mode: "thinking"` for query expansion, reranking, richer graph traversal, and forceful-relation expansion.
+
+### Feedback
+
+`POST /feedback` records how a query performed. It is the loop that closes retrieval quality, and it is open to agents whenever a query falls short  -  see [Sending feedback](#sending-feedback).
+
+| Field                     | Required | Notes                                                                                               |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `request_id`              | yes      | The UUID from that query's `meta.request_id`, verbatim                                              |
+| `feedback`                | yes\*    | What was right or wrong, up to 8000 chars. \*Optional if `ground_truth` is sent                     |
+| `rating`                  | no       | `positive`, `negative`, `neutral`. Omitting it ≠ `neutral`                                          |
+| `source`                  | no       | `user` (default) or `agent`  -  agents set `"agent"`                                                |
+| `database` / `collection` | no       | Optional scoping; `collection` requires `database`                                                  |
+| `ground_truth`            | no       | `{ answer, source_ids }`  -  what the right answer was, when you know it. Makes `feedback` optional |
+| `metadata`                | no       | Up to 20 string pairs of your own context (agent name, conversation id)                             |
+
+Each submission is its own record  -  sending a second report about the same query adds to it rather than replacing it, so refine as you learn more.
+
+### Context graph
+
+HydraDB builds a graph of entity/relation triplets from ingested content. When `graph_context: true` (default), search can return:
+
+* `graph_context.query_paths`
+* `graph_context.chunk_relations`
+* `graph_context.chunk_id_to_group_ids`
+
+Graph context augments retrieval; `chunks` remain the primary search output.
+
+### Forceful relations
+
+At ingestion, sources can declare explicit relations:
+
+```json theme={"dark"}
+{
+  "relations": {
+    "ids": ["related-item-1", "related-item-2"],
+    "properties": { "reason": "same thread" }
+  }
+}
+```
+
+At search time, set or rely on default `query_forceful_relations: true` with `mode: "thinking"` to pull related chunks into `additional_context`.
+
+Rules:
+
+* Forceful relation expansion only takes effect in `mode: "thinking"`.
+* Use `ids`.
+* Relations are store-local: memory-to-memory or knowledge-to-knowledge. Cross-store relation lookups may not surface anything.
+
+***
+
+## 3. Installation and client setup
+
+### Python SDK
+
+```bash theme={"dark"}
+pip install "hydradb-sdk>=2,<3"
+```
+
+```python theme={"dark"}
+import os
+from hydra_db import HydraDB
+
+client = HydraDB(token=os.environ["HYDRA_DB_API_KEY"])
+```
+
+Async client:
+
+```python theme={"dark"}
+import os
+from hydra_db import AsyncHydraDB
+
+client = AsyncHydraDB(token=os.environ["HYDRA_DB_API_KEY"])
+```
+
+### TypeScript SDK
+
+```bash theme={"dark"}
+npm install @hydradb/sdk@^2
+```
+
+```ts theme={"dark"}
+import { HydraDBClient } from "@hydradb/sdk";
+
+const client = new HydraDBClient({
+  token: process.env.HYDRA_DB_API_KEY,
+});
+```
+
+SDK naming:
+
+* Python methods and fields: snake\_case, e.g. `client.databases.collections()`, `database`, `collection`, `page_size`, `query_by`.
+* TypeScript methods and fields: camelCase, e.g. `client.databases.collections()`, `database`, `collection`, `pageSize`, `queryBy`.
+* Both SDKs return a `{ success, data, error, meta }` envelope; the payload is under `.data` (e.g. `response.data.infra`, `response.data.statuses`, `response.data.results`).
+* Values that are passed as JSON strings (`memories`, `app_knowledge`, `document_metadata`) keep snake\_case keys inside the stringified payload in both SDKs, since that is raw wire data.
+
+***
+
+## 4. Minimal end-to-end flow
+
+### Python
+
+```python theme={"dark"}
+import json
+import os
+import time
+from hydra_db import HydraDB
+
+client = HydraDB(token=os.environ["HYDRA_DB_API_KEY"])
+database = "my_first_database"
+
+# 1. Create database.
+client.databases.create(database=database)
+
+# 2. Wait until the database can accept data.
+while True:
+    status = client.databases.status(database=database)
+    if status.data.infra.ready_for_ingestion:
+        break
+    time.sleep(5)
+
+# 3. Ingest a user memory.
+ingest = client.context.ingest(
+    type="memory",
+    database=database,
+    collection="user_alex",
+    memories=json.dumps([
+        {
+            "id": "user_alex_pref_001",
+            "text": "User prefers detailed technical explanations and dark mode.",
+            "infer": True,
+            "user_name": "Alex",
+        }
+    ]),
+)
+
+ingest_id = ingest.data.results[0].id
+
+# 4. Wait until searchable.
+while True:
+    status = client.context.status(
+        database=database,
+        collection="user_alex",
+        ids=[ingest_id],
+    ).data.statuses[0]
+
+    if status.indexing_status in ("graph_creation", "completed"):
+        break
+    if status.indexing_status in ("errored", "failed"):
+        # A wrong database/collection reports "errored" too, with FILE_NOT_FOUND.
+        # error_message is "" in that case, so branch on the code, not the text.
+        if status.error_code == "FILE_NOT_FOUND":
+            raise RuntimeError("No such id in this scope: check database/collection match ingestion")
+        raise RuntimeError(status.error_message or status.message or "Indexing failed")
+    time.sleep(2)
+
+# 5. Search memories.
+result = client.query(
+    database=database,
+    collection="user_alex",
+    query="What does the user prefer?",
+    type="memory",
+    query_by="hybrid",
+    mode="thinking",
+)
+
+print(result.data.chunks)
+```
+
+### TypeScript
+
+```ts theme={"dark"}
+import { HydraDBClient } from "@hydradb/sdk";
+
+const client = new HydraDBClient({
+  token: process.env.HYDRA_DB_API_KEY,
+});
+
+const database = "my_first_database";
+
+await client.databases.create({ database: database });
+
+while (true) {
+  const status = await client.databases.status({ database: database });
+  if (status.data.infra.readyForIngestion) break;
+  await new Promise((resolve) => setTimeout(resolve, 5_000));
+}
+
+const ingest = await client.context.ingest({
+  type: "memory",
+  database: database,
+  collection: "user_alex",
+  memories: JSON.stringify([
+    {
+      id: "user_alex_pref_001",
+      text: "User prefers detailed technical explanations and dark mode.",
+      infer: true,
+      user_name: "Alex",
+    },
+  ]),
+});
+
+const ingestId = ingest.data.results[0].id;
+
+while (true) {
+  const status = (await client.context.status({
+    database: database,
+    collection: "user_alex",
+    ids: [ingestId],
+  })).data.statuses[0];
+
+  if (["graph_creation", "completed"].includes(status.indexingStatus as string)) break;
+  if (["errored", "failed"].includes(status.indexingStatus as string)) {
+    // || rather than ??: errorMessage is "" (not null) on some failures, and ??
+    // would pass the empty string through and throw an error with no message.
+    throw new Error(status.errorMessage || status.message || "Indexing failed");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 2_000));
+}
+
+const result = await client.query({
+  database: database,
+  collection: "user_alex",
+  query: "What does the user prefer?",
+  type: "memory",
+  queryBy: "hybrid",
+  mode: "thinking",
+});
+
+console.log(result.data.chunks);
+```
+
+***
+
+## 5. Databases API
+
+### Create database
+
+`POST /databases` · `client.databases.create()`
+
+```json theme={"dark"}
+{
+  "database": "acme_corp",
+  "database_metadata_schema": [
+    {
+      "name": "department",
+      "data_type": "VARCHAR",
+      "enable_match": true,
+      "enable_dense_embedding": false,
+      "enable_sparse_embedding": false,
+      "max_length": 1024
+    }
+  ]
+}
+```
+
+Notes:
+
+* Database creation is async.
+* `database` should be stable; docs recommend lowercase letters, numbers, and underscores for portability.
+* `database_metadata_schema` is effectively planned up front. If you need to change filterable metadata fields, expect to create a new database or re-ingest under a new schema.
+* `POST /databases` may return `409 DATABASE_ALREADY_EXISTS` for duplicate database IDs and `403 FORBIDDEN` when the API key or plan cannot create more databases.
+
+### Check readiness
+
+`GET /databases/status?database=...` · `client.databases.status()`
+
+Ready when infrastructure reports usable status. Current docs show `infra.ready_for_ingestion`; SDK examples also check:
+
+* `infra.scheduler_status`
+* `infra.graph_status`
+* `infra.vectorstore_status.knowledge`
+* `infra.vectorstore_status.memories`
+
+Use SDK autocomplete/returned object shape for the exact field spelling.
+
+### Other database endpoints
+
+| Endpoint                                  | Purpose                        |
+| ----------------------------------------- | ------------------------------ |
+| `GET /databases`                          | list database IDs              |
+| `DELETE /databases?database=...`          | delete a database and all data |
+| `GET /databases/collections?database=...` | list active collections        |
+| `GET /databases/stats?database=...`       | collection counts              |
+
+***
+
+## 6. Source ingestion
+
+`POST /context/ingest` is the unified write endpoint for knowledge and memories.
+
+### Common form fields
+
+| Field                 | Description                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| `type`                | `"knowledge"` or `"memory"`; default is `"knowledge"`                                  |
+| `database`            | target database                                                                        |
+| `collection`          | optional logical partition; default collection if omitted                              |
+| `upsert`              | default `true`; replaces existing sources with same ID                                 |
+| `documents`           | binary uploads for knowledge                                                           |
+| `metadata`            | schema-aligned filterable fields; top-level `metadata_filters` match these             |
+| `additional_metadata` | free-form fields; anything you want as metadata that is not in the `metadata` schema   |
+| `document_metadata`   | JSON-stringified array, one item per uploaded file; assigns a source `id` to that file |
+| `app_knowledge`       | JSON-stringified object/array of pre-extracted app sources                             |
+| `memories`            | JSON-stringified array of memory items                                                 |
+
+`metadata` and `additional_metadata` are top-level request fields. They are not nested inside `document_metadata`.
+
+### Knowledge from files
+
+Use for PDFs, DOCX, Markdown, CSV, TXT, and other files HydraDB should parse.
+
+```python theme={"dark"}
+import json
+
+with open("policy.pdf", "rb") as f:
+    result = client.context.ingest(
+        type="knowledge",
+        database="acme_corp",
+        documents=[("policy.pdf", f, "application/pdf")],
+        metadata={"department": "support", "status": "approved"},
+        additional_metadata={"author": "Alice", "version": 2},
+        document_metadata=json.dumps([{"id": "policy_v2"}]),
+    )
+```
+
+`metadata` carries the schema-aligned fields declared on the database; top-level `metadata_filters` match these. Anything you want as metadata that is not present in the `metadata` schema goes in `additional_metadata`.
+
+`document_metadata` exists for one reason: when you upload a file there is otherwise no way to assign it a specific source ID. Use it to bind an `id` to each uploaded file.
+
+`document_metadata` item fields:
+
+| Field       | Purpose                                              |
+| ----------- | ---------------------------------------------------- |
+| `id`        | stable source ID / upsert key for the uploaded file  |
+| `relations` | explicit forceful relations, e.g. `{ "ids": [...] }` |
+
+### Knowledge from app sources
+
+Use `app_knowledge` when your connector already extracted text from Slack, Gmail, Jira, Linear, Zendesk, Notion, Confluence, Salesforce, webpages, etc.
+
+```ts theme={"dark"}
+await client.context.ingest({
+  type: "knowledge",
+  database: "acme_corp",
+  appKnowledge: JSON.stringify([
+    {
+      id: "slack_C123_1715012345_000100",
+      database: "acme_corp",
+      collection: "default",
+      title: "Pricing discussion - Slack #product",
+      type: "slack",
+      url: "https://slack.com/archives/C123/p1715012345000100",
+      timestamp: "2025-01-15T12:30:00Z",
+      content: {
+        text: "We agreed on three tiers: Starter, Pro, and Enterprise."
+      },
+      tenant_metadata: {
+        channel: "product",
+        workspace: "acme"
+      },
+      additional_metadata: {
+        author: "alice",
+        slack_ts: "1715012345.000100"
+      },
+      relations: {
+        ids: ["slack_thread_root_001"]
+      }
+    }
+  ]),
+});
+```
+
+Recommended app-source fields:
+
+| Field                               | Why send it                                                    |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `id`                                | stable HydraDB ID and upsert key                               |
+| `title`                             | readable result/citation title                                 |
+| `type`                              | category such as `slack`, `gmail`, `jira`, `notion`, `webpage` |
+| `content.text` / `content.markdown` | primary searchable content                                     |
+| `tenant_metadata`                   | fast filters such as channel, project, region, workspace       |
+| `additional_metadata`               | provider IDs, author, status, assignee, timestamps             |
+| `url`                               | citation / navigation link                                     |
+| `timestamp`                         | freshness and chronology                                       |
+| `relations.ids`                     | thread, parent/child, linked issue, related source expansion   |
+
+App-source object kinds in OpenAPI include:
+
+* `email`
+* `message`
+* `ticket`
+* `knowledge_base`
+* `comment`
+* `custom`
+
+Modern docs show both a generic `content` shape and a richer app shape with `kind`, `provider`, `external_id`, `fields`, `attachments`, `comments`, and `relations`. Use the richer shape when building app-aware search; at minimum provide stable IDs, content, source type, metadata, and relations.
+
+### Memories
+
+Use `type="memory"` and a JSON-stringified `memories` array.
+
+```python theme={"dark"}
+import json
+
+client.context.ingest(
+    type="memory",
+    database="acme_corp",
+    collection="user_alex",
+    memories=json.dumps([
+        {
+            "id": "pref_dark_mode",
+            "title": "Dark mode preference",
+            "text": "User prefers dark mode and concise answers.",
+            "infer": True,
+            "user_name": "Alex",
+            "tenant_metadata": json.dumps({"team": "engineering"}),
+            "additional_metadata": {"source": "onboarding"},
+            "relations": {"ids": ["pref_concise"]}
+        }
+    ]),
+)
+```
+
+Memory item fields:
+
+| Field                  | Description                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `id`                   | optional stable upsert key                                                                                    |
+| `title`                | label for listing/search display                                                                              |
+| `text`                 | raw text or Markdown; required unless `user_assistant_pairs` provided                                         |
+| `user_assistant_pairs` | dialogue pairs `{ user, assistant }`; useful for implied preferences                                          |
+| `is_markdown`          | preserve Markdown structure during chunking                                                                   |
+| `infer`                | extract durable preference/fact from raw signal                                                               |
+| `custom_instructions`  | guide inference when `infer: true`                                                                            |
+| `user_name`            | helps inference                                                                                               |
+| `expiry_time`          | TTL in seconds                                                                                                |
+| `tenant_metadata`      | schema-aligned fields; for memory items, encode as a JSON string inside the JSON-stringified `memories` field |
+| `additional_metadata`  | free-form fields; keep as objects                                                                             |
+| `relations`            | explicit memory-to-memory links                                                                               |
+
+***
+
+## 7. Context status and lifecycle
+
+### Poll indexing
+
+`GET /context/status` · `client.context.status()`
+
+Parameters:
+
+* `database` required
+* `ids` required array
+* `collection`  -  **required if you ingested into one.** The lookup is scoped: omitting `collection`, or sending the wrong one, returns `indexing_status: "errored"` with `error_code: "FILE_NOT_FOUND"` and `message: "ID not found"` for a source that exists and is fully searchable. That is a scope miss, not an indexing failure, and it is indistinguishable from one unless you read `error_code`.
+
+Status meanings from docs:
+
+| Status               | Searchable? | Meaning                              |
+| -------------------- | ----------: | ------------------------------------ |
+| `queued`             |          No | accepted, not picked up              |
+| `processing`         |          No | parsing/chunking/embedding           |
+| `graph_creation`     |         Yes | chunks indexed; graph still building |
+| `completed`          |         Yes | fully indexed and graphed            |
+| `errored` / `failed` |          No | terminal failure                     |
+
+Pattern:
+
+```ts theme={"dark"}
+while (true) {
+  const status = (await client.context.status({
+    database: "acme_corp",
+    collection: "support_docs", // must match the ingestion scope, or you get FILE_NOT_FOUND
+    ids: ["policy_v2"],
+  })).data.statuses[0];
+
+  if (["graph_creation", "completed"].includes(status.indexingStatus as string)) break;
+  if (["errored", "failed"].includes(status.indexingStatus as string)) {
+    // A scope miss reports errored too, so name the cause rather than guessing.
+    if (status.errorCode === "FILE_NOT_FOUND") {
+      throw new Error(`No such id in this scope: check database/collection match ingestion`);
+    }
+    // Use ||, not ??: errorMessage comes back as "" (not null) on some failures,
+    // and ?? passes an empty string straight through to an empty error.
+    throw new Error(status.errorMessage || status.message || "Indexing failed");
+  }
+  await new Promise((r) => setTimeout(r, 2_000));
+}
+```
+
+### Webhooks instead of polling
+
+Use `/webhooks/indexing` to receive terminal indexing events.
+
+Endpoints:
+
+| Endpoint                                                 | Purpose                          |
+| -------------------------------------------------------- | -------------------------------- |
+| `GET /webhooks/indexing`                                 | get current webhook registration |
+| `POST /webhooks/indexing`                                | register or replace webhook      |
+| `DELETE /webhooks/indexing`                              | delete webhook                   |
+| `POST /webhooks/indexing/test`                           | send test delivery               |
+| `GET /webhooks/indexing/deliveries`                      | list delivery attempts           |
+| `GET /webhooks/indexing/deliveries/{delivery_id}`        | get one delivery                 |
+| `POST /webhooks/indexing/deliveries/{delivery_id}/retry` | retry delivery                   |
+
+Supported event:
+
+* `indexing.status_changed`
+
+Payload shape:
+
+```json theme={"dark"}
+{
+  "event": "indexing.status_changed",
+  "delivery_id": "<delivery_id>",
+  "id": "<id>",
+  "database": "<database>",
+  "collection": "<collection>",
+  "status": "completed",
+  "timestamp": "<ISO-8601 timestamp>",
+  "error_code": null,
+  "error_message": null
+}
+```
+
+Headers:
+
+* `X-HydraDB-Delivery-ID`
+* `X-HydraDB-Event`
+* `X-HydraDB-Signature` when a signing secret is configured
+
+Signature scheme:
+
+```
+X-HydraDB-Signature: sha256=<lowercase hex digest>
+
+digest = HMAC-SHA256(key = signing_secret, message = raw request body bytes)
+```
+
+The `sha256=` prefix is part of the header value. The digest is lowercase hex, not base64. The HMAC covers the raw body bytes as received; re-serialising the parsed JSON produces different bytes and will not match.
+
+Managing the secret:
+
+* `POST /webhooks/indexing` with `{"generate_signing_secret": true}` registers and enables signing in one call, returning the secret once. Mutually exclusive with `signing_secret`; sending both is a `422`.
+* `POST /webhooks/indexing/signing-secret` with no body generates one and returns the secret once. Send `{"signing_secret": "..."}` to supply your own (minimum 16 characters).
+* `DELETE /webhooks/indexing/signing-secret` disables signing.
+* Omitting `signing_secret` on `POST /webhooks/indexing` preserves the existing secret. It does not disable signing.
+
+Rules:
+
+* Webhook URL must be public HTTPS; localhost/private networks are blocked.
+* Store `delivery_id` to deduplicate retries.
+* Verify `X-HydraDB-Signature` with a constant-time comparison. Use `verify_webhook_signature` (Python SDK) or `verifyWebhookSignature` (TypeScript SDK) from the SDK helpers module.
+* Fail closed: reject the request when the signing secret is absent from the environment, rather than skipping verification.
+
+***
+
+## 8. Query API
+
+`POST /query` · `client.query()`
+
+### Request fields that matter
+
+| Field                      | Values                       | Notes                                                                                      |
+| -------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `database`                 | string                       | required                                                                                   |
+| `collection`               | string/null                  | required for per-user memory searches                                                      |
+| `query`                    | string                       | required                                                                                   |
+| `type`                     | `knowledge`, `memory`, `all` | store selector for knowledge, memories, or both                                            |
+| `query_by`                 | `hybrid`, `text`             | default hybrid                                                                             |
+| `operator`                 | `or`, `and`, `phrase`        | only for `query_by: "text"`                                                                |
+| `mode`                     | `fast`, `thinking`           | applies to hybrid; thinking improves quality but adds latency                              |
+| `max_results`              | integer/null                 | default around 10; max documented as 50                                                    |
+| `alpha`                    | `0.0`–`1.0` or `auto`        | hybrid weight; `1.0` semantic, `0.0` BM25                                                  |
+| `recency_bias`             | `0.0`–`1.0`                  | boost newer content                                                                        |
+| `graph_context`            | boolean                      | default true; include graph slice                                                          |
+| `query_forceful_relations` | boolean                      | only effective in `thinking` mode                                                          |
+| `additional_context`       | string                       | short factual hint; not a hard filter                                                      |
+| `metadata_filters`         | object                       | deterministic filters before/around ranking                                                |
+| `query_apps`               | boolean                      | app-aware retrieval lane for app sources; still searches the full selected knowledge scope |
+
+### Recommended configurations
+
+| Goal                         | Request shape                                                                                                           |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Fast document RAG            | `type: "knowledge"`, `query_by: "hybrid"`, `mode: "fast"`, `graph_context: false`, `max_results: 5-10`                  |
+| Highest-quality document RAG | `type: "knowledge"`, `query_by: "hybrid"`, `mode: "thinking"`, `graph_context: true`, `alpha: "auto"`                   |
+| Personalized grounded answer | `type: "all"`, include `collection`, `query_by: "hybrid"`, `mode: "thinking"`                                           |
+| User preferences only        | `type: "memory"`, include `collection`, `query_by: "hybrid"`                                                            |
+| Exact keyword / phrase       | `type: "knowledge"`, `query_by: "text"`, `operator: "phrase"`                                                           |
+| Recent operational updates   | `query_by: "hybrid"`, `recency_bias: 0.2-0.4`, metadata filter to doc type/status                                       |
+| App search                   | `type: "knowledge"`, `query_by: "hybrid"`, `mode: "thinking"`, `query_apps: true`; still searches non-app knowledge too |
+
+### Search examples
+
+Knowledge RAG:
+
+```ts theme={"dark"}
+const result = await client.query({
+  database: "acme_corp",
+  query: "What is our refund policy?",
+  type: "knowledge",
+  queryBy: "hybrid",
+  mode: "thinking",
+  maxResults: 10,
+  graphContext: true,
+});
+```
+
+Personalized answer using knowledge and memories:
+
+```ts theme={"dark"}
+const result = await client.query({
+  database: "acme_corp",
+  collection: "user_alex",
+  query: "What is our refund policy, and how should I explain it to this user?",
+  type: "all",
+  queryBy: "hybrid",
+  mode: "thinking",
+  alpha: "auto",
+});
+```
+
+Exact phrase:
+
+```python theme={"dark"}
+result = client.query(
+    database="acme_corp",
+    query="ERROR_429 rate limit",
+    type="knowledge",
+    query_by="text",
+    operator="phrase",
+)
+```
+
+Metadata-scoped search:
+
+```json theme={"dark"}
+{
+  "database": "acme_corp",
+  "query": "authentication control review",
+  "type": "knowledge",
+  "query_by": "hybrid",
+  "metadata_filters": {
+    "compliance_framework": "SOC2",
+    "additional_metadata": {
+      "author": "alice"
+    }
+  }
+}
+```
+
+### Search response
+
+The successful `data` object / SDK return is a `RetrievalResult`:
+
+```json theme={"dark"}
+{
+  "chunks": [
+    {
+      "chunk_uuid": "...",
+      "id": "...",
+      "chunk_content": "...",
+      "source_title": "...",
+      "source_type": "...",
+      "source_upload_time": "...",
+      "source_last_updated_time": "...",
+      "relevancy_score": 0.91,
+      "metadata": {},
+      "additional_metadata": {},
+      "extra_context_ids": []
+    }
+  ],
+  "sources": [
+    {
+      "id": "...",
+      "title": "...",
+      "type": "...",
+      "url": "...",
+      "timestamp": "...",
+      "metadata": {},
+      "additional_metadata": {},
+      "app_kind": "message",
+      "app_provider": "slack",
+      "app_external_id": "..."
+    }
+  ],
+  "graph_context": {
+    "query_paths": [],
+    "chunk_relations": [],
+    "chunk_id_to_group_ids": {}
+  },
+  "additional_context": {}
+}
+```
+
+Use `chunks` as the primary LLM context. Preserve server order; do not re-sort unless you have a deliberate reranking step.
+
+***
+
+## 9. Turning search results into LLM prompts
+
+Practical guidance from `essentials/v2/api-results.mdx`:
+
+* Preserve the order of `chunks`; it is the server ranking.
+* Use graph context only when it helps the question.
+* Use `additional_context` to attach forcefully related chunks by `chunk_uuid` / `extra_context_ids`.
+* For personalized answers, `type: "all"` is simplest: one result set already merges knowledge and memories.
+* Do not pass raw JSON directly to the LLM if token budget matters; use the SDK formatting helper to produce a compact context string.
+* Include a grounding instruction: answer only from provided context, and say when context is insufficient.
+
+Use the SDK helper from `essentials/v2/api-results.mdx`:
+
+* Python: `build_string(result)` from `hydra_db.helpers`
+* TypeScript: `buildString(result)` from `@hydradb/sdk`
+
+Python:
+
+```python theme={"dark"}
+import os
+from hydra_db import HydraDB
+from hydra_db.helpers import build_string
+from openai import OpenAI
+
+hydra = HydraDB(token=os.environ["HYDRA_DB_API_KEY"])
+openai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+question = "How does authentication work?"
+
+result = hydra.query(
+    database="your-database",
+    collection="your-collection",
+    query=question,
+    type="knowledge",
+    query_by="hybrid",
+    max_results=5,
+)
+
+context = build_string(result)
+
+messages = [
+    {
+        "role": "system",
+        "content": "Answer using only the provided HydraDB context. If the answer is not in the context, say so. Cite source titles or URLs when available.",
+    },
+    {
+        "role": "user",
+        "content": f"{context}\n\nQuestion: {question}",
+    },
+]
+```
+
+TypeScript:
+
+```ts theme={"dark"}
+import { HydraDBClient } from "@hydradb/sdk";
+import { buildString } from "@hydradb/sdk/helpers";
+import OpenAI from "openai";
+
+const hydra = new HydraDBClient({ token: process.env.HYDRA_DB_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const question = "How does authentication work?";
+
+const result = await hydra.query({
+  database: "your-database",
+  collection: "your-collection",
+  query: question,
+  type: "knowledge",
+  queryBy: "hybrid",
+  maxResults: 5,
+});
+
+const context = buildString(result);
+
+const messages = [
+  {
+    role: "system",
+    content: "Answer using only the provided HydraDB context. If the answer is not in the context, say so. Cite source titles or URLs when available.",
+  },
+  {
+    role: "user",
+    content: `${context}\n\nQuestion: ${question}`,
+  },
+];
+```
+
+Common mistakes:
+
+| Mistake                                                    | Fix                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| Passing raw retrieval JSON to the LLM                      | Use SDK `build_string(result)` / `buildString(result)` |
+| Omitting `collection` for memories                         | Use the same scope as ingestion                        |
+| Including too many chunks                                  | Start with `max_results: 10`; reduce for tight windows |
+| Re-sorting chunks client-side                              | Preserve HydraDB ranking                               |
+| Setting `graph_context: false` then expecting graph fields | Leave default true or set true explicitly              |
+| Using `query_forceful_relations` in `fast` mode            | Use `mode: "thinking"`                                 |
+
+***
+
+## 10. Metadata guide
+
+### Database schema
+
+Declared at `POST /databases`:
+
+```json theme={"dark"}
+{
+  "database_metadata_schema": [
+    {
+      "name": "department",
+      "data_type": "VARCHAR",
+      "enable_match": true,
+      "enable_dense_embedding": false,
+      "enable_sparse_embedding": false,
+      "max_length": 1024
+    }
+  ]
+}
+```
+
+Field options:
+
+| Field                     | Purpose                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `name`                    | metadata key; must be valid and non-reserved                                                                 |
+| `data_type`               | friendly names like `string`, `integer`, `float`, `boolean`, or backend types like `VARCHAR`, `INT*`, `JSON` |
+| `enable_match`            | allows exact matching in top-level `metadata_filters`                                                        |
+| `enable_dense_embedding`  | semantically embed `VARCHAR` field                                                                           |
+| `enable_sparse_embedding` | BM25 index `VARCHAR` field                                                                                   |
+| `max_length`              | max string length                                                                                            |
+| `searchable`              | shorthand for dense + sparse embedding in docs                                                               |
+| `filterable`              | shorthand for `enable_match` in docs                                                                         |
+
+### Where metadata belongs
+
+| Need                                                            | Put it in                             | Filter with                            |
+| --------------------------------------------------------------- | ------------------------------------- | -------------------------------------- |
+| Hot-path exact filters: department, region, environment, status | `tenant_metadata`                     | top-level `metadata_filters`           |
+| Free-form display/bookkeeping: author, provider IDs, version    | `additional_metadata`                 | `metadata_filters.additional_metadata` |
+| Provider app fields for UI/citations                            | `additional_metadata` or app `fields` | usually not filtered unless needed     |
+| User/workspace partition                                        | `collection`                          | not metadata                           |
+
+Rules:
+
+* Plan hot filter fields before first ingest; undeclared scope keys can be ignored.
+* Use exact equality filters; range/contains/fuzzy matching should be in the query or downstream reranker.
+* To change metadata on an indexed context item, re-ingest with the same `id` and `upsert: true`.
+* Do not rename metadata keys without re-ingesting affected sources.
+
+***
+
+## 11. Browse, fetch, relations, delete
+
+### List documents or memories
+
+`POST /context/list` · `client.context.list()`
+
+```ts theme={"dark"}
+const sources = await client.context.list({
+  database: "acme_corp",
+  type: "knowledge",
+  page: 1,
+  pageSize: 50,
+  filters: {
+    tenant_metadata: { department: "support" },
+    additional_metadata: { author: "alice" },
+    source_fields: { type: "slack" },
+  },
+});
+```
+
+Parameters:
+
+* `database`
+* `collection`
+* `type: "knowledge" | "memory"`
+* `ids`
+* `page`, `page_size` (1–100)
+* `filters.tenant_metadata`
+* `filters.additional_metadata`
+* `filters.source_fields`
+* `include_fields` for projection
+
+### Fetch original content
+
+`GET /context/inspect` · `client.context.inspect()`
+
+```python theme={"dark"}
+file = client.context.inspect(
+    database="acme_corp",
+    id="policy_v2",
+    mode="both",
+    expiry_seconds=3600,
+)
+```
+
+Modes:
+
+| Mode      | Returns                                |
+| --------- | -------------------------------------- |
+| `content` | parsed text or base64 for binary files |
+| `url`     | presigned URL                          |
+| `both`    | content plus presigned URL             |
+
+### Inspect graph relations
+
+`GET /context/relations` · `client.context.relations()`
+
+```ts theme={"dark"}
+const relations = await client.context.relations({
+  database: "acme_corp",
+  id: "policy_v2",
+  type: "knowledge",
+  limit: 5000,
+});
+```
+
+Use it for graph debugging and provenance inspection. It supports pagination via `cursor`.
+
+### Delete sources or memories
+
+`DELETE /context` · `client.context.delete()`
+
+```ts theme={"dark"}
+await client.context.delete({
+  type: "knowledge",
+  database: "acme_corp",
+  ids: ["policy_v2"],
+});
+```
+
+Use `type: "memory"` to delete memory IDs.
+
+***
+
+## 12. Error handling
+
+### HTTP status codes
+
+| Code  | Meaning                                                         | Retry?                                                     |
+| ----- | --------------------------------------------------------------- | ---------------------------------------------------------- |
+| `400` | invalid parameters / malformed request                          | No                                                         |
+| `401` | missing/invalid API key                                         | No                                                         |
+| `403` | authenticated but not permitted                                 | No                                                         |
+| `404` | database/context item/memory not found                          | No                                                         |
+| `409` | conflict, e.g. existing database or context item ID             | Usually no                                                 |
+| `413` | upload too large                                                | No                                                         |
+| `422` | semantic validation failure, including `TENANT_INFRA_NOT_READY` | Only for `TENANT_INFRA_NOT_READY`, after polling readiness |
+| `429` | rate limited                                                    | Yes with backoff                                           |
+| `500` | internal error                                                  | Yes with backoff                                           |
+| `502` | upstream dependency error (`BACKEND_ERROR`)                     | Yes with backoff                                           |
+| `503` | temporary unavailability                                        | Yes with backoff                                           |
+
+### Common error codes
+
+| Code                      | Meaning                                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `INVALID_INPUT`           | required, malformed, or conflicting parameter. This is the code for essentially every `400`  -  branch on it, not on a generic name |
+| `VALIDATION_ERROR`        | request shape valid but failed validation                                                                                           |
+| `UNAUTHORIZED`            | missing/invalid bearer token                                                                                                        |
+| `FORBIDDEN`               | key lacks access                                                                                                                    |
+| `DATABASE_ALREADY_EXISTS` | duplicate database ID                                                                                                               |
+| `DATABASE_NOT_FOUND`      | database missing/not visible                                                                                                        |
+| `TENANT_INFRA_NOT_READY`  | `422`  -  the database exists but its infrastructure is still provisioning. This is what querying before polling readiness returns  |
+| `FILE_NOT_FOUND`          | id not found **in the selected scope**  -  usually a `collection` mismatch rather than a missing source                             |
+| `SOURCE_PROCESSING`       | the source is still indexing and cannot serve this request yet                                                                      |
+| `NOT_FOUND`               | requested resource does not exist                                                                                                   |
+| `PARSE_ERROR`             | a document could not be parsed                                                                                                      |
+| `PROCESSING_FAILED`       | indexing failed for a source                                                                                                        |
+| `RATE_LIMITED`            | rate limit exceeded                                                                                                                 |
+| `INTERNAL_ERROR`          | unexpected server error                                                                                                             |
+| `BACKEND_ERROR`           | `502`  -  an upstream dependency returned an error                                                                                  |
+| `SERVICE_UNAVAILABLE`     | dependency unavailable / under load                                                                                                 |
+
+There is no `INVALID_PARAMETERS` and no `SOURCE_NOT_FOUND`  -  earlier revisions of this guide listed both, and no HydraDB response has ever carried either. Match on `INVALID_INPUT` and `FILE_NOT_FOUND` instead.
+
+Retry only `429`, `500`, `503`; use bounded exponential backoff with jitter.
+
+SDK errors:
+
+```python theme={"dark"}
+from hydra_db.core.api_error import ApiError
+
+RETRYABLE = (429, 500, 503)
+
+try:
+    result = client.query(
+        database="acme_corp",
+        query="pricing tiers",
+        type="knowledge",
+    )
+except ApiError as exc:
+    # 500 and 503 have typed subclasses (InternalServerError,
+    # ServiceUnavailableError); 429 does not, so branch on status_code to cover
+    # all three uniformly. Back off and retry.
+    if exc.status_code not in RETRYABLE:
+        raise
+```
+
+```ts theme={"dark"}
+import { HydraDBError } from "@hydradb/sdk";
+
+try {
+  const result = await client.query({
+    database: "acme_corp",
+    query: "pricing tiers",
+    type: "knowledge",
+  });
+} catch (error) {
+  if (error instanceof HydraDBError) {
+    const code = error.body?.error?.code;
+    const requestId = error.body?.meta?.request_id;
+    console.error({ code, requestId });
+  }
+  throw error;
+}
+```
+
+***
+
+## 13. Cookbook patterns
+
+The cookbooks show production patterns. Click the links below to read the raw Markdown guides with complete setup code and schemas:
+
+| Cookbook Guide                 | Purpose & Retrieval Patterns                         | Link to Guide                                                                            |
+| ------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Cursor for Docs**            | Ingest codebase, PRs, Slack; multi-hop reasoning     | [Guide Link](https://docs.hydradb.com/cookbooks/v2/cookbook-01-build-cursor-for-docs.md) |
+| **Build your own Glean**       | Enterprise workplace search across SaaS platforms    | [Guide Link](https://docs.hydradb.com/cookbooks/v2/glean-clone.md)                       |
+| **Internal Search Perplexity** | Citations and answer synthesis over Confluence/Slack | [Guide Link](https://docs.hydradb.com/cookbooks/v2/internal-search-perplexity.md)        |
+| **Customer Support Agent**     | Personalizing help with user/plan-specific memory    | [Guide Link](https://docs.hydradb.com/cookbooks/v2/customer-support-agent.md)            |
+| **IT Support / Notion AI**     | Relational reasoning across Notion and Slack threads | [Guide Link](https://docs.hydradb.com/cookbooks/v2/cookbook-04-build-notion-ai.md)       |
+| **Financial Analyst**          | Trend analysis, temporal metadata, precise citations | [Guide Link](https://docs.hydradb.com/cookbooks/v2/cookbook-10-ai-financial-analyst.md)  |
+| **LinkedIn Recruiter**         | Exact skill/experience matching and post-filtering   | [Guide Link](https://docs.hydradb.com/cookbooks/v2/ai-linkedin-recruiter.md)             |
+| **AI Travel Planner**          | Collaborative planning using personalized context    | [Guide Link](https://docs.hydradb.com/cookbooks/v2/ai-travel-planner.md)                 |
+| **AI Onboarding Agent**        | Org charts, specifications, and meeting transcripts  | [Guide Link](https://docs.hydradb.com/cookbooks/v2/ai-onboarding-agent.md)               |
+| **Competitive Intelligence**   | Competitor announcements, job listings, pricing      | [Guide Link](https://docs.hydradb.com/cookbooks/v2/competitive-intelligence-agent.md)    |
+| **Chief of Staff / Actions**   | Function routing, task tracking, and planning        | [Guide Link](https://docs.hydradb.com/cookbooks/v2/ai-chief-of-staff.md)                 |
+
+Common architecture across cookbooks:
+
+1. Create database and schema for hot filters.
+2. Ingest shared knowledge/app sources with stable IDs.
+3. Ingest user/session memories with `collection`.
+4. Poll status or use webhooks.
+5. Query `/query` with `type: "knowledge"`, `"memory"`, or `"all"`.
+6. Format chunks, graph paths, and additional context into an LLM prompt.
+7. Cite sources and handle missing context explicitly.
+
+***
+
+## 14. Common mistakes checklist
+
+* [ ] Forgetting `API-Version: 2` in raw HTTP calls.
+* [ ] Parsing raw HTTP response from the top level instead of `data`.
+* [ ] Assuming the SDK unwraps the envelope; it returns the full envelope, so read the payload from `data`.
+* [ ] Searching immediately after database creation without polling readiness.
+* [ ] Searching immediately after ingestion without polling `context.status` or using webhooks.
+* [ ] Treating `processing`/`queued` content as searchable.
+* [ ] Not handling both `errored` and `failed` as failure statuses.
+* [ ] Omitting `collection` on `context.status` and reading the resulting `FILE_NOT_FOUND` as a genuine indexing failure.
+* [ ] Using `??` on `errorMessage`, which is `""` rather than null on some failures, so the fallback never fires.
+* [ ] Omitting `collection` for user memories.
+* [ ] Writing with one `collection` and reading with another.
+* [ ] Using metadata filters for user partitioning instead of `collection`.
+* [ ] Using undeclared `tenant_metadata` keys in `metadata_filters`.
+* [ ] Putting hot filters in free-form metadata instead of database schema.
+* [ ] Expecting `query_forceful_relations` to work in `mode: "fast"`.
+* [ ] Setting `graph_context: false` and expecting graph fields.
+* [ ] Re-sorting chunks before prompting without a deliberate reranker.
+* [ ] Passing too many chunks to the LLM.
+* [ ] Using `operator` without `query_by: "text"`.
+* [ ] Forgetting to verify webhook signatures when a signing secret is configured.
+
+***
+
+## 15. SDK Method Reference
+
+### 15.1 TypeScript SDK
+
+| Method                           | Endpoint                     | Purpose                                                     |
+| -------------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| `client.context.ingest()`        | `POST /context/ingest`       | Ingest documents, app sources, or memories                  |
+| `client.context.status()`        | `GET /context/status`        | Check processing status of ingested items                   |
+| `client.context.inspect()`       | `GET /context/inspect`       | Inspect original source content or get a presigned URL      |
+| `client.context.list()`          | `POST /context/list`         | Browse knowledge or memories                                |
+| `client.context.delete()`        | `DELETE /context`            | Delete sources or memories                                  |
+| `client.context.relations()`     | `GET /context/relations`     | Inspect graph relationships                                 |
+| `client.query()`                 | `POST /query`                | Unified search over knowledge, memories, or both            |
+| `client.databases.create()`      | `POST /databases`            | Create a new isolated workspace                             |
+| `client.databases.list()`        | `GET /databases`             | List all databases registered for the organization          |
+| `client.databases.delete()`      | `DELETE /databases`          | Permanently remove a database                               |
+| `client.databases.status()`      | `GET /databases/status`      | Check provisioning readiness of a database's infrastructure |
+| `client.databases.collections()` | `GET /databases/collections` | List active collections                                     |
+| `client.databases.stats()`       | `GET /databases/stats`       | Get database usage stats                                    |
+
+### 15.2 Python SDK
+
+| Group     | Method                           | Endpoint                     | Description                                                 |
+| --------- | -------------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| Context   | `client.context.ingest()`        | `POST /context/ingest`       | Ingest documents, app sources, or memories                  |
+| Context   | `client.context.status()`        | `GET /context/status`        | Check processing status of ingested items                   |
+| Context   | `client.context.inspect()`       | `GET /context/inspect`       | Inspect original source content or get a presigned URL      |
+| Context   | `client.context.list()`          | `POST /context/list`         | Browse knowledge or memories                                |
+| Context   | `client.context.delete()`        | `DELETE /context`            | Delete sources or memories                                  |
+| Context   | `client.context.relations()`     | `GET /context/relations`     | Inspect graph relationships                                 |
+| Search    | `client.query()`                 | `POST /query`                | Unified search over knowledge, memories, or both            |
+| Databases | `client.databases.create()`      | `POST /databases`            | Create a new isolated workspace                             |
+| Databases | `client.databases.list()`        | `GET /databases`             | List all databases registered for the organization          |
+| Databases | `client.databases.delete()`      | `DELETE /databases`          | Permanently remove a database                               |
+| Databases | `client.databases.status()`      | `GET /databases/status`      | Check provisioning readiness of a database's infrastructure |
+| Databases | `client.databases.collections()` | `GET /databases/collections` | List active collections                                     |
+| Databases | `client.databases.stats()`       | `GET /databases/stats`       | Get database usage stats                                    |
+
+### 15.3 Minimal cURL example
+
+Use `type` on raw `/query` requests to select `knowledge`, `memory`, or `all`. The raw API response is wrapped; read payloads from `.data`.
+
+```bash theme={"dark"}
+export HYDRA_DB_API_KEY="your_api_key"
+DATABASE="agent_docs_demo"
+COLLECTION="user_alex"
+
+# 1. Create a database.
+curl -s -X POST 'https://api.hydradb.com/databases' \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" \
+  -H "Content-Type: application/json" \
+  -d "{\"database\":\"${DATABASE}\"}"
+
+# 2. Check readiness. Poll this until .data.infra.ready_for_ingestion is true.
+curl -s "https://api.hydradb.com/databases/status?database=${DATABASE}" \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" | jq '.data.infra'
+
+# 3. Ingest a memory.
+INGEST_ID=$(curl -s -X POST 'https://api.hydradb.com/context/ingest' \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" \
+  -F "type=memory" \
+  -F "database=${DATABASE}" \
+  -F "collection=${COLLECTION}" \
+  -F 'memories=[{"id":"alex_pref_001","text":"Alex prefers concise technical answers.","infer":true,"user_name":"Alex"}]' \
+  | jq -r '.data.results[0].id')
+
+# 4. Poll indexing.
+curl -s -G 'https://api.hydradb.com/context/status' \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" \
+  --data-urlencode "database=${DATABASE}" \
+  --data-urlencode "collection=${COLLECTION}" \
+  --data-urlencode "ids=${INGEST_ID}" \
+  | jq '.data.statuses[0]'
+
+# 5. Search memories.
+curl -s -X POST 'https://api.hydradb.com/query' \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" \
+  -H "Content-Type: application/json" \
+  -d "{\"database\":\"${DATABASE}\",\"collection\":\"${COLLECTION}\",\"query\":\"How should I answer Alex?\",\"type\":\"memory\",\"query_by\":\"hybrid\",\"mode\":\"thinking\"}" \
+  | jq '.data.chunks'
+```
+
+### 15.4 Raw HTTP: ingest app-source knowledge
+
+Use this for connector output where your app already extracted the text. `app_knowledge` must be a JSON string in multipart form data.
+
+```bash theme={"dark"}
+curl -s -X POST 'https://api.hydradb.com/context/ingest' \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" \
+  -F "type=knowledge" \
+  -F "database=acme_corp" \
+  -F 'app_knowledge=[
+    {
+      "id": "slack_C123_1715012345_000100",
+      "database": "acme_corp",
+      "collection": "default",
+      "title": "Pricing discussion - Slack #product",
+      "type": "slack",
+      "url": "https://slack.com/archives/C123/p1715012345000100",
+      "timestamp": "2025-01-15T12:30:00Z",
+      "content": {
+        "text": "We agreed on three tiers: Starter at $29, Pro at $79, Enterprise at $199."
+      },
+      "tenant_metadata": {
+        "channel": "product",
+        "workspace": "acme"
+      },
+      "additional_metadata": {
+        "author": "alice",
+        "slack_ts": "1715012345.000100"
+      },
+      "relations": {
+        "ids": ["slack_thread_root_001"],
+        "properties": { "relation": "same_thread" }
+      }
+    }
+  ]'
+```
+
+Search it with app-aware retrieval:
+
+```bash theme={"dark"}
+curl -s -X POST 'https://api.hydradb.com/query' \
+  -H "Authorization: Bearer $HYDRA_DB_API_KEY" \
+  -H "API-Version: 2" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "database": "acme_corp",
+    "query": "What pricing tiers did product agree on?",
+    "type": "knowledge",
+    "query_by": "hybrid",
+    "mode": "thinking",
+    "query_apps": true,
+    "graph_context": true
+  }' | jq '.data.chunks'
+```
+
+***
+
+## 16. Navigation and support
+
+* Docs root for v2: `get-started/v2`, `essentials/v2`, `api-reference/v2`, `cookbooks/v2`
+* API reference OpenAPI: `api-reference/v2/openapi.json`
+* Python package: `hydradb-sdk>=2,<3`
+* TypeScript package: `@hydradb/sdk@^2`
+* Dashboard/API keys: `https://app.hydradb.com`
+* Support email in docs: `founders@hydradb.com`

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { NodeSource } from '../../src/hydra/node-source.js';
 import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import {
@@ -357,7 +358,7 @@ describe('blastRadius', () => {
       },
     });
 
-    const answer = await blastRadius(client, 'no-such-package');
+    const answer = await blastRadius(new NodeSource(client), 'no-such-package');
 
     // A null radius and an empty one are different answers. This package has no
     // node, so there is nothing to have a radius, and walking anyway would buy

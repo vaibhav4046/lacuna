@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { NodeSource } from '../../src/hydra/node-source.js';
 import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { ask } from '../../src/retrieval/fetch.js';
@@ -501,7 +502,7 @@ describe('an instruction stored as a fact reaches the page as text', () => {
     it(`renders ${injection.name} escaped, and still answers from the live claim`, async () => {
       const unexpected: string[] = [];
       const client = new HydraClient(CONFIG, { fetch: upstreamFor(injection.payload, unexpected) });
-      const answer = await ask(client, {
+      const answer = await ask(new NodeSource(client), {
         subject: 'Junco',
         predicate: 'launch_date',
         via: null,
@@ -526,7 +527,7 @@ describe('an instruction stored as a fact reaches the page as text', () => {
       const client = new HydraClient(CONFIG, {
         fetch: () => Promise.resolve(wire(['id', 'kind'], [])),
       });
-      const answer = await ask(client, {
+      const answer = await ask(new NodeSource(client), {
         subject: `Junco ${injection.payload}`,
         predicate: 'launch_date',
         via: null,

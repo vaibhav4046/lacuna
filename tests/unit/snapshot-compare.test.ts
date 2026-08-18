@@ -16,6 +16,7 @@ import { comparableAnswer } from '../../src/snapshot/compare.js';
 function trace(overrides: Partial<QueryTrace> = {}): QueryTrace {
   return {
     cypher: 'MATCH (e:Entity {name: $name}) RETURN id(e) AS id, e.kind AS kind',
+    request: 'MATCH (e:Entity {name: $name}) RETURN id(e) AS id, e.kind AS kind',
     parameters: { name: 'Bellwether' },
     rows: 1,
     ms: 3.2,

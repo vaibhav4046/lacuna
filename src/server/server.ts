@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { HydraClient } from '../hydra/client.js';
+import { NodeSource } from '../hydra/node-source.js';
 import { HydraError } from '../hydra/errors.js';
 import { CLAIM_STATES, type ClaimState, type Inventory } from '../report/inventory.js';
 import type { Artifacts } from '../report/load.js';
@@ -231,6 +232,7 @@ function optional(value: string | null): string | null {
 
 export function createHandler(options: ServerOptions): Handler {
   const { client, node, limiter } = options;
+  const source = new NodeSource(client);
   const answerSource = options.source ?? 'live';
   const now = options.now ?? Date.now;
   const log = options.log ?? ((line: string) => process.stdout.write(`${line}\n`));
@@ -390,7 +392,7 @@ export function createHandler(options: ServerOptions): Handler {
         return;
       }
 
-      const radius = await blastRadius(client, name, { timeoutMs: QUERY_TIMEOUT_MS });
+      const radius = await blastRadius(source, name, { timeoutMs: QUERY_TIMEOUT_MS });
       const walked = Buffer.from(blastPage(radius, node, answerSource), 'utf8');
       send(request, response, 200, HTML, walked, { 'cache-control': 'no-store' });
       return;
@@ -416,7 +418,7 @@ export function createHandler(options: ServerOptions): Handler {
       return;
     }
 
-    const answer = await ask(client, question, { timeoutMs: QUERY_TIMEOUT_MS });
+    const answer = await ask(source, question, { timeoutMs: QUERY_TIMEOUT_MS });
     const answered = Buffer.from(askPage(answer, node, answerSource), 'utf8');
     send(request, response, 200, HTML, answered, { 'cache-control': 'no-store' });
   }

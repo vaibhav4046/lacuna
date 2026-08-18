@@ -52,6 +52,7 @@ const EVIDENCE: EvidenceRecord = {
 const QUERIES: readonly QueryTrace[] = [
   {
     cypher: 'MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind',
+    request: 'MATCH (e:Entity {name: $name}) RETURN e.id AS id, e.kind AS kind',
     parameters: { name: 'Bellwether' },
     rows: 1,
     ms: 3.2,
@@ -59,6 +60,7 @@ const QUERIES: readonly QueryTrace[] = [
   },
   {
     cypher: 'MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) RETURN c.id AS id',
+    request: 'MATCH (c:Claim)-[:ABOUT]->(e {id: $e}) RETURN c.id AS id',
     parameters: { e: 100 },
     rows: 3,
     ms: 4.1,

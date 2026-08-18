@@ -1,4 +1,4 @@
-import type { HydraClient } from '../hydra/client.js';
+import type { HydraSource } from '../hydra/source.js';
 import { askCore } from '../contract/result.js';
 import { ask, buildQuestion, RetrievalError } from '../retrieval/index.js';
 import type { Inventory } from '../report/inventory.js';
@@ -66,7 +66,7 @@ function standingOf(current: boolean, proposal: boolean): EnvelopeEvidence['stan
  * Only a dependency that did not answer becomes SYSTEM ERROR.
  */
 export async function askEnvelope(
-  client: HydraClient,
+  source: HydraSource,
   subject: string,
   predicate: string,
   via: string | null,
@@ -92,7 +92,7 @@ export async function askEnvelope(
   }
 
   try {
-    const answer = await ask(client, question, { timeoutMs });
+    const answer = await ask(source, question, { timeoutMs });
     const core = askCore(answer);
     const evidence = core.evidence.map((item) => ({
       source: item.sessionTitle,

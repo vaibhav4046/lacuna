@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describeExpected } from '../src/bench/score.js';
 import { generateCorpus } from '../src/corpus/index.js';
+import { NodeSource } from '../src/hydra/node-source.js';
 import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
 import { ask, buildQuestion, parseVia } from '../src/retrieval/index.js';
@@ -96,7 +97,7 @@ function show(answer: Answer, text: string | null): void {
     // full has the same values on the proof screen and in the source.
     const epoch = trip.readEpoch === null ? '' : `, epoch ${trip.readEpoch}`;
     print(
-      `     ${String(at + 1).padStart(2)}. ${first(trip.cypher).padEnd(46)}`
+      `     ${String(at + 1).padStart(2)}. ${first(trip.cypher ?? trip.request).padEnd(46)}`
       + `${String(trip.rows).padStart(4)} row${trip.rows === 1 ? ' ' : 's'}`
       + `${String(trip.ms).padStart(8)}ms${epoch}`,
     );
@@ -116,6 +117,7 @@ function first(cypher: string): string {
 }
 
 const client = new HydraClient(loadHydraConfig());
+const source = new NodeSource(client);
 const positional = process.argv[2];
 
 if (positional !== undefined && !positional.startsWith('--')) {
@@ -125,7 +127,7 @@ if (positional !== undefined && !positional.startsWith('--')) {
     throw new Error(`no gold question with id ${positional}`);
   }
   const question = buildQuestion(gold.subject, gold.predicate, parseVia(gold.text));
-  const answer = await ask(client, question);
+  const answer = await ask(source, question);
   show(answer, gold.text);
   print(`   expected: ${describeExpected(gold)} (thread kind: ${gold.kind})`);
   print('');
@@ -135,6 +137,6 @@ if (positional !== undefined && !positional.startsWith('--')) {
   if (subject === null || predicate === null) {
     throw new Error('pass a gold question id, or --subject and --predicate');
   }
-  const answer = await ask(client, buildQuestion(subject, predicate, flag('via')));
+  const answer = await ask(source, buildQuestion(subject, predicate, flag('via')));
   show(answer, null);
 }

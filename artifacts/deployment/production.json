@@ -1,0 +1,25 @@
+{
+  "url": "https://lacuna-five.vercel.app",
+  "commit": "58f8037",
+  "deployedAt": "2026-08-18T22:27:00Z",
+  "verified": {
+    "root": 200,
+    "bootCss": 200,
+    "deepRouteRefresh": 200,
+    "signin": 200,
+    "favicon": 200,
+    "apiSession": 200,
+    "apiWorkspaceHealth": 200,
+    "smokeGates": "9 of 9",
+    "consoleErrors": 0,
+    "scenes": 28,
+    "canvasLitSamples": 262,
+    "background": "rgb(0, 0, 0)"
+  },
+  "honestLimits": [
+    "No HydraDB is reachable from a Vercel function, so health reports no node and the workspace reads answer from the recorded corpus inventory.",
+    "The filesystem is read-only, so the account store reports unavailable and sign up answers 503.",
+    "The full signed-in product with live HydraDB runs locally against the node in WSL."
+  ],
+  "rollbackTag": "rollback-pre-v6-react-cutover"
+}

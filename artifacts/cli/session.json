@@ -1,0 +1,28 @@
+{
+  "recorded": "2026-08-19",
+  "profile": "cloud",
+  "columns": 80,
+  "widestLine": 79,
+  "runs": [
+    {
+      "command": "lacuna status",
+      "exitCode": 0,
+      "lines": 9
+    },
+    {
+      "command": "lacuna ask Bellwether beta_partner",
+      "exitCode": 0,
+      "lines": 9
+    },
+    {
+      "command": "lacuna explain Bellwether beta_partner",
+      "exitCode": 0,
+      "lines": 13
+    },
+    {
+      "command": "lacuna ask Redshank launch_date",
+      "exitCode": 0,
+      "lines": 5
+    }
+  ]
+}

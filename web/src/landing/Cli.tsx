@@ -1,63 +1,132 @@
 import { MONO } from '../design/mark';
+import { CLI_SESSION } from './cli-session';
 
 /**
- * The terminal here is a picture of the CLI, not a reading of it. The design
- * labels it CONCEPT PREVIEW directly underneath, which is what makes the state
- * words inside it legitimate: they are part of a drawn example, the same as
- * the box-drawing characters around them. Nothing in this block is presented
- * as the visitor's own system.
+ * The terminal on this page is a recording, not a drawing.
  *
- * The two rules are the design's own lengths, written as repeats so the count
- * is checkable instead of being 45 characters someone has to trust.
+ * It used to be a drawing: a workspace called acme, a model called qwen2.5, a
+ * green CONNECTED dot, a trace id someone typed, a context pack count, and a
+ * list of thirteen commands of which six existed. A CONCEPT PREVIEW label sat
+ * underneath it, which was honest about the block being an illustration and did
+ * nothing about the strings inside it being invented.
+ *
+ * `scripts/capture-cli.ts` now runs the CLI for real against HydraDB Cloud and
+ * saves every byte to `artifacts/cli/session.txt` and to `cli-session.ts` beside
+ * this file. What follows renders that text. The store, the timings, the query
+ * count, the evidence quote and the abstention are the ones the run produced, so
+ * the only way to change what this section says is to change what the CLI does.
+ *
+ * The colouring is applied here rather than recorded because the recording
+ * strips the escape sequences. It keys off the shape of a line and never off a
+ * particular answer, so a re-recording that returns something else still renders.
  */
-const TOP_RULE = '─'.repeat(36);
-const BOTTOM_RULE = '─'.repeat(45);
 
 const dim = { color: '#5E5E5E' } as const;
 const violet = { color: '#8052FF' } as const;
+const amber = { color: '#FFB829' } as const;
+const white = { color: '#FFFFFF' } as const;
+
+/** The three commands the recording ran, for the caption under the block. */
+const RECORDED = 'status · ask · explain';
+
+function Line({ text }: { text: string }) {
+  if (text.startsWith('$ ')) {
+    return (
+      <>
+        <span style={violet}>$</span>
+        <span style={white}>{text.slice(1)}</span>
+        {'\n'}
+      </>
+    );
+  }
+
+  // The mark prints as dots with one amber head. The head is the first
+  // non-space character of the row it appears on, and only on that row.
+  if (text.includes('●')) {
+    const at = text.indexOf('●');
+    return (
+      <>
+        {text.slice(0, at)}
+        <span style={amber}>●</span>
+        <span style={dim}>{text.slice(at + 1)}</span>
+        {'\n'}
+      </>
+    );
+  }
+
+  if (/^[·\s]+$/.test(text) && text.trim() !== '') {
+    return (
+      <>
+        <span style={dim}>{text}</span>
+        {'\n'}
+      </>
+    );
+  }
+
+  if (text.startsWith('A  ')) {
+    return (
+      <>
+        <span style={dim}>A</span>
+        <span style={white}>{text.slice(1)}</span>
+        {'\n'}
+      </>
+    );
+  }
+
+  if (text.startsWith('Q  ')) {
+    return (
+      <>
+        <span style={dim}>Q</span>
+        {text.slice(1)}
+        {'\n'}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {text}
+      {'\n'}
+    </>
+  );
+}
 
 export function Cli() {
+  const lines = CLI_SESSION.split('\n');
   return (
     <section id="cli" data-scene="off" style={{ position: 'relative', padding: '10vh 0 12vh' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 clamp(20px, 4.4vw, 72px)', display: 'flex', flexDirection: 'column', gap: '26px' }}>
         <div>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#9A9A9A' }}>CLI</span>
           <h2 style={{ fontSize: 'clamp(38px, 4.4vw, 74px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: '12px 0 0', color: '#FFFFFF' }}>Lacuna in your terminal.</h2>
-          <p style={{ fontSize: '17px', lineHeight: 1.7, color: '#9A9A9A', margin: '14px 0 0', maxWidth: '44ch' }}>Use the same context without opening the dashboard.</p>
+          <p style={{ fontSize: '17px', lineHeight: 1.7, color: '#9A9A9A', margin: '14px 0 0', maxWidth: '46ch' }}>The same context without opening the dashboard. This is a recording of a real run, not a mock up.</p>
         </div>
       </div>
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#030303', marginTop: '34px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 clamp(20px, 4.4vw, 72px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.07)', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' }}>
             <span style={{ color: '#9A9A9A' }}>LACUNA TERMINAL</span>
-            <span>ACME / BACKEND</span>
-            <span>⇥ COMPLETE · ? HELP · ⌃C QUIT</span>
+            <span>RECORDED RUN</span>
+            <span>HYDRADB CLOUD</span>
           </div>
-          <pre style={{ margin: 0, padding: '36px 0 28px', fontFamily: MONO, fontSize: '13.5px', lineHeight: 1.9, color: '#BDBDBD', whiteSpace: 'pre-wrap' }}>
-            {'  '}<span style={{ color: '#FFB829' }}>·</span>{'  '}<span style={{ color: '#FFFFFF' }}>L A C U N A</span>{'  '}<span style={dim}>v0.1</span>
-            {'\n  '}<span style={dim}>context for long-running agents</span><span style={dim}>{'\n\n  ┌ session ' + TOP_RULE + '┐'}</span>
-            {'\n  '}<span style={dim}>│</span>{' workspace  acme         hydradb  '}<span style={{ color: '#15846E' }}>● connected</span>
-            {'\n  '}<span style={dim}>│</span>{' project    backend      context  ready'}
-            {'\n  '}<span style={dim}>│</span>{' model      qwen2.5 · ollama · '}<span style={{ color: '#FFFFFF' }}>local</span>
-            {'\n  '}<span style={dim}>{'└' + BOTTOM_RULE + '┘'}</span><span style={violet}>{'\n\n❯'}</span>
-            {' ask "where does session state live now?"'}<span style={violet}>{'\n\n  ▌'}</span>
-            {' '}<span style={{ color: '#FFFFFF' }}>POSTGRES</span>
-            {'\n  '}<span style={violet}>▌</span>{' current since 5 mar · 2 sources · history kept'}
-            {'\n    '}<span style={dim}>evidence: pr #184 · runbook   trace 0x4e1a</span><span style={violet}>{'\n\n❯'}</span>
-            {' '}<span style={{ color: '#8052FF', animation: 'lpulse 1.1s steps(2) infinite' }}>█</span>
+          {/* 80 columns of monospace does not fit a phone. It scrolls inside
+              this box rather than widening the page, which is the difference
+              between a readable transcript and a horizontal scrollbar on the
+              whole document. */}
+          <pre style={{ margin: 0, padding: '30px 0 26px', fontFamily: MONO, fontSize: '13px', lineHeight: 1.75, color: '#BDBDBD', whiteSpace: 'pre', overflowX: 'auto', maxWidth: '100%' }}>
+            {lines.map((text, index) => (
+              <Line key={index} text={text} />
+            ))}
           </pre>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', padding: '10px 12px', marginBottom: '28px', background: 'rgba(255,255,255,0.04)', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em' }}>
-            <span style={{ color: '#15846E' }}>● READY</span>
-            <span style={{ color: '#9A9A9A' }}>MODEL QWEN2.5 · LOCAL</span>
-            <span style={{ color: '#9A9A9A' }}>HYDRADB CONNECTED</span>
-            <span style={dim}>CONTEXT 6 ITEMS · 1 PACK</span>
-            <span style={dim}>⌘K COMMANDS</span>
+            <span style={{ color: '#9A9A9A' }}>RECORDED {RECORDED}</span>
+            <span style={dim}>ARTIFACTS/CLI/SESSION.TXT</span>
           </div>
         </div>
       </div>
       <div style={{ maxWidth: '1100px', margin: '22px auto 0', padding: '0 clamp(20px, 4.4vw, 72px)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#71717A' }}>lacuna ask · remember · context · timeline · evidence · run · agent · models · tools · mcp · trace · eval · doctor</span>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' }}>CONCEPT PREVIEW · COMMAND SET FINALISED IN IMPLEMENTATION</span>
+        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#71717A' }}>lacuna doctor · status · ask · explain · timeline · bench</span>
+        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' }}>EVERY COMMAND ABOVE EXISTS · LACUNA --HELP LISTS THE SAME SIX</span>
       </div>
     </section>
   );

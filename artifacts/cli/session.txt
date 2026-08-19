@@ -1,0 +1,47 @@
+$ lacuna status
+
+   ●···
+ ···  ··
+··     ·   lacuna
+··    ··
+ ······
+
+  profile  cloud
+  store    HydraDB Cloud, database lacuna, collection backend
+  counts   not available on this store
+
+$ lacuna ask Bellwether beta_partner
+
+Q  Bellwether beta_partner
+A  Halverd
+   This replaced 2 earlier values and nothing has superseded it.
+
+   Cited from
+     Data planning call, 2025-04-20, user
+       "Correction on Bellwether: the beta partner is now Halverd."
+
+   1 query, 443.1ms
+
+$ lacuna explain Bellwether beta_partner
+
+Q  Bellwether beta_partner
+A  Halverd
+   This replaced 2 earlier values and nothing has superseded it.
+
+   How it got there
+     1. Found "Bellwether" as a project with 4 claims about it.
+     2. Read 3 "beta_partner" claims about "Bellwether", 2 of them superseded.
+     3. One current claim stands: "Halverd", stated 2025-04-20T11:48:00.000Z.
+
+   What it asked HydraDB
+     1.  GET /context/inspect id=lacuna:entity:56b...  1 row  366.9ms  no epoch
+
+   1 query, 367ms
+
+$ lacuna ask Redshank launch_date
+
+Q  Redshank launch_date
+A  No answer (out_of_scope)
+   No answer given, because this subject never appears in the sessions at all.
+
+   1 query, 249.9ms

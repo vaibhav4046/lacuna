@@ -60,14 +60,23 @@ export function clearCookie(name: string, secure: boolean): string {
 
 export class BodyTooLarge extends Error {}
 
-/** Reads at most MAX_BODY_BYTES and parses it as JSON. Never throws on bad JSON. */
-export async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown> | null> {
+/**
+ * Reads at most `maxBytes` and parses it as JSON. Never throws on bad JSON.
+ *
+ * The default is sized for a sign in form. A route that legitimately takes more,
+ * such as a pasted transcript, passes its own cap rather than raising this one,
+ * so widening one endpoint never widens the ones protecting credentials.
+ */
+export async function readJsonBody(
+  request: IncomingMessage,
+  maxBytes: number = MAX_BODY_BYTES,
+): Promise<Record<string, unknown> | null> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
     size += buffer.length;
-    if (size > MAX_BODY_BYTES) throw new BodyTooLarge(`body over ${MAX_BODY_BYTES} bytes`);
+    if (size > maxBytes) throw new BodyTooLarge(`body over ${maxBytes} bytes`);
     chunks.push(buffer);
   }
   if (chunks.length === 0) return null;

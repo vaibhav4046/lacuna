@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
+
 import type { HydraSource } from '../hydra/source.js';
 import { askCore } from '../contract/result.js';
 import type { EvidenceStanding } from '../contract/result.js';
-import { ask, buildQuestion, RetrievalError } from '../retrieval/index.js';
+import { ask, buildQuestion } from '../retrieval/index.js';
 import type { Inventory } from '../report/inventory.js';
 
 /**
@@ -20,7 +22,32 @@ import type { Inventory } from '../report/inventory.js';
 /** The one workspace whose contents are the design's own sample values. */
 export const DEMO_WORKSPACE = 'acme / backend';
 
-export type AnswerStatus = 'ANSWERED' | 'PARTIAL' | 'CONFLICT' | 'NO_EVIDENCE' | 'SYSTEM_ERROR';
+/**
+ * `INVALID_REQUEST` exists because a malformed question is not an outage.
+ *
+ * An empty subject used to reach the resolver, fail, and come back as
+ * SYSTEM_ERROR, which on the screen reads as "the context store did not
+ * answer". That tells a person their memory is broken when what happened is
+ * that they submitted an empty box, and it makes every real HydraDB failure
+ * less believable.
+ */
+export type AnswerStatus =
+  | 'ANSWERED'
+  | 'PARTIAL'
+  | 'CONFLICT'
+  | 'NO_EVIDENCE'
+  | 'INVALID_REQUEST'
+  | 'SYSTEM_ERROR';
+
+/** What was wrong with the request, when the request was what was wrong. */
+export type InvalidReason =
+  | 'subject_required'
+  | 'predicate_required'
+  | 'input_too_long'
+  | 'question_unreadable';
+
+/** A subject or predicate longer than this is not a name, it is a payload. */
+export const MAX_QUESTION_CHARS = 200;
 
 export interface EnvelopeEvidence {
   readonly source: string;
@@ -58,8 +85,46 @@ export interface AnswerEnvelope {
   readonly took_ms: number;
 }
 
+/**
+ * 128 bits from the platform CSPRNG, not 32 from `Math.random`.
+ *
+ * A trace id is quoted in support and pasted into logs, so two requests
+ * colliding is a real cost, and 32 bits collide at around 77,000 requests.
+ */
 function traceId(): string {
-  return '0x' + Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0');
+  return randomUUID();
+}
+
+/** The envelope for a request that was never going to be answerable. */
+export function invalidRequest(reason: InvalidReason): AnswerEnvelope {
+  return {
+    status: 'INVALID_REQUEST',
+    answer: null,
+    evidence: [],
+    revisions: [],
+    conflicts: [],
+    abstain_reason: reason,
+    context_pack_id: null,
+    trace_id: traceId(),
+    source_state: 'live',
+    took_ms: 0,
+  };
+}
+
+/**
+ * Whether a question is well formed, before any store is asked.
+ *
+ * Returns the reason rather than throwing, because the caller has to turn it
+ * into a status code and a body, and an exception carrying a string would make
+ * that a parse.
+ */
+export function validateQuestion(subject: unknown, predicate: unknown): InvalidReason | null {
+  if (typeof subject !== 'string' || subject.trim() === '') return 'subject_required';
+  if (typeof predicate !== 'string' || predicate.trim() === '') return 'predicate_required';
+  if (subject.length > MAX_QUESTION_CHARS || predicate.length > MAX_QUESTION_CHARS) {
+    return 'input_too_long';
+  }
+  return null;
 }
 
 /**
@@ -80,19 +145,10 @@ export async function askEnvelope(
   let question;
   try {
     question = buildQuestion(subject, predicate, via);
-  } catch (error) {
-    return {
-      status: 'SYSTEM_ERROR',
-      answer: null,
-      evidence: [],
-      revisions: [],
-      conflicts: [],
-      abstain_reason: error instanceof RetrievalError ? error.message : 'the question could not be read',
-      context_pack_id: null,
-      trace_id: trace,
-      source_state: 'live',
-      took_ms: 0,
-    };
+  } catch {
+    // The question could not be read. That is the caller's input, not the
+    // store's health, and saying SYSTEM_ERROR here was blaming HydraDB for it.
+    return invalidRequest('question_unreadable');
   }
 
   try {

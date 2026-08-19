@@ -16,7 +16,7 @@ import {
 import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, sameDigest, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
-import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './workspace.js';
+import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, validateQuestion } from './workspace.js';
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
@@ -57,6 +57,9 @@ const ASK_TIMEOUT_MS = 10_000;
 
 /** A workspace name is a label, not an essay. */
 const MAX_WORKSPACE_CHARS = 120;
+
+/** A pasted transcript is bigger than a form. Four times what the extractor reads. */
+const EXTRACT_BODY_BYTES = 16_384;
 
 /** Sign up is rarer and more expensive, so it is tighter. */
 const SIGNUP_LIMIT = { limit: 3, windowMs: 60_000, maxKeys: 4_096 };
@@ -499,9 +502,12 @@ export class ApiRouter {
       // over text a reader supplies, and reports what it read, what it refused,
       // and how many sentences it made nothing of. Pure: no store, no model, no
       // write, nothing kept.
+      // GET returns the built in transcript only. A reader's own text goes in a
+      // POST body: a transcript in a query string ends up in access logs, in
+      // proxy caches and in browser history, and somebody pasting a real
+      // conversation in has no reason to expect that.
       if (part === 'extract') {
-        const supplied = new URL(request.url ?? '/', 'http://placeholder').searchParams.get('text');
-        send(response, 200, extractionReport(supplied));
+        send(response, 200, extractionReport(null));
         return HANDLED;
       }
 
@@ -545,6 +551,30 @@ export class ApiRouter {
       return HANDLED;
     }
 
+    // Extraction over text a reader supplies. No session, no store, no write:
+    // it is a pure function of the body, so it needs no CSRF token, and it is
+    // marked no-store so nothing between here and the browser keeps a copy of
+    // somebody's transcript.
+    if (path === '/api/demo/extract' && method === 'POST') {
+      let body: Record<string, unknown> | null;
+      try {
+        // Four times the text the extractor will read, so anything a reader can
+        // legitimately paste arrives and is reported as truncated rather than
+        // rejected with a status code that says nothing.
+        body = await readJsonBody(request, EXTRACT_BODY_BYTES);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const text = body?.['text'];
+      if (text !== undefined && typeof text !== 'string') {
+        send(response, 422, { error: 'text must be a string' });
+        return HANDLED;
+      }
+      send(response, 200, extractionReport(typeof text === 'string' ? text : null));
+      return HANDLED;
+    }
+
     if (path === '/api/ask' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
@@ -569,12 +599,22 @@ export class ApiRouter {
       const subject = body?.['subject'];
       const predicate = body?.['predicate'];
       const via = body?.['via'];
-      if (typeof subject !== 'string' || typeof predicate !== 'string') {
-        send(response, 400, { error: 'question' });
+      // A malformed question is a 422 with a named reason, not a 200 carrying
+      // SYSTEM_ERROR. The screen can then say what the person did rather than
+      // telling them the context store is down.
+      const invalid = validateQuestion(subject, predicate);
+      if (invalid !== null) {
+        send(response, 422, invalidRequest(invalid));
         return HANDLED;
       }
+      // Narrowed by validateQuestion above, which returns non-null for anything
+      // that is not a non-empty string of bounded length.
       send(response, 200, await askEnvelope(
-        openSource(), subject, predicate, typeof via === 'string' && via !== '' ? via : null, ASK_TIMEOUT_MS,
+        openSource(),
+        subject as string,
+        predicate as string,
+        typeof via === 'string' && via !== '' ? via : null,
+        ASK_TIMEOUT_MS,
       ));
       return HANDLED;
     }

@@ -16,6 +16,9 @@ import { Empty, Failed, Stage } from '../state';
  * function of the text handed to it.
  */
 
+/** Matches the cap the endpoint enforces, so the counter is not a decoration. */
+const MAX_PROSE = 4000;
+
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
 
@@ -73,8 +76,16 @@ export function Extractor() {
   const run = async (prose: string): Promise<void> => {
     setState('loading');
     try {
-      const query = prose.trim() === '' ? '' : `?text=${encodeURIComponent(prose)}`;
-      const response = await fetch(`/api/demo/extract${query}`);
+      // POST, not a query string. A transcript in a URL lands in access logs,
+      // proxy caches and browser history, and somebody pasting a real
+      // conversation has no reason to expect that.
+      const response = prose.trim() === ''
+        ? await fetch('/api/demo/extract')
+        : await fetch('/api/demo/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: prose }),
+        });
       if (!response.ok) throw new Error('failed');
       setReport(await response.json() as ExtractionReport);
       setState('idle');
@@ -115,6 +126,7 @@ export function Extractor() {
         onChange={(event) => setText(event.target.value)}
         placeholder="Paste a transcript, one speaker per line. Leave it empty for the built in one."
         rows={4}
+        maxLength={MAX_PROSE}
         style={{
           background: 'transparent',
           border: '1px solid rgba(255,255,255,0.14)',
@@ -130,6 +142,9 @@ export function Extractor() {
       />
 
       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ ...note, color: text.length > MAX_PROSE * 0.9 ? '#FFB829' : '#5E5E5E' }}>
+          {text.length} / {MAX_PROSE}
+        </span>
         <button
           className="hv-text"
           onClick={() => void run(text)}

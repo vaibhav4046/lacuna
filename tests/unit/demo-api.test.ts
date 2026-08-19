@@ -293,6 +293,27 @@ describe('a graph walk the store refuses', () => {
  * forged instruction changes nothing.
  */
 describe('prose into the claim graph, over HTTP', () => {
+  /**
+   * A transcript goes in a body, never in a URL. A query string is written to
+   * access logs, kept by proxies and saved in browser history, and somebody
+   * pasting a real conversation in has no reason to expect any of that.
+   */
+  const post = (text: string): Promise<Response> => fetch(`${base}/api/demo/extract`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+
+  it('refuses to read a transcript out of the query string', async () => {
+    const leaked = encodeURIComponent('a: sessions are stored in Cassandra.');
+    const body = await (await fetch(`${base}/api/demo/extract?text=${leaked}`)).json() as {
+      claims: { objectText: string }[];
+    };
+    // The built in transcript comes back instead, so a URL cannot smuggle text
+    // through and cannot be mistaken for a supported way to call this.
+    expect(body.claims.some((claim) => claim.objectText === 'Cassandra')).toBe(false);
+  });
+
   it('reads the built in transcript and reports what it made of it', async () => {
     const response = await fetch(`${base}/api/demo/extract`);
     expect(response.status).toBe(200);
@@ -339,8 +360,7 @@ describe('prose into the claim graph, over HTTP', () => {
   });
 
   it('extracts prose a reader supplies, and caps how much it will read', async () => {
-    const mine = encodeURIComponent('dana: The billing service is owned by Rae.');
-    const body = await (await fetch(`${base}/api/demo/extract?text=${mine}`)).json() as {
+    const body = await (await post('dana: The billing service is owned by Rae.')).json() as {
       turns: number; truncated: boolean; readableProperties: string[]; claims: { subject: string; objectText: string }[];
     };
     expect(body.turns).toBe(1);
@@ -350,12 +370,12 @@ describe('prose into the claim graph, over HTTP', () => {
     // back empty for a stated reason rather than looking broken.
     expect(body.readableProperties).toContain('owner');
 
-    const long = await (await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('a: x is y. '.repeat(600))}`)).json() as { truncated: boolean };
+    const long = await (await post('a: x is y. '.repeat(600))).json() as { truncated: boolean };
     expect(long.truncated).toBe(true);
   });
 
   it('reads eleven sentence shapes and not English, and says so', async () => {
-    const body = await (await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('dana: The billing service is written in Rust.')}`)).json() as {
+    const body = await (await post('dana: The billing service is written in Rust.')).json() as {
       claims: unknown[]; readableProperties: string[];
     };
     // The honest ceiling, pinned. This sentence states a fact a reader would
@@ -372,7 +392,7 @@ describe('prose into the claim graph, over HTTP', () => {
     // window.__pwned stayed null, no img element was created, and the CSP
     // allows script-src 'self' only. This pins the server half of that.
     const payload = 'a: <script>window.x=1</script> is owned by <img src=x onerror=1>.';
-    const body = await (await fetch(`${base}/api/demo/extract?text=${encodeURIComponent(payload)}`)).json() as {
+    const body = await (await post(payload)).json() as {
       claims: { objectText: string; quote: string }[];
     };
     expect(body.claims).toHaveLength(1);
@@ -386,7 +406,7 @@ describe('prose into the claim graph, over HTTP', () => {
     const long = `a: ${'x'.repeat(3000)} is stored in y.`;
     const cases = [long, 'a: \u{1D54A}essions are stored in Valhalla.', ''];
     for (const text of cases) {
-      const response = await fetch(`${base}/api/demo/extract?text=${encodeURIComponent(text)}`);
+      const response = await post(text);
       expect(response.status).toBe(200);
       const body = await response.json() as { claims: unknown[] };
       expect(Array.isArray(body.claims)).toBe(true);
@@ -395,7 +415,7 @@ describe('prose into the claim graph, over HTTP', () => {
 
   it('writes nothing, so the workspace is unchanged after a call', async () => {
     const before = await (await fetch(`${base}/api/demo/memory`)).text();
-    await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('a: sessions are stored in Cassandra.')}`);
+    await post('a: sessions are stored in Cassandra.');
     const after = await (await fetch(`${base}/api/demo/memory`)).text();
     expect(after).toBe(before);
   });

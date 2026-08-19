@@ -123,7 +123,7 @@ const CLAUSE_BREAK: ReadonlySet<string> = new Set([
  * "now" and "currently" have always been dropped.
  */
 const TRAILING_TIME =
-  /\s+(?:now|today|currently|any\s?more|from\s+now\s+on|going\s+forward|at\s+the\s+moment|right\s+now|yesterday|recently|(?:last|this)\s+(?:night|week|month|year|quarter|morning|afternoon|evening))$/i;
+  /\s+(?:now|today|currently|any\s?more|from\s+now\s+on|going\s+forward|at\s+the\s+moment|right\s+now|yesterday|recently|(?:last|this)\s+(?:night|week|month|year|quarter|morning|afternoon|evening)|at\s+some\s+point|soon|eventually|later)$/i;
 
 /** Where a value ends. Anything past one of these is another clause. */
 const VALUE_END = /[.!?,;]|\s+(?:because|so\s+that|and|but|since|which|that|on|for|from|as\s+of|with|until|while)\s+/i;

@@ -25,12 +25,22 @@ clean. No count in this file is carried forward from an earlier run.
 | Google sign in | redirect live, `openid email profile` |
 | secrets in tracked files and in history | 0 and 0 |
 
-**The largest disclosed weakness is claim extraction from raw prose.** The claim
-graph is built from structured annotations the corpus generator emits, so the
-downstream temporal, contradiction and abstention logic is stronger than the
-ingestion of arbitrary conversation text. That is stated in the README and it is
-the thing being worked on now, because Track 03 is about raw long histories and
-an extractor that only reads annotations does not meet the track where it lives.
+**Claim extraction from raw prose was the largest disclosed weakness, and it now
+exists.** `src/extract` turns a transcript into subjects, predicates, objects and
+the quotation each came from, classifies every sentence as a statement, plan,
+question or reported change, and files anything that is not a statement onto a
+slot the resolver structurally cannot answer from. It runs live on
+`/demo/memory`, where a reader can paste their own text, and it is what the
+LongMemEval adapter ingests with.
+
+The weakness that replaces it is narrower and is stated everywhere the old one
+was. The extractor reads **eleven sentence frames covering seven properties, not
+English**, so prose about anything else yields nothing rather than a guess, and
+every response names what it can read so an empty result is a limit rather than
+a mystery. And every measured number in this repository is still over a graph
+built from annotations rather than from the extractor: the extraction path is
+exercised end to end only by the LongMemEval integration, which
+`docs/BENCHMARK_LONGMEMEVAL.md` bounds exactly.
 
 
 ## Built and verified

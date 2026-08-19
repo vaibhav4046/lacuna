@@ -26,8 +26,9 @@ import { Devtools, debuggerUrl, fail, findChrome, freePort, wait } from './lib/d
  * whether anything was drawn at all, because a route that mounts and throws
  * renders a clean empty page that looks fine in a list of passing URLs.
  *
- * Two viewports, a laptop and a phone, since half the failures only exist at
- * one of them.
+ * Nine viewports, 360px through 4K, since half the failures only exist at one
+ * of them. The pass at phone width is what found every signed-in route
+ * scrolling sideways while every public page was clean.
  *
  * A request answering 401 is not a failure here. Several of these screens ask
  * for a session before they know they do not have one, and the deployment
@@ -54,10 +55,36 @@ const PATHS = [
   ...APP_ROUTES.map((route) => `/demo/${route}`),
 ];
 
+/**
+ * The widths a reader actually has, rather than the two a developer checks.
+ *
+ * Small phone through to a 4K desktop. The 360 and 430 ends are the ones that
+ * matter: the first is the narrowest screen still in common use and the second
+ * is a large phone, and a layout that survives both survives the middle. The
+ * pass at 375 is what found every signed-in route scrolling sideways.
+ */
 const VIEWPORTS = [
-  { name: 'laptop', width: 1_440, height: 900 },
-  { name: 'phone', width: 375, height: 812 },
+  { name: 'phone-360', width: 360, height: 800 },
+  { name: 'phone-390', width: 390, height: 844 },
+  { name: 'phone-430', width: 430, height: 932 },
+  { name: 'tablet-768', width: 768, height: 1_024 },
+  { name: 'laptop-1366', width: 1_366, height: 768 },
+  { name: 'laptop-1440', width: 1_440, height: 900 },
+  { name: 'desktop-1920', width: 1_920, height: 1_080 },
+  { name: 'desktop-2560', width: 2_560, height: 1_440 },
+  { name: 'desktop-3840', width: 3_840, height: 2_160 },
 ] as const;
+
+/**
+ * Reduced motion is a correctness question here, not a preference.
+ *
+ * The landing page explains the product through a field of moving particles.
+ * A reader who has asked their system for less motion gets the static state,
+ * and the static state still has to say what the product does. So the sweep is
+ * run once more with the preference set, and a route that draws nothing under
+ * it fails exactly as it would with motion on.
+ */
+const REDUCED_MOTION = process.argv.includes('--reduced-motion');
 
 /** Long enough for a route that mounts, asks the API and then draws. */
 const SETTLE_MS = 1_200;
@@ -113,6 +140,13 @@ try {
   await devtools.send('Page.enable');
   await devtools.send('Runtime.enable');
   await devtools.send('Network.enable');
+
+  if (REDUCED_MOTION) {
+    await devtools.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    });
+    print('emulating prefers-reduced-motion: reduce\n');
+  }
 
   // Collected per navigation. The listeners stay attached for the whole run and
   // write into whichever arrays are current, which is simpler than attaching
@@ -245,6 +279,7 @@ const failures = findings.filter((finding) => !finding.ok);
 const report = {
   recorded: new Date().toISOString().slice(0, 10),
   base,
+  reducedMotion: REDUCED_MOTION,
   viewports: VIEWPORTS.map((viewport) => `${viewport.name} ${viewport.width}x${viewport.height}`),
   routes: PATHS.length,
   checks: findings.length,
@@ -260,7 +295,8 @@ const report = {
 };
 
 mkdirSync(OUT_DIR, { recursive: true });
-writeFileSync(`${OUT_DIR}/routes.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+const outFile = REDUCED_MOTION ? 'routes-reduced-motion.json' : 'routes.json';
+writeFileSync(`${OUT_DIR}/${outFile}`, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
 print(`${findings.length} checks over ${PATHS.length} routes at ${VIEWPORTS.length} viewports`);
 print(`console errors ${report.totals.consoleErrors}, exceptions ${report.totals.exceptions}, failed requests ${report.totals.failedRequests}`);
@@ -268,6 +304,6 @@ print(`routes scrolling sideways ${report.totals.routesScrollingSideways}`);
 print(`unauthorised reads, which are the deployment refusing correctly: ${report.totals.unauthorisedResponses}`);
 print('');
 print(`ROUTE_AUDIT_CLEAN: ${report.clean}`);
-print('artifacts/route-audit/routes.json written.');
+print(`artifacts/route-audit/${outFile} written.`);
 
 if (!report.clean) process.exit(1);

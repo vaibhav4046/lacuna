@@ -140,10 +140,39 @@ describe('one seam decides which store a client reads', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('is what the three shipped clients use', () => {
-    for (const path of ['src/api/router.ts', 'src/cli/question.ts', 'scripts/mcp.ts']) {
-      expect(read(join(ROOT, path))).toContain('openSource');
+  /**
+   * This assertion used to read `toContain('openSource')` across three files
+   * and passed on the router for the wrong reason: the router has a local
+   * variable of that name at the point it uses its injected factory, and never
+   * imports the seam at all. A test that passes on a coincidence of naming is
+   * worse than no test, because it reports a property nobody is holding.
+   *
+   * The router's real property is the stronger one. It cannot pick a store
+   * because it is handed one, so it is checked for that instead: a type only
+   * import of the interface, and an injected factory.
+   */
+  it('is imported by the two clients that choose a store for themselves', () => {
+    for (const path of ['src/cli/question.ts', 'scripts/mcp.ts']) {
+      const imports = codeLines(read(join(ROOT, path)))
+        .some(({ text }) => /^\s*import\b[^'"]*\bopenSource\b[^'"]*from\s+['"][^'"]*hydra\/open/.test(text));
+      expect(imports, `${path} should import openSource from the seam`).toBe(true);
     }
+  });
+
+  it('is not needed by the router, which is handed a source rather than choosing one', () => {
+    const source = read(join(ROOT, 'src/api/router.ts'));
+    const lines = codeLines(source);
+
+    // Type only. A value import of the interface would mean the router had
+    // reason to touch an implementation.
+    expect(lines.some(({ text }) => /^\s*import\s+type\b[^'"]*HydraSource[^'"]*from/.test(text))).toBe(true);
+
+    // And the store arrives as a factory on the options object.
+    expect(source).toContain('readonly #source: (() => HydraSource) | undefined');
+
+    // It must not reach the seam directly, which would let it override the
+    // store its caller chose.
+    expect(lines.some(({ text }) => /from\s+['"][^'"]*hydra\/open/.test(text))).toBe(false);
   });
 
   it('still lists every pinned surface, so the list cannot rot into a rubber stamp', () => {

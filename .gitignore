@@ -83,3 +83,6 @@ design/incoming2/
 video/hyperframes/renders/*.mp4
 video/hyperframes/snapshots/
 .env.cloud
+
+# The LongMemEval dataset, downloaded not committed. 15MB to 2.7GB.
+/data/

@@ -236,6 +236,73 @@ which is less than a reader would understand from the same text. Recall is not
 measured here and no number for it is claimed. The limit is stated in
 [README](../README.md) beside the thesis.
 
+## The real dataset, through the real adapter
+
+`longmemeval_oracle.json` was downloaded and all 500 published instances were
+pushed through the loader and the adapter. Reproduce with:
+
+```bash
+npx tsx scripts/longmemeval-ingest-check.ts
+```
+
+Written to [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json).
+
+| | |
+| --- | --- |
+| instances read | 500 |
+| parse failures | **0** |
+| adapter failures | **0** |
+| ground truth leaks | **0** |
+| sessions | 948 |
+| messages | 10,960 |
+| estimated tokens | 3,303,216 |
+| read in | 0.6s |
+
+The first three rows are the ones worth having. The format reader and the
+leakage guarantee were previously tested only against fixtures handwritten from
+the README, which proves the code reads the shape it was told about and proves
+nothing about the shape that is published. They now hold against the published
+file: every record parses, and no serialised haystack contains `has_answer` or
+`answer_session_ids`.
+
+## The extractor does not read this domain, and the measurement says so
+
+**116 claims came out of 3.3 million tokens, and a manual sample of them is
+mostly wrong.** This is the most important honest result in this document and it
+is not a good one.
+
+The frame table was written for infrastructure conversations: where a service
+stores its data, who owns it, what it depends on, what region it runs in.
+LongMemEval is a personal assistant benchmark about degrees, hobbies, purchases
+and appointments. Run against it, the frames match surface syntax in prose they
+have no business reading. Before any guard, 364 claims came out, including:
+
+```
+[storage]    to her new apartment, and I used my car = transport some of her furniture
+[depends_on] decision                                = your priorities
+[policy]     Items                                   = in their original condition
+```
+
+None of those are facts about a thing. Every one was produced by a frame doing
+exactly what it was written to do.
+
+A precision guard was added in response, on the shape of a phrase rather than on
+any frame: a name may not contain a clause boundary, may not be headed by a
+preposition, may not be headed by a reader-relative word like "your" or
+"several", and may not run past six words. It cut the count from 364 to 116 and
+changed nothing on this project's own corpus, where all 1,150 unit tests still
+pass. It is a real improvement and it did not fix the problem: sampling the 116
+survivors still shows `[storage] aims = protect the state's coral reefs` and
+`[policy] ** Surfboards = wrapped`.
+
+Tightening further would be fitting the frames to this dataset, which is a
+different thing from reading it, so it was not done.
+
+**No LongMemEval score is claimed, and none would be meaningful until an
+extractor exists that reads this domain.** That is a larger gap than the
+question parser named below, and it is named first because it is the one that
+decides whether a number would mean anything.
+
 ## What a real run still needs
 
 One component, which does not exist in this repository.
@@ -264,11 +331,12 @@ per run.
 | step | status |
 |---|---|
 | official format confirmed | yes, against the repository source and README |
-| loader and adapter | written, unit tested against handwritten fixtures |
-| claim extraction from haystack prose | wired in, and exercised on prose that changes a value across sessions |
+| loader and adapter | written, and run over all 500 published instances with 0 failures |
+| ground truth isolation | structural, and verified against the published file rather than fixtures |
+| dataset downloaded | yes, the oracle tier |
+| claim extraction from haystack prose | wired in, and **it does not read this domain**: 116 claims from 3.3M tokens, mostly wrong on inspection |
 | ground truth isolation | structural, enforced by types and asserted in tests |
-| dataset downloaded | no |
-| ingestion of a real haystack | not run |
+| ingestion of a real haystack | adapted, not written to a store |
 | hypotheses produced | none |
 | official evaluation run | no |
 | score | **none. No LongMemEval number exists for Lacuna** |

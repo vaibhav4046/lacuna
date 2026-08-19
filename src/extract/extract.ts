@@ -208,8 +208,61 @@ function valueToTheRight(right: string): string {
   return head.replace(TRAILING_TIME, '').replace(/["'`]/g, '').trim();
 }
 
+/**
+ * Words that mean "it depends who is asking", which is never a fact about a
+ * thing. A value headed by one of these is an answer to a different kind of
+ * question than this graph stores.
+ */
+const RELATIVE = new Set([
+  'your', 'my', 'his', 'her', 'their', 'our', 'its',
+  'several', 'many', 'various', 'some', 'other', 'certain', 'personal',
+  'whether', 'how', 'what', 'which', 'who',
+]);
+
+/**
+ * Words a name cannot start with. A phrase opening with a preposition is the
+ * tail of a clause somebody sliced in the wrong place, not a subject.
+ */
+const NOT_A_NAME_START = new Set([
+  'to', 'in', 'on', 'for', 'from', 'with', 'by', 'at', 'of', 'between',
+  'and', 'but', 'or', 'because', 'if', 'when', 'while',
+]);
+
+/** A name is a name. Six words is generous for one and short for a clause. */
+const MAX_NAME_WORDS = 6;
+
+/**
+ * Whether a phrase can be a subject or a value at all.
+ *
+ * Non-empty and containing a letter is not enough, and finding that out cost a
+ * real measurement. Run against the published LongMemEval oracle, which is a
+ * personal assistant benchmark rather than an infrastructure one, the frame
+ * table matched surface syntax all over prose it has no business reading:
+ * "move to her new apartment" filed a storage claim whose subject was "to her
+ * new apartment, and I used my car", and "the decision depends on your
+ * priorities" filed a dependency of a decision on priorities.
+ *
+ * None of those are facts about a thing, and every one of them was produced by
+ * a frame doing exactly what it was written to do. The guard is therefore on
+ * the shape of the phrase rather than on the frame: a clause is not a name, a
+ * phrase headed by a preposition is a fragment, and a value headed by "your" or
+ * "several" is relative to the reader rather than true of the subject.
+ *
+ * This is a precision guard and it costs recall. That trade is the one this
+ * module is built around: a claim the sessions never made is worse than a claim
+ * missed, because the first one gets answered with.
+ */
 function usable(text: string): boolean {
-  return text !== '' && /[A-Za-z0-9]/.test(text);
+  if (text === '' || !/[A-Za-z0-9]/.test(text)) return false;
+  // A name does not contain a sentence boundary. These arrive when a frame
+  // matched across a clause the sentence splitter kept together.
+  if (/[,;:]/.test(text)) return false;
+
+  const parts = text.toLowerCase().split(/\s+/).filter((word) => word !== '');
+  if (parts.length === 0 || parts.length > MAX_NAME_WORDS) return false;
+  if (NOT_A_NAME_START.has(parts[0]!)) return false;
+  if (RELATIVE.has(parts[0]!)) return false;
+  return true;
 }
 
 interface Hit {

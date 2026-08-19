@@ -44,6 +44,16 @@ interface Shot {
   readonly prefers: Preference;
   /** True to capture the whole document rather than the first screen of it. */
   readonly whole: boolean;
+  /**
+   * Extra settling for a screen that fills after load.
+   *
+   * The recorded site is server rendered and is finished when the load event
+   * fires. The deployed application is not: it mounts, asks the API, and draws
+   * when the answers arrive, so a capture taken at load is a capture of an
+   * empty frame. The density check would catch that, which is exactly why the
+   * wait belongs here rather than in a hope.
+   */
+  readonly settleMs?: number;
 }
 
 const SHOTS: readonly Shot[] = [
@@ -134,6 +144,7 @@ const CHROME_CANDIDATES = [
 ];
 
 const OUT_DIR = fileURLToPath(new URL('../artifacts/screens', import.meta.url));
+const LIVE_DIR = fileURLToPath(new URL('../artifacts/screens/live', import.meta.url));
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -389,6 +400,36 @@ function check(shot: Shot, reading: Reading): void {
   }
 }
 
+
+/**
+ * The deployed application, captured from outside it.
+ *
+ * Different pages from the set above and on purpose: those are the recorded
+ * site this URL used to serve, and these are the product answering. Every one
+ * of them reaches HydraDB Cloud while the shutter is open, which is why they
+ * settle for seconds rather than milliseconds.
+ */
+const LIVE_SHOTS: readonly Shot[] = [
+  { file: 'live-landing-1920x1080.png', url: '/', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 2_500 },
+  { file: 'live-landing-375x812.png', url: '/', width: 375, height: 812, prefers: 'dark', whole: false, settleMs: 2_500 },
+  { file: 'live-judge-fullpage.png', url: '/judge', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 9_000 },
+  { file: 'live-judge-1920x1080.png', url: '/judge', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 9_000 },
+  { file: 'live-judge-375x812.png', url: '/judge', width: 375, height: 812, prefers: 'dark', whole: false, settleMs: 9_000 },
+  { file: 'live-dashboard-1920x1080.png', url: '/demo/dash', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-memory-fullpage.png', url: '/demo/memory', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 4_000 },
+  { file: 'live-timeline-1920x1080.png', url: '/demo/timeline', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-graph-1920x1080.png', url: '/demo/graph', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-health-1920x1080.png', url: '/demo/health', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-evaluations-1920x1080.png', url: '/demo/evals', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-hydradb-1920x1080.png', url: '/demo/hydra', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-ask-1920x1080.png', url: '/demo/ask', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+];
+
+/** `--live` captures the deployed application; the default captures the recorded site. */
+const LIVE = process.argv.includes('--live');
+const SET: readonly Shot[] = LIVE ? LIVE_SHOTS : SHOTS;
+const TARGET_DIR = LIVE ? LIVE_DIR : OUT_DIR;
+
 const base = (process.argv[2] ?? 'http://127.0.0.1:3014').replace(/\/$/, '');
 
 // Refuse to photograph a dead server. Without this, every navigation lands on
@@ -408,7 +449,7 @@ const chrome = findChrome();
 const port = await freePort();
 const profile = mkdtempSync(join(tmpdir(), 'lacuna-screens-'));
 
-mkdirSync(OUT_DIR, { recursive: true });
+mkdirSync(TARGET_DIR, { recursive: true });
 
 process.stdout.write(`chrome  ${chrome}\nserver  ${base}\nout     ${OUT_DIR}\n\n`);
 
@@ -434,8 +475,8 @@ try {
 
   process.stdout.write('file                                 size        prefers  bytes    px\n');
 
-  for (const shot of SHOTS) {
-    const target = join(OUT_DIR, shot.file);
+  for (const shot of SET) {
+    const target = join(TARGET_DIR, shot.file);
 
     await devtools.send('Emulation.setDeviceMetricsOverride', {
       width: shot.width,
@@ -451,7 +492,7 @@ try {
     const loaded = devtools.once('Page.loadEventFired', LOAD_TIMEOUT_MS);
     await devtools.send('Page.navigate', { url: `${base}${shot.url}` });
     await loaded;
-    await wait(SETTLE_MS);
+    await wait(shot.settleMs ?? SETTLE_MS);
 
     const capture = await devtools.send('Page.captureScreenshot', {
       format: 'png',
@@ -491,7 +532,7 @@ try {
 
 process.stdout.write(
   failures === 0
-    ? `\n${SHOTS.length} captures, all checked\n`
-    : `\n${failures} of ${SHOTS.length} captures failed their checks\n`,
+    ? `\n${SET.length} captures, all checked\n`
+    : `\n${failures} of ${SET.length} captures failed their checks\n`,
 );
 process.exit(failures === 0 ? 0 : 1);

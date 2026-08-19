@@ -66,10 +66,10 @@ function collectEntities(sessions: readonly Session[]): readonly CorpusEntity[] 
   });
 }
 
-export function generateCorpus(seed: string = DEFAULT_SEED): Corpus {
+export function generateCorpus(seed: string = DEFAULT_SEED, sessionCount?: number): Corpus {
   const rng = createRng(seed);
   const plan = planThreads(rng);
-  const transcript = buildTranscript(rng, plan);
+  const transcript = buildTranscript(rng, plan, sessionCount);
   const corpus: Corpus = {
     seed,
     sessions: transcript.sessions,

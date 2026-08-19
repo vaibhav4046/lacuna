@@ -20,6 +20,7 @@ import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './wo
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
+import { extractionReport } from './extract-demo.js';
 import type { HydraSource } from '../hydra/source.js';
 import type { ClaimState, Inventory } from '../report/inventory.js';
 import type { EvalRow } from '../report/evaluations.js';
@@ -487,6 +488,20 @@ export class ApiRouter {
         } catch {
           send(response, 200, { available: false, reason: 'the store did not answer', subject, relations: [] });
         }
+        return HANDLED;
+      }
+
+      // The step before every other screen: prose in, claims out.
+      //
+      // Everything else here reads a graph that was built from annotations,
+      // which proves the resolver and proves nothing about where the graph came
+      // from. This runs the extractor itself, over the built in transcript or
+      // over text a reader supplies, and reports what it read, what it refused,
+      // and how many sentences it made nothing of. Pure: no store, no model, no
+      // write, nothing kept.
+      if (part === 'extract') {
+        const supplied = new URL(request.url ?? '/', 'http://placeholder').searchParams.get('text');
+        send(response, 200, extractionReport(supplied));
         return HANDLED;
       }
 

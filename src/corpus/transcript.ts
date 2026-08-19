@@ -19,14 +19,14 @@ import type { ClaimAnnotation, CorpusStats, EvidenceSpan, Message, Session } fro
  * The number was picked by generating and measuring, not by estimating: see the
  * stats printed by `tests/unit/corpus.test.ts`.
  */
-const SESSION_COUNT = 72;
+export const SESSION_COUNT = 72;
 const MIN_MESSAGES = 56;
 const MAX_MESSAGES = 88;
 const BASE_EPOCH_MS = Date.UTC(2025, 0, 6, 9, 0, 0);
 const SESSION_GAP_MS = 2 * 24 * 60 * 60 * 1000;
 const MESSAGE_GAP_MS = 3 * 60 * 1000;
 /** Threads start early enough that a three claim chain still has room to spread. */
-const LATEST_START = SESSION_COUNT - 5;
+const START_HEADROOM = 5;
 
 interface Placement {
   readonly session: number;
@@ -84,9 +84,15 @@ export interface Transcript {
   readonly stats: CorpusStats;
 }
 
-export function buildTranscript(rng: Rng, plan: ThreadPlan): Transcript {
+/**
+ * `sessionCount` exists so the same corpus can be generated at several sizes
+ * and the cost of answering over it measured as history grows. It defaults to
+ * the shipped size, so every existing caller gets the corpus it always got.
+ */
+export function buildTranscript(rng: Rng, plan: ThreadPlan, sessionCount: number = SESSION_COUNT): Transcript {
+  const latestStart = Math.max(1, sessionCount - START_HEADROOM);
   const skeletons: Skeleton[] = [];
-  for (let i = 0; i < SESSION_COUNT; i += 1) {
+  for (let i = 0; i < sessionCount; i += 1) {
     skeletons.push({
       key: `session-${String(i + 1).padStart(2, '0')}`,
       title: sessionTitle(rng),
@@ -111,13 +117,13 @@ export function buildTranscript(rng: Rng, plan: ThreadPlan): Transcript {
     if (thread.claims.length === 0) {
       continue;
     }
-    let session = rng.int(LATEST_START);
+    let session = rng.int(latestStart);
     let minOrdinal = -1;
     for (const claim of thread.claims) {
       const placement = takeSlot(rng, free, session, minOrdinal);
       placed.set(`${placement.session}:${placement.message}`, claim);
       minOrdinal = ordinal(placement);
-      session = Math.min(SESSION_COUNT - 1, placement.session + 1 + rng.int(3));
+      session = Math.min(sessionCount - 1, placement.session + 1 + rng.int(3));
     }
   }
 

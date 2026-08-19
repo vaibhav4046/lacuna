@@ -69,6 +69,17 @@ const FRAMES: readonly Frame[] = [
 ];
 
 /**
+ * The properties the frame table can read, for a screen that has to tell a
+ * reader what it will and will not understand before they type into it.
+ *
+ * This is the honest ceiling of the extractor. It reads eleven sentence shapes,
+ * not English, so prose about anything else produces nothing rather than
+ * producing a guess. Saying so up front is the difference between a limit and a
+ * silent failure.
+ */
+export const READABLE_PROPERTIES: readonly string[] = [...new Set(FRAMES.map((frame) => frame.property))];
+
+/**
  * "It is Postgres, not Redis."
  *
  * A correction of this shape names its target by value rather than by subject,

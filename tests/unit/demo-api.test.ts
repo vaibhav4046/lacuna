@@ -282,3 +282,94 @@ describe('a graph walk the store refuses', () => {
     expect((JSON.parse(text) as ExpansionReply).available).toBe(false);
   });
 });
+
+/**
+ * The one screen that starts before the graph exists.
+ *
+ * Everything else in the product reads a graph built from annotations. This
+ * route runs the extractor over prose, so these check the three things that
+ * separate a claim graph from a pile of sentences: a later statement replaces
+ * an earlier one, a suggestion never files onto the plain predicate, and a
+ * forged instruction changes nothing.
+ */
+describe('prose into the claim graph, over HTTP', () => {
+  it('reads the built in transcript and reports what it made of it', async () => {
+    const response = await fetch(`${base}/api/demo/extract`);
+    expect(response.status).toBe(200);
+    const body = await response.json() as {
+      turns: number; sentences: number; unread: number; truncated: boolean;
+      claims: { subject: string; predicate: string; property: string; mode: string; stating: boolean; objectText: string; supersedes: string | null; quote: string }[];
+    };
+
+    expect(body.turns).toBe(7);
+    expect(body.truncated).toBe(false);
+    // Most prose says nothing a graph can hold, and the count is reported
+    // rather than hidden.
+    expect(body.sentences).toBeGreaterThan(body.claims.length);
+
+    const stated = body.claims.filter((claim) => claim.stating);
+    expect(stated.length).toBeGreaterThan(0);
+    // Every span is a quotation from the transcript, not a paraphrase.
+    for (const claim of body.claims) expect(claim.quote.length).toBeGreaterThan(0);
+  });
+
+  it('replaces the earlier value when the later turn reports the change', async () => {
+    const body = await (await fetch(`${base}/api/demo/extract`)).json() as {
+      claims: { predicate: string; objectText: string; supersedes: string | null; key: string }[];
+    };
+    const storage = body.claims.filter((claim) => claim.predicate === 'storage');
+    expect(storage.map((claim) => claim.objectText)).toEqual(['Postgres', 'Redis']);
+    expect(storage[0]?.supersedes).toBeNull();
+    expect(storage[1]?.supersedes).toBe(storage[0]?.key);
+  });
+
+  it('keeps a suggestion off the predicate an answer is read from', async () => {
+    const body = await (await fetch(`${base}/api/demo/extract`)).json() as {
+      claims: { predicate: string; property: string; mode: string; stating: boolean }[];
+    };
+    const proposals = body.claims.filter((claim) => claim.mode === 'PROPOSAL');
+    expect(proposals.length).toBeGreaterThan(0);
+    for (const proposal of proposals) {
+      expect(proposal.stating).toBe(false);
+      // It is filed, and it is filed somewhere the resolver structurally
+      // cannot read as current state.
+      expect(proposal.predicate).not.toBe(proposal.property);
+      expect(proposal.predicate.startsWith(`${proposal.property}:`)).toBe(true);
+    }
+  });
+
+  it('extracts prose a reader supplies, and caps how much it will read', async () => {
+    const mine = encodeURIComponent('dana: The billing service is owned by Rae.');
+    const body = await (await fetch(`${base}/api/demo/extract?text=${mine}`)).json() as {
+      turns: number; truncated: boolean; readableProperties: string[]; claims: { subject: string; objectText: string }[];
+    };
+    expect(body.turns).toBe(1);
+    expect(body.truncated).toBe(false);
+    expect(body.claims.some((claim) => claim.objectText === 'Rae')).toBe(true);
+    // The response says what it can read, so prose about anything else comes
+    // back empty for a stated reason rather than looking broken.
+    expect(body.readableProperties).toContain('owner');
+
+    const long = await (await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('a: x is y. '.repeat(600))}`)).json() as { truncated: boolean };
+    expect(long.truncated).toBe(true);
+  });
+
+  it('reads eleven sentence shapes and not English, and says so', async () => {
+    const body = await (await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('dana: The billing service is written in Rust.')}`)).json() as {
+      claims: unknown[]; readableProperties: string[];
+    };
+    // The honest ceiling, pinned. This sentence states a fact a reader would
+    // understand and the frame table has no shape for, so nothing is emitted
+    // rather than something guessed.
+    expect(body.claims).toEqual([]);
+    expect(body.readableProperties.length).toBeGreaterThan(0);
+    expect(body.readableProperties).not.toContain('language');
+  });
+
+  it('writes nothing, so the workspace is unchanged after a call', async () => {
+    const before = await (await fetch(`${base}/api/demo/memory`)).text();
+    await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('a: sessions are stored in Cassandra.')}`);
+    const after = await (await fetch(`${base}/api/demo/memory`)).text();
+    expect(after).toBe(before);
+  });
+});

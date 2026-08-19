@@ -22,6 +22,26 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
+**The clearest evidence is on one screen.** HydraDB Cloud builds its own graph
+out of the same transcripts, and [/demo/hydra](https://lacuna-five.vercel.app/demo/hydra)
+walks it live and sets every edge beside what Lacuna's claim graph says of the
+same pair. For the one subject the transcripts correct, the store reaches 21
+edges: 6 that stand, 2 the transcripts replaced, 3 disputed, and 10 that are not
+claims at all. Those 10 are sentences saying nothing happened, read as typed
+relations because that is what a general extractor does with a well-formed
+sentence:
+
+```
+tenant-router --[deferred]-----> discussion
+   "The discussion regarding the tenant-router was deferred."
+tenant-router --[queried by]---> trust team
+   "The Trust team asked about tenant-router again, but there was nothing to report."
+```
+
+Lacuna files none of them. A memory that stores everything answers "deferred"
+when you ask what a service depends on, and that is the failure this is arranged
+against.
+
 **What this does not do.** It reads claims out of prose, and it reads eleven
 sentence shapes rather than English. `src/extract` turns a transcript into
 subjects, predicates, objects and the quotation each one came from, decides

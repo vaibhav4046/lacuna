@@ -66,6 +66,20 @@ const EXTRACT_BODY_BYTES = 16_384;
 /** Sign up is rarer and more expensive, so it is tighter. */
 const SIGNUP_LIMIT = { limit: 3, windowMs: 60_000, maxKeys: 4_096 };
 
+/**
+ * The public endpoints that cost real work, and what one address may spend.
+ *
+ * These answer to nobody by design, which is what makes them demonstrable and
+ * also what makes them the cheapest thing to point a script at. The graph walk
+ * is a live traversal against the managed service and takes seconds; the
+ * extractor runs a parser over text somebody supplied; the ask path is a
+ * question against the store. None of them writes, so the risk is spend and
+ * availability rather than damage, and a per-address window is the proportionate
+ * answer to both.
+ */
+const PUBLIC_READ_LIMIT = { limit: 60, windowMs: 60_000, maxKeys: 8_192 };
+const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
+
 export interface ApiOptions {
   readonly store: Accounts;
   /** True behind TLS. Marks both cookies Secure. */
@@ -290,6 +304,8 @@ export class ApiRouter {
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
+  readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
+  readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
 
   constructor(options: ApiOptions) {
     this.#store = options.store;
@@ -521,6 +537,13 @@ export class ApiRouter {
       // subject is the one chosen, so the row the store cannot rank and the
       // resolver refuses is visible rather than described. Read only: no answer
       // on any other screen consults this.
+      if (part === 'expansion' || part === 'impact') {
+        if (!this.#walkLimit.check(sourceKey(request), this.#now()).allowed) {
+          send(response, 429, { error: 'too many graph walks from this address, try again shortly' });
+          return HANDLED;
+        }
+      }
+
       if (part === 'expansion') {
         const walk = this.#expansion;
         const subject = expansionSubject(inventory);
@@ -661,6 +684,10 @@ export class ApiRouter {
         send(response, 422, { error: 'text must be a string' });
         return HANDLED;
       }
+      if (!this.#readLimit.check(sourceKey(request), this.#now()).allowed) {
+        send(response, 429, { error: 'too many extractions from this address, try again shortly' });
+        return HANDLED;
+      }
       send(response, 200, extractionReport(typeof text === 'string' ? text : null));
       return HANDLED;
     }
@@ -756,6 +783,10 @@ export class ApiRouter {
       const invalid = validateQuestion(subject, predicate);
       if (invalid !== null) {
         send(response, 422, invalidRequest(invalid));
+        return HANDLED;
+      }
+      if (!this.#readLimit.check(sourceKey(request), this.#now()).allowed) {
+        send(response, 429, { error: 'too many questions from this address, try again shortly' });
         return HANDLED;
       }
       // Signed in, the question is asked of the workspace this person ingested

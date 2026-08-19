@@ -17,6 +17,7 @@
  * product knows how to draw that state and says so rather than pretending.
  */
 
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { ApiRouter } from '../src/api/router.js';
@@ -174,6 +175,31 @@ const mcp = cloud === null ? null : createMcpListener({
   },
 });
 
+/**
+ * The last thing between a thrown error and an opaque platform crash.
+ *
+ * Every route already handles its own failures. This is for the one nobody
+ * predicted: a rejected promise nothing awaited, or a throw on a path with no
+ * try around it. Without it the platform answers with its own error page, which
+ * tells a reader nothing and tells us less, because there is no id to trace.
+ *
+ * It sends a stable JSON envelope and an id, and never a stack, a message from
+ * the underlying error, or anything the error might have wrapped. An error body
+ * from a store can echo the request that caused it, and a request can carry a
+ * key.
+ */
+function guard(response: ServerResponse, where: string, error: unknown): void {
+  const id = randomUUID();
+  // Server side only, and only the shape of the failure.
+  console.error(`[${id}] ${where}: ${error instanceof Error ? error.name : 'unknown'}`);
+  if (response.headersSent) {
+    response.end();
+    return;
+  }
+  response.writeHead(500, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  response.end(JSON.stringify({ error: 'this request did not complete', trace_id: id }));
+}
+
 export default function handler(request: IncomingMessage, response: ServerResponse): void {
   const path = new URL(request.url ?? '/', 'http://lacuna.invalid').pathname;
 
@@ -188,10 +214,17 @@ export default function handler(request: IncomingMessage, response: ServerRespon
   }
 
   if (path.startsWith('/api/')) {
-    void api.handle(request, response, path).then((outcome) => {
-      if (!outcome.handled) snapshot(request, response);
-    });
+    void api.handle(request, response, path)
+      .then((outcome) => {
+        if (!outcome.handled) snapshot(request, response);
+      })
+      .catch((error: unknown) => guard(response, path, error));
     return;
   }
-  snapshot(request, response);
+
+  try {
+    snapshot(request, response);
+  } catch (error) {
+    guard(response, path, error);
+  }
 }

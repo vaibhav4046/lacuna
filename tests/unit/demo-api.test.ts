@@ -420,3 +420,31 @@ describe('prose into the claim graph, over HTTP', () => {
     expect(after).toBe(before);
   });
 });
+
+/**
+ * The public endpoints answer to nobody, which is what makes them
+ * demonstrable and what makes them the cheapest thing to point a script at.
+ * None of them writes, so the exposure is spend and availability.
+ */
+describe('what one address may spend', () => {
+  it('refuses a flood of extractions with 429 rather than serving them', async () => {
+    const post = (): Promise<Response> => fetch(`${base}/api/demo/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'a: Sessions are stored in Redis.' }),
+    });
+
+    let limited = 0;
+    let served = 0;
+    for (let i = 0; i < 80; i += 1) {
+      const response = await post();
+      if (response.status === 429) limited += 1;
+      else if (response.status === 200) served += 1;
+      await response.arrayBuffer();
+    }
+
+    // A budget is only a budget if it runs out.
+    expect(served).toBeGreaterThan(0);
+    expect(limited).toBeGreaterThan(0);
+  });
+});

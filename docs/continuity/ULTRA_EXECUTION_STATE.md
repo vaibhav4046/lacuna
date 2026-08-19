@@ -1,6 +1,6 @@
 # Execution state
 
-Status: `ACTIVE`
+Status: `READY_FOR_RELEASE`
 Production: https://lacuna-five.vercel.app — Ask is live against HydraDB Cloud
 Public live demo: https://lacuna-five.vercel.app/judge — no account needed
 Rollback tag: `rollback-pre-v6-react-cutover` at `6c5d9e8`
@@ -97,6 +97,28 @@ for a sampled entity and for the index.
   and a caption track, in `video/hyperframes/renders/`. Every screen in it is a
   capture of production answering. `docs/VIDEO_CLAIM_MAP.md` maps each of its
   twelve claims to the artifact that checks it.
+
+## V7 wave, this session
+
+- **One context, any agent, proven.** `src/hydra/open.ts` decides which store a
+  client reads; `LACUNA_PROFILE` names it and a configured cloud wins otherwise.
+  `npm run continuity` asks the deployed web, the CLI and an MCP subprocess the
+  same six questions against the same cloud workspace:
+  `ONE_CONTEXT_IDENTICAL: true`.
+- **Accounts are durable.** They live in HydraDB Cloud in their own collection,
+  because a Vercel function has no writable filesystem and every signed-in
+  screen was therefore unreachable. `npm run smoke:auth` against production:
+  12 of 12.
+- **A sign-up race is fixed.** `refresh()` was fire-and-forget, so the guard
+  read a stale signed-out session and bounced people out of their own sign up.
+  Found in a browser, not by a test.
+- **The local node's write path broke** and was recovered by rebuilding the
+  store from the seed. D-123.
+- **The film was rebuilt** with the continuity transcript in it. 148.5s.
+- `RELEASE_GATE.md` holds every gate and its output. `JUDGE_SCORECARD.md`
+  scores the five published dimensions and names the weakest.
+
+Tag: `v7-freeze`.
 
 ## Next, and it needs a browser signed in as the operator
 

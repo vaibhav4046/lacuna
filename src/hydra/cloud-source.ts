@@ -148,6 +148,17 @@ export class CloudSource implements HydraSource {
     };
   }
 
+  /**
+   * The names in this collection's index.
+   *
+   * The index is one record and is already fetched for name resolution, so
+   * listing a workspace costs nothing a question would not already pay.
+   */
+  async subjects(timeoutMs: number): Promise<Read<readonly string[]>> {
+    const { index, traces } = await this.#indexRecord(timeoutMs);
+    return { value: [...new Set(Object.values(index.entities))].sort(), traces };
+  }
+
   async dependents(entityId: number, timeoutMs: number): Promise<Read<readonly DependentEdge[]>> {
     for (const record of this.#records.values()) {
       if (record?.id === entityId) return { value: record.dependents, traces: [] };

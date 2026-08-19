@@ -270,6 +270,72 @@ export interface WorkspaceView {
 }
 
 /** A workspace nobody has put anything into. Every list is empty and says so. */
+/**
+ * A workspace built from whatever the store actually holds.
+ *
+ * The signed-in view used to be `emptyWorkspace()` unconditionally, so somebody
+ * who had just ingested a transcript, and could ask questions about it and get
+ * cited answers, still saw "No claims yet". The list was reading a static
+ * inventory while the answers were reading the store.
+ *
+ * Bounded on purpose. It lists subjects from the index and reads each one, so
+ * the cost is one fetch per subject and the cap is what stops a large workspace
+ * turning a page load into a hundred round trips. What it shows is what it
+ * read, and it says how many that was.
+ */
+export async function storeWorkspace(
+  source: HydraSource,
+  timeoutMs: number,
+  limit = MEMORY_PAGE,
+): Promise<WorkspaceView> {
+  if (source.subjects === undefined) return emptyWorkspace();
+
+  const { value: names } = await source.subjects(timeoutMs);
+  const rows: MemoryRow[] = [];
+  let current = 0;
+  let historical = 0;
+  let conflicted = 0;
+
+  for (const name of names.slice(0, limit)) {
+    const { value: subject } = await source.subject(name, timeoutMs);
+    const live = subject.claims.filter((claim) => claim.supersededBy.length === 0);
+    const disagreeing = new Set(live.map((claim) => claim.objectText)).size > 1;
+
+    for (const claim of subject.claims) {
+      const superseded = claim.supersededBy.length > 0;
+      const state: MemoryRow['st'] = superseded ? 'SUP' : disagreeing ? 'CON' : 'CUR';
+      if (superseded) historical += 1;
+      else if (disagreeing) conflicted += 1;
+      else current += 1;
+      rows.push({
+        claim: `${name} ${claim.predicate} ${claim.objectText}`,
+        entity: name,
+        src: 'Ingested source',
+        obs: claim.validFrom.slice(0, 10),
+        st: state,
+      });
+    }
+  }
+
+  return {
+    demo: false,
+    changes: [],
+    conflicts: [],
+    connections: [{ n: 'HydraDB', st: 'CONNECTED' }],
+    runs: [],
+    health: { current, historical, conflicts: conflicted },
+    memory: rows,
+    memoryTotal: rows.length,
+    memoryPage: rows.length,
+    categories: [
+      { l: 'Current', n: current, col: '#8052FF' },
+      { l: 'Historical', n: historical, col: '#6E6E6E' },
+      { l: 'Contradicted', n: conflicted, col: '#FFB829' },
+    ],
+    questions: [],
+  };
+}
+
 export function emptyWorkspace(): WorkspaceView {
   return {
     demo: false,

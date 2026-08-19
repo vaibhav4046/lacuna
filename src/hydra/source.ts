@@ -37,6 +37,16 @@ export interface HydraSource {
   subject(name: string, timeoutMs: number): Promise<Read<SubjectView>>;
   evidence(claimId: number, timeoutMs: number): Promise<Read<readonly EvidenceRecord[]>>;
   dependents(entityId: number, timeoutMs: number): Promise<Read<readonly DependentEdge[]>>;
+  /**
+   * Every subject this store holds, for a screen that has to show a workspace
+   * rather than answer a question about one.
+   *
+   * Optional because a store is only required to answer about a name it is
+   * given. A caller that cannot enumerate says so on the screen instead of
+   * rendering an empty list, which is the difference between "nothing here" and
+   * "nothing I can list".
+   */
+  subjects?(timeoutMs: number): Promise<Read<readonly string[]>>;
 }
 
 /**

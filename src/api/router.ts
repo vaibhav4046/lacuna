@@ -16,7 +16,7 @@ import {
 import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, sameDigest, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
-import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, validateQuestion } from './workspace.js';
+import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, storeWorkspace, validateQuestion } from './workspace.js';
 import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
@@ -325,9 +325,25 @@ export class ApiRouter {
       ? await this.#store.sessionFor(token, this.#now())
       : null;
     const account = record === null ? null : await this.#store.find(record.email);
-    if (account === null || account.workspace !== DEMO_WORKSPACE) return emptyWorkspace();
-    const inventory = this.#inventory;
-    return inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
+    if (account === null) return emptyWorkspace();
+
+    // The sample workspace reads the corpus that ships here. Every other
+    // account reads what it ingested, because a screen saying "no claims yet"
+    // beside answers drawn from the store is the screen being wrong.
+    if (account.workspace === DEMO_WORKSPACE) {
+      const inventory = this.#inventory;
+      return inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
+    }
+
+    const openSource = this.#source;
+    if (openSource === undefined) return emptyWorkspace();
+    try {
+      return await storeWorkspace(openSource(workspaceCollection(account.email)), ASK_TIMEOUT_MS);
+    } catch {
+      // A store that did not answer is not an empty workspace, but the view has
+      // no way to say so, and inventing rows would be worse.
+      return emptyWorkspace();
+    }
   }
 
   #sessionCookie(token: string): string {

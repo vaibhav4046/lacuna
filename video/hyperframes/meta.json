@@ -1,6 +1,6 @@
 {
   "title": "Lacuna — memory that knows what changed",
-  "durationSeconds": 148.45,
+  "durationSeconds": 173.4,
   "scenes": [
     {
       "id": "s01",
@@ -21,63 +21,75 @@
       "duration": 12.59
     },
     {
+      "id": "s14",
+      "kind": "shot",
+      "start": 35.41,
+      "duration": 11.57
+    },
+    {
       "id": "s04",
       "kind": "judge",
-      "start": 35.41,
+      "start": 46.98,
       "duration": 9.94
     },
     {
       "id": "s05",
       "kind": "judge",
-      "start": 45.35,
+      "start": 56.92,
       "duration": 10.87
     },
     {
       "id": "s06",
       "kind": "judge",
-      "start": 56.22,
+      "start": 67.79,
       "duration": 10.41
     },
     {
       "id": "s07",
       "kind": "judge",
-      "start": 66.63,
+      "start": 78.2,
       "duration": 8.46
     },
     {
       "id": "s08",
       "kind": "judge",
-      "start": 75.09,
+      "start": 86.66,
       "duration": 9.67
     },
     {
       "id": "s09",
       "kind": "continuity",
-      "start": 84.76,
+      "start": 96.33,
       "duration": 17
     },
     {
       "id": "s10",
       "kind": "shot",
-      "start": 101.76,
+      "start": 113.33,
+      "duration": 13.38
+    },
+    {
+      "id": "s15",
+      "kind": "shot",
+      "start": 126.71,
       "duration": 13.38
     },
     {
       "id": "s11",
       "kind": "bench",
-      "start": 115.14,
+      "start": 140.09,
       "duration": 14.68
     },
     {
       "id": "s12",
       "kind": "parity",
-      "start": 129.82,
+      "start": 154.77,
       "duration": 9.57
     },
     {
       "id": "s13",
       "kind": "close",
-      "start": 139.39,
+      "start": 164.34,
       "duration": 8.46
     }
   ]

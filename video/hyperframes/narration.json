@@ -66,7 +66,17 @@
       "id": "s13",
       "seconds": 7.06,
       "words": 16
+    },
+    {
+      "id": "s14",
+      "seconds": 10.17,
+      "words": 29
+    },
+    {
+      "id": "s15",
+      "seconds": 11.98,
+      "words": 31
     }
   ],
-  "totalSeconds": 128.85
+  "totalSeconds": 151
 }

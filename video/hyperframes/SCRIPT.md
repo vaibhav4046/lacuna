@@ -68,3 +68,11 @@ The same sixty four questions asked of a self hosted node and of HydraDB Cloud, 
 ## s13 · close
 
 One context. Any agent. The repository, the deployment, and every artifact behind these numbers are public.
+
+## s14 · extract
+
+Prose becomes claims here. A suggestion files where the resolver cannot read it. So does a line ordering the system to record something. Neither one can become an answer.
+
+## s15 · walk
+
+HydraDB builds a graph of its own from the same transcripts. Walked for one subject, it reaches twenty one edges. Ten are sentences saying nothing happened. Lacuna files none of them.

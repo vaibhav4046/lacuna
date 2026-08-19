@@ -22,8 +22,18 @@ export function Sdk() {
             </button>
           ))}
         </div>
+        {/* Above the block, at the size of the block, because it is a
+            statement about every line below it. This code does not run: there
+            is no published package and no /v1 endpoint. It sat under the panel
+            at 10px, which is where a disclaimer goes when it is meant to be
+            technically present rather than read. The terminal section further
+            up is the opposite of this and is a recording of a real run. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: '1px solid rgba(255,184,41,0.35)', borderRadius: '7px', alignSelf: 'flex-start' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FFB829', flexShrink: 0 }}></span>
+          <span style={{ fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.16em', color: '#FFB829' }}>NOT SHIPPED · DESIGN CONTRACT, NOT A RUNNING API</span>
+        </div>
         <pre style={{ margin: 0, fontFamily: MONO, fontSize: '13.5px', lineHeight: 1.85, color: '#BDBDBD', whiteSpace: 'pre-wrap', maxWidth: '76ch' }}>{DEVCODE[tab]}</pre>
-        <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E', lineHeight: 2 }}>ENVELOPE · status · answer · evidence · revisions · conflicts · abstain_reason · context_pack_id · trace_id · source_state<br />CONTRACT SHOWN AS DESIGNED · THE IMPLEMENTED API IS THE SOURCE OF TRUTH</div>
+        <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E', lineHeight: 2 }}>ENVELOPE · status · answer · evidence · revisions · conflicts · abstain_reason · context_pack_id · trace_id · source_state<br />THE IMPLEMENTED API IS THE SOURCE OF TRUTH · THE TERMINAL SECTION ABOVE IS A RECORDED RUN</div>
       </div>
     </section>
   );

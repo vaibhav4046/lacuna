@@ -68,8 +68,14 @@ export function Sdk() {
           </button>
         ))}
       </div>
+      {/* The same label the landing page carries, for the same reason: this
+          panel shows a package and an endpoint that do not exist. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: '1px solid rgba(255,184,41,0.35)', borderRadius: '7px', alignSelf: 'flex-start' }}>
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FFB829', flexShrink: 0 }}></span>
+        <span style={{ fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.16em', color: '#FFB829' }}>NOT SHIPPED · DESIGN CONTRACT, NOT A RUNNING API</span>
+      </div>
       <pre style={{ margin: 0, fontFamily: MONO, fontSize: '13px', lineHeight: 1.85, color: '#BDBDBD', whiteSpace: 'pre-wrap', maxWidth: '76ch' }}>{DEVCODE[tab]}</pre>
-      <span style={{ ...note, letterSpacing: '0.14em', lineHeight: 2 }}>ENVELOPE · status · answer · evidence · revisions · conflicts · abstain_reason · context_pack_id · trace_id · source_state<br />CONTRACT SHOWN AS DESIGNED · THE IMPLEMENTED API IS THE SOURCE OF TRUTH</span>
+      <span style={{ ...note, letterSpacing: '0.14em', lineHeight: 2 }}>ENVELOPE · status · answer · evidence · revisions · conflicts · abstain_reason · context_pack_id · trace_id · source_state<br />THE IMPLEMENTED API IS THE SOURCE OF TRUTH</span>
     </div>
   );
 }

@@ -295,16 +295,24 @@ export async function storeWorkspace(
   let current = 0;
   let historical = 0;
   let conflicted = 0;
+  let proposals = 0;
 
   for (const name of names.slice(0, limit)) {
     const { value: subject } = await source.subject(name, timeoutMs);
-    const live = subject.claims.filter((claim) => claim.supersededBy.length === 0);
+    const live = subject.claims.filter(
+      (claim) => claim.supersededBy.length === 0 && !claim.predicate.includes(':'),
+    );
     const disagreeing = new Set(live.map((claim) => claim.objectText)).size > 1;
 
     for (const claim of subject.claims) {
       const superseded = claim.supersededBy.length > 0;
-      const state: MemoryRow['st'] = superseded ? 'SUP' : disagreeing ? 'CON' : 'CUR';
-      if (superseded) historical += 1;
+      // A claim on a slot predicate is a proposal, a question or a plan. It is
+      // unsuperseded, and calling that CURRENT would say the thing the whole
+      // design exists to avoid saying.
+      const slotted = claim.predicate.includes(':');
+      const state: MemoryRow['st'] = slotted ? 'PRO' : superseded ? 'SUP' : disagreeing ? 'CON' : 'CUR';
+      if (slotted) proposals += 1;
+      else if (superseded) historical += 1;
       else if (disagreeing) conflicted += 1;
       else current += 1;
       rows.push({
@@ -330,6 +338,7 @@ export async function storeWorkspace(
     categories: [
       { l: 'Current', n: current, col: '#8052FF' },
       { l: 'Historical', n: historical, col: '#6E6E6E' },
+      { l: 'Proposal', n: proposals, col: '#71717A' },
       { l: 'Contradicted', n: conflicted, col: '#FFB829' },
     ],
     questions: [],

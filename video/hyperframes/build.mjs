@@ -65,15 +65,15 @@ const scenes = [
   { id: 's01', kind: 'open' },
   { id: 's02', kind: 'problem' },
   { id: 's03', kind: 'project' },
-  { id: 's14', kind: 'shot', file: 'live-extract-1920x1080.png', caption: 'PROSE INTO CLAIMS' },
+  { id: 's14', kind: 'shot', file: 'live-extract-1920x1080.png', caption: 'PROSE INTO CLAIMS', note: 'A proposal and a forged instruction, filed where no answer reads them' },
   { id: 's04', kind: 'judge', caption: 'CURRENT STATE', note: 'Answered, and the sources it rests on.' },
   { id: 's05', kind: 'judge', caption: 'REVISED', note: 'The replaced value stays readable as history.' },
   { id: 's06', kind: 'judge', caption: 'SOURCES DISAGREE', note: 'Both kept. Neither picked.' },
   { id: 's07', kind: 'judge', caption: 'NO EVIDENCE', note: 'A value nobody ever stated.' },
   { id: 's08', kind: 'judge', caption: 'TWO HOPS', note: 'The answer is on a second entity.' },
   { id: 's09', kind: 'continuity' },
-  { id: 's10', kind: 'shot', file: 'live-hydradb-top-1920x1080.png', caption: 'HYDRADB CLOUD' },
-  { id: 's15', kind: 'shot', file: 'live-hydradb-1920x1080.png', caption: "THE STORE'S OWN GRAPH" },
+  { id: 's10', kind: 'shot', file: 'live-hydradb-top-1920x1080.png', caption: 'HYDRADB CLOUD', note: '72 conversations as evidence · 86 entity records as claims' },
+  { id: 's15', kind: 'shot', file: 'live-hydradb-1920x1080.png', caption: "THE STORE'S OWN GRAPH", note: '21 edges reached · 10 of them sentences saying nothing happened' },
   { id: 's11', kind: 'bench' },
   { id: 's12', kind: 'parity' },
   { id: 's13', kind: 'close' },
@@ -139,7 +139,7 @@ function body(scene) {
         <div class="band"></div>
         <div id="${scene.id}-cap" class="caption">
           <span class="kicker violet">${esc(scene.caption)}</span>
-          <span class="note">72 conversations as evidence · 86 entity records as claims</span>
+          <span class="note">${esc(scene.note)}</span>
         </div>`;
     case 'continuity':
       return `

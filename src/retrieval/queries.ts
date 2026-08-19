@@ -52,6 +52,23 @@ export function entityByName(name: string): PreparedQuery {
 }
 
 /**
+ * Every entity name the graph holds.
+ *
+ * Read only when a name did not match exactly, to find out whether the corpus
+ * holds it under a different case. This build's Cypher subset has no
+ * `toLower`, so the fold cannot happen in the query and the names are compared
+ * in process instead. There are fewer than a hundred of them and the result is
+ * cached for the life of the source, so this costs one read on a path that was
+ * about to return nothing. See src/hydra/canonical.ts.
+ */
+export function allEntityNames(): PreparedQuery {
+  return {
+    cypher: 'MATCH (e:Entity) RETURN e.name AS name',
+    parameters: {},
+  };
+}
+
+/**
  * Every claim about one entity, with whatever supersedes it.
  *
  * The OPTIONAL MATCH is what makes this one query instead of two. It returns one

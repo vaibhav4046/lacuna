@@ -109,13 +109,26 @@ describe('reading one entity', () => {
 
     expect(read.value.id).toBeNull();
     expect(read.value.claims).toEqual([]);
-    expect(read.traces).toHaveLength(1);
+
+    // Two reads, not one. The record id is a hash of the exact name, so before
+    // reporting that a subject is absent this checks the index for the same
+    // name under a different case. A miss used to cost one read and a wrong
+    // refusal: `foxglove` was reported out of scope while `Foxglove` answered.
+    expect(read.traces).toHaveLength(2);
+    expect(read.traces[1]?.request).toContain('index');
   });
 
-  it('spends one read on a name that is not there', async () => {
+  it('spends two reads on a name that is not there, the second ruling out a case difference', async () => {
     const { cloud, requests } = serving();
     await new CloudSource(cloud).subject('Redshank', 5_000);
-    expect(requests).toHaveLength(1);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('finds a subject the reader spelled in the wrong case, and answers from it', async () => {
+    const { cloud } = serving();
+    const read = await new CloudSource(cloud).subject(withClaims.name.toLowerCase(), 5_000);
+    expect(read.value.id).toBe(withClaims.id);
+    expect(read.value.claims.length).toBeGreaterThan(0);
   });
 
   it('reads a record once however many times it is asked for', async () => {

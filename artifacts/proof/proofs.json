@@ -36,7 +36,7 @@
             "wire-format"
           ],
           "ignored": 0,
-          "ms": 2253,
+          "ms": 2906,
           "reads": 25
         },
         "node": {
@@ -67,7 +67,7 @@
             "wire-format"
           ],
           "ignored": 0,
-          "ms": 1007,
+          "ms": 1623,
           "reads": 42
         }
       },
@@ -108,7 +108,7 @@
             "wire-format"
           ],
           "ignored": 1,
-          "ms": 1702,
+          "ms": 2136,
           "reads": 32
         },
         "node": {
@@ -145,7 +145,7 @@
             "wire-format"
           ],
           "ignored": 1,
-          "ms": 1168,
+          "ms": 1867,
           "reads": 48
         }
       }

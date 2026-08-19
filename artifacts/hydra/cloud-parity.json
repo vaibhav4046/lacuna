@@ -3,12 +3,12 @@
   "identical": true,
   "mismatches": [],
   "reads": {
-    "node": 342,
-    "cloud": 119
+    "node": 348,
+    "cloud": 125
   },
   "medianMs": {
-    "node": 108,
-    "cloud": 230
+    "node": 106,
+    "cloud": 293
   },
   "database": "lacuna",
   "collection": "backend"

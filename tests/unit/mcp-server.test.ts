@@ -240,7 +240,9 @@ describe('callTool', () => {
       cell: 'cell-0',
       readEpoch: PROBE_EPOCH,
     });
-    expect((structured['queries'] as unknown[]).length).toBe(1);
+    // Two: the probe read, then the name list that rules out a case difference
+    // before the probe subject is called absent.
+    expect((structured['queries'] as unknown[]).length).toBe(2);
   });
 
   it('reports an unreachable node as unhealthy rather than throwing', async () => {

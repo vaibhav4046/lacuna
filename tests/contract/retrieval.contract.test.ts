@@ -222,14 +222,19 @@ describe('retrieval against the live graph', () => {
 });
 
 describe('cost and guards on the live node', () => {
-  it('spends one query on a name the graph does not hold', async () => {
+  it('spends two queries on a name the graph does not hold, the second ruling out a case difference', async () => {
     const { queries, resolution } = await ask(
       source,
       buildQuestion('Redshank', 'launch_date'),
     );
 
     expect(resolution.outcome).toEqual({ type: 'abstain', reason: 'out_of_scope' });
-    expect(queries).toHaveLength(1);
+
+    // The lookup, then the entity name list. Reporting a subject as out of
+    // scope is a claim that it never appears in the sessions, so it costs one
+    // read to rule out that the reader simply spelled it differently.
+    expect(queries).toHaveLength(2);
+    expect(queries[1]?.cypher).toContain('MATCH (e:Entity) RETURN e.name');
   });
 
   it('records the statement it ran, not just that it ran one', async () => {
@@ -363,13 +368,13 @@ describe('blast radius against the live graph', () => {
     }
   }, BLAST_TIMEOUT_MS);
 
-  it('spends one query on a package the graph does not hold', async () => {
+  it('spends two queries on a package the graph does not hold, the second ruling out a case difference', async () => {
     const answer = await blastRadius(source, buildPackageName('nightjar-spindle'));
 
     expect(answer.root).toBeNull();
     expect(answer.radius).toBeNull();
     expect(answer.evidence).toEqual([]);
-    expect(answer.queries).toHaveLength(1);
+    expect(answer.queries).toHaveLength(2);
   });
 
   it('treats a package name carrying Cypher as a name', async () => {

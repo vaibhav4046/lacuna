@@ -1,3 +1,4 @@
+import { canonicalName } from './canonical.js';
 import type { HydraClient } from './client.js';
 import type { PreparedQuery } from './queries.js';
 import { rowsToObjects } from './values.js';
@@ -13,6 +14,7 @@ import {
   type Row,
 } from '../retrieval/decode.js';
 import {
+  allEntityNames,
   claimsAbout,
   dependentsOf,
   entityByName,
@@ -54,9 +56,45 @@ export class NodeSource implements HydraSource {
     return { rows: rowsToObjects(page.columns, page.rows) as readonly Row[], trace };
   }
 
+  /**
+   * The stored spelling of a name that missed, or null if there is not one.
+   *
+   * Read every time rather than cached, and the first attempt to cache it is
+   * what proved why. A cached list is per instance, and the surfaces do not
+   * share a lifetime: the MCP server holds one source across a whole session
+   * while the CLI builds one per invocation. So the same question produced one
+   * read from MCP and two from the CLI, and `npm run parity` fell from 64 to 59
+   * on exactly the five out of scope questions. The product's headline claim is
+   * that the surfaces agree, and a cache that makes them disagree costs more
+   * than the read it saves.
+   *
+   * It would also go stale. A list held from before an ingest would keep
+   * reporting a name as absent after the graph gained it, which is the same
+   * false refusal this fallback exists to remove.
+   *
+   * The cost is one read on a path that is about to answer nothing.
+   */
+  async #canonical(name: string, timeoutMs: number): Promise<{
+    canonical: string | null;
+    traces: QueryTrace[];
+  }> {
+    const { rows, trace } = await this.#run(allEntityNames(), timeoutMs);
+    const names = rows
+      .map((row) => row['name'])
+      .filter((value): value is string => typeof value === 'string');
+    return { canonical: canonicalName(names, name), traces: [trace] };
+  }
+
   async entity(name: string, timeoutMs: number): Promise<Read<EntityHead | null>> {
     const { rows, trace } = await this.#run(entityByName(name), timeoutMs);
-    return { value: decodeEntity(rows), traces: [trace] };
+    const head = decodeEntity(rows);
+    if (head !== null) return { value: head, traces: [trace] };
+
+    const { canonical, traces } = await this.#canonical(name, timeoutMs);
+    if (canonical === null) return { value: null, traces: [trace, ...traces] };
+
+    const retried = await this.#run(entityByName(canonical), timeoutMs);
+    return { value: decodeEntity(retried.rows), traces: [trace, ...traces, retried.trace] };
   }
 
   async subject(name: string, timeoutMs: number): Promise<Read<SubjectView>> {

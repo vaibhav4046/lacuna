@@ -510,8 +510,11 @@ describe('an answer', () => {
     expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
     expect(response.headers.get('cache-control')).toBe('no-store');
 
-    // One query, because the name lookup already settled the question.
-    expect(harness.upstreamCalls).toHaveLength(1);
+    // Two queries. The name lookup misses, and the second reads the entity
+    // names to establish that the subject is genuinely absent rather than
+    // spelled in a different case. Calling a subject out of scope is a claim
+    // about the corpus, so it costs one read to earn.
+    expect(harness.upstreamCalls).toHaveLength(2);
     expect(harness.upstreamCalls[0]).toContain('Nowhere');
 
     expect(body).toContain('this subject never appears in the sessions at all');
@@ -529,8 +532,10 @@ describe('an answer', () => {
     );
 
     expect(response.status).toBe(200);
-    // A via of "" is no via, so this is still the one query direct path.
-    expect(harness.upstreamCalls).toHaveLength(1);
+    // A via of "" is no via, so this is still the direct path. Two reads
+    // because "Nowhere" is absent: the lookup, then the name list that rules
+    // out a case difference before the absence is reported.
+    expect(harness.upstreamCalls).toHaveLength(2);
   });
 
   it('logs the path and the timing, and never the question', async () => {

@@ -271,18 +271,27 @@ describe('the namespace on the wire', () => {
       headers: HOSTILE_HEADERS,
     })).text();
 
-    expect(harness.sent.length).toBe(1);
-    const [request] = harness.sent;
+    // Two requests: the entity lookup, then the name list that rules out a case
+    // difference before the subject is reported absent. Both are inspected
+    // below, because the claim is about every request this server makes.
+    expect(harness.sent.length).toBe(2);
 
     // Named exhaustively rather than checked for absence of the hostile set. A
     // header this server does not send today cannot be enumerated by a test
     // written today, so the assertion has to be that the set is closed.
-    expect(Object.keys(request!.headers).sort()).toEqual([
-      'Authorization',
-      'Content-Type',
-      'X-Graph-Namespace',
-    ]);
-    expect(request!.headers['Authorization']).toBe(`Bearer ${CONFIG.token}`);
+    //
+    // Every request is checked, not the first one. A second read was added to
+    // this path later, to rule out a case difference before a name is called
+    // absent, and a test that only inspected request zero would have let it
+    // carry anything.
+    for (const sent of harness.sent) {
+      expect(Object.keys(sent.headers).sort()).toEqual([
+        'Authorization',
+        'Content-Type',
+        'X-Graph-Namespace',
+      ]);
+      expect(sent.headers['Authorization']).toBe(`Bearer ${CONFIG.token}`);
+    }
   });
 
   it('is absent from the request body, which carries parameters and nothing else', async () => {

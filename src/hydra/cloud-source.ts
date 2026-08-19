@@ -1,3 +1,4 @@
+import { canonicalName } from './canonical.js';
 import type { HydraCloud } from './cloud.js';
 import {
   entityRecordId,
@@ -66,8 +67,19 @@ export class CloudSource implements HydraSource {
     };
 
     if (source === null) {
+      // Nothing at that id. Before reporting an absence, check whether the
+      // corpus holds this name under a different case: the id is a hash of the
+      // exact name, so `foxglove` and `Foxglove` address different records and
+      // only one of them exists. See src/hydra/canonical.ts.
+      const { index, traces: indexTraces } = await this.#indexRecord(timeoutMs);
+      const canonical = canonicalName(Object.values(index.entities), name);
+      if (canonical !== null) {
+        const retried = await this.#record(canonical, timeoutMs);
+        return { record: retried.record, traces: [trace, ...indexTraces, ...retried.traces] };
+      }
+
       this.#records.set(id, null);
-      return { record: null, traces: [trace] };
+      return { record: null, traces: [trace, ...indexTraces] };
     }
 
     const record = parseEntity(unwrapEnvelope(source.envelope), name);

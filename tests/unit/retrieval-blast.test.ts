@@ -349,7 +349,7 @@ describe('blastRadius', () => {
     );
   }
 
-  it('spends one query on a package that is not in the graph', async () => {
+  it('spends two queries on a package that is not in the graph, the second ruling out a case difference', async () => {
     let calls = 0;
     const client = new HydraClient(CONFIG, {
       fetch: async (): Promise<Response> => {
@@ -366,7 +366,11 @@ describe('blastRadius', () => {
     expect(answer.root).toBeNull();
     expect(answer.radius).toBeNull();
     expect(answer.evidence).toEqual([]);
-    expect(answer.queries).toHaveLength(1);
-    expect(calls).toBe(1);
+
+    // The second query is the entity name list, read once to establish that the
+    // package is genuinely absent rather than spelled in a different case.
+    // Reporting an absence is a claim about the graph and it has to be earned.
+    expect(answer.queries).toHaveLength(2);
+    expect(calls).toBe(2);
   });
 });

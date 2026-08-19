@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
 import { AccountStore } from '../../src/auth/store.js';
+import { FileAccounts } from '../../src/auth/accounts.js';
 import { buildDemo } from '../../src/server/examples.js';
 
 /**
@@ -25,7 +26,7 @@ let dir: string;
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'lacuna-demo-'));
   const router = new ApiRouter({
-    store: new AccountStore(dir),
+    store: new FileAccounts(new AccountStore(dir)),
     secure: false,
     // The demo route does not touch it, and a doctor that answers keeps the
     // health branch from being the reason a demo assertion fails.

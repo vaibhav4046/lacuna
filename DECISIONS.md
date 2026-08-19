@@ -3336,3 +3336,40 @@ reported the graph matches the plan exactly, and both parity gates returned.
 
 Recorded because the tempting reading was "the contract tests broke". They did
 not. They correctly reported that a dependency could no longer accept a write.
+
+### D-124: accounts became real, without creating another account somewhere
+
+Every signed-in screen was unreachable on the deployment, and the reason was
+one line of infrastructure: only `/tmp` is writable in a Vercel function and it
+does not survive an invocation, so an account created by one request was gone
+by the next. Eighteen working screens sat behind a session that could not
+exist. `/demo` made them visible; it did not make them usable.
+
+The durable store is HydraDB Cloud, in its own collection. A context store is
+an odd place to keep an account and the reason it is the right one here is
+narrow: the service is a document store with upsert by an id its writer chooses
+and fetch by that same id, which is exactly a key-value store; this deployment
+already authenticates to it; and every alternative meant creating another
+account somewhere to hold six fields, which the operator explicitly ruled out.
+
+What is stored is an email, a scrypt hash, a workspace name and two timestamps.
+The password is never seen by the store and the session token is kept only as a
+SHA-256 hash, so a reader of the collection cannot sign in as anybody. Accounts
+live apart from context, so nothing there can be retrieved as evidence by a
+question a user asks.
+
+The read-after-write assumption was tested before the design was committed to,
+because the service's ingest is asynchronous and a sign up that cannot be read
+back immediately is not a sign up: a record written and fetched by id came back
+on the first attempt, 642ms after the write.
+
+`Accounts` is now an async interface with two implementations, so the local
+directory-backed store keeps working for development and the tests. Measured on
+production, in `npm run smoke:auth`: 12 of 12, including the one that matters —
+sign out, sign in from a clean cookie jar, and the workspace is still there.
+
+One race is accepted and named rather than hidden. Creation reads before it
+writes because the service offers no conditional put, so two sign ups for one
+address within the same few hundred milliseconds would both succeed. The cost
+is one person seeing an empty workspace that is not theirs; the alternative was
+a lock this store cannot hold.

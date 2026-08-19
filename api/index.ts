@@ -21,6 +21,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { ApiRouter } from '../src/api/router.js';
 import { AccountStore } from '../src/auth/store.js';
+import { CloudAccounts, FileAccounts } from '../src/auth/accounts.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
 import { buildDemo } from '../src/server/examples.js';
@@ -30,10 +31,6 @@ import { createSnapshotHandler } from '../src/snapshot/serve.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
 
-// A read-only filesystem makes this store report unavailable, which is exactly
-// what it should do here: the endpoints answer 503 and the screens say the
-// account store is not configured rather than failing in an unexplained way.
-const store = new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '/tmp/lacuna-store');
 
 /**
  * The deployed health check.
@@ -45,6 +42,22 @@ const store = new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '/tmp/lacun
  * pass and fail vocabulary.
  */
 const cloud = cloudFromEnv(process.env);
+
+/**
+ * Accounts, durably.
+ *
+ * Only /tmp is writable here and it does not survive an invocation, so a
+ * directory-backed store lost every account between requests and the whole
+ * signed-in product was unreachable. HydraDB Cloud is already authenticated
+ * from this function and is a key-value store addressed by an id its writer
+ * chooses, which is what an account record needs; it lives in its own
+ * collection, apart from the context it serves. The file store stays as the
+ * fallback for a deployment with no cloud configured, where it correctly
+ * reports itself unavailable.
+ */
+const store = cloud === null
+  ? new FileAccounts(new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '/tmp/lacuna-store'))
+  : new CloudAccounts(cloud);
 
 async function cloudHealth(): Promise<unknown> {
   if (cloud === null) {

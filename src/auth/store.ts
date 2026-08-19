@@ -54,7 +54,7 @@ const SESSIONS_FILE = 'sessions.jsonl';
 
 export class StoreUnavailable extends Error {}
 
-function hashToken(token: string): string {
+export function hashToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 

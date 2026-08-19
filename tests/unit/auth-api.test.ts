@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
 import { AccountStore } from '../../src/auth/store.js';
+import { FileAccounts } from '../../src/auth/accounts.js';
 
 /**
  * The auth surface, driven over a real socket.
@@ -90,7 +91,7 @@ async function primed(): Promise<Jar> {
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'lacuna-auth-'));
   const router = new ApiRouter({
-    store: new AccountStore(dir),
+    store: new FileAccounts(new AccountStore(dir)),
     secure: false,
     health: async () => ({ command: 'doctor', ok: true, warnings: 0, exitCode: 0, checks: [] }),
     now: () => clock,

@@ -1,0 +1,203 @@
+import { createHash } from 'node:crypto';
+
+import type { HydraCloud } from '../hydra/cloud.js';
+import {
+  AccountStore,
+  StoreUnavailable,
+  hashToken,
+  mintToken,
+  SESSION_TTL_MS,
+  type Account,
+  type SessionRecord,
+} from './store.js';
+
+/**
+ * Where accounts live, as an interface, because there are two answers.
+ *
+ * Locally the answer is a directory. On the deployment it cannot be: only /tmp
+ * is writable there and it does not survive an invocation, so an account
+ * created on one request was gone by the next one. That is why every signed-in
+ * screen was unreachable in production, and why the product had to be shown
+ * through a read-only demo route rather than used.
+ *
+ * The methods are async because the durable answer is a network call. The file
+ * backed one is synchronous underneath and simply resolves; making the
+ * interface async is what lets the deployment read an account written by a
+ * different instance a moment earlier, which is the whole point.
+ */
+
+export interface Accounts {
+  /** False when writes cannot be accepted, so the API can say so plainly. */
+  available(): Promise<boolean>;
+  find(email: string): Promise<Account | null>;
+  /** Null when the email is taken. The caller reports that as a conflict. */
+  create(account: Account): Promise<Account | null>;
+  update(account: Account): Promise<void>;
+  /** Returns the raw token. Only its hash is stored. */
+  startSession(email: string, now: number): Promise<string>;
+  sessionFor(token: string, now: number): Promise<SessionRecord | null>;
+  endSession(token: string): Promise<void>;
+}
+
+/** The local answer: the existing directory-backed store, behind the seam. */
+export class FileAccounts implements Accounts {
+  readonly #store: AccountStore;
+
+  constructor(store: AccountStore) {
+    this.#store = store;
+  }
+
+  async available(): Promise<boolean> {
+    return this.#store.available;
+  }
+
+  async find(email: string): Promise<Account | null> {
+    return this.#store.find(email);
+  }
+
+  async create(account: Account): Promise<Account | null> {
+    return this.#store.create(account);
+  }
+
+  async update(account: Account): Promise<void> {
+    this.#store.update(account);
+  }
+
+  async startSession(email: string, now: number): Promise<string> {
+    return this.#store.startSession(email, now);
+  }
+
+  async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
+    return this.#store.sessionFor(token, now);
+  }
+
+  async endSession(token: string): Promise<void> {
+    this.#store.endSession(token);
+  }
+}
+
+/**
+ * The durable answer: HydraDB Cloud, addressed by id.
+ *
+ * A context store is an odd place to keep an account, and the reason it is the
+ * right one here is narrow and worth stating. The service is a document store
+ * with upsert by an id its writer chooses and fetch by that same id, which is
+ * exactly a key-value store; this deployment already authenticates to it; and
+ * the alternative was creating another account somewhere to hold six fields.
+ *
+ * It is kept apart from the context it serves. Accounts live in their own
+ * collection, so nothing here is ever retrieved as evidence, and no question a
+ * user asks can reach them. What is stored is an email, a scrypt hash, a
+ * workspace name and two timestamps. The password itself is never seen by this
+ * class, and the session token is stored only as a SHA-256 hash, so a reader of
+ * the collection cannot sign in as anybody.
+ */
+export class CloudAccounts implements Accounts {
+  readonly #cloud: HydraCloud;
+  readonly #collection: string;
+
+  constructor(cloud: HydraCloud, collection = 'accounts') {
+    this.#cloud = cloud;
+    this.#collection = collection;
+  }
+
+  /**
+   * Ids are derived, never assigned by the service.
+   *
+   * An address has to be computable from what a request carries — an email or
+   * a token — because there is no index to search and a scan would be both
+   * slower and a way to enumerate every account.
+   */
+  #accountId(email: string): string {
+    return `lacuna:account:${createHash('sha256').update(email.toLowerCase(), 'utf8').digest('hex').slice(0, 32)}`;
+  }
+
+  #sessionId(tokenHash: string): string {
+    return `lacuna:session:${tokenHash.slice(0, 32)}`;
+  }
+
+  async #read<T>(id: string): Promise<T | null> {
+    const source = await this.#cloud.inspect(id, 10_000, this.#collection);
+    if (source === null) return null;
+    try {
+      const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
+      const text = envelope.content?.text;
+      if (typeof text !== 'string' || text === '') return null;
+      return JSON.parse(text) as T;
+    } catch {
+      // A record that does not parse is not a record. Treating it as absent is
+      // the safe reading: it can fail a sign in, never grant one.
+      return null;
+    }
+  }
+
+  async #write(id: string, title: string, value: unknown): Promise<void> {
+    const results = await this.#cloud.ingestApp([{
+      id,
+      title,
+      type: 'custom',
+      timestamp: new Date().toISOString(),
+      text: JSON.stringify(value),
+      metadata: { lacuna_record: 'account' },
+    }], this.#collection);
+    const refused = results.find((result) => result.error !== null && result.error !== '');
+    if (refused !== undefined) {
+      throw new StoreUnavailable('the account store refused the write');
+    }
+  }
+
+  async available(): Promise<boolean> {
+    try {
+      return await this.#cloud.readyForIngestion();
+    } catch {
+      return false;
+    }
+  }
+
+  async find(email: string): Promise<Account | null> {
+    return this.#read<Account>(this.#accountId(email));
+  }
+
+  async create(account: Account): Promise<Account | null> {
+    // Read before write rather than a conditional put, which this service does
+    // not offer. Two sign ups for one address within the same few hundred
+    // milliseconds would both succeed and the second would win; the cost of
+    // that race is one person seeing someone else's empty workspace name, and
+    // the alternative was a lock this store cannot hold.
+    if (await this.find(account.email) !== null) return null;
+    await this.#write(this.#accountId(account.email), account.email, account);
+    return account;
+  }
+
+  async update(account: Account): Promise<void> {
+    await this.#write(this.#accountId(account.email), account.email, account);
+  }
+
+  async startSession(email: string, now: number): Promise<string> {
+    const token = mintToken();
+    const record: SessionRecord = {
+      tokenHash: hashToken(token),
+      email,
+      expiresAt: now + SESSION_TTL_MS,
+    };
+    await this.#write(this.#sessionId(record.tokenHash), 'session', record);
+    return token;
+  }
+
+  async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
+    const record = await this.#read<SessionRecord>(this.#sessionId(hashToken(token)));
+    if (record === null) return null;
+    // Expiry is checked here rather than trusted from storage, so a clock the
+    // store does not enforce cannot extend a session.
+    if (record.expiresAt <= now) return null;
+    return record;
+  }
+
+  async endSession(token: string): Promise<void> {
+    const tokenHash = hashToken(token);
+    // Overwritten with an expiry in the past rather than deleted: the record
+    // is what a later read consults, and one that is gone and one that has
+    // expired are the same answer, but only one of them survives a retry.
+    await this.#write(this.#sessionId(tokenHash), 'session', { tokenHash, email: '', expiresAt: 0 });
+  }
+}

@@ -13,7 +13,8 @@ import {
   readJsonBody,
   serialiseCookie,
 } from '../auth/http.js';
-import { AccountStore, SESSION_TTL_MS, StoreUnavailable, mintToken } from '../auth/store.js';
+import { SESSION_TTL_MS, StoreUnavailable, mintToken } from '../auth/store.js';
+import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './workspace.js';
 import type { WorkspaceView } from './workspace.js';
@@ -48,7 +49,7 @@ const MAX_WORKSPACE_CHARS = 120;
 const SIGNUP_LIMIT = { limit: 3, windowMs: 60_000, maxKeys: 4_096 };
 
 export interface ApiOptions {
-  readonly store: AccountStore;
+  readonly store: Accounts;
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -165,7 +166,7 @@ function hopSuggestions(inventory: Inventory | undefined): readonly { label: str
 }
 
 export class ApiRouter {
-  readonly #store: AccountStore;
+  readonly #store: Accounts;
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: (() => HydraSource) | undefined;
@@ -200,12 +201,12 @@ export class ApiRouter {
    * one explicitly named as the demo, which is the only path that reaches the
    * ingested corpus.
    */
-  #viewFor(cookies: Readonly<Record<string, string>>): WorkspaceView {
+  async #viewFor(cookies: Readonly<Record<string, string>>): Promise<WorkspaceView> {
     const token = cookies[SESSION_COOKIE];
     const record = typeof token === 'string' && token !== ''
-      ? this.#store.sessionFor(token, this.#now())
+      ? await this.#store.sessionFor(token, this.#now())
       : null;
-    const account = record === null ? null : this.#store.find(record.email);
+    const account = record === null ? null : await this.#store.find(record.email);
     if (account === null || account.workspace !== DEMO_WORKSPACE) return emptyWorkspace();
     const inventory = this.#inventory;
     return inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
@@ -228,9 +229,9 @@ export class ApiRouter {
     if (path === '/api/session' && method === 'GET') {
       const token = cookies[SESSION_COOKIE];
       const record = typeof token === 'string' && token !== ''
-        ? this.#store.sessionFor(token, this.#now())
+        ? await this.#store.sessionFor(token, this.#now())
         : null;
-      const account = record === null ? null : this.#store.find(record.email);
+      const account = record === null ? null : await this.#store.find(record.email);
       if (account === null) {
         send(response, 200, { signedIn: false }, this.#csrfCookie(cookies));
         return HANDLED;
@@ -260,7 +261,7 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      if (!this.#store.available) {
+      if (!await this.#store.available()) {
         send(response, 503, { error: 'store' });
         return HANDLED;
       }
@@ -275,7 +276,7 @@ export class ApiRouter {
 
       if (path === '/api/auth/signout') {
         const token = cookies[SESSION_COOKIE];
-        if (typeof token === 'string' && token !== '') this.#store.endSession(token);
+        if (typeof token === 'string' && token !== '') await this.#store.endSession(token);
         send(response, 204, null, [clearCookie(SESSION_COOKIE, this.#secure)]);
         return HANDLED;
       }
@@ -341,7 +342,7 @@ export class ApiRouter {
     }
 
     if (path.startsWith('/api/workspace/') && method === 'GET') {
-      const view = this.#viewFor(cookies);
+      const view = await this.#viewFor(cookies);
       const part = path.slice('/api/workspace/'.length);
 
       // Probed rather than listed: these two ask the endpoints and report what
@@ -408,9 +409,9 @@ export class ApiRouter {
       }
       const token = cookies[SESSION_COOKIE];
       const record = typeof token === 'string' && token !== ''
-        ? this.#store.sessionFor(token, this.#now())
+        ? await this.#store.sessionFor(token, this.#now())
         : null;
-      const account = record === null ? null : this.#store.find(record.email);
+      const account = record === null ? null : await this.#store.find(record.email);
       if (account === null) {
         send(response, 401, { error: 'session' });
         return HANDLED;
@@ -430,7 +431,7 @@ export class ApiRouter {
       }
 
       try {
-        this.#store.update({ ...account, workspace: name.trim(), onboarded: true });
+        await this.#store.update({ ...account, workspace: name.trim(), onboarded: true });
         send(response, 204, null);
       } catch (error) {
         send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
@@ -452,14 +453,14 @@ export class ApiRouter {
       send(response, 422, { error: 'password' });
       return HANDLED;
     }
-    if (this.#store.find(email) !== null) {
+    if (await this.#store.find(email) !== null) {
       send(response, 409, { error: 'exists' });
       return HANDLED;
     }
 
     const now = this.#now();
     try {
-      const created = this.#store.create({
+      const created = await this.#store.create({
         email,
         passwordHash: await hashPassword(password),
         createdAt: new Date(now).toISOString(),
@@ -470,7 +471,7 @@ export class ApiRouter {
         send(response, 409, { error: 'exists' });
         return HANDLED;
       }
-      const token = this.#store.startSession(email, now);
+      const token = await this.#store.startSession(email, now);
       send(response, 201, { signedIn: true }, [this.#sessionCookie(token)]);
     } catch (error) {
       send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
@@ -485,7 +486,7 @@ export class ApiRouter {
       return HANDLED;
     }
 
-    const account = this.#store.find(email);
+    const account = await this.#store.find(email);
     // The hash runs even when there is no account, so the time this takes does
     // not answer the question "does this address have an account here".
     const stored = account?.passwordHash ?? await decoy();
@@ -496,7 +497,7 @@ export class ApiRouter {
     }
 
     try {
-      const token = this.#store.startSession(email, this.#now());
+      const token = await this.#store.startSession(email, this.#now());
       send(response, 200, { signedIn: true }, [this.#sessionCookie(token)]);
     } catch (error) {
       send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });

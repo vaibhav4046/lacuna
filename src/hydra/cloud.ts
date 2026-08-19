@@ -197,16 +197,19 @@ export class HydraCloud {
    * graph already states them, which is what makes `/context/relations` show
    * the product's own edges rather than only the ones inference found.
    */
-  async ingestApp(records: readonly AppRecord[]): Promise<readonly IngestResult[]> {
+  async ingestApp(
+    records: readonly AppRecord[],
+    collection = this.#config.collection,
+  ): Promise<readonly IngestResult[]> {
     const form = new FormData();
     form.set('database', this.#config.database);
-    form.set('collection', this.#config.collection);
+    form.set('collection', collection);
     form.set('type', 'knowledge');
     form.set('upsert', 'true');
     form.set('app_knowledge', JSON.stringify(records.map((record) => ({
       id: record.id,
       database: this.#config.database,
-      collection: this.#config.collection,
+      collection,
       title: record.title,
       type: record.type,
       timestamp: record.timestamp,
@@ -236,10 +239,14 @@ export class HydraCloud {
    * every time, which is what lets a temporal resolver sit above a service
    * whose other endpoint is a vector search.
    */
-  async inspect(id: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<InspectedSource | null> {
+  async inspect(
+    id: string,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    collection = this.#config.collection,
+  ): Promise<InspectedSource | null> {
     const query = new URLSearchParams({
       database: this.#config.database,
-      collection: this.#config.collection,
+      collection,
       id,
       mode: 'content',
     });

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { ApiRouter } from '../src/api/router.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { AccountStore } from '../src/auth/store.js';
+import { FileAccounts } from '../src/auth/accounts.js';
 import { runDoctor } from '../src/cli/doctor.js';
 import { doctorPayload } from '../src/cli/json.js';
 import { NodeSource } from '../src/hydra/node-source.js';
@@ -55,7 +56,7 @@ const artifacts = loadArtifacts();
 // Accounts live outside the graph and outside the repository. The default is
 // gitignored, and the directory is created on first write rather than at start
 // up, so a read-only checkout still serves every public page.
-const store = new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '.lacuna-store');
+const store = new FileAccounts(new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '.lacuna-store'));
 
 // The same six checks `lacuna doctor` runs, in the same order, from the same
 // function. The application shows HYDRADB CONNECTED only when this says so.

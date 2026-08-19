@@ -24,32 +24,42 @@ export type SessionState = { readonly signedIn: false } | { readonly signedIn: t
 
 interface SessionContextValue {
   readonly loaded: Loaded<SessionState>;
-  /** Re-ask after sign in, sign up, sign out, or finishing onboarding. */
-  readonly refresh: () => void;
+  /**
+   * Re-ask after sign in, sign up, sign out, or finishing onboarding.
+   *
+   * Awaitable, and that is the whole point. It used to bump a counter and let
+   * an effect re-fetch, so a caller that navigated on the next line arrived at
+   * a guarded route while the answer in hand still said signed out, and the
+   * guard correctly bounced a person who had just signed up. Resolving when
+   * the new answer is in state removes the race rather than papering over it
+   * with a timeout.
+   */
+  readonly refresh: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<Loaded<SessionState>>({ state: 'loading' });
-  const [tick, setTick] = useState(0);
+
+  const read = useCallback(async (signal?: AbortSignal): Promise<void> => {
+    try {
+      const value = await getJson<SessionState>('/api/session', signal ?? new AbortController().signal);
+      if (signal?.aborted !== true) setLoaded({ state: 'ready', value });
+    } catch {
+      // The server did not answer. That is not proof of being signed out, so
+      // the guard holds rather than bouncing someone who has a valid cookie.
+      if (signal?.aborted !== true) setLoaded({ state: 'failed', reason: 'Connection failed.' });
+    }
+  }, []);
 
   useEffect(() => {
     const control = new AbortController();
-    getJson<SessionState>('/api/session', control.signal).then(
-      (value) => {
-        if (!control.signal.aborted) setLoaded({ state: 'ready', value });
-      },
-      () => {
-        // The server did not answer. That is not proof of being signed out, so
-        // the guard holds rather than bouncing someone who has a valid cookie.
-        if (!control.signal.aborted) setLoaded({ state: 'failed', reason: 'Connection failed.' });
-      },
-    );
+    void read(control.signal);
     return () => control.abort();
-  }, [tick]);
+  }, [read]);
 
-  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  const refresh = useCallback(() => read(), [read]);
 
   return <SessionContext.Provider value={{ loaded, refresh }}>{children}</SessionContext.Provider>;
 }

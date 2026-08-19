@@ -3373,3 +3373,26 @@ writes because the service offers no conditional put, so two sign ups for one
 address within the same few hundred milliseconds would both succeed. The cost
 is one person seeing an empty workspace that is not theirs; the alternative was
 a lock this store cannot hold.
+
+### D-125: a fire-and-forget refresh bounced people out of their own sign up
+
+Signing up on production created the account, set the cookie, and landed on
+the sign in page. The account was real and the browser was signed in; the app
+simply did not know it yet.
+
+`refresh()` bumped a counter and let an effect re-fetch the session, so the
+navigation on the next line reached a guarded route while the answer in hand
+still said signed out, and `RequireSession` correctly bounced someone who had
+just signed up. It is a race, so it would have shown up as "sometimes it works"
+rather than as a broken build, and only in a browser: no API test can see it,
+because the API was right every time.
+
+`refresh()` now performs the read and resolves when the new answer is in state,
+and every caller awaits it. Verified in a browser against production, from a
+cleared cookie jar: sign up lands on onboarding, five steps name a workspace,
+and the dashboard opens on `nightshift / platform` reporting
+`0 current · 0 historical · 0 conflict` — a real empty workspace, which is what
+a new account is supposed to see.
+
+Found by using the product rather than by testing it, which is the argument for
+the browser-first loop.

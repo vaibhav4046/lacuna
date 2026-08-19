@@ -44,13 +44,13 @@ export function Settings() {
 
   async function openDemo() {
     await postJson('/api/workspace', { workspace: SAMPLE_WORKSPACE });
-    refresh();
+    await refresh();
     go('/app/dash');
   }
 
   async function leave() {
     await signOut();
-    refresh();
+    await refresh();
     go('/');
   }
 

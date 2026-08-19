@@ -18,7 +18,7 @@ export default function SignIn() {
     const failure = await signIn(email, password);
     setBusy(false);
     if (failure !== null) { setProblem(failure); return; }
-    refresh();
+    await refresh();
     go('/app/dash');
   }
 

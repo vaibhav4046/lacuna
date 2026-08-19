@@ -48,7 +48,7 @@ export default function Onboarding() {
     const result = await postJson('/api/workspace', { workspace: workspace.trim() === '' ? 'workspace' : workspace.trim() });
     setBusy(false);
     if (!result.ok) { setProblem('Connection failed.'); return; }
-    refresh();
+    await refresh();
     go('/app/dash');
     window.scrollTo(0, 0);
   }

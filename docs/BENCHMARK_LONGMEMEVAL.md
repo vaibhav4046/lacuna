@@ -191,9 +191,24 @@ exports `stripGroundTruth`, which rebuilds each record field by field into an
 `IngestibleQuestion`, a type produced by `Omit`ing `answer`,
 `answer_session_ids` and the turn-level `has_answer` from the official shape.
 The adapter's parameter is that type, so reading a gold answer inside the
-adapter is a compile error rather than a code review finding. The adapter's
-return type declares `questions: readonly never[]`, so the value it hands
-ingestion cannot be given a question with an expected answer either.
+adapter does not compile.
+
+The type is not the guarantee, and it is worth being exact about that because
+this is the claim a sceptical judge should test hardest. TypeScript rejects
+excess properties only on object literals, so handing the adapter a full
+record through a variable compiles cleanly. That was checked, and it does.
+`Omit` also removes nothing at runtime.
+
+**The guarantee is that the adapter enumerates the fields it copies rather than
+spreading the turn.** A message is built from eight named fields and
+`has_answer` is not one of them, so ground truth has no path into the output
+even when it is sitting on the input. `tests/unit/longmemeval-adapter.test.ts`
+hands the adapter the answer bearing record on purpose and asserts the
+serialised output contains neither the marker nor the answer string, and that
+every message carries exactly those eight keys.
+
+The adapter's return type declares `questions: readonly never[]`, so the value
+it hands ingestion cannot be given a question with an expected answer either.
 
 The runner fails loudly in two places and neither has a fallback: an absent or
 malformed dataset file throws with the download command in the message, and a

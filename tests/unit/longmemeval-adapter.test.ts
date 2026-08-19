@@ -321,4 +321,40 @@ describe('hypotheses come out in the official format', () => {
       expect(Object.keys(JSON.parse(line))).toEqual(['question_id', 'hypothesis']);
     }
   });
+
+  /**
+   * The type says `Omit<..., 'has_answer'>`, and a type is not a barrier.
+   * TypeScript only rejects excess properties on object literals, so handing
+   * the adapter a full record through a variable compiles cleanly. That was
+   * checked, and it does compile. The guarantee is therefore not the type: it
+   * is that the adapter enumerates the fields it copies rather than spreading
+   * the turn, so ground truth has no path into the output even when it is
+   * present on the input.
+   *
+   * This test hands it the answer bearing record on purpose.
+   */
+  it('strips ground truth at runtime even when handed the full record', () => {
+    const full = {
+      ...RECORD,
+      haystack_sessions: [[
+        { role: 'user', content: 'The decisive turn.', has_answer: true },
+      ]],
+      haystack_session_ids: ['answer_session_1'],
+      haystack_dates: ['2023/05/30 (Tue) 23:40'],
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adapted = adaptHaystack(full as any);
+    const serialised = JSON.stringify(adapted);
+
+    expect(serialised).not.toContain('has_answer');
+    expect(serialised).not.toContain(RECORD.answer as string);
+    for (const session of adapted.sessions) {
+      for (const message of session.messages) {
+        expect(Object.keys(message).sort()).toEqual(
+          ['claims', 'index', 'key', 'sessionKey', 'spans', 'speaker', 'text', 'timestamp'],
+        );
+      }
+    }
+  });
 });

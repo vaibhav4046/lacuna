@@ -91,14 +91,26 @@ Status values: `open`, `done`, `dropped`.
 
 ## 3. Demo video
 
-- **Status:** open
-- **Why it needs you:** it is your face and voice, and uploading it publishes
-  content.
-- **What you get from me:** delivered, at [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md).
-  Eight shots cut to 2:49, the exact screens and URLs in order, the narration
-  written to a measured 158 seconds at 150 words per minute, the commands that
-  put the graph in the state every take needs, and a ranked cut list if a take
-  runs long. Recording and upload are yours.
+- **Status:** open, and it is now the largest gap in the submission.
+- **Why it needs you:** uploading publishes content, and the decision below is
+  a judgement call about what to spend the three minutes on.
+- **What exists:** a rendered film at
+  `video/hyperframes/renders/lacuna-demo-master.mp4`, 2 minutes 28 seconds,
+  30MB, built 2026-08-19 at 06:09. Also a script for a spoken take at
+  [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md), eight shots cut to 2:49 with the
+  exact screens and URLs in order and a ranked cut list.
+- **The problem:** the film was rendered before the two screens that answer the
+  judges' hardest questions existed. It shows neither the extractor at
+  `/demo/memory`, which is where prose becomes claims and where a forged
+  `SYSTEM:` line visibly fails to become an answer, nor the graph walk at
+  `/demo/hydra`, which is the evidence that HydraDB is load bearing rather than
+  a key-value store. Grep for either in `video/hyperframes/SCRIPT.md` returns
+  nothing.
+- **The decision, which is yours:** ship the 2:28 film as it stands and lose
+  those two, or spend the time re-rendering with them in. There is room: the
+  cap is 3:00 and the film is 2:28, so roughly thirty seconds is available
+  without cutting anything.
+- **Hard constraint from the rules:** 3 minutes or less.
 - **Hard constraint from the rules:** 3 minutes or less, and "anything past the
   3-minute mark may not be reviewed". Judges must be able to watch it without
   requesting access, so unlisted YouTube is fine, Drive-with-permissions is not.
@@ -119,22 +131,22 @@ Status values: `open`, `done`, `dropped`.
 
 ## 5. Deployed link, if we want one
 
-- **Status:** done, as a recorded replay
+- **Status:** done, and live rather than replayed.
 - **What happened:** a copy of the product went public on 2026-08-14 at
   <https://lacuna-five.vercel.app>, on the Vercel free tier, so no paid action
-  occurred. It answers every gold question from a recorded snapshot: replies a
-  live HydraDB node produced at export time, stored byte for byte, decoded in
-  production by the same client code the live server uses. The site states this
-  about itself on its own pages. Verified from outside the same day, every
-  route and one answer of each kind, transcripts in
-  [artifacts/verification/2026-08-14f/](artifacts/verification/2026-08-14f/README.md);
-  the design record is D-065 in [DECISIONS.md](DECISIONS.md).
-- **Why this shape:** the complication this item named, that HydraDB itself has
-  to run somewhere, is real and unresolved. The replay avoids it rather than
-  solving it: no node runs behind the URL, no writes happen there, and no token
-  is present there. A hosted live node would also collide with the store wedge
-  in item 6, which is why the snapshot is the honest shape a public copy can
-  take today.
+  occurred. It was a recorded replay then. It is not now: it answers live from
+  HydraDB Cloud as one serverless function, every reply carries
+  `source_state: live` with a measured round trip, and `/api/health` names the
+  database and collection it read.
+- **What changed since:** HydraDB Cloud removed the reason the replay existed,
+  which was that a node had to run somewhere and the local backend wedges
+  (item 6). The managed service is not that backend, so the objection does not
+  transfer. The self-hosted node is still the profile the benchmarks and the
+  contract suite run against, and the two stores answer the same 64 questions
+  identically: `artifacts/hydra/cloud-parity.json`.
+- **Verified from outside on 2026-08-19:** route audit clean, the six `/judge`
+  answers returning in 113 to 325ms, `/api/demo/expansion` walking 21 edges of
+  the store's own graph in 2,918ms.
 - **What is still yours:** open the URL in a logged-out browser on the day you
   submit, same as the other links, and paste it into form field 5 per
   [docs/SUBMISSION.md](docs/SUBMISSION.md).

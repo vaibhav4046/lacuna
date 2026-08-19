@@ -108,18 +108,25 @@ absent rather than quietly mocking it. 970 tests in total with a node running.
 ```
 https://lacuna-five.vercel.app
 
-One honest caveat, which the site also states about itself on its own pages:
-the deployed copy answers from a recorded snapshot. Every reply was produced by
-a live HydraDB node at export time, stored byte for byte, and is decoded in
-production by the same client code the live server uses. The live node runs
-locally in this submission; the six-step quickstart in the README stands it up,
-and artifacts/repro/repro.sh is the committed transcript of a clean clone doing
-exactly that.
+It answers live from HydraDB Cloud, as one serverless function. Every reply
+carries source_state: live and a measured round trip, /api/health names the
+database and collection it read, and /demo/hydra shows the store's own relation
+graph beside the claim graph this project builds. /judge asks six questions on
+load, with no account, and reaches six different outcomes including three
+different refusals.
+
+A self-hosted HydraDB node is the other supported profile and is what the
+benchmarks and the contract suite run against. The six-step quickstart in the
+README stands one up, and artifacts/repro/repro.sh is the committed transcript
+of a clean clone doing exactly that. The two stores answer the same 64 questions
+identically: artifacts/hydra/cloud-parity.json.
 ```
 
-The URL was verified from outside on 2026-08-14, every route and one answer of
-each kind, with the transcripts in
-[artifacts/verification/2026-08-14f/](../artifacts/verification/2026-08-14f/README.md).
+Earlier revisions of this file described the deployed copy as a recorded
+snapshot, which is what it was on 2026-08-14. It reads HydraDB Cloud live now.
+Verified from outside on 2026-08-19: every route audited clean, the six judge
+answers returning in 113 to 325ms, and the graph walk at
+`/api/demo/expansion` reaching 21 edges in 2,918ms.
 Open it in a logged-out browser on the day you submit, same as the other links.
 
 ## 6. How the project uses the HydraDB Open Source Repo

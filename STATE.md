@@ -4,6 +4,35 @@ What exists right now. Updated as things change, and never ahead of them.
 
 **Last updated: 2026-08-19**
 
+## Baseline reverified this run
+
+Every gate below was rerun in this session at `v7-1-convergence`, working tree
+clean. No count in this file is carried forward from an earlier run.
+
+| Gate | Result |
+| --- | --- |
+| typecheck | exit 0 |
+| unit | 1048 of 1048, 53 files |
+| contract, live node | 77 of 77 |
+| three surfaces, one store, 64 questions | `ALL_IDENTICAL: True` |
+| two stores, 64 questions | `ALL_IDENTICAL: true` |
+| census | graph matches the plan exactly |
+| production web, demo, auth | 9 of 9, 30 of 30, 12 of 12 |
+| three clients, one cloud workspace | `ONE_CONTEXT_IDENTICAL: true` |
+| copy lint | 48 files, 0 findings |
+| HydraDB Cloud health | ok |
+| the store's own relations | 47 returned in 59ms |
+| Google sign in | redirect live, `openid email profile` |
+| secrets in tracked files and in history | 0 and 0 |
+
+**The largest disclosed weakness is claim extraction from raw prose.** The claim
+graph is built from structured annotations the corpus generator emits, so the
+downstream temporal, contradiction and abstention logic is stronger than the
+ingestion of arbitrary conversation text. That is stated in the README and it is
+the thing being worked on now, because Track 03 is about raw long histories and
+an extractor that only reads annotations does not meet the track where it lives.
+
+
 ## Built and verified
 
 - **The terminal on the landing page is a recording, not a drawing.** It used

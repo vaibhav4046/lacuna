@@ -155,6 +155,26 @@ scanning inside the same Node process. Those measure different things. The
 context figure is the comparable one; the millisecond figure is there so nobody
 has to discover the trade-off for themselves.
 
+## Scale
+
+| Number or claim | Said in | Artifact | Command | State |
+|---|---|---|---|---|
+| 72 sessions, 5,246 messages, 117,041 estimated tokens | TRACK03_SCALE, README | [artifacts/verification/2026-08-19/census.txt](../artifacts/verification/2026-08-19/census.txt) | `npm run census` | `LIVE` |
+| History 16,994 to 117,041 tokens grew 6.89x; context handed to the answering step grew 1.00x | TRACK03_SCALE, JUDGE_SCORECARD, STATE | [artifacts/scale/curve.json](../artifacts/scale/curve.json) | `npx tsx scripts/scale-curve.ts` | `LIVE` |
+| 64 of 64 correct and 0 false answers at every one of five sizes | TRACK03_SCALE | same | same | `LIVE` |
+| Latency has no trend across that growth: 249, 457, 262, 218, 288ms | TRACK03_SCALE | same | same | `LIVE` |
+| The curve holds the claim set fixed, so it does not measure growth in claims | TRACK03_SCALE | the `note` field in the artifact, and the section that says so | same | `LIVE` |
+
+The last row is there because the first two are the strongest numbers in this
+repository and they are weaker than they look. The same 174 claims and 86
+entities are present at every size, so a constant context cost is what the
+design predicts rather than a discovery. What the run rules out is an accidental
+dependency on history volume, and what it does not answer is how the cost
+behaves as the number of claims grows.
+
+`scripts/scale-curve.ts` clears and reingests the node once per size. It ends on
+the shipped size, so a completed run leaves the graph as it found it.
+
 ## HydraDB
 
 | Number or claim | Said in | Artifact | Command | State |

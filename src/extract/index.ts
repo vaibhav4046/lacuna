@@ -1,4 +1,5 @@
-export { extract } from './extract.js';
+export { extract, extractTurns } from './extract.js';
+export type { TurnInput } from './extract.js';
 export { classify, carryOver } from './mode.js';
 export { segmentTurns, splitSentences } from './segment.js';
 export { subjectFromPlan, toCorpus, viewFor } from './adapt.js';

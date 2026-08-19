@@ -100,8 +100,19 @@ const CLAUSE_BREAK: ReadonlySet<string> = new Set([
   'to', 'for', 'on', 'in', 'at', 'by', 'from', 'with', 'about',
 ]);
 
-/** Trailing words that say when rather than what. */
-const TRAILING_TIME = /\s+(?:now|today|currently|any\s?more|from\s+now\s+on|going\s+forward|at\s+the\s+moment|right\s+now)$/i;
+/**
+ * Trailing words that say when rather than what.
+ *
+ * A value keeps only the thing it names. "We migrated sessions to Redis last
+ * week" is a claim that the store is Redis, and "last week" belongs to the
+ * clock rather than to the answer: left on, it produces the object text "Redis
+ * last week", which is wrong as an answer and wrong as a value to compare a
+ * later claim against. Ordering is already carried by turn order and by the
+ * timestamp on the turn, so nothing is lost by dropping it here, exactly as
+ * "now" and "currently" have always been dropped.
+ */
+const TRAILING_TIME =
+  /\s+(?:now|today|currently|any\s?more|from\s+now\s+on|going\s+forward|at\s+the\s+moment|right\s+now|yesterday|recently|(?:last|this)\s+(?:night|week|month|year|quarter|morning|afternoon|evening))$/i;
 
 /** Where a value ends. Anything past one of these is another clause. */
 const VALUE_END = /[.!?,;]|\s+(?:because|so\s+that|and|but|since|which|that|on|for|from|as\s+of|with|until|while)\s+/i;
@@ -264,8 +275,47 @@ interface Live {
   readonly objectText: string;
 }
 
+/**
+ * One turn as a caller already holds it, for sources that never were prose.
+ *
+ * A chat export, a benchmark haystack and a message table all arrive already
+ * split into turns with a speaker and a clock on each one. Rendering them back
+ * into "speaker: text" lines so the segmenter can split them again is lossy in
+ * exactly the case that matters: a turn whose own text contains a newline comes
+ * back as two turns, and every offset after it is wrong.
+ */
+export interface TurnInput {
+  readonly speaker: string;
+  readonly role: 'user' | 'assistant';
+  readonly timestamp: string;
+  readonly text: string;
+}
+
+/**
+ * The separator between turns in the reconstructed source.
+ *
+ * The span check verifies a quote against both its turn and its position in the
+ * whole source, and that second check is only meaningful if a source exists. So
+ * one is built by joining the turns, and the offsets are assigned from the same
+ * join rather than asserted alongside it.
+ */
+const TURN_JOIN = '\n';
+
+export function extractTurns(input: readonly TurnInput[], meta: SourceMeta): Extraction {
+  const turns: Turn[] = [];
+  let offset = 0;
+  input.forEach((turn, index) => {
+    turns.push({ ...turn, index, offset });
+    offset += turn.text.length + TURN_JOIN.length;
+  });
+  return run(turns, turns.map((turn) => turn.text).join(TURN_JOIN), meta);
+}
+
 export function extract(raw: string, meta: SourceMeta): Extraction {
-  const turns = segmentTurns(raw, meta);
+  return run(segmentTurns(raw, meta), raw, meta);
+}
+
+function run(turns: readonly Turn[], raw: string, meta: SourceMeta): Extraction {
   const claims: ExtractedClaim[] = [];
   const readings: Reading[] = [];
   const rejected: RejectedSpan[] = [];

@@ -2,11 +2,11 @@
 
 **No LongMemEval number has been produced by this repository.** Nothing in this
 document reports a score, and nothing in `benchmarks/longmemeval/` can produce
-one yet. What exists is the integration scaffold: the official format read
-correctly, an adapter that cannot carry an answer into ingestion, a runner that
-refuses rather than invents, and this record of what a real run would still
-need. Two components are missing and they are named in
-[What a real run still needs](#what-a-real-run-still-needs).
+one yet. What exists is the integration: the official format read correctly, an
+adapter that cannot carry an answer into ingestion, claim extraction from the
+raw haystack prose, a runner that refuses rather than invents, and this record
+of what a real run would still need. One component is still missing and it is
+named in [What a real run still needs](#what-a-real-run-still-needs).
 
 ## The benchmark
 
@@ -215,18 +215,30 @@ malformed dataset file throws with the download command in the message, and a
 run with no answerer wired throws naming the two components below. It never
 writes a hypothesis it did not get from a system.
 
+## Claims out of the haystack
+
+Lacuna ingests `ClaimAnnotation` and `EvidenceSpan` records, and its own corpus
+supplies them because it generated the prose from them. LongMemEval supplies
+prose and nothing else, so `src/extract` reads the claims out of it and the
+adapter attaches them to the turns that produced them.
+
+The haystack is extracted in **one pass over every session in order**, not
+session by session. Extraction carries the state that decides which spelling of
+a name was seen first and which value currently stands, and that state is what
+makes a later statement supersede an earlier one. Knowledge Updates is a named
+ability of this benchmark and the update always crosses a session boundary, so
+extracting per session discards exactly the thing being tested. This was found
+by running the adapter rather than by reading it: with a pass per session, the
+subject interned twice and the change superseded nothing.
+
+What comes out is what the extractor could justify from a sentence and a span,
+which is less than a reader would understand from the same text. Recall is not
+measured here and no number for it is claimed. The limit is stated in
+[README](../README.md) beside the thesis.
+
 ## What a real run still needs
 
-Two components, neither of which exists in this repository.
-
-**A claim extractor.** Lacuna ingests `ClaimAnnotation` and `EvidenceSpan`
-records, and its synthetic corpus supplies them because it generated the prose
-from them. LongMemEval supplies raw conversational prose and nothing else. The
-adapter therefore emits sessions with `claims: []` and `entities: []`, which
-means the graph it produces holds sessions and messages and no claims, and
-`resolve` has nothing to resolve. Until prose can become subject, predicate,
-object and a supporting span, Lacuna cannot answer a LongMemEval question at
-all. This is the blocking gap, and it is an LLM-shaped one.
+One component, which does not exist in this repository.
 
 **A question parser and a verbaliser.** `ask` takes
 `{subject, predicate, via}`, not a sentence. LongMemEval asks "What degree did I
@@ -244,7 +256,7 @@ per run.
 | download | 15.4 MB (oracle), 277 MB (s), 2.74 GB (m). Public, no credential |
 | store | a HydraDB node. The runner is pinned to the node profile, as the other benchmarks are |
 | isolation | one question's haystack per graph. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph collide on keys |
-| missing code | a claim extractor and a natural language question parser |
+| missing code | a natural language question parser and verbaliser |
 | judge | `gpt-4o`, `gpt-4o-mini` or `llama-3.1-70b-instruct`, 500 calls, paid, not configured here |
 
 ## Honest status
@@ -253,6 +265,7 @@ per run.
 |---|---|
 | official format confirmed | yes, against the repository source and README |
 | loader and adapter | written, unit tested against handwritten fixtures |
+| claim extraction from haystack prose | wired in, and exercised on prose that changes a value across sessions |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | dataset downloaded | no |
 | ingestion of a real haystack | not run |

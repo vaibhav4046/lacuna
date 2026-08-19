@@ -67,7 +67,7 @@ const OBJECT_KINDS: Readonly<Record<string, EntityKind>> = Object.freeze({
 
 const SUBJECT_KIND: EntityKind = 'service';
 
-function entitiesOf(claims: readonly ExtractedClaim[]): readonly CorpusEntity[] {
+export function entitiesOf(claims: readonly ExtractedClaim[]): readonly CorpusEntity[] {
   const kinds = new Map<string, EntityKind>();
   for (const claim of claims) {
     if (claim.objectEntity === null) continue;
@@ -103,7 +103,22 @@ function annotationOf(claim: ExtractedClaim): ClaimAnnotation {
  * keep offsets rather than sentences: the graph stores the quotation and its
  * position, and both have to be true of the message text stored beside them.
  */
-export function toCorpus(extraction: Extraction, meta: SourceMeta): Corpus {
+/** What one turn contributes to the graph: its claims and the spans backing them. */
+export interface TurnAnnotations {
+  readonly claims: readonly ClaimAnnotation[];
+  readonly spans: readonly EvidenceSpan[];
+}
+
+/**
+ * Extracted claims grouped onto the turns that produced them.
+ *
+ * Split out of `toCorpus` because a caller that already owns its message keys,
+ * timestamps and session boundaries, such as a benchmark haystack, needs the
+ * grouping without the surrounding corpus. Turns with no claims are absent
+ * rather than present and empty, so a caller reads a missing key as "nothing
+ * was said here" without a second check.
+ */
+export function annotationsByTurn(extraction: Extraction): ReadonlyMap<number, TurnAnnotations> {
   const byTurn = new Map<number, ExtractedClaim[]>();
   for (const claim of extraction.claims) {
     const bucket = byTurn.get(claim.turnIndex);
@@ -111,14 +126,27 @@ export function toCorpus(extraction: Extraction, meta: SourceMeta): Corpus {
     else bucket.push(claim);
   }
 
+  return new Map(
+    [...byTurn.entries()].map(([index, made]) => [
+      index,
+      {
+        claims: made.map(annotationOf),
+        spans: made.map((claim) => ({
+          claimKey: claim.key,
+          start: claim.span.start,
+          end: claim.span.end,
+          quote: claim.span.quote,
+        })),
+      },
+    ]),
+  );
+}
+
+export function toCorpus(extraction: Extraction, meta: SourceMeta): Corpus {
+  const byTurn = annotationsByTurn(extraction);
+
   const messages: Message[] = extraction.turns.map((turn) => {
-    const made = byTurn.get(turn.index) ?? [];
-    const spans: EvidenceSpan[] = made.map((claim) => ({
-      claimKey: claim.key,
-      start: claim.span.start,
-      end: claim.span.end,
-      quote: claim.span.quote,
-    }));
+    const made = byTurn.get(turn.index);
     return {
       key: `${meta.sessionKey}/${turn.index}`,
       sessionKey: meta.sessionKey,
@@ -126,8 +154,8 @@ export function toCorpus(extraction: Extraction, meta: SourceMeta): Corpus {
       speaker: turn.role,
       timestamp: turn.timestamp,
       text: turn.text,
-      claims: made.map(annotationOf),
-      spans,
+      claims: made?.claims ?? [],
+      spans: made?.spans ?? [],
     };
   });
 

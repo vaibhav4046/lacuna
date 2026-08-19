@@ -1,4 +1,7 @@
 import type { CorpusEntity, CorpusStats, Message, Session } from '../../src/corpus/types.js';
+import { annotationsByTurn, entitiesOf } from '../../src/extract/adapt.js';
+import { extractTurns } from '../../src/extract/extract.js';
+import type { TurnInput } from '../../src/extract/extract.js';
 
 import type { IngestibleQuestion } from './schema.js';
 
@@ -13,13 +16,13 @@ import type { IngestibleQuestion } from './schema.js';
  * given an expected answer either. Both halves are compile time; neither is a
  * convention.
  *
- * What this deliberately does not do is invent structure. Lacuna ingests
- * claims and evidence spans, and LongMemEval supplies neither, so `claims` and
- * `spans` come out empty and `entities` comes out empty. A graph built from
- * this holds sessions and messages and nothing to resolve. That is the honest
- * state of the integration and docs/BENCHMARK_LONGMEMEVAL.md says so under
- * "What a real run still needs". Filling those arrays with guesses would turn
- * a known gap into an unknown one.
+ * Lacuna ingests claims and evidence spans, and LongMemEval supplies neither,
+ * so they are read out of the prose by `src/extract` on the way through. What
+ * comes out is what the extractor could justify from a sentence and a span, not
+ * everything a reader would understand, and the gap between those two is the
+ * honest limit of this integration. docs/BENCHMARK_LONGMEMEVAL.md states it,
+ * along with the second missing half: nothing here turns a natural language
+ * question into the structured one `ask` takes.
  */
 
 export class LongMemEvalAdapterError extends Error {
@@ -62,10 +65,21 @@ export function adaptHaystack(question: IngestibleQuestion): AdaptedHaystack {
     );
   }
 
-  const sessions: Session[] = [];
-  let characters = 0;
-  let messages = 0;
-
+  /**
+   * The whole haystack is extracted in one pass, not session by session.
+   *
+   * Extraction carries state across turns: which spelling of a name was seen
+   * first, which value currently stands for a property, and therefore which
+   * later statement supersedes an earlier one. That state is per call. Calling
+   * once per session throws it away at every session boundary, which is the one
+   * boundary this benchmark is built to cross: "sessions are in Postgres" in
+   * May and "we migrated sessions to Redis" in June are the knowledge-update
+   * ability, and they are never in the same session.
+   *
+   * Measured, before this was one pass: the two spellings interned separately,
+   * so the migration filed against a different subject and superseded nothing.
+   */
+  const flat: TurnInput[] = [];
   for (let index = 0; index < ids.length; index += 1) {
     const key = ids[index];
     const startedAt = dates[index];
@@ -73,24 +87,47 @@ export function adaptHaystack(question: IngestibleQuestion): AdaptedHaystack {
     if (key === undefined || startedAt === undefined || session === undefined) {
       throw new LongMemEvalAdapterError(`${question.question_id}: haystack hole at ${index}`);
     }
+    session.forEach((turn) => {
+      // The dataset timestamps sessions, not turns. Every turn in a session
+      // therefore carries the session's timestamp, verbatim and unconverted:
+      // "2023/05/30 (Tue) 23:40" is not ISO 8601, and a conversion that guesses
+      // a timezone would corrupt the axis this benchmark tests hardest.
+      flat.push({ speaker: turn.role, role: turn.role, timestamp: startedAt, text: turn.content });
+    });
+  }
 
-    const built: Message[] = session.map((turn, turnIndex) => {
+  const first = dates[0] ?? '';
+  const extraction = extractTurns(flat, {
+    sessionKey: question.question_id,
+    title: question.question_id,
+    startedAt: first,
+  });
+  const byTurn = annotationsByTurn(extraction);
+
+  const sessions: Session[] = [];
+  let characters = 0;
+  let messages = 0;
+  let global = 0;
+
+  for (let index = 0; index < ids.length; index += 1) {
+    const key = ids[index]!;
+    const startedAt = dates[index]!;
+    const session = turns[index]!;
+
+    const built: Message[] = session.map((turn, local) => {
       characters += turn.content.length;
       messages += 1;
+      const made = byTurn.get(global);
+      global += 1;
       return {
-        key: messageKey(key, turnIndex),
+        key: messageKey(key, local),
         sessionKey: key,
-        index: turnIndex,
+        index: local,
         speaker: turn.role,
-        // The dataset timestamps sessions, not turns. Every turn in a session
-        // therefore carries the session's timestamp, verbatim and unconverted:
-        // "2023/05/30 (Tue) 23:40" is not ISO 8601, and a conversion that
-        // guesses a timezone would corrupt the axis this benchmark tests
-        // hardest.
         timestamp: startedAt,
         text: turn.content,
-        claims: [],
-        spans: [],
+        claims: made?.claims ?? [],
+        spans: made?.spans ?? [],
       };
     });
 
@@ -106,10 +143,12 @@ export function adaptHaystack(question: IngestibleQuestion): AdaptedHaystack {
     });
   }
 
+  const extracted = extraction.claims;
+
   const stats: CorpusStats = {
     sessions: sessions.length,
     messages,
-    claims: 0,
+    claims: extracted.length,
     characters,
     estimatedTokens: Math.round(characters / CHARS_PER_TOKEN),
   };
@@ -117,7 +156,7 @@ export function adaptHaystack(question: IngestibleQuestion): AdaptedHaystack {
   return {
     seed: `longmemeval:${question.question_id}`,
     sessions,
-    entities: [],
+    entities: entitiesOf(extracted),
     stats,
     questions: [],
   };

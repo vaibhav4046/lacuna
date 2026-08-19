@@ -119,8 +119,10 @@ describe('the sessions and their timestamps survive the adapter', () => {
     expect(adapted.stats).toEqual({
       sessions: 2,
       messages: 4,
-      // No extractor exists, so there are no claims. Saying zero is the honest
-      // report; a nonzero count here would mean something invented them.
+      // The extractor runs over this haystack, and finds nothing in it: these
+      // four turns are small talk with no statement of the form it reads. Zero
+      // is a result here, not an absence of a component. The test below feeds
+      // it prose that does carry claims and pins what comes out.
       claims: 0,
       characters,
       estimatedTokens: Math.round(characters / 4),
@@ -174,14 +176,78 @@ describe('the answer cannot reach the ingestion shape', () => {
     expect(JSON.stringify(buildPlan(corpus))).not.toContain('expected');
   });
 
-  it('plans a graph of sessions and messages and no claims', () => {
-    // Honest consequence of having no extractor: the graph this produces has
-    // nothing for the resolver to resolve. Pinned so that changes.
+  it('plans a graph whose claim count is whatever the prose supported', () => {
+    // This fixture states nothing the extractor can read, so the graph has no
+    // claims. Pinned so that a change in either direction is visible.
     const counts = buildPlan(adaptHaystack(stripGroundTruth(RECORD))).counts;
     expect(counts.vertices.Session).toBe(2);
     expect(counts.vertices.Message).toBe(4);
     expect(counts.vertices.Claim).toBe(0);
     expect(counts.vertices.Entity).toBe(0);
+  });
+});
+
+/**
+ * The one that matters for this benchmark.
+ *
+ * Knowledge Updates is a named LongMemEval ability, and the update it tests is
+ * always split across sessions: a value is stated in one and changed in a
+ * later one. Extraction carries the state that makes that work, so extracting
+ * per session throws it away at exactly the boundary the benchmark is built
+ * around. This was a real defect, found by running the adapter rather than by
+ * reading it: the two spellings of the subject interned separately and the
+ * change superseded nothing.
+ */
+describe('a value changed in a later session', () => {
+  const UPDATED = {
+    question_id: 'update_1',
+    question_type: 'knowledge-update',
+    question: 'Where are sessions stored?',
+    question_date: '2023/06/01 (Thu) 09:00',
+    haystack_session_ids: ['s_may', 'answer_s_june'],
+    haystack_dates: ['2023/05/01 (Mon) 10:00', '2023/06/20 (Tue) 11:00'],
+    haystack_sessions: [
+      [{ role: 'user' as const, content: 'Sessions are stored in Postgres.' }],
+      [{ role: 'user' as const, content: 'We migrated sessions to Redis last week.' }],
+    ],
+  };
+
+  it('files the change against the same subject and supersedes the old value', () => {
+    const adapted = adaptHaystack(UPDATED);
+
+    // One subject, not two. The first sentence capitalises it and the second
+    // does not, and case is not a new thing to know about.
+    expect(adapted.entities.map((entity) => entity.name)).toEqual(['Sessions']);
+
+    const claims = adapted.sessions.flatMap((session) =>
+      session.messages.flatMap((message) => message.claims),
+    );
+    expect(claims).toHaveLength(2);
+
+    const [stated, changed] = claims;
+    expect(stated?.objectText).toBe('Postgres');
+    expect(stated?.supersedes).toBeNull();
+
+    // "last week" says when, not what, so it is not part of the answer.
+    expect(changed?.objectText).toBe('Redis');
+    expect(changed?.supersedes).toBe(stated?.key);
+  });
+
+  it('keeps every span true of the message it is stored on', () => {
+    for (const session of adaptHaystack(UPDATED).sessions) {
+      for (const message of session.messages) {
+        for (const span of message.spans) {
+          expect(message.text.slice(span.start, span.end)).toBe(span.quote);
+        }
+      }
+    }
+  });
+
+  it('carries the supersession into the graph as an edge', () => {
+    const counts = buildPlan(adaptHaystack(UPDATED)).counts;
+    expect(counts.vertices.Claim).toBe(2);
+    expect(counts.vertices.Entity).toBe(1);
+    expect(counts.edges.SUPERSEDES).toBe(1);
   });
 });
 

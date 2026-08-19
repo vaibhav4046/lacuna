@@ -167,8 +167,11 @@ describe('one seam decides which store a client reads', () => {
     // reason to touch an implementation.
     expect(lines.some(({ text }) => /^\s*import\s+type\b[^'"]*HydraSource[^'"]*from/.test(text))).toBe(true);
 
-    // And the store arrives as a factory on the options object.
-    expect(source).toContain('readonly #source: (() => HydraSource) | undefined');
+    // And the store arrives as a factory on the options object. The factory
+    // takes a collection now, because a signed-in reader reads their own
+    // workspace and a signed-out one reads the corpus that ships here, but the
+    // router still receives a source rather than constructing one.
+    expect(source).toContain('readonly #source: ((collection?: string) => HydraSource) | undefined');
 
     // It must not reach the seam directly, which would let it override the
     // store its caller chose.

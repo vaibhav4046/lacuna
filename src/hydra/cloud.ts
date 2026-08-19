@@ -104,6 +104,18 @@ export class HydraCloud {
     this.#fetch = options.fetch ?? ((input, init) => fetch(input, init));
   }
 
+  /**
+   * The same service and credentials, scoped to a different collection.
+   *
+   * A collection is the isolation boundary the service already gives us, and
+   * ingesting one person's transcript into the collection the public demo reads
+   * would put their sentences on a page anybody can open. This returns a client
+   * that writes and reads somewhere else, sharing nothing but the connection.
+   */
+  withCollection(collection: string): HydraCloud {
+    return new HydraCloud({ ...this.#config, collection }, { fetch: this.#fetch });
+  }
+
   get database(): string {
     return this.#config.database;
   }

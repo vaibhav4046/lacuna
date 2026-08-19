@@ -29,6 +29,7 @@ import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
+import { ingestSource } from '../src/api/ingest.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
@@ -115,7 +116,14 @@ const api = new ApiRouter({
   // A source per request: the memo inside one lives exactly as long as the
   // question that filled it, so a warm instance cannot answer from a record
   // the store has since replaced.
-  ...(cloud === null ? {} : { source: (): CloudSource => new CloudSource(cloud) }),
+  ...(cloud === null ? {} : {
+    source: (collection?: string): CloudSource =>
+      new CloudSource(collection === undefined ? cloud : cloud.withCollection(collection)),
+    // Prose into this account's own collection. The public demo collection is
+    // never written to, so ingesting a transcript cannot publish it.
+    ingest: (collection: string, title: string, text: string) =>
+      ingestSource(cloud, collection, title, text),
+  }),
   // The store's own relation graph, read from the service. Kept small: this is
   // a proof that HydraDB extracted relations from the transcripts, not a
   // browsable index of them.

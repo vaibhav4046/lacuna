@@ -50,7 +50,26 @@ const INTENTIONAL_SIGN_IN: readonly string[] = ['/signin', '/signup'];
  * failure this crawl is looking for is a control about the memory, the graph or
  * the health of a workspace that quietly leaves the public scope.
  */
-const SIGN_IN_CONTROLS = new Set(['SIGN IN', 'SIGN UP', 'GET STARTED', 'START BUILDING', 'OPEN LACUNA']);
+const SIGN_IN_CONTROLS = new Set([
+  'SIGN IN', 'SIGN UP', 'GET STARTED', 'START BUILDING', 'OPEN LACUNA',
+  'CREATE ACCOUNT', 'BACK TO SIGN IN', 'ALREADY HAVE AN ACCOUNT · SIGN IN',
+  'CONTINUE WITH GOOGLE', 'SIGN IN WITH GOOGLE',
+]);
+
+/**
+ * The crawl stays on this origin.
+ *
+ * Following the Google sign in button walked it onto accounts.google.com and
+ * it then dutifully crawled Google's own pages and reported their "Create
+ * account" links as findings. Anything off-origin is somebody else's product.
+ */
+function sameOrigin(url: string): boolean {
+  try {
+    return new URL(url).origin === new URL(BASE).origin;
+  } catch {
+    return false;
+  }
+}
 
 interface Finding {
   readonly kind: 'sign_in_redirect' | 'not_found' | 'server_error' | 'dead_control' | 'scope_escape';
@@ -156,6 +175,9 @@ try {
       const target = control.href!.split('#')[0]!;
       if (target === '' || visited.has(target)) continue;
       if (INTENTIONAL_SIGN_IN.includes(target)) continue;
+      // /api/* is the JSON surface and the OAuth start, which redirects off
+      // this origin. Neither is a page a reader clicks through.
+      if (target.startsWith('/api/')) continue;
       queue.push(target);
     }
 
@@ -191,6 +213,12 @@ try {
       if (landedOn === 'DISABLED') continue;
 
       await wait(450);
+      const href = await evaluate<string>('window.location.href');
+      if (!sameOrigin(href)) {
+        // Left the site. Nothing beyond this point is ours to judge.
+        await open(path);
+        continue;
+      }
       const settled = await evaluate<string>('window.location.pathname');
 
       if (
@@ -205,7 +233,7 @@ try {
           control: `${button.label}`,
           detail: `clicking it landed on ${settled}`,
         });
-      } else if (settled !== path && !visited.has(settled)) {
+      } else if (settled !== path && !visited.has(settled) && !settled.startsWith('/api/')) {
         queue.push(settled);
       }
 

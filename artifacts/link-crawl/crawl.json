@@ -1,8 +1,9 @@
 {
-  "crawledAt": "2026-08-19T15:58:54.665Z",
+  "crawledAt": "2026-08-19T16:17:44.093Z",
   "base": "https://lacuna-five.vercel.app",
   "routesVisited": [
     "/",
+    "/api/auth/google/start",
     "/demo/agents",
     "/demo/ask",
     "/demo/cli",
@@ -21,57 +22,15 @@
     "/demo/tools",
     "/demo/voice",
     "/demo/work",
-    "/judge"
+    "/forgot",
+    "/judge",
+    "/lifecycle/flows/signup?app_domain=https://lacuna-five.vercel.app&client_id=143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com&continue=https://accounts.google.com/signin/oauth/legacy/consent?authuser%3Dunknown%26part%3DAJi8hAP7S1MBP4FjmraTQ1ACKsymnAiXgzmudi5IVNshAbT2DOQPblpq34AS04WlfM9KcB_eCIqz4GQrUhi1iN6PErLSYSU35AwxsD8Tup0en2VFHo0yGfQ49KomriU1LXY1ei65xqOE9X6njI4Dv59YhAVboIGojjihDWJnRFL5ZMtqU0l7a7nFPsdSjGKl9UBbT_FujJAqp09bzdYPMQaiNedrVO8Pl36hMnLpjpR99M1oGzlAYkBW9_HoX20FO62uM5-SVJYsuZU-DAKxyS2gNsEPpaO1sOktt0XZi2moFfWvvpJhNiPLJ2qCL1PRsG-uEldK2FAxEeeJ3IeKq05fZY1yFZXhU6u4ClgBV4fWDzMmC5gL-YFbdD1oI7SGgFDOBUaY8BiDj0M_ujT5vdfANquggqrqmHYwfrEP3a_PfZqMQwlTXa234nWktqEHXplXTS3XAFKHxD67q-ARzRxHRunGzLOecllniEuzST90w3ZUtn0JYmOK5lxhTfvbkTs41AgwjdzAQ-aQn66yMgK07thHh6VbrUi2OB4XjRbChKfRffoUgYQcl0QxZf-gq5_LEWkrp6YjwTO0MBNeUihlHq6zF8xTIUhvFy0zOHVQ_2dUnfj9_8kism_gfNOqGOG7mi4P5RvwE0GYW4uXzQe-cMYQK2yw0g%26flowName%3DGeneralOAuthFlow%26as%3DS-1827831064%253A1787156087143504%26client_id%3D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%23&dsh=S-1827831064:1787156087143504&flowEntry=SignUp&flowName=GlifWebSignIn&o2v=2&opparams=%253F&prompt=select_account&rart=ANgoxcdDrrSE640rair9_SNJ9OZWafZGUda63XM2-DfIB2AvtFb3U9rJQbYAkZELwYTGhrV3dtZUuNUe5YfreCf8yGEuw9cDSiqGKCg0SLmLXIcvrRyxWUA&redirect_uri=https://lacuna-five.vercel.app/api/auth/google/callback&response_type=code&scope=openid+email+profile&service=lso&signInUrl=https://accounts.google.com/signin/oauth?app_domain%3Dhttps://lacuna-five.vercel.app%26client_id%3D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%26continue%3Dhttps://accounts.google.com/signin/oauth/legacy/consent?authuser%253Dunknown%2526part%253DAJi8hAP7S1MBP4FjmraTQ1ACKsymnAiXgzmudi5IVNshAbT2DOQPblpq34AS04WlfM9KcB_eCIqz4GQrUhi1iN6PErLSYSU35AwxsD8Tup0en2VFHo0yGfQ49KomriU1LXY1ei65xqOE9X6njI4Dv59YhAVboIGojjihDWJnRFL5ZMtqU0l7a7nFPsdSjGKl9UBbT_FujJAqp09bzdYPMQaiNedrVO8Pl36hMnLpjpR99M1oGzlAYkBW9_HoX20FO62uM5-SVJYsuZU-DAKxyS2gNsEPpaO1sOktt0XZi2moFfWvvpJhNiPLJ2qCL1PRsG-uEldK2FAxEeeJ3IeKq05fZY1yFZXhU6u4ClgBV4fWDzMmC5gL-YFbdD1oI7SGgFDOBUaY8BiDj0M_ujT5vdfANquggqrqmHYwfrEP3a_PfZqMQwlTXa234nWktqEHXplXTS3XAFKHxD67q-ARzRxHRunGzLOecllniEuzST90w3ZUtn0JYmOK5lxhTfvbkTs41AgwjdzAQ-aQn66yMgK07thHh6VbrUi2OB4XjRbChKfRffoUgYQcl0QxZf-gq5_LEWkrp6YjwTO0MBNeUihlHq6zF8xTIUhvFy0zOHVQ_2dUnfj9_8kism_gfNOqGOG7mi4P5RvwE0GYW4uXzQe-cMYQK2yw0g%2526flowName%253DGeneralOAuthFlow%2526as%253DS-1827831064%25253A1787156087143504%2526client_id%253D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%2523%26dsh%3DS-1827831064:1787156087143504%26flowName%3DGeneralOAuthLite%26o2v%3D2%26opparams%3D%25253F%26prompt%3Dselect_account%26rart%3DANgoxcdDrrSE640rair9_SNJ9OZWafZGUda63XM2-DfIB2AvtFb3U9rJQbYAkZELwYTGhrV3dtZUuNUe5YfreCf8yGEuw9cDSiqGKCg0SLmLXIcvrRyxWUA%26redirect_uri%3Dhttps://lacuna-five.vercel.app/api/auth/google/callback%26response_type%3Dcode%26scope%3Dopenid%2Bemail%2Bprofile%26service%3Dlso%26state%3DkjkhO6a0jymzy-i28xf41_7KC_nYmRsd56c1kduNbqw&state=kjkhO6a0jymzy-i28xf41_7KC_nYmRsd56c1kduNbqw",
+    "/signin",
+    "/signin/v2/usernamerecovery?app_domain=https://lacuna-five.vercel.app&client_id=143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com&continue=https://accounts.google.com/signin/oauth/legacy/consent?authuser%3Dunknown%26part%3DAJi8hAP7S1MBP4FjmraTQ1ACKsymnAiXgzmudi5IVNshAbT2DOQPblpq34AS04WlfM9KcB_eCIqz4GQrUhi1iN6PErLSYSU35AwxsD8Tup0en2VFHo0yGfQ49KomriU1LXY1ei65xqOE9X6njI4Dv59YhAVboIGojjihDWJnRFL5ZMtqU0l7a7nFPsdSjGKl9UBbT_FujJAqp09bzdYPMQaiNedrVO8Pl36hMnLpjpR99M1oGzlAYkBW9_HoX20FO62uM5-SVJYsuZU-DAKxyS2gNsEPpaO1sOktt0XZi2moFfWvvpJhNiPLJ2qCL1PRsG-uEldK2FAxEeeJ3IeKq05fZY1yFZXhU6u4ClgBV4fWDzMmC5gL-YFbdD1oI7SGgFDOBUaY8BiDj0M_ujT5vdfANquggqrqmHYwfrEP3a_PfZqMQwlTXa234nWktqEHXplXTS3XAFKHxD67q-ARzRxHRunGzLOecllniEuzST90w3ZUtn0JYmOK5lxhTfvbkTs41AgwjdzAQ-aQn66yMgK07thHh6VbrUi2OB4XjRbChKfRffoUgYQcl0QxZf-gq5_LEWkrp6YjwTO0MBNeUihlHq6zF8xTIUhvFy0zOHVQ_2dUnfj9_8kism_gfNOqGOG7mi4P5RvwE0GYW4uXzQe-cMYQK2yw0g%26flowName%3DGeneralOAuthFlow%26as%3DS-1827831064%253A1787156087143504%26client_id%3D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%23&dsh=S-1827831064:1787156087143504&flowName=GeneralOAuthLite&o2v=2&opparams=%253F&prompt=select_account&rart=ANgoxcdDrrSE640rair9_SNJ9OZWafZGUda63XM2-DfIB2AvtFb3U9rJQbYAkZELwYTGhrV3dtZUuNUe5YfreCf8yGEuw9cDSiqGKCg0SLmLXIcvrRyxWUA&redirect_uri=https://lacuna-five.vercel.app/api/auth/google/callback&response_type=code&scope=openid+email+profile&service=lso&state=kjkhO6a0jymzy-i28xf41_7KC_nYmRsd56c1kduNbqw",
+    "/signup",
+    "/v3/signin/identifier"
   ],
   "findings": [
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Sign in",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Get started",
-      "detail": "clicking it landed on /signup"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Sign in",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Start building",
-      "detail": "clicking it landed on /signup"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "INSPECT CONFLICT",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Open Lacuna",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Start building",
-      "detail": "clicking it landed on /signup"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/",
-      "control": "Sign in",
-      "detail": "clicking it landed on /signin"
-    },
     {
       "kind": "sign_in_redirect",
       "from": "/",
@@ -80,165 +39,45 @@
     },
     {
       "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "SIGN IN",
+      "from": "/signin",
+      "control": "CREATE ACCOUNT",
+      "detail": "clicking it landed on /signup"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/signup",
+      "control": "Create account",
+      "detail": "clicking it landed on /signup"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/signup",
+      "control": "ALREADY HAVE AN ACCOUNT · SIGN IN",
       "detail": "clicking it landed on /signin"
     },
     {
       "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "ASKAsk Lacuna anything in this workspace…",
+      "from": "/forgot",
+      "control": "BACK TO SIGN IN",
       "detail": "clicking it landed on /signin"
     },
     {
       "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "billing-gate · Rasmus BergUNRESOLVED",
-      "detail": "clicking it landed on /signin"
+      "from": "/signin/v2/usernamerecovery?app_domain=https://lacuna-five.vercel.app&client_id=143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com&continue=https://accounts.google.com/signin/oauth/legacy/consent?authuser%3Dunknown%26part%3DAJi8hAP7S1MBP4FjmraTQ1ACKsymnAiXgzmudi5IVNshAbT2DOQPblpq34AS04WlfM9KcB_eCIqz4GQrUhi1iN6PErLSYSU35AwxsD8Tup0en2VFHo0yGfQ49KomriU1LXY1ei65xqOE9X6njI4Dv59YhAVboIGojjihDWJnRFL5ZMtqU0l7a7nFPsdSjGKl9UBbT_FujJAqp09bzdYPMQaiNedrVO8Pl36hMnLpjpR99M1oGzlAYkBW9_HoX20FO62uM5-SVJYsuZU-DAKxyS2gNsEPpaO1sOktt0XZi2moFfWvvpJhNiPLJ2qCL1PRsG-uEldK2FAxEeeJ3IeKq05fZY1yFZXhU6u4ClgBV4fWDzMmC5gL-YFbdD1oI7SGgFDOBUaY8BiDj0M_ujT5vdfANquggqrqmHYwfrEP3a_PfZqMQwlTXa234nWktqEHXplXTS3XAFKHxD67q-ARzRxHRunGzLOecllniEuzST90w3ZUtn0JYmOK5lxhTfvbkTs41AgwjdzAQ-aQn66yMgK07thHh6VbrUi2OB4XjRbChKfRffoUgYQcl0QxZf-gq5_LEWkrp6YjwTO0MBNeUihlHq6zF8xTIUhvFy0zOHVQ_2dUnfj9_8kism_gfNOqGOG7mi4P5RvwE0GYW4uXzQe-cMYQK2yw0g%26flowName%3DGeneralOAuthFlow%26as%3DS-1827831064%253A1787156087143504%26client_id%3D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%23&dsh=S-1827831064:1787156087143504&flowName=GeneralOAuthLite&o2v=2&opparams=%253F&prompt=select_account&rart=ANgoxcdDrrSE640rair9_SNJ9OZWafZGUda63XM2-DfIB2AvtFb3U9rJQbYAkZELwYTGhrV3dtZUuNUe5YfreCf8yGEuw9cDSiqGKCg0SLmLXIcvrRyxWUA&redirect_uri=https://lacuna-five.vercel.app/api/auth/google/callback&response_type=code&scope=openid+email+profile&service=lso&state=kjkhO6a0jymzy-i28xf41_7KC_nYmRsd56c1kduNbqw",
+      "control": "Create account",
+      "detail": "clicking it landed on /signup"
     },
     {
       "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "billing-gate · Priya RamanUNRESOLVED",
-      "detail": "clicking it landed on /signin"
+      "from": "/lifecycle/flows/signup?app_domain=https://lacuna-five.vercel.app&client_id=143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com&continue=https://accounts.google.com/signin/oauth/legacy/consent?authuser%3Dunknown%26part%3DAJi8hAP7S1MBP4FjmraTQ1ACKsymnAiXgzmudi5IVNshAbT2DOQPblpq34AS04WlfM9KcB_eCIqz4GQrUhi1iN6PErLSYSU35AwxsD8Tup0en2VFHo0yGfQ49KomriU1LXY1ei65xqOE9X6njI4Dv59YhAVboIGojjihDWJnRFL5ZMtqU0l7a7nFPsdSjGKl9UBbT_FujJAqp09bzdYPMQaiNedrVO8Pl36hMnLpjpR99M1oGzlAYkBW9_HoX20FO62uM5-SVJYsuZU-DAKxyS2gNsEPpaO1sOktt0XZi2moFfWvvpJhNiPLJ2qCL1PRsG-uEldK2FAxEeeJ3IeKq05fZY1yFZXhU6u4ClgBV4fWDzMmC5gL-YFbdD1oI7SGgFDOBUaY8BiDj0M_ujT5vdfANquggqrqmHYwfrEP3a_PfZqMQwlTXa234nWktqEHXplXTS3XAFKHxD67q-ARzRxHRunGzLOecllniEuzST90w3ZUtn0JYmOK5lxhTfvbkTs41AgwjdzAQ-aQn66yMgK07thHh6VbrUi2OB4XjRbChKfRffoUgYQcl0QxZf-gq5_LEWkrp6YjwTO0MBNeUihlHq6zF8xTIUhvFy0zOHVQ_2dUnfj9_8kism_gfNOqGOG7mi4P5RvwE0GYW4uXzQe-cMYQK2yw0g%26flowName%3DGeneralOAuthFlow%26as%3DS-1827831064%253A1787156087143504%26client_id%3D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%23&dsh=S-1827831064:1787156087143504&flowEntry=SignUp&flowName=GlifWebSignIn&o2v=2&opparams=%253F&prompt=select_account&rart=ANgoxcdDrrSE640rair9_SNJ9OZWafZGUda63XM2-DfIB2AvtFb3U9rJQbYAkZELwYTGhrV3dtZUuNUe5YfreCf8yGEuw9cDSiqGKCg0SLmLXIcvrRyxWUA&redirect_uri=https://lacuna-five.vercel.app/api/auth/google/callback&response_type=code&scope=openid+email+profile&service=lso&signInUrl=https://accounts.google.com/signin/oauth?app_domain%3Dhttps://lacuna-five.vercel.app%26client_id%3D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%26continue%3Dhttps://accounts.google.com/signin/oauth/legacy/consent?authuser%253Dunknown%2526part%253DAJi8hAP7S1MBP4FjmraTQ1ACKsymnAiXgzmudi5IVNshAbT2DOQPblpq34AS04WlfM9KcB_eCIqz4GQrUhi1iN6PErLSYSU35AwxsD8Tup0en2VFHo0yGfQ49KomriU1LXY1ei65xqOE9X6njI4Dv59YhAVboIGojjihDWJnRFL5ZMtqU0l7a7nFPsdSjGKl9UBbT_FujJAqp09bzdYPMQaiNedrVO8Pl36hMnLpjpR99M1oGzlAYkBW9_HoX20FO62uM5-SVJYsuZU-DAKxyS2gNsEPpaO1sOktt0XZi2moFfWvvpJhNiPLJ2qCL1PRsG-uEldK2FAxEeeJ3IeKq05fZY1yFZXhU6u4ClgBV4fWDzMmC5gL-YFbdD1oI7SGgFDOBUaY8BiDj0M_ujT5vdfANquggqrqmHYwfrEP3a_PfZqMQwlTXa234nWktqEHXplXTS3XAFKHxD67q-ARzRxHRunGzLOecllniEuzST90w3ZUtn0JYmOK5lxhTfvbkTs41AgwjdzAQ-aQn66yMgK07thHh6VbrUi2OB4XjRbChKfRffoUgYQcl0QxZf-gq5_LEWkrp6YjwTO0MBNeUihlHq6zF8xTIUhvFy0zOHVQ_2dUnfj9_8kism_gfNOqGOG7mi4P5RvwE0GYW4uXzQe-cMYQK2yw0g%2526flowName%253DGeneralOAuthFlow%2526as%253DS-1827831064%25253A1787156087143504%2526client_id%253D143441221205-7aouhblm8jhugo9m1pk92snbescji5gi.apps.googleusercontent.com%2523%26dsh%3DS-1827831064:1787156087143504%26flowName%3DGeneralOAuthLite%26o2v%3D2%26opparams%3D%25253F%26prompt%3Dselect_account%26rart%3DANgoxcdDrrSE640rair9_SNJ9OZWafZGUda63XM2-DfIB2AvtFb3U9rJQbYAkZELwYTGhrV3dtZUuNUe5YfreCf8yGEuw9cDSiqGKCg0SLmLXIcvrRyxWUA%26redirect_uri%3Dhttps://lacuna-five.vercel.app/api/auth/google/callback%26response_type%3Dcode%26scope%3Dopenid%2Bemail%2Bprofile%26service%3Dlso%26state%3DkjkhO6a0jymzy-i28xf41_7KC_nYmRsd56c1kduNbqw&state=kjkhO6a0jymzy-i28xf41_7KC_nYmRsd56c1kduNbqw",
+      "control": "Create account",
+      "detail": "clicking it landed on /signup"
     },
     {
       "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "tenant-router · 14 daysUNRESOLVED",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "tenant-router · 7 daysUNRESOLVED",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "media-thumbs · the weekend of 9 February 2026UNRESOLVED",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "audit-sink · pausedUNRESOLVED",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/dash",
-      "control": "CONTEXT HEALTH134 current · 22 historical · 12 conflict",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/ask",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/memory",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/timeline",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/graph",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/health",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/hydra",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/evals",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/work",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/agents",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/tools",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/models",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/voice",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/mcp",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/sdk",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/cli",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/conn",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/settings",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
-    },
-    {
-      "kind": "sign_in_redirect",
-      "from": "/demo/settings",
-      "control": "SIGN IN",
-      "detail": "clicking it landed on /signin"
+      "from": "/v3/signin/identifier",
+      "control": "Create account",
+      "detail": "clicking it landed on /signup"
     }
   ]
 }

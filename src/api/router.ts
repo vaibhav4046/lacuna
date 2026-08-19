@@ -17,6 +17,7 @@ import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, sameDigest, typ
 import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, validateQuestion } from './workspace.js';
+import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
@@ -79,7 +80,24 @@ export interface ApiOptions {
    * a warm instance answer from a record the store has since replaced, which
    * is the one bug this product has no business having.
    */
-  readonly source?: () => HydraSource;
+  /**
+   * Optionally scoped to one workspace's collection.
+   *
+   * Signed in, a person reads what they ingested; signed out, `/demo` reads the
+   * corpus that ships with the repository. Passing the collection here rather
+   * than holding a source per account keeps the memo inside one source alive
+   * exactly as long as the request that filled it.
+   */
+  readonly source?: (collection?: string) => HydraSource;
+  /**
+   * Writes one source into a collection. Absent where nothing can be written,
+   * and the route then answers 501 rather than pretending to have stored it.
+   */
+  readonly ingest?: (
+    collection: string,
+    title: string,
+    text: string,
+  ) => Promise<Awaited<ReturnType<typeof ingestSource>>>;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   /**
@@ -261,7 +279,8 @@ export class ApiRouter {
   readonly #store: Accounts;
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
-  readonly #source: (() => HydraSource) | undefined;
+  readonly #source: ((collection?: string) => HydraSource) | undefined;
+  readonly #ingest: ApiOptions['ingest'];
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
@@ -276,6 +295,7 @@ export class ApiRouter {
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
+    this.#ingest = options.ingest;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#relations = options.relations;
@@ -316,6 +336,24 @@ export class ApiRouter {
       httpOnly: true,
       secure: this.#secure,
     });
+  }
+
+  /**
+   * The account a request's cookies name, or null.
+   *
+   * Used to decide which collection a read is scoped to, so it must never
+   * throw: a store that is down means nobody is signed in for the purposes of
+   * this question, and the public corpus is still answerable.
+   */
+  async #accountFor(cookies: Readonly<Record<string, string>>): Promise<Account | null> {
+    const token = cookies[SESSION_COOKIE];
+    if (typeof token !== 'string' || token === '') return null;
+    try {
+      const record = await this.#store.sessionFor(token, this.#now());
+      return record === null ? null : await this.#store.find(record.email);
+    } catch {
+      return null;
+    }
   }
 
   async handle(request: IncomingMessage, response: ServerResponse, path: string): Promise<Handled> {
@@ -575,6 +613,67 @@ export class ApiRouter {
       return HANDLED;
     }
 
+    /**
+     * One source, from prose into this account's memory.
+     *
+     * Signed in only, and written to a collection derived from the account, so
+     * one person's transcript never lands where the public demo reads. The
+     * pipeline is the shipped one: the extractor decides what may become a
+     * claim before anything is written, which is also the containment for a
+     * pasted transcript that contains instructions, since an instruction is not
+     * a statement and files where no answer reads it.
+     */
+    if (path === '/api/workspace/ingest' && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const ingestInto = this.#ingest;
+      if (ingestInto === undefined) {
+        send(response, 501, { error: 'this deployment cannot write to a context store' });
+        return HANDLED;
+      }
+
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, MAX_SOURCE_CHARS * 5);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const title = body?.['title'];
+      const text = body?.['text'];
+      const bad = validateSource(title, text);
+      if (bad !== null) {
+        send(response, 422, { error: bad });
+        return HANDLED;
+      }
+
+      try {
+        const report = await ingestInto(
+          workspaceCollection(account.email),
+          title as string,
+          text as string,
+        );
+        if (typeof report === 'string') {
+          // Nothing was extracted. That is a result, not a failure: the frame
+          // table could not justify a claim from this prose, and inventing one
+          // is the trade this product refuses.
+          send(response, 200, { ok: false, reason: report });
+          return HANDLED;
+        }
+        send(response, 200, { ok: true, ...report });
+      } catch {
+        send(response, 502, { error: 'the context store did not accept the source' });
+      }
+      return HANDLED;
+    }
+
     if (path === '/api/ask' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
@@ -607,10 +706,14 @@ export class ApiRouter {
         send(response, 422, invalidRequest(invalid));
         return HANDLED;
       }
+      // Signed in, the question is asked of the workspace this person ingested
+      // into. Signed out, it is asked of the corpus that ships here.
+      const asker = await this.#accountFor(cookies);
+      const scope = asker === null ? undefined : workspaceCollection(asker.email);
       // Narrowed by validateQuestion above, which returns non-null for anything
       // that is not a non-empty string of bounded length.
       send(response, 200, await askEnvelope(
-        openSource(),
+        openSource(scope),
         subject as string,
         predicate as string,
         typeof via === 'string' && via !== '' ? via : null,

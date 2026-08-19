@@ -119,65 +119,85 @@ That answer sits on a second entity, reached through the first.
 Answered, and cited.
 
 31
-00:01:24,760 --> 00:01:27,230
-HydraDB Cloud holds all of it.
+00:01:24,760 --> 00:01:27,560
+The same six questions, asked three ways.
 
 32
-00:01:27,230 --> 00:01:29,289
-Seventy two conversations as evidence.
+00:01:27,560 --> 00:01:29,560
+The deployed site over HTTPS.
 
 33
-00:01:29,289 --> 00:01:31,759
-Eighty six entity records as claims.
+00:01:29,560 --> 00:01:31,960
+The command line on a laptop.
 
 34
-00:01:31,759 --> 00:01:36,288
-Evidence and claims kept apart, because they are different kinds of
+00:01:31,960 --> 00:01:36,360
+And an MCP server, started the way an editor starts one.
 
 35
-00:01:36,288 --> 00:01:36,700
-thing.
+00:01:36,360 --> 00:01:40,360
+One store behind all three, and the same six answers.
 
 36
-00:01:38,100 --> 00:01:42,022
-Measured against five retrieval baselines over sixty four questions.
+00:01:41,760 --> 00:01:44,239
+HydraDB Cloud holds all of it.
 
 37
-00:01:42,022 --> 00:01:46,816
-The strongest baseline reaches sixty three, and spends eighteen hundred context
+00:01:44,239 --> 00:01:46,304
+Seventy two conversations as evidence.
 
 38
-00:01:46,816 --> 00:01:48,559
-tokens to do it.
+00:01:46,304 --> 00:01:48,783
+Eighty six entity records as claims.
 
 39
-00:01:48,559 --> 00:01:51,610
-Lacuna answers all sixty four, on eighteen.
+00:01:48,783 --> 00:01:53,327
+Evidence and claims kept apart, because they are different kinds of
 
 40
-00:01:53,010 --> 00:01:57,482
-The same sixty four questions asked of a self hosted node
+00:01:53,327 --> 00:01:53,740
+thing.
 
 41
-00:01:57,482 --> 00:02:00,734
-and of HydraDB Cloud, compared field by field.
+00:01:55,140 --> 00:01:58,995
+Measured against five retrieval baselines over sixty four questions.
 
 42
-00:02:00,734 --> 00:02:01,140
-Identical.
+00:01:58,995 --> 00:02:03,708
+The strongest baseline reaches sixty three, and spends eighteen hundred context
 
 43
-00:02:02,540 --> 00:02:03,376
-One context.
+00:02:03,708 --> 00:02:05,421
+tokens to do it.
 
 44
-00:02:03,376 --> 00:02:04,213
-Any agent.
+00:02:05,421 --> 00:02:08,420
+Lacuna answers all sixty four, on eighteen.
 
 45
-00:02:04,213 --> 00:02:08,812
-The repository, the deployment, and every artifact behind these numbers are
+00:02:09,820 --> 00:02:14,314
+The same sixty four questions asked of a self hosted node
 
 46
-00:02:08,812 --> 00:02:09,230
+00:02:14,314 --> 00:02:17,582
+and of HydraDB Cloud, compared field by field.
+
+47
+00:02:17,582 --> 00:02:17,990
+Identical.
+
+48
+00:02:19,390 --> 00:02:20,272
+One context.
+
+49
+00:02:20,272 --> 00:02:21,155
+Any agent.
+
+50
+00:02:21,155 --> 00:02:26,009
+The repository, the deployment, and every artifact behind these numbers are
+
+51
+00:02:26,009 --> 00:02:26,450
 public.

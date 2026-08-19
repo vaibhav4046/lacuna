@@ -44,6 +44,11 @@
       .node { font-family: 'JetBrains Mono', monospace; font-size: 21px; letter-spacing: 0.16em; color: #BDBDBD; border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 18px 26px; }
       .node.violet { color: #FFFFFF; border-color: #8052FF; }
       .arrow { color: #757575; font-size: 30px; }
+      .terminal { font-family: 'JetBrains Mono', monospace; font-size: 21px; line-height: 1.85; color: #BDBDBD; border-left: 2px solid rgba(128,82,255,0.5); padding-left: 28px; }
+      /* The whitespace belongs on the line, not the block: pre on the container renders the template's own newlines as blank lines. */
+      .tline { white-space: pre; min-height: 1.2em; }
+      .tline.ok { color: #FFFFFF; }
+      .tline.win { color: #8052FF; font-size: 27px; padding-top: 16px; }
       .bench { border-collapse: collapse; width: 100%; max-width: 1250px; }
       .bench td { font-size: 40px; font-weight: 300; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #BDBDBD; }
       .bench .num { font-family: 'JetBrains Mono', monospace; font-size: 34px; text-align: right; width: 300px; color: #FFFFFF; }
@@ -58,7 +63,7 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="lacuna" data-start="0" data-width="1920" data-height="1080" data-duration="131.23" data-fps="30">
+    <div id="root" data-composition-id="lacuna" data-start="0" data-width="1920" data-height="1080" data-duration="148.45" data-fps="30">
       <div class="ground"></div>
       <section id="s01" class="clip scene open" data-start="0.8" data-duration="6.18" data-track-index="1">
         <div class="stack center">
@@ -132,40 +137,59 @@
           <span class="note">The answer is on a second entity.</span>
         </div>
       </section>
-      <section id="s09" class="clip scene shot" data-start="84.76" data-duration="13.34" data-track-index="1">
-        <img id="s09-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-1920x1080.png" alt="" />
+      <section id="s09" class="clip scene continuity" data-start="84.76" data-duration="17" data-track-index="1">
+        <div class="stack left">
+          <p class="kicker">npm run continuity · artifacts/continuity/one-context.json</p>
+          <div class="terminal">
+            <div id="s09-l0" class="tline">  web    https://lacuna-five.vercel.app</div>
+            <div id="s09-l1" class="tline">  cli    this machine, LACUNA_PROFILE=cloud</div>
+            <div id="s09-l2" class="tline">  mcp    subprocess over stdio, LACUNA_PROFILE=cloud</div>
+            <div id="s09-l3" class="tline">  store  HydraDB Cloud, database lacuna, collection backend</div>
+            <div id="s09-l4" class="tline">lacuna 0.1.0 on stdio, namespace lacuna, graph backend</div>
+            <div id="s09-l5" class="tline ok">ok    q-stable-01           ANSWERED    25 July 2026              1 cited</div>
+            <div id="s09-l6" class="tline ok">ok    q-revised-01          ANSWERED    Halverd                   1 cited</div>
+            <div id="s09-l7" class="tline ok">ok    q-retracted-01        NO_EVIDENCE retracted                 2 cited</div>
+            <div id="s09-l8" class="tline ok">ok    q-contradicted-01     CONFLICT    contradicted              2 cited</div>
+            <div id="s09-l9" class="tline ok">ok    q-multi_hop-01        ANSWERED    Farah Haddad              2 cited</div>
+            <div id="s09-l10" class="tline ok">ok    q-out_of_scope-01     NO_EVIDENCE out_of_scope              0 cited</div>
+            <div id="s09-l11" class="tline win">ONE_CONTEXT_IDENTICAL: true</div>
+          </div>
+        </div>
+      </section>
+      <section id="s10" class="clip scene shot" data-start="101.76" data-duration="13.38" data-track-index="1">
+        <img id="s10-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-1920x1080.png" alt="" />
         <div class="band"></div>
-        <div id="s09-cap" class="caption">
+        <div id="s10-cap" class="caption">
           <span class="kicker violet">HYDRADB CLOUD</span>
           <span class="note">72 conversations as evidence · 86 entity records as claims</span>
         </div>
       </section>
-      <section id="s10" class="clip scene bench" data-start="98.1" data-duration="14.91" data-track-index="1">
+      <section id="s11" class="clip scene bench" data-start="115.14" data-duration="14.68" data-track-index="1">
         <div class="stack left">
           <p class="kicker">64 GOLD QUESTIONS · FIVE RETRIEVAL BASELINES · artifacts/bench/results.json</p>
           <table class="bench">
-            <tr id="s10-r1"><td>recency</td><td class="num">46</td><td class="num dim">1029 tokens</td></tr>
-            <tr id="s10-r2"><td>vector</td><td class="num">47</td><td class="num dim">1311 tokens</td></tr>
-            <tr id="s10-r3"><td>lexical</td><td class="num">48</td><td class="num dim">516 tokens</td></tr>
-            <tr id="s10-r4"><td>hybrid</td><td class="num">48</td><td class="num dim">529 tokens</td></tr>
-            <tr id="s10-r5"><td>hybrid + 2 hop</td><td class="num">63</td><td class="num dim">1843 tokens</td></tr>
-            <tr id="s10-r6" class="win"><td>Lacuna</td><td class="num">64</td><td class="num">18 tokens</td></tr>
+            <tr id="s11-r1"><td>recency</td><td class="num">46</td><td class="num dim">1029 tokens</td></tr>
+            <tr id="s11-r2"><td>vector</td><td class="num">47</td><td class="num dim">1311 tokens</td></tr>
+            <tr id="s11-r3"><td>lexical</td><td class="num">48</td><td class="num dim">516 tokens</td></tr>
+            <tr id="s11-r4"><td>hybrid</td><td class="num">48</td><td class="num dim">529 tokens</td></tr>
+            <tr id="s11-r5"><td>hybrid + 2 hop</td><td class="num">63</td><td class="num dim">1843 tokens</td></tr>
+            <tr id="s11-r6" class="win"><td>Lacuna</td><td class="num">64</td><td class="num">18 tokens</td></tr>
           </table>
         </div>
       </section>
-      <section id="s11" class="clip scene parity" data-start="113.01" data-duration="9.53" data-track-index="1">
+      <section id="s12" class="clip scene parity" data-start="129.82" data-duration="9.57" data-track-index="1">
         <div class="stack center">
           <p class="kicker">SELF HOSTED NODE VERSUS HYDRADB CLOUD</p>
-          <h2 id="s11-h" class="big">ALL_IDENTICAL: true</h2>
-          <p id="s11-l" class="line">64 questions, compared field by field. artifacts/hydra/cloud-parity.json</p>
+          <h2 id="s12-h" class="big">ALL_IDENTICAL: true</h2>
+          <p id="s12-l" class="line">64 questions, compared field by field. artifacts/hydra/cloud-parity.json</p>
         </div>
       </section>
-      <section id="s12" class="clip scene close" data-start="122.54" data-duration="8.09" data-track-index="1">
+      <section id="s13" class="clip scene close" data-start="139.39" data-duration="8.46" data-track-index="1">
         <div class="stack center">
-          <div id="s12-mark" class="mark"></div>
-          <h2 id="s12-h" class="big">One context. Any agent.</h2>
-          <p id="s12-u" class="url">lacuna-five.vercel.app/judge</p>
-          <p id="s12-r" class="kicker">github.com/vaibhav4046/lacuna</p>
+          <div id="s13-mark" class="mark"></div>
+          <h2 id="s13-h" class="big">One context. Any agent.</h2>
+          <p id="s13-u" class="url">lacuna-five.vercel.app/judge</p>
+          <p id="s13-r" class="kicker">github.com/vaibhav4046/lacuna</p>
         </div>
       </section>
       <audio id="s01-vo" src="assets/narration/s01.mp3" data-start="0.8" data-duration="4.78" data-track-index="2"></audio>
@@ -176,10 +200,11 @@
       <audio id="s06-vo" src="assets/narration/s06.mp3" data-start="56.22" data-duration="9.01" data-track-index="2"></audio>
       <audio id="s07-vo" src="assets/narration/s07.mp3" data-start="66.63" data-duration="7.06" data-track-index="2"></audio>
       <audio id="s08-vo" src="assets/narration/s08.mp3" data-start="75.09" data-duration="8.27" data-track-index="2"></audio>
-      <audio id="s09-vo" src="assets/narration/s09.mp3" data-start="84.76" data-duration="11.94" data-track-index="2"></audio>
-      <audio id="s10-vo" src="assets/narration/s10.mp3" data-start="98.1" data-duration="13.51" data-track-index="2"></audio>
-      <audio id="s11-vo" src="assets/narration/s11.mp3" data-start="113.01" data-duration="8.13" data-track-index="2"></audio>
-      <audio id="s12-vo" src="assets/narration/s12.mp3" data-start="122.54" data-duration="6.69" data-track-index="2"></audio>
+      <audio id="s09-vo" src="assets/narration/s09.mp3" data-start="84.76" data-duration="15.6" data-track-index="2"></audio>
+      <audio id="s10-vo" src="assets/narration/s10.mp3" data-start="101.76" data-duration="11.98" data-track-index="2"></audio>
+      <audio id="s11-vo" src="assets/narration/s11.mp3" data-start="115.14" data-duration="13.28" data-track-index="2"></audio>
+      <audio id="s12-vo" src="assets/narration/s12.mp3" data-start="129.82" data-duration="8.17" data-track-index="2"></audio>
+      <audio id="s13-vo" src="assets/narration/s13.mp3" data-start="139.39" data-duration="7.06" data-track-index="2"></audio>
     </div>
     <script>
       window.__timelines = window.__timelines || {};
@@ -217,23 +242,36 @@
   tl.fromTo("#s08-img", { x: -560, y: -2652 }, { x: -560, y: -2622, duration: 9.67, ease: "none" }, 75.09);
   tl.fromTo("#s08-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 75.39);
   tl.fromTo("#s09", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 84.76);
-  tl.fromTo("#s09-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 13.34, ease: "none" }, 84.76);
-  tl.fromTo("#s09-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 85.06);
-  tl.fromTo("#s10", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 98.1);
-  tl.fromTo("#s10-r1", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 99);
-  tl.fromTo("#s10-r2", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 100.35);
-  tl.fromTo("#s10-r3", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 101.7);
-  tl.fromTo("#s10-r4", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 103.05);
-  tl.fromTo("#s10-r5", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 104.4);
-  tl.fromTo("#s10-r6", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 105.75);
-  tl.fromTo("#s11", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 113.01);
-  tl.fromTo("#s11-h", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 113.41000000000001);
-  tl.fromTo("#s11-l", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 115.21000000000001);
-  tl.fromTo("#s12", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 122.54);
-  tl.fromTo("#s12-mark", { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 1, ease: "power3.out" }, 122.64);
-  tl.fromTo("#s12-h", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 123.14);
-  tl.fromTo("#s12-u", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 124.14);
-  tl.fromTo("#s12-r", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 124.94000000000001);
+  tl.fromTo("#s09-l0", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 85.36);
+tl.fromTo("#s09-l1", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 85.98);
+tl.fromTo("#s09-l2", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 86.60);
+tl.fromTo("#s09-l3", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 87.22);
+tl.fromTo("#s09-l4", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 87.84);
+tl.fromTo("#s09-l5", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 88.46);
+tl.fromTo("#s09-l6", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 89.08);
+tl.fromTo("#s09-l7", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 89.70);
+tl.fromTo("#s09-l8", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 90.32);
+tl.fromTo("#s09-l9", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 90.94);
+tl.fromTo("#s09-l10", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 91.56);
+tl.fromTo("#s09-l11", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 92.18);
+  tl.fromTo("#s10", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 101.76);
+  tl.fromTo("#s10-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 13.38, ease: "none" }, 101.76);
+  tl.fromTo("#s10-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 102.06);
+  tl.fromTo("#s11", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 115.14);
+  tl.fromTo("#s11-r1", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 116.04);
+  tl.fromTo("#s11-r2", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 117.39);
+  tl.fromTo("#s11-r3", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 118.74000000000001);
+  tl.fromTo("#s11-r4", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 120.09);
+  tl.fromTo("#s11-r5", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 121.44000000000001);
+  tl.fromTo("#s11-r6", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 122.79);
+  tl.fromTo("#s12", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 129.82);
+  tl.fromTo("#s12-h", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 130.22);
+  tl.fromTo("#s12-l", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 132.01999999999998);
+  tl.fromTo("#s13", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 139.39);
+  tl.fromTo("#s13-mark", { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 1, ease: "power3.out" }, 139.48999999999998);
+  tl.fromTo("#s13-h", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 139.98999999999998);
+  tl.fromTo("#s13-u", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 140.98999999999998);
+  tl.fromTo("#s13-r", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 141.79);
       window.__timelines["lacuna"] = tl;
     </script>
   </body>

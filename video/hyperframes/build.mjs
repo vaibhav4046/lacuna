@@ -15,6 +15,23 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const ROOT = new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const narration = JSON.parse(readFileSync(`${ROOT}narration.json`, 'utf8'));
 
+/**
+ * The continuity run, as it was printed.
+ *
+ * Recorded output rather than a recreation of it: the file is what
+ * `npm run continuity` wrote, with the two lines that name a local path
+ * dropped because they are noise on a screen, and nothing reworded. A terminal
+ * drawn to look like a terminal would be a prop; this is a transcript, and it
+ * is labelled as one.
+ */
+const CONTINUITY = readFileSync(`${ROOT}assets/continuity.txt`, 'utf8')
+  .split(String.fromCharCode(10))
+  .filter((line) => !line.includes('artifacts/continuity/one-context.json written'))
+  .map((line) => line.replace(/\s+$/, ''))
+  // Blank lines and the run's own heading are dropped so the whole transcript
+  // fits one frame. Nothing that carries a result is touched.
+  .filter((line) => line !== '' && !line.startsWith('One store, three clients'));
+
 /** Space after each line, so a scene lands rather than being cut off. */
 const BREATH = 1.4;
 /** A held first frame, so the film does not start mid-word. */
@@ -53,10 +70,11 @@ const scenes = [
   { id: 's06', kind: 'judge', caption: 'SOURCES DISAGREE', note: 'Both kept. Neither picked.' },
   { id: 's07', kind: 'judge', caption: 'NO EVIDENCE', note: 'A value nobody ever stated.' },
   { id: 's08', kind: 'judge', caption: 'TWO HOPS', note: 'The answer is on a second entity.' },
-  { id: 's09', kind: 'shot', file: 'live-hydradb-1920x1080.png', caption: 'HYDRADB CLOUD' },
-  { id: 's10', kind: 'bench' },
-  { id: 's11', kind: 'parity' },
-  { id: 's12', kind: 'close' },
+  { id: 's09', kind: 'continuity' },
+  { id: 's10', kind: 'shot', file: 'live-hydradb-1920x1080.png', caption: 'HYDRADB CLOUD' },
+  { id: 's11', kind: 'bench' },
+  { id: 's12', kind: 'parity' },
+  { id: 's13', kind: 'close' },
 ];
 
 let at = LEAD_IN;
@@ -120,6 +138,14 @@ function body(scene) {
         <div id="${scene.id}-cap" class="caption">
           <span class="kicker violet">${esc(scene.caption)}</span>
           <span class="note">72 conversations as evidence · 86 entity records as claims</span>
+        </div>`;
+    case 'continuity':
+      return `
+        <div class="stack left">
+          <p class="kicker">npm run continuity · artifacts/continuity/one-context.json</p>
+          <div class="terminal">
+${CONTINUITY.map((line, index) => `            <div id="${scene.id}-l${index}" class="tline${/ONE_CONTEXT_IDENTICAL/.test(line) ? ' win' : ''}${/^ok/.test(line) ? ' ok' : ''}">${esc(line) || '&nbsp;'}</div>`).join(String.fromCharCode(10))}
+          </div>
         </div>`;
     case 'bench':
       return `
@@ -185,6 +211,9 @@ const moves = timed.map((scene) => {
       return `${common}
   tl.fromTo("#${scene.id}-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: ${scene.duration}, ease: "none" }, ${t});
   tl.fromTo("#${scene.id}-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, ${t + 0.3});`;
+    case 'continuity':
+      return `${common}
+  ${CONTINUITY.map((_, index) => `tl.fromTo("#${scene.id}-l${index}", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, ${(t + 0.6 + index * 0.62).toFixed(2)});`).join(String.fromCharCode(10))}`;
     case 'bench':
       return `${common}
   ${[1, 2, 3, 4, 5, 6].map((n, index) => `tl.fromTo("#${scene.id}-r${n}", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, ${t + 0.9 + index * 1.35});`).join('\n  ')}`;
@@ -249,6 +278,11 @@ const html = `<!doctype html>
       .node { font-family: 'JetBrains Mono', monospace; font-size: 21px; letter-spacing: 0.16em; color: #BDBDBD; border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 18px 26px; }
       .node.violet { color: #FFFFFF; border-color: #8052FF; }
       .arrow { color: #757575; font-size: 30px; }
+      .terminal { font-family: 'JetBrains Mono', monospace; font-size: 21px; line-height: 1.85; color: #BDBDBD; border-left: 2px solid rgba(128,82,255,0.5); padding-left: 28px; }
+      /* The whitespace belongs on the line, not the block: pre on the container renders the template's own newlines as blank lines. */
+      .tline { white-space: pre; min-height: 1.2em; }
+      .tline.ok { color: #FFFFFF; }
+      .tline.win { color: #8052FF; font-size: 27px; padding-top: 16px; }
       .bench { border-collapse: collapse; width: 100%; max-width: 1250px; }
       .bench td { font-size: 40px; font-weight: 300; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #BDBDBD; }
       .bench .num { font-family: 'JetBrains Mono', monospace; font-size: 34px; text-align: right; width: 300px; color: #FFFFFF; }

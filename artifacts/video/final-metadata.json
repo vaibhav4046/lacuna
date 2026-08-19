@@ -1,8 +1,8 @@
 {
   "file": "video/hyperframes/renders/lacuna-demo-master.mp4",
-  "sha256": "88ed4b87f96344957e3235d519d0642afbc858486e93de9525e00f23e8904520",
-  "bytes": 29291345,
-  "seconds": 131.3,
+  "sha256": "ae746aaff12a79620cf40092978a178caf97e6c9f944f529c3ed62acab74cdef",
+  "bytes": 30247218,
+  "seconds": 148.5,
   "video": {
     "codec": "h264",
     "width": 1920,
@@ -23,5 +23,10 @@
     "voice": "George",
     "model": "eleven_multilingual_v2"
   },
-  "ceilingSeconds": 180
+  "ceilingSeconds": 180,
+  "scenes": 13,
+  "includes": [
+    "live product captures",
+    "the recorded npm run continuity transcript"
+  ]
 }

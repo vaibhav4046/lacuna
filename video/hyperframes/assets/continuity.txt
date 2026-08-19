@@ -1,0 +1,18 @@
+One store, three clients.
+
+  web    https://lacuna-five.vercel.app
+  cli    this machine, LACUNA_PROFILE=cloud
+  mcp    subprocess over stdio, LACUNA_PROFILE=cloud
+
+  store  HydraDB Cloud, database lacuna, collection backend
+
+lacuna 0.1.0 on stdio, namespace lacuna, graph backend
+ok    q-stable-01           ANSWERED    25 July 2026              1 cited
+ok    q-revised-01          ANSWERED    Halverd                   1 cited
+ok    q-retracted-01        NO_EVIDENCE retracted                 2 cited
+ok    q-contradicted-01     CONFLICT    contradicted              2 cited
+ok    q-multi_hop-01        ANSWERED    Farah Haddad              2 cited
+ok    q-out_of_scope-01     NO_EVIDENCE out_of_scope              0 cited
+
+ONE_CONTEXT_IDENTICAL: true
+artifacts/continuity/one-context.json written.

@@ -4,6 +4,7 @@ Locked. Every number here is in the repository as an artifact, and nothing is
 said that a viewer could not check.
 
 - 64 of 64, 18 context tokens, and the baselines: `artifacts/bench/results.json`
+- three clients, one store: `artifacts/continuity/one-context.json`
 - 72 conversations, 86 entity records: `artifacts/hydra/cloud-ingest.json`
 - identical across both stores: `artifacts/hydra/cloud-parity.json`
 
@@ -48,18 +49,22 @@ A real subject, and a value nobody ever stated. No evidence, so no answer, and t
 
 The contact for the vendor behind a package. That answer sits on a second entity, reached through the first. Answered, and cited.
 
-## s09 · hydradb
+## s09 · continuity
+
+The same six questions, asked three ways. The deployed site over HTTPS. The command line on a laptop. And an MCP server, started the way an editor starts one. One store behind all three, and the same six answers.
+
+## s10 · hydradb
 
 HydraDB Cloud holds all of it. Seventy two conversations as evidence. Eighty six entity records as claims. Evidence and claims kept apart, because they are different kinds of thing.
 
-## s10 · benchmark
+## s11 · benchmark
 
 Measured against five retrieval baselines over sixty four questions. The strongest baseline reaches sixty three, and spends eighteen hundred context tokens to do it. Lacuna answers all sixty four, on eighteen.
 
-## s11 · parity
+## s12 · parity
 
 The same sixty four questions asked of a self hosted node and of HydraDB Cloud, compared field by field. Identical.
 
-## s12 · close
+## s13 · close
 
 One context. Any agent. The repository, the deployment, and every artifact behind these numbers are public.

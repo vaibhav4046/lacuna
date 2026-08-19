@@ -1,6 +1,6 @@
 {
   "title": "Lacuna — memory that knows what changed",
-  "durationSeconds": 131.23,
+  "durationSeconds": 148.45,
   "scenes": [
     {
       "id": "s01",
@@ -52,27 +52,33 @@
     },
     {
       "id": "s09",
-      "kind": "shot",
+      "kind": "continuity",
       "start": 84.76,
-      "duration": 13.34
+      "duration": 17
     },
     {
       "id": "s10",
-      "kind": "bench",
-      "start": 98.1,
-      "duration": 14.91
+      "kind": "shot",
+      "start": 101.76,
+      "duration": 13.38
     },
     {
       "id": "s11",
-      "kind": "parity",
-      "start": 113.01,
-      "duration": 9.53
+      "kind": "bench",
+      "start": 115.14,
+      "duration": 14.68
     },
     {
       "id": "s12",
+      "kind": "parity",
+      "start": 129.82,
+      "duration": 9.57
+    },
+    {
+      "id": "s13",
       "kind": "close",
-      "start": 122.54,
-      "duration": 8.09
+      "start": 139.39,
+      "duration": 8.46
     }
   ]
 }

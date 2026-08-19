@@ -44,24 +44,29 @@
     },
     {
       "id": "s09",
-      "seconds": 11.94,
-      "words": 29
+      "seconds": 15.6,
+      "words": 39
     },
     {
       "id": "s10",
-      "seconds": 13.51,
-      "words": 31
+      "seconds": 11.98,
+      "words": 29
     },
     {
       "id": "s11",
-      "seconds": 8.13,
-      "words": 20
+      "seconds": 13.28,
+      "words": 31
     },
     {
       "id": "s12",
-      "seconds": 6.69,
+      "seconds": 8.17,
+      "words": 20
+    },
+    {
+      "id": "s13",
+      "seconds": 7.06,
       "words": 16
     }
   ],
-  "totalSeconds": 113.03
+  "totalSeconds": 128.85
 }

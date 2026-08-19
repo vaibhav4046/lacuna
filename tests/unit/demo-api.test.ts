@@ -448,3 +448,48 @@ describe('what one address may spend', () => {
     expect(limited).toBeGreaterThan(0);
   });
 });
+
+/**
+ * The proof board answers the same way whoever is reading it.
+ *
+ * `/api/ask` scopes to the signed-in workspace, which is right for the product
+ * and wrong for a public board: a visitor who happened to have a session was
+ * shown NO EVIDENCE on every row of the page whose whole purpose is answering.
+ */
+describe('the public board asks the corpus that ships here', () => {
+  const ask = (subject: string, predicate: string): Promise<Response> =>
+    fetch(`${base}/api/demo/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, predicate }),
+    });
+
+  it('takes a question with no session and no CSRF token', async () => {
+    const suggestions = await (await fetch(`${base}/api/demo/questions`)).json() as
+      { subject: string; predicate: string }[];
+    const first = suggestions[0];
+    expect(first).toBeDefined();
+
+    const response = await ask(first!.subject, first!.predicate);
+    // This harness wires no context store, so 503 is the honest answer here and
+    // is what proves the route is reached rather than rejected: a CSRF failure
+    // would be 403 and a missing route would be 404.
+    expect([200, 503]).toContain(response.status);
+    expect(response.status).not.toBe(403);
+    expect(response.status).not.toBe(404);
+
+    if (response.status === 200) {
+      const body = await response.json() as { abstain_reason: string | null };
+      // The subject came out of this same corpus one call earlier.
+      expect(body.abstain_reason).not.toBe('out_of_scope');
+    }
+  });
+
+  it('refuses a malformed question as a request error, not an outage', async () => {
+    const response = await ask('', 'storage');
+    expect(response.status).toBe(422);
+    const body = await response.json() as { status: string; abstain_reason: string };
+    expect(body.status).toBe('INVALID_REQUEST');
+    expect(body.abstain_reason).toBe('subject_required');
+  });
+});

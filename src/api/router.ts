@@ -779,6 +779,53 @@ export class ApiRouter {
       return HANDLED;
     }
 
+    /**
+     * The public board's question, always against the corpus that ships here.
+     *
+     * `/api/ask` scopes to the signed-in workspace, which is right for the
+     * product and wrong for `/judge`: a visitor who happens to have a session
+     * was shown NO EVIDENCE on every row of a page whose whole purpose is
+     * answering. The proof board reads the demo corpus whoever is looking.
+     *
+     * Read only and session free, so it needs no CSRF token, and it shares the
+     * public read budget.
+     */
+    if (path === '/api/demo/ask' && method === 'POST') {
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      // The shape of the request is judged before the health of the store. An
+      // empty subject is a bad question whether or not a store is configured,
+      // and reporting it as anything else blames the wrong thing.
+      const invalid = validateQuestion(body?.['subject'], body?.['predicate']);
+      if (invalid !== null) {
+        send(response, 422, invalidRequest(invalid));
+        return HANDLED;
+      }
+      const openSource = this.#source;
+      if (openSource === undefined) {
+        send(response, 503, { error: 'no context store is configured' });
+        return HANDLED;
+      }
+      if (!this.#readLimit.check(sourceKey(request), this.#now()).allowed) {
+        send(response, 429, { error: 'too many questions from this address, try again shortly' });
+        return HANDLED;
+      }
+      const via = body?.['via'];
+      send(response, 200, await askEnvelope(
+        openSource(),
+        body?.['subject'] as string,
+        body?.['predicate'] as string,
+        typeof via === 'string' && via !== '' ? via : null,
+        ASK_TIMEOUT_MS,
+      ));
+      return HANDLED;
+    }
+
     if (path === '/api/ask' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));

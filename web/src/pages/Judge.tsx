@@ -328,7 +328,9 @@ export function Judge() {
           if (control.signal.aborted) return;
           const key = `${row.subject}/${row.predicate}/${row.via ?? ''}`;
           setResults((current) => ({ ...current, [key]: 'running' }));
-          const envelope = await postFor<Envelope>('/api/ask', {
+          // The demo endpoint, not /api/ask. This board answers the same way
+          // whether or not the person reading it happens to be signed in.
+          const envelope = await postFor<Envelope>('/api/demo/ask', {
             subject: row.subject,
             predicate: row.predicate,
             ...(row.via === null ? {} : { via: row.via }),

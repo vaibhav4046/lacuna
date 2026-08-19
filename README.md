@@ -22,6 +22,18 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
+**What this does not do.** It does not read claims out of prose. The graph is
+built from structured annotations that the corpus generator emits alongside the
+transcripts, so ingestion knows which statement supersedes which because it was
+told, not because it worked it out. Everything downstream is real: the
+supersession, the contradiction handling, the abstention, the traversal, and the
+comparison against five retrieval baselines over the same corpus. But point this
+at a folder of somebody else's meeting notes today and there is no step that
+turns those sentences into claims. That extraction is the obvious next piece and
+it is deliberately not faked here, because a claim graph built by a generator is
+a fair test of what to do with a claim graph, and it is not a demonstration that
+one can be built from arbitrary text.
+
 ## The deployed copy
 
 <https://lacuna-five.vercel.app> is this repository running as one serverless

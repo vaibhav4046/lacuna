@@ -58,7 +58,9 @@ export function Sdk() {
     <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
       <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: MONO, fontSize: '11px', letterSpacing: '0.1em', color: '#BDBDBD' }}>LACUNA_API_KEY · NOT ISSUED</span>
-        <span style={note}>NO ACTIVE KEY · ISSUE ONE FROM SETTINGS</span>
+        {/* Settings has no issuer, so telling a reader to go there is a
+            promise the product does not keep. It says what is true instead. */}
+        <span style={note}>NO ACTIVE KEY · KEY ISSUING NOT IMPLEMENTED</span>
       </div>
       <div style={{ display: 'flex', gap: 'clamp(18px, 3vw, 38px)', borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
         {TABS.map((l, i) => (

@@ -36,7 +36,7 @@ export function Settings() {
     ['HydraDB', hydraState(health).toLowerCase()],
     ['Models', model.toLowerCase()],
     ['Voice', 'not configured'],
-    ['API keys', 'none issued'],
+    ['API keys', 'not implemented'],
     ['Appearance', 'dark'],
     ['Accessibility', 'reduced motion follows system'],
     ['Data export', 'not configured'],

@@ -1,5 +1,6 @@
 import type { HydraSource } from '../hydra/source.js';
 import { askCore } from '../contract/result.js';
+import type { EvidenceStanding } from '../contract/result.js';
 import { ask, buildQuestion, RetrievalError } from '../retrieval/index.js';
 import type { Inventory } from '../report/inventory.js';
 
@@ -24,7 +25,15 @@ export type AnswerStatus = 'ANSWERED' | 'PARTIAL' | 'CONFLICT' | 'NO_EVIDENCE' |
 export interface EnvelopeEvidence {
   readonly source: string;
   readonly meta: string;
-  readonly standing: 'current' | 'superseded' | 'proposal';
+  /**
+   * The identity of the claim this evidence supports, so a reader can tell two
+   * sources of one claim from two claims that disagree.
+   */
+  readonly claim_id: number;
+  readonly quote: string;
+  readonly observed_at: string;
+  /** Decided per claim in the shared core, never from the request's outcome. */
+  readonly standing: EvidenceStanding;
 }
 
 /**
@@ -51,11 +60,6 @@ export interface AnswerEnvelope {
 
 function traceId(): string {
   return '0x' + Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0');
-}
-
-function standingOf(current: boolean, proposal: boolean): EnvelopeEvidence['standing'] {
-  if (proposal) return 'proposal';
-  return current ? 'current' : 'superseded';
 }
 
 /**
@@ -94,10 +98,17 @@ export async function askEnvelope(
   try {
     const answer = await ask(source, question, { timeoutMs });
     const core = askCore(answer);
-    const evidence = core.evidence.map((item) => ({
+    // Standing comes from the core, which read it off the claim graph. It used
+    // to be derived from `core.status === 'answered'`, which labelled every
+    // source of an unresolved contradiction `superseded`, saying that each of
+    // the two had replaced the other.
+    const evidence: EnvelopeEvidence[] = core.evidence.map((item) => ({
       source: item.sessionTitle,
       meta: `${item.role.toUpperCase()} · ${item.ts}`,
-      standing: standingOf(core.status === 'answered', false),
+      claim_id: item.claimId,
+      quote: item.quote,
+      observed_at: item.ts,
+      standing: item.standing,
     }));
 
     if (core.status === 'answered') {

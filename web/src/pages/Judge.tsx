@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getJson, postFor } from '../api/client';
 import { MONO } from '../design/mark';
+import { STANDING_COLOUR, STANDING_LABEL } from '../design/standing';
 
 /**
  * The product, working, without an account.
@@ -25,7 +26,7 @@ import { MONO } from '../design/mark';
 interface Evidence {
   readonly source: string;
   readonly meta: string;
-  readonly standing: 'current' | 'superseded' | 'proposal';
+  readonly standing: 'current' | 'current_conflicting' | 'superseded' | 'withdrawal_current' | 'proposal';
 }
 
 interface Envelope {
@@ -156,10 +157,10 @@ function Result({ envelope }: { envelope: Envelope | 'running' }) {
                   ...mono,
                   fontSize: '9.5px',
                   letterSpacing: '0.14em',
-                  color: item.standing === 'current' ? '#FFB829' : '#5E5E5E',
+                  color: STANDING_COLOUR[item.standing],
                 }}
               >
-                {item.standing.toUpperCase()}
+                {STANDING_LABEL[item.standing]}
               </span>
               <span style={{ color: '#BDBDBD', fontSize: '14px' }}>{item.source}</span>
               <span style={{ ...mono, fontSize: '11px', color: '#5E5E5E' }}>{item.meta}</span>

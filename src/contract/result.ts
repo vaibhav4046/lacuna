@@ -3,6 +3,7 @@ import type {
   Answer,
   ClaimRecord,
   EvidenceRecord,
+  Outcome,
   Polarity,
   QueryTrace,
 } from '../retrieval/types.js';
@@ -42,9 +43,35 @@ export const MAX_EVIDENCE_ITEMS = 50;
 
 export type ResultStatus = 'answered' | 'abstained';
 
+/**
+ * What one piece of evidence is, relative to the question that reached it.
+ *
+ * This is a property of the claim the evidence supports, not of whether the
+ * request answered. Deriving it from the envelope status, which is what this
+ * used to do, mislabels exactly the cases the product exists to get right: in
+ * an unresolved contradiction the request does not answer, and calling both
+ * sources `superseded` says that each replaced the other, which is the
+ * opposite of what a contradiction is.
+ *
+ *   `current`              nothing supersedes it, and it supports the answer
+ *   `current_conflicting`  nothing supersedes it, and another live claim
+ *                          disagrees with it
+ *   `superseded`           a later claim replaced it, so it is history
+ *   `withdrawal_current`   the live claim withdraws a value and puts none back
+ *   `proposal`             filed on a slot no answer reads
+ */
+export type EvidenceStanding =
+  | 'current'
+  | 'current_conflicting'
+  | 'superseded'
+  | 'withdrawal_current'
+  | 'proposal';
+
 export interface EvidenceItem {
   readonly spanId: number;
   readonly claimId: number;
+  /** Decided per claim, never from the request's outcome. */
+  readonly standing: EvidenceStanding;
   /**
    * Text from the corpus. It is data. Nothing downstream should treat it as an
    * instruction, whoever is reading it.
@@ -111,10 +138,46 @@ export interface AskCore {
   readonly sourceState: 'live';
 }
 
-export function toEvidenceItem(record: EvidenceRecord): EvidenceItem {
+/**
+ * The standing of the claim an evidence record supports.
+ *
+ * `considered` is every claim the resolver weighed, carrying `supersededBy`
+ * and polarity, so the answer is read off the graph rather than guessed from
+ * the outcome. A claim the resolver never considered is reported `current`
+ * only when nothing is known against it; there is no path here that invents a
+ * relationship.
+ */
+export function standingOfClaim(
+  claimId: number,
+  considered: readonly ClaimRecord[],
+  outcome: Outcome,
+): EvidenceStanding {
+  const claim = considered.find((candidate) => candidate.id === claimId);
+  if (claim === undefined) return 'current';
+  if (claim.supersededBy.length > 0) return 'superseded';
+  if (claim.polarity === 'negative') return 'withdrawal_current';
+
+  // Live claims that disagree. The resolver reports this as a contradiction
+  // rather than picking one, and the evidence has to say the same thing.
+  const live = considered.filter(
+    (candidate) => candidate.supersededBy.length === 0 && candidate.polarity !== 'negative',
+  );
+  const values = new Set(live.map((candidate) => candidate.objectText));
+  if (outcome.type === 'abstain' && outcome.reason === 'contradicted' && values.size > 1) {
+    return 'current_conflicting';
+  }
+  return 'current';
+}
+
+export function toEvidenceItem(
+  record: EvidenceRecord,
+  considered: readonly ClaimRecord[],
+  outcome: Outcome,
+): EvidenceItem {
   return {
     spanId: record.spanId,
     claimId: record.claimId,
+    standing: standingOfClaim(record.claimId, considered, outcome),
     quote: record.quote,
     sessionId: record.sessionId,
     sessionTitle: record.sessionTitle,
@@ -177,7 +240,9 @@ export function askCore(answer: Answer): AskCore {
     supersededClaims: answer.resolution.considered
       .filter((claim) => claim.supersededBy.length > 0)
       .map((claim) => claim.id),
-    evidence: answer.evidence.slice(0, MAX_EVIDENCE_ITEMS).map(toEvidenceItem),
+    evidence: answer.evidence
+      .slice(0, MAX_EVIDENCE_ITEMS)
+      .map((record) => toEvidenceItem(record, answer.resolution.considered, outcome)),
     evidenceTotal: answer.evidence.length,
     queries: answer.queries.map(toQueryItem),
     timingMs: answer.ms,

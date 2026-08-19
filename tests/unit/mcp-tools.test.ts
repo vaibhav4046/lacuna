@@ -143,6 +143,9 @@ describe('askResult, answered', () => {
     expect(result.evidence).toEqual([{
       spanId: 500,
       claimId: 1,
+      // Read off the claim graph in the shared core, so MCP, the CLI and the
+      // web all report the same standing for the same claim.
+      standing: 'current',
       quote: 'Northfold is the beta partner.',
       sessionId: 12,
       sessionTitle: 'Partner selection',

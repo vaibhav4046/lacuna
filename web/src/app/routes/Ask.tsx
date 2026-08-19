@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { postFor } from '../../api/client';
 import { useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
+import { STANDING_COLOUR, STANDING_LABEL } from '../../design/standing';
 
 /**
  * Ask, wired to the real answer path.
@@ -18,7 +19,7 @@ import { MONO } from '../../design/mark';
 interface Evidence {
   readonly source: string;
   readonly meta: string;
-  readonly standing: 'current' | 'superseded' | 'proposal';
+  readonly standing: 'current' | 'current_conflicting' | 'superseded' | 'withdrawal_current' | 'proposal';
 }
 
 interface Envelope {
@@ -185,9 +186,7 @@ export function Ask() {
                         <div style={{ fontSize: '14.5px', color: '#FFFFFF' }}>{e.source}</div>
                         <div style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.1em', color: '#9A9A9A', marginTop: '5px' }}>{e.meta}</div>
                       </div>
-                      {e.standing === 'current' ? <span style={{ ...tag, color: '#FFB829' }}>SUPPORTS THE ANSWER</span> : null}
-                      {e.standing === 'superseded' ? <span style={{ ...tag, color: '#5E5E5E' }}>SUPERSEDED</span> : null}
-                      {e.standing === 'proposal' ? <span style={{ ...tag, color: '#5E5E5E' }}>PROPOSAL · NEVER CURRENT</span> : null}
+                      <span style={{ ...tag, color: STANDING_COLOUR[e.standing] }}>{STANDING_LABEL[e.standing]}</span>
                     </div>
                   ))}
                 </div>

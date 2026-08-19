@@ -28,9 +28,27 @@ Last inventory: 2026-08-19.
 
 | Credential | State | What it blocks |
 | --- | --- | --- |
-| Google OAuth client id and secret | MISSING | Google sign in. Email and password work and are verified 12 of 12 against production. Creating the client needs a Google Cloud project, which is an account creation step and is not something this session will do on the owner's behalf. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | Google sign in, which now works end to end. Project `lacuna-auth-506009` on a personal account, app `Lacuna`, audience External and published, one client `Lacuna web` with a single redirect URI. |
 | Supabase project URL and keys | MISSING | Nothing today. Accounts are durable in HydraDB Cloud already, so the Supabase path described in the earlier plan is not on the critical path and starting it now would replace a working, tested auth store with an untested one. |
 | A connector credential of any kind | MISSING | One real connector syncing. The Connectors screen reports the honest empty state. |
+
+## One secret to rotate, and why
+
+The first client secret was shown in a console dialog that was captured while
+this was being set up, which put it in a transcript. It was replaced the same
+hour: a second secret was added on the client, verified against Google's token
+endpoint before being stored, and the deployment now uses it.
+
+**The first secret is still enabled on the client and should be deleted.** Open
+the client, find the secret ending `ERa7`, disable it, confirm sign in still
+works, then delete it. It is not the one in use, so removing it changes nothing
+that is running.
+
+The lesson is recorded rather than the incident: a secret that is only ever
+shown on screen cannot be handled without being seen. The reliable path is the
+clipboard into `printf '%s' | vercel env add`, never a screenshot and never a
+PowerShell pipe, which appends a newline and produced an `invalid_client` that
+looked like a wrong key.
 
 ## Deployment environments
 

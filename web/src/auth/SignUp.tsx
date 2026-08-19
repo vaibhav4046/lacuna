@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { signUp } from '../api/auth';
 import { useSession } from '../api/session';
 import { Brand, Field, Problem, FORM, LEAD, LEFT, MINOR, PAGE, PRIMARY } from './parts';
+import { GoogleButton } from './google';
 
 export default function SignUp() {
   const go = useNavigate();
@@ -34,6 +35,7 @@ export default function SignUp() {
         <Field label="PASSWORD" type="password" placeholder="••••••••" value={password} onChange={setPassword} autoComplete="new-password" />
         <button className="hv-violet" type="submit" disabled={busy} style={PRIMARY}>Create account</button>
         <Problem>{problem}</Problem>
+        <GoogleButton label="Continue with Google" />
         <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '4px' }}>
           <button className="hv-text" type="button" onClick={() => go('/signin')} style={MINOR}>ALREADY HAVE AN ACCOUNT · SIGN IN</button>
         </div>

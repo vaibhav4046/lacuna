@@ -94,6 +94,15 @@ async function cloudHealth(): Promise<unknown> {
   }
 }
 
+/**
+ * The origin this deployment answers on, which has to match the redirect URI
+ * registered with Google exactly. Google compares the string, not the host, so
+ * a trailing slash or a preview URL is a mismatch and a refused sign in.
+ */
+const SITE_ORIGIN = process.env['LACUNA_SITE_ORIGIN'] ?? 'https://lacuna-five.vercel.app';
+const googleClientId = process.env['GOOGLE_CLIENT_ID'];
+const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
+
 const api = new ApiRouter({
   store,
   secure: true,
@@ -111,6 +120,15 @@ const api = new ApiRouter({
   // browsable index of them.
   ...(cloud === null ? {} : {
     relations: async (): Promise<readonly ServiceRelation[]> => normaliseRelations(await cloud.relations(24)),
+  }),
+  // Google sign in, only when this deployment has been given a client. Without
+  // both halves the button is not offered, rather than offered and broken.
+  ...(googleClientId === undefined || googleClientSecret === undefined ? {} : {
+    google: {
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+      redirectUri: `${SITE_ORIGIN}/api/auth/google/callback`,
+    },
   }),
 });
 

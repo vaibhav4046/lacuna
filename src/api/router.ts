@@ -13,11 +13,12 @@ import {
   readJsonBody,
   serialiseCookie,
 } from '../auth/http.js';
-import { SESSION_TTL_MS, StoreUnavailable, mintToken } from '../auth/store.js';
+import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, sameDigest, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './workspace.js';
 import type { WorkspaceView } from './workspace.js';
+import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
 import type { HydraSource } from '../hydra/source.js';
 import type { Inventory } from '../report/inventory.js';
@@ -39,6 +40,16 @@ import { headerModel, modelRows } from '../provider/registry.js';
  */
 
 /** Six attempts a minute per address is generous for a person and useless for a script. */
+/**
+ * The state cookie for the Google round trip, and how long it may sit unused.
+ *
+ * Ten minutes is longer than a person needs to pick an account and shorter than
+ * a browser left open overnight, and it is cleared on every outcome including
+ * the failures.
+ */
+const GOOGLE_STATE_COOKIE = 'lacuna_google_state';
+const GOOGLE_STATE_TTL_SECONDS = 600;
+
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 /** A question should not sit behind a browser spinner for longer than this. */
 const ASK_TIMEOUT_MS = 10_000;
@@ -84,6 +95,14 @@ export interface ApiOptions {
    * screen instead of showing an empty table.
    */
   readonly relations?: () => Promise<readonly ServiceRelation[]>;
+  /**
+   * Google sign in, when the deployment has been given a client.
+   *
+   * Optional in the same way the source is. A deployment without it does not
+   * offer the button rather than offering one that fails, and every local run
+   * and every test works without ever touching Google.
+   */
+  readonly google?: GoogleConfig;
   readonly now?: () => number;
 }
 
@@ -183,6 +202,7 @@ export class ApiRouter {
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
+  readonly #google: GoogleConfig | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
@@ -195,6 +215,7 @@ export class ApiRouter {
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#relations = options.relations;
+    this.#google = options.google;
     this.#now = options.now ?? (() => Date.now());
   }
 
@@ -265,6 +286,18 @@ export class ApiRouter {
     }
 
     if (path.startsWith('/api/auth/')) {
+      // Google's half of the flow is two GETs and cannot carry a CSRF header:
+      // the second one is Google redirecting a browser back here. It is guarded
+      // instead by the state value below, which is the same idea in the shape
+      // this protocol allows. Both are handled before the POST and CSRF checks
+      // for that reason.
+      if (path === '/api/auth/google/start' && method === 'GET') {
+        return this.#googleStart(response);
+      }
+      if (path === '/api/auth/google/callback' && method === 'GET') {
+        return this.#googleCallback(request, response, cookies);
+      }
+
       if (method !== 'POST') {
         send(response, 405, { error: 'method' });
         return HANDLED;
@@ -509,6 +542,113 @@ export class ApiRouter {
       send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
     }
     return HANDLED;
+  }
+
+  /** Where a person lands after signing in, depending on whether they have set up. */
+  #afterSignIn(account: Account): string {
+    return account.onboarded ? '/app/dash' : '/onboarding';
+  }
+
+  #redirect(response: ServerResponse, to: string, cookies: readonly string[] = []): Handled {
+    response.writeHead(302, { Location: to, 'Set-Cookie': cookies as string[] });
+    response.end();
+    return HANDLED;
+  }
+
+  /**
+   * Send the browser to Google, carrying a value that has to come back.
+   *
+   * The state is minted here, stored in an httpOnly cookie, and compared on
+   * return. Without it somebody can hand a person a finished callback URL and
+   * sign them into an account that is not theirs.
+   */
+  #googleStart(response: ServerResponse): Handled {
+    const google = this.#google;
+    if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured');
+
+    const state = mintToken();
+    return this.#redirect(response, authorizeUrl(google, state), [
+      serialiseCookie(GOOGLE_STATE_COOKIE, state, {
+        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
+        httpOnly: true,
+        secure: this.#secure,
+      }),
+    ]);
+  }
+
+  /**
+   * Google sends the browser back here. Everything that can go wrong ends the
+   * same way, at sign in with a reason in the query, because a person who
+   * cancelled and a person whose token failed a check both just need the page
+   * back. The reasons are distinct so a log can tell them apart.
+   */
+  async #googleCallback(
+    request: IncomingMessage,
+    response: ServerResponse,
+    cookies: Readonly<Record<string, string>>,
+  ): Promise<Handled> {
+    const google = this.#google;
+    if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured');
+
+    const url = new URL(request.url ?? '/', 'http://placeholder');
+    const clear = clearCookie(GOOGLE_STATE_COOKIE, this.#secure);
+
+    // The person pressed cancel on Google's screen. Not an error.
+    if (url.searchParams.get('error') !== null) {
+      return this.#redirect(response, '/signin?google=cancelled', [clear]);
+    }
+
+    const state = url.searchParams.get('state');
+    const expected = cookies[GOOGLE_STATE_COOKIE];
+    if (
+      typeof expected !== 'string' || expected === '' || state === null
+      || state.length !== expected.length
+      || !sameDigest(hashToken(state), hashToken(expected))
+    ) {
+      return this.#redirect(response, '/signin?google=state', [clear]);
+    }
+
+    const code = url.searchParams.get('code');
+    if (code === null || code === '') {
+      return this.#redirect(response, '/signin?google=code', [clear]);
+    }
+
+    if (!await this.#store.available()) {
+      return this.#redirect(response, '/signin?google=store', [clear]);
+    }
+
+    let identity;
+    try {
+      identity = await identityFromCode(google, code);
+    } catch {
+      return this.#redirect(response, '/signin?google=identity', [clear]);
+    }
+
+    try {
+      let account = await this.#store.find(identity.email);
+      if (account === null) {
+        // No password is set, and the field cannot be left empty, so it holds a
+        // real argon2id hash of a value nobody knows. Signing in with a password
+        // to this address is then not a special case that has to be remembered:
+        // it simply never verifies.
+        const created = await this.#store.create({
+          email: identity.email,
+          passwordHash: await decoy(),
+          createdAt: new Date(this.#now()).toISOString(),
+          workspace: null,
+          onboarded: false,
+        });
+        // Null means the address was taken between the read and the write, which
+        // means an account exists and signing in is still the right outcome.
+        account = created ?? await this.#store.find(identity.email);
+        if (account === null) return this.#redirect(response, '/signin?google=store', [clear]);
+      }
+
+      const token = await this.#store.startSession(account.email, this.#now());
+      return this.#redirect(response, this.#afterSignIn(account), [clear, this.#sessionCookie(token)]);
+    } catch {
+      return this.#redirect(response, '/signin?google=store', [clear]);
+    }
   }
 
   async #signin(request: IncomingMessage, response: ServerResponse, email: string, password: string): Promise<Handled> {

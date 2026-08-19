@@ -1,0 +1,59 @@
+import { MONO } from '../design/mark';
+
+/**
+ * The Google button, and the sentence a failed round trip leaves behind.
+ *
+ * This is a link and not a fetch on purpose. The whole point of the flow is
+ * that the browser leaves for Google and comes back, so an anchor is what it
+ * is: no click handler, no state, and it works with the keyboard and with a
+ * middle click because it is an ordinary navigation.
+ *
+ * The reasons below are the ones the API redirects back with. They are separate
+ * strings rather than one apology because they call for different things from
+ * the reader: a cancelled sign in needs no action, a stale round trip needs the
+ * button pressing again, and an unverified address needs the password form.
+ */
+
+const REASONS: Readonly<Record<string, string>> = {
+  cancelled: 'Sign in with Google was cancelled. Nothing happened.',
+  state: 'That sign in took too long to come back. Press the button again.',
+  code: 'Google did not send an authorisation back. Try once more.',
+  identity: 'Google did not confirm a verified address for that account, so it was refused. Sign in with an email and password instead.',
+  store: 'The account store did not answer. Nothing was changed.',
+  unconfigured: 'Sign in with Google is not configured on this deployment.',
+};
+
+/** The message for a reason the API sent, or null when there is nothing to say. */
+export function googleProblem(search: string): string | null {
+  const reason = new URLSearchParams(search).get('google');
+  if (reason === null) return null;
+  return REASONS[reason] ?? 'Sign in with Google did not complete.';
+}
+
+export function GoogleButton({ label }: { label: string }) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '2px 0' }}>
+        <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
+        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#5E5E5E' }}>OR</span>
+        <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
+      </div>
+      <a
+        href="/api/auth/google/start"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+          padding: '13px 18px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.18)',
+          color: '#FFFFFF', fontSize: '15px', textDecoration: 'none',
+        }}
+        className="hv-edge35"
+      >
+        {/* No Google mark. There is no licensed asset for one here, and
+            docs/ICON_AUDIT.md already records four vendor logos in this product
+            that were redrawn rather than licensed. Adding a fifth, for the
+            vendor with the strictest brand rules, to save a reader one glance
+            is not a trade worth making. The word is unambiguous. */}
+        {label}
+      </a>
+    </>
+  );
+}

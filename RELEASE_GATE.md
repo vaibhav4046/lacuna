@@ -13,7 +13,7 @@ Production: https://lacuna-five.vercel.app
 | Gate | Result | Command |
 | --- | --- | --- |
 | typecheck | exit 0 | `npx tsc --noEmit` |
-| unit | 1033 of 1033, 52 files | `npx vitest run tests/unit` |
+| unit | 1048 of 1048, 53 files | `npx vitest run tests/unit` |
 | contract, live node | 77 of 77, 4 files | `npx vitest run tests/contract` |
 | census | graph matches the plan exactly | `npm run census` |
 | ground-truth isolation | inside the unit suite, fails if the runtime imports it | `npx vitest run tests/unit` |
@@ -46,6 +46,8 @@ started as a subprocess, all reading the same HydraDB Cloud workspace.
 
 | Gate | Result | Command |
 | --- | --- | --- |
+| Google sign in, on production, in a real browser | a new account created from a verified address, landing on onboarding | by hand, recorded in this table |
+| what Lacuna refuses as an identity | 15 of 15, and eleven of them are refusals: an unverified address, a token minted for another application, another issuer, an expired token, no address, a failed exchange, and something that is not a JWT | `npx vitest run tests/unit/google-auth.test.ts` |
 | sign up, session survives another invocation, workspace persists, sign out, sign back in from a clean jar, wrong password refused | 12 of 12 | `npm run smoke:auth -- https://lacuna-five.vercel.app` |
 
 Verified again by hand in a browser from a cleared cookie jar: sign up lands on
@@ -190,9 +192,12 @@ seam fails, and filtering claims on supersession inside a client fails.
 
 ## Not green, and named
 
-- **No Google sign-in.** Email and password only. Adding it needs an OAuth
-  client created in a Google Cloud project, and creating accounts or
-  credentials was explicitly out of scope for this run.
+- **Google sign in works and is the newest thing here.** Verified by signing in
+  on production: the redirect carries `openid email profile` and nothing more, a
+  new account was created from the verified address, and it landed on
+  onboarding. The password path is unchanged at 12 of 12. What it does not have
+  is a soak, a second verified account, or a test of two people whose Google
+  addresses differ only by case.
 - **No scheduler, no persisted agents, no multimodal ingest.** All three were
   considered and not started. Each is a new subsystem, and starting one against
   a frozen release buys a half-built surface in exchange for the gates above.

@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { signIn } from '../api/auth';
 import { useSession } from '../api/session';
 import { Brand, Field, Problem, FORM, LEAD, LEFT, MINOR, MINOR_DIM, PAGE, PRIMARY } from './parts';
+import { GoogleButton, googleProblem } from './google';
 
 export default function SignIn() {
   const go = useNavigate();
   const { refresh } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [problem, setProblem] = useState<string | null>(null);
+  // A failed Google round trip comes back as a query, not as a fetch result.
+  const [problem, setProblem] = useState<string | null>(googleProblem(window.location.search));
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -34,6 +36,7 @@ export default function SignIn() {
         <Field label="PASSWORD" type="password" placeholder="••••••••" value={password} onChange={setPassword} autoComplete="current-password" />
         <button className="hv-violet" type="submit" disabled={busy} style={PRIMARY}>Sign in</button>
         <Problem>{problem}</Problem>
+        <GoogleButton label="Continue with Google" />
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginTop: '4px' }}>
           <button className="hv-text" type="button" onClick={() => go('/signup')} style={MINOR}>CREATE ACCOUNT</button>
           <button className="hv-text" type="button" onClick={() => go('/forgot')} style={MINOR_DIM}>FORGOT PASSWORD</button>

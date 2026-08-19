@@ -69,7 +69,12 @@ export default function Onboarding() {
               </>
             ) : i < step ? (
               <>
-                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#15846E', flexShrink: 0 }}></span>
+                {/* A ring rather than a second filled dot. The violet of the
+                    current step and the teal of a finished one have almost the
+                    same luminance, 0.1784 against 0.1779, so as two filled
+                    circles they are the same mark to anyone not separating them
+                    by hue. The shape carries it and the colour agrees. */}
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid #15846E', boxSizing: 'border-box', flexShrink: 0 }}></span>
                 <span style={{ ...label, color: '#71717A' }}>{s.l}</span>
               </>
             ) : (

@@ -1,0 +1,366 @@
+<title>Lacuna icon contact sheet</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 34px 40px 40px;
+    background: #000; color: #EDEDED;
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { margin: 0 0 6px; font-size: 26px; font-weight: 400; letter-spacing: -0.03em; }
+  .sub { margin: 0 0 26px; font-family: ui-monospace, monospace; font-size: 10px;
+         letter-spacing: 0.18em; color: #5E5E5E; text-transform: uppercase; }
+  h2 { margin: 26px 0 3px; font-family: ui-monospace, monospace; font-size: 10px;
+       font-weight: 500; letter-spacing: 0.24em; color: #71717A; }
+  .lede { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: #9A9A9A; max-width: 96ch; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .t { margin: 0; padding: 12px 12px 11px; border: 1px solid rgba(255,255,255,0.10);
+       border-radius: 9px; background: #050505; display: flex; flex-direction: column; gap: 10px; }
+  .t.flag { border-color: rgba(255,184,41,0.42); }
+  .ic { height: 40px; display: flex; align-items: center; justify-content: center; }
+  .ic svg { display: block; }
+  figcaption b { display: block; font-family: ui-monospace, monospace; font-size: 11px;
+                 font-weight: 500; letter-spacing: 0.08em; color: #FFF; margin-bottom: 7px; }
+  dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 1px 8px;
+       font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.04em; }
+  dt { color: #454545; }
+  dd { margin: 0; color: #9A9A9A; }
+  dd.ink { color: #BDBDBD; word-break: break-all; line-height: 1.35; }
+  .n { margin: 8px 0 0; font-family: ui-monospace, monospace; font-size: 8.5px;
+       line-height: 1.45; letter-spacing: 0.03em; color: #FFB829; }
+  .key { margin-top: 30px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.12);
+         font-family: ui-monospace, monospace; font-size: 9.5px; line-height: 1.9;
+         letter-spacing: 0.08em; color: #5E5E5E; }
+  .key b { color: #9A9A9A; font-weight: 500; }
+  .amber { color: #FFB829; }
+</style>
+
+<h1>Icon contact sheet</h1>
+<p class="sub">web/src/design/icons.ts &middot; 16 entries &middot; every viewBox 0 0 24 24 &middot; drawn at 24px on black</p>
+
+<h2>Lacuna-drawn control icons &middot; 5</h2>
+<p class="lede">These are the set that has to read as one family. It does not: stroke weight splits 1.5 / 1.6, and the ink splits three ways across #9A9A9A, #BDBDBD and the amber accent.</p>
+<div class="grid">
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="#9A9A9A" stroke-width="1.5" d="M6 3.5h7.5L18 8v12.5H6z"/><path fill="none" stroke="#9A9A9A" stroke-width="1.5" d="M13.5 3.5V8H18"/></svg></div>
+  <figcaption>
+    <b>files</b>
+    <dl>
+      <dt>stroke</dt><dd>1.5</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#9A9A9A</dd>
+    </dl>
+    
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="#9A9A9A" stroke-width="1.5"/><path stroke="#9A9A9A" stroke-width="1.5" d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg></div>
+  <figcaption>
+    <b>api</b>
+    <dl>
+      <dt>stroke</dt><dd>1.5</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#9A9A9A</dd>
+    </dl>
+    
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="none" stroke="#BDBDBD" stroke-width="1.5"/><rect x="10.2" y="10.2" width="3.6" height="3.6" fill="#8052FF"/><path stroke="#BDBDBD" stroke-width="1.5" d="M9.5 7V3.8M14.5 7V3.8M9.5 20.2V17M14.5 20.2V17M7 9.5H3.8M7 14.5H3.8M20.2 9.5H17M20.2 14.5H17"/></svg></div>
+  <figcaption>
+    <b>chip</b>
+    <dl>
+      <dt>stroke</dt><dd>1.5</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>1.5</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#BDBDBD #8052FF</dd>
+    </dl>
+    <p class="n">violet fill, #BDBDBD not #9A9A9A</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="#9A9A9A" stroke-width="1.6" d="M6.5 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 16.6 8.9 4.3 4.3 0 0 1 17.5 18z"/></svg></div>
+  <figcaption>
+    <b>cloud</b>
+    <dl>
+      <dt>stroke</dt><dd>1.6</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#9A9A9A</dd>
+    </dl>
+    <p class="n">1.6 where files/api/chip are 1.5</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5.2" fill="none" stroke="#FFB829" stroke-width="1.6"/><circle cx="12" cy="12" r="1.6" fill="#FFB829"/><path fill="none" stroke="#FFB829" stroke-width="1.2" opacity="0.5" d="M3 12a9 9 0 0 0 18 0"/></svg></div>
+  <figcaption>
+    <b>orb</b>
+    <dl>
+      <dt>stroke</dt><dd>1.6/1.2</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>0.5</dd>
+      <dt>ink</dt><dd class="ink">#FFB829</dd>
+    </dl>
+    <p class="n">accent ink, not neutral</p>
+  </figcaption>
+</figure>
+</div>
+
+<h2>Third-party brand slots &middot; 11</h2>
+<p class="lede">Four carry the vendor's own silhouette and official colours. Seven are approximations drawn for this project. The distinction is the one that matters legally, and it is listed per entry in docs/ICON_AUDIT.md.</p>
+<div class="grid">
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#FFFFFF" d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-1.97c-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.78 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.04.77 2.1v3.11c0 .31.21.68.8.56A11.53 11.53 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg></div>
+  <figcaption>
+    <b>github</b>
+    <dl>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#FFFFFF</dd>
+    </dl>
+    
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#E01E5A" d="M5.04 15.12a2.1 2.1 0 1 1-2.1-2.1h2.1zm1.06 0a2.1 2.1 0 0 1 4.2 0v5.26a2.1 2.1 0 0 1-4.2 0z"/><path fill="#36C5F0" d="M8.88 5.04a2.1 2.1 0 1 1 2.1-2.1v2.1zm0 1.06a2.1 2.1 0 0 1 0 4.2H3.62a2.1 2.1 0 0 1 0-4.2z"/><path fill="#2EB67D" d="M18.96 8.88a2.1 2.1 0 1 1 2.1 2.1h-2.1zm-1.06 0a2.1 2.1 0 0 1-4.2 0V3.62a2.1 2.1 0 0 1 4.2 0z"/><path fill="#ECB22E" d="M15.12 18.96a2.1 2.1 0 1 1-2.1 2.1v-2.1zm0-1.06a2.1 2.1 0 0 1 0-4.2h5.26a2.1 2.1 0 0 1 0 4.2z"/></svg></div>
+  <figcaption>
+    <b>slack</b>
+    <dl>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#E01E5A #36C5F0 #2EB67D #ECB22E</dd>
+    </dl>
+    
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#E24329" d="M12 21.4 8.28 10.2h7.44z"/><path fill="#FC6D26" d="M12 21.4 2.7 14.5a.9.9 0 0 1-.32-1L3.62 10.2h4.66zM12 21.4l9.3-6.9a.9.9 0 0 0 .32-1L20.38 10.2h-4.66z"/><path fill="#FCA326" d="M3.62 10.2 5.16 5.06a.45.45 0 0 1 .86 0l1.54 5.14zM20.38 10.2 18.84 5.06a.45.45 0 0 0-.86 0l-1.54 5.14z"/></svg></div>
+  <figcaption>
+    <b>gitlab</b>
+    <dl>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#E24329 #FC6D26 #FCA326</dd>
+    </dl>
+    
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#5E6AD2" d="M2.63 14.86 9.14 21.37A10.05 10.05 0 0 1 2.63 14.86ZM2.03 12.42 11.58 21.97a10 10 0 0 0 2.4-.29L2.32 10.02a10 10 0 0 0-.29 2.4ZM2.7 8.55 15.45 21.3a9.98 9.98 0 0 0 1.94-1.02L3.72 6.61A9.98 9.98 0 0 0 2.7 8.55ZM4.6 5.16a10 10 0 1 1 14.24 14.24Z"/></svg></div>
+  <figcaption>
+    <b>linear</b>
+    <dl>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#5E6AD2</dd>
+    </dl>
+    
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><rect x="3.8" y="3.8" width="16.4" height="16.4" rx="2.5" fill="none" stroke="#BDBDBD" stroke-width="1.4"/><path fill="#FFFFFF" d="M8.6 8v8h1.5v-5.2L14.1 16h1.3V8h-1.5v5.2L9.9 8z"/></svg></div>
+  <figcaption>
+    <b>notion</b>
+    <dl>
+      <dt>stroke</dt><dd>1.4</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>2.5</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#BDBDBD #FFFFFF</dd>
+    </dl>
+    <p class="n">rx 2.5 vs chip rx 1.5</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="#9A9A9A" stroke-width="1.4" d="M3.2 5.8h17.6v12.4H3.2z"/><path fill="none" stroke="#EA4335" stroke-width="1.8" d="m3.2 7 8.8 6.4L20.8 7"/></svg></div>
+  <figcaption>
+    <b>gmail</b>
+    <dl>
+      <dt>stroke</dt><dd>1.4/1.8</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#9A9A9A #EA4335</dd>
+    </dl>
+    <p class="n">one Google hue on a grey envelope</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#2684FF" d="M11.53 2 4.93 8.6a2 2 0 0 0 0 2.83l6.6 6.6 1.42-1.41-6.19-6.19 6.19-6.02z"/><path fill="#2684FF" opacity="0.55" d="M12.47 5.97 18.66 12.16a2 2 0 0 1 0 2.83L12.47 21.18l-1.42-1.41 6.19-6.19-6.19-6.2z"/></svg></div>
+  <figcaption>
+    <b>jira</b>
+    <dl>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>0.55</dd>
+      <dt>ink</dt><dd class="ink">#2684FF</dd>
+    </dl>
+    <p class="n">two flat chevrons</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#2684FF" d="M2.9 17.6c2.7-4.4 6-5.1 10.6-2.9l5.4 2.5-1.8 3.7-5.3-2.4c-3-1.4-4.5-1-6.1 1.7z"/><path fill="#2684FF" opacity="0.55" d="M21.1 6.4c-2.7 4.4-6 5.1-10.6 2.9L5.1 6.8 6.9 3.1l5.3 2.4c3 1.4 4.5 1 6.1-1.7z"/></svg></div>
+  <figcaption>
+    <b>confluence</b>
+    <dl>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>0.55</dd>
+      <dt>ink</dt><dd class="ink">#2684FF</dd>
+    </dl>
+    <p class="n">two flat swooshes</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path stroke="#D97757" stroke-width="1.9" stroke-linecap="round" d="M12 3.6v4M12 16.4v4M3.6 12h4M16.4 12h4M6.1 6.1l2.8 2.8M15.1 15.1l2.8 2.8M17.9 6.1l-2.8 2.8M8.9 15.1l-2.8 2.8"/></svg></div>
+  <figcaption>
+    <b>claude</b>
+    <dl>
+      <dt>stroke</dt><dd>1.9</dd>
+      <dt>cap</dt><dd>round</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#D97757</dd>
+    </dl>
+    <p class="n">only round cap in the set</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="#FFFFFF" stroke-width="1.6" d="M12 3.2 19.6 7.6v8.8L12 20.8 4.4 16.4V7.6z"/><path fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity="0.55" d="M12 7.5 15.9 9.75v4.5L12 16.5 8.1 14.25v-4.5z" transform="rotate(30 12 12)"/></svg></div>
+  <figcaption>
+    <b>codex</b>
+    <dl>
+      <dt>stroke</dt><dd>1.6/1.2</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>0.55</dd>
+      <dt>ink</dt><dd class="ink">#FFFFFF</dd>
+    </dl>
+    <p class="n">generic hexagon</p>
+  </figcaption>
+</figure>
+<figure class="t flag">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><path stroke="#15846E" stroke-width="1.5" fill="none" d="M12 17.2 5.4 7.6M12 17.2V5.2M12 17.2l6.6-9.6"/><circle cx="12" cy="17.2" r="2.5" fill="#15846E"/><circle cx="5.4" cy="7.6" r="2" fill="#15846E"/><circle cx="12" cy="5.2" r="2" fill="#15846E"/><circle cx="18.6" cy="7.6" r="2" fill="#15846E"/></svg></div>
+  <figcaption>
+    <b>hydra</b>
+    <dl>
+      <dt>stroke</dt><dd>1.5</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#15846E</dd>
+    </dl>
+    <p class="n">not the vendor mark</p>
+  </figcaption>
+</figure>
+</div>
+
+<h2>The mark, and the second icon system</h2>
+<p class="lede">The mark is a logo, not an icon, so its 1.9 weight is its own. The five state glyphs live in web/src/app/routes/context.tsx on a 0 0 10 10 viewBox with a 1.2 stroke, so they are a separate system from the 24px set; they are shown here scaled into a 24px box for comparison only.</p>
+<div class="grid">
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24"><g transform="translate(-1.2 1.475)"><path d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="2.6" r="1.9" fill="#FFB829"/></g></svg></div>
+  <figcaption>
+    <b>mark</b>
+    <dl>
+      <dt>stroke</dt><dd>1.9</dd>
+      <dt>cap</dt><dd>round</dd>
+      <dt>rx</dt><dd>–</dd>
+      <dt>opacity</dt><dd>–</dd>
+      <dt>ink</dt><dd class="ink">#FFFFFF #FFB829</dd>
+    </dl>
+    <p class="n">mark.tsx &middot; logo, not an icon</p>
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.2" fill="#8052FF"/></svg></div>
+  <figcaption>
+    <b>CUR</b>
+    <dl>
+      <dt>viewBox</dt><dd>0 0 10 10</dd>
+      <dt>stroke</dt><dd>fill only</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>means</dt><dd>CURRENT</dd>
+    </dl>
+    <p class="n">separate system</p>
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#71717A" stroke-width="1.2"/></svg></div>
+  <figcaption>
+    <b>SUP</b>
+    <dl>
+      <dt>viewBox</dt><dd>0 0 10 10</dd>
+      <dt>stroke</dt><dd>1.2</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>means</dt><dd>HISTORICAL</dd>
+    </dl>
+    <p class="n">separate system</p>
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#71717A" stroke-width="1.2" stroke-dasharray="2 2"/></svg></div>
+  <figcaption>
+    <b>PRO</b>
+    <dl>
+      <dt>viewBox</dt><dd>0 0 10 10</dd>
+      <dt>stroke</dt><dd>1.2</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>means</dt><dd>PROPOSAL</dd>
+    </dl>
+    <p class="n">separate system</p>
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 10 10"><path d="M5 9V5.5M5 5.5L2 1.5M5 5.5L8 1.5" fill="none" stroke="#BDBDBD" stroke-width="1.2"/></svg></div>
+  <figcaption>
+    <b>CON</b>
+    <dl>
+      <dt>viewBox</dt><dd>0 0 10 10</dd>
+      <dt>stroke</dt><dd>1.2</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>means</dt><dd>CONTRADICTED</dd>
+    </dl>
+    <p class="n">separate system</p>
+  </figcaption>
+</figure>
+<figure class="t">
+  <div class="ic"><svg width="24" height="24" viewBox="0 0 10 10"><path d="M8 5A3 3 0 1 1 5 2" fill="none" stroke="#9A9A9A" stroke-width="1.2"/></svg></div>
+  <figcaption>
+    <b>UN</b>
+    <dl>
+      <dt>viewBox</dt><dd>0 0 10 10</dd>
+      <dt>stroke</dt><dd>1.2</dd>
+      <dt>cap</dt><dd>butt</dd>
+      <dt>means</dt><dd>UNSUPPORTED</dd>
+    </dl>
+    <p class="n">separate system</p>
+  </figcaption>
+</figure>
+</div>
+
+<p class="key">
+<b>READING THIS SHEET.</b><br>
+An <span class="amber">amber border</span> marks an entry this audit calls out, and the amber line inside it says why.<br>
+Stroke, cap, rx and opacity are read straight out of the source, not measured off the render.<br>
+The five state glyphs are drawn from context.tsx at their own viewBox and are not part of the 24px set.<br>
+Generated from web/src/design/icons.ts. No icon was edited to produce this sheet.
+</p>

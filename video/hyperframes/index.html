@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Lacuna — memory that knows what changed</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: 'Space Grotesk';
+        src: url('assets/fonts/space-grotesk-latin.woff2') format('woff2');
+        font-weight: 300 700;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('assets/fonts/jetbrains-mono-latin.woff2') format('woff2');
+        font-weight: 400 500;
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000000; }
+      body { font-family: 'Space Grotesk', system-ui, sans-serif; color: #FFFFFF; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      .ground { position: absolute; inset: 0; background: #000000; }
+      .scene { position: absolute; inset: 0; overflow: hidden; }
+      .stack { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 30px; padding: 0 150px; }
+      .stack.center { align-items: center; text-align: center; }
+      .stack.left { align-items: flex-start; }
+      .hero { font-size: 104px; font-weight: 300; line-height: 1.08; letter-spacing: -0.03em; }
+      .big { font-size: 76px; font-weight: 300; letter-spacing: -0.02em; }
+      .line { font-size: 34px; font-weight: 300; color: #BDBDBD; }
+      .url { font-family: 'JetBrains Mono', monospace; font-size: 34px; color: #8052FF; letter-spacing: 0.02em; }
+      .kicker { font-family: 'JetBrains Mono', monospace; font-size: 17px; letter-spacing: 0.24em; color: #757575; }
+      .kicker.violet { color: #8052FF; }
+      .mark { width: 96px; height: 96px; border-radius: 50%; border: 2px solid #8052FF; border-right-color: transparent; }
+      .sources { list-style: none; display: flex; flex-direction: column; gap: 22px; width: 100%; max-width: 1300px; }
+      .sources li { display: flex; align-items: baseline; gap: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
+      .src { font-size: 34px; color: #BDBDBD; width: 300px; }
+      .val { font-size: 40px; font-weight: 300; flex: 1; }
+      .tag { font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 0.2em; color: #8C8C8C; }
+      .tag.amber { color: #FFB829; }
+      .pipe { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+      .node { font-family: 'JetBrains Mono', monospace; font-size: 21px; letter-spacing: 0.16em; color: #BDBDBD; border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 18px 26px; }
+      .node.violet { color: #FFFFFF; border-color: #8052FF; }
+      .arrow { color: #757575; font-size: 30px; }
+      .bench { border-collapse: collapse; width: 100%; max-width: 1250px; }
+      .bench td { font-size: 40px; font-weight: 300; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #BDBDBD; }
+      .bench .num { font-family: 'JetBrains Mono', monospace; font-size: 34px; text-align: right; width: 300px; color: #FFFFFF; }
+      .bench .num.dim { color: #8C8C8C; }
+      .bench .win td { color: #FFFFFF; border-bottom-color: #8052FF; }
+      .bench .win .num { color: #8052FF; }
+      .pan { position: absolute; top: 0; left: 0; width: 2880px; height: 3516px; }
+      .full { position: absolute; top: 0; left: 0; width: 2880px; height: 1620px; }
+      .band { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; background: #000000; border-top: 1px solid rgba(128,82,255,0.5); }
+      .caption { position: absolute; left: 120px; bottom: 74px; display: flex; flex-direction: column; gap: 16px; max-width: 1100px; }
+      .caption .note { font-size: 40px; font-weight: 300; color: #FFFFFF; line-height: 1.2; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="lacuna" data-start="0" data-width="1920" data-height="1080" data-duration="131.23" data-fps="30">
+      <div class="ground"></div>
+      <section id="s01" class="clip scene open" data-start="0.8" data-duration="6.18" data-track-index="1">
+        <div class="stack center">
+          <div id="s01-mark" class="mark"></div>
+          <h1 id="s01-h" class="hero">Memory that knows<br class="allowed" />what changed.</h1>
+          <p id="s01-k" class="kicker">CONTEXT FOR LONG RUNNING AGENTS</p>
+        </div>
+      </section>
+      <section id="s02" class="clip scene problem" data-start="6.98" data-duration="15.84" data-track-index="1">
+        <div class="stack left">
+          <p class="kicker">ONE QUESTION, FOUR ANSWERS STILL IN MEMORY</p>
+          <ul class="sources">
+            <li id="s02-a"><span class="src">README</span><span class="val">Redis</span><span class="tag">STALE</span></li>
+            <li id="s02-b"><span class="src">Slack thread</span><span class="val">Postgres?</span><span class="tag">PROPOSAL</span></li>
+            <li id="s02-c"><span class="src">Pull request</span><span class="val">Postgres</span><span class="tag amber">IMPLEMENTED</span></li>
+            <li id="s02-d"><span class="src">Runbook</span><span class="val">Postgres</span><span class="tag amber">CONFIRMED</span></li>
+          </ul>
+          <p id="s02-q" class="line">Where does session state live now?</p>
+        </div>
+      </section>
+      <section id="s03" class="clip scene project" data-start="22.82" data-duration="12.59" data-track-index="1">
+        <div class="stack left">
+          <p class="kicker">LACUNA · BUILT ON HYDRADB</p>
+          <div class="pipe">
+            <span id="s03-1" class="node">CONVERSATIONS</span>
+            <span id="s03-2" class="arrow">→</span>
+            <span id="s03-3" class="node">CLAIMS · TIME · SOURCE</span>
+            <span id="s03-4" class="arrow">→</span>
+            <span id="s03-5" class="node violet">ANSWER · EVIDENCE</span>
+          </div>
+          <p id="s03-l" class="line">Answers come from the claims, not from the text.</p>
+        </div>
+      </section>
+      <section id="s04" class="clip scene judge" data-start="35.41" data-duration="9.94" data-track-index="1">
+        <img id="s04-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="" />
+        <div class="band"></div>
+        <div id="s04-cap" class="caption">
+          <span class="kicker violet">CURRENT STATE</span>
+          <span class="note">Answered, and the sources it rests on.</span>
+        </div>
+      </section>
+      <section id="s05" class="clip scene judge" data-start="45.35" data-duration="10.87" data-track-index="1">
+        <img id="s05-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="" />
+        <div class="band"></div>
+        <div id="s05-cap" class="caption">
+          <span class="kicker violet">REVISED</span>
+          <span class="note">The replaced value stays readable as history.</span>
+        </div>
+      </section>
+      <section id="s06" class="clip scene judge" data-start="56.22" data-duration="10.41" data-track-index="1">
+        <img id="s06-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="" />
+        <div class="band"></div>
+        <div id="s06-cap" class="caption">
+          <span class="kicker violet">SOURCES DISAGREE</span>
+          <span class="note">Both kept. Neither picked.</span>
+        </div>
+      </section>
+      <section id="s07" class="clip scene judge" data-start="66.63" data-duration="8.46" data-track-index="1">
+        <img id="s07-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="" />
+        <div class="band"></div>
+        <div id="s07-cap" class="caption">
+          <span class="kicker violet">NO EVIDENCE</span>
+          <span class="note">A value nobody ever stated.</span>
+        </div>
+      </section>
+      <section id="s08" class="clip scene judge" data-start="75.09" data-duration="9.67" data-track-index="1">
+        <img id="s08-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="" />
+        <div class="band"></div>
+        <div id="s08-cap" class="caption">
+          <span class="kicker violet">TWO HOPS</span>
+          <span class="note">The answer is on a second entity.</span>
+        </div>
+      </section>
+      <section id="s09" class="clip scene shot" data-start="84.76" data-duration="13.34" data-track-index="1">
+        <img id="s09-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-1920x1080.png" alt="" />
+        <div class="band"></div>
+        <div id="s09-cap" class="caption">
+          <span class="kicker violet">HYDRADB CLOUD</span>
+          <span class="note">72 conversations as evidence · 86 entity records as claims</span>
+        </div>
+      </section>
+      <section id="s10" class="clip scene bench" data-start="98.1" data-duration="14.91" data-track-index="1">
+        <div class="stack left">
+          <p class="kicker">64 GOLD QUESTIONS · FIVE RETRIEVAL BASELINES · artifacts/bench/results.json</p>
+          <table class="bench">
+            <tr id="s10-r1"><td>recency</td><td class="num">46</td><td class="num dim">1029 tokens</td></tr>
+            <tr id="s10-r2"><td>vector</td><td class="num">47</td><td class="num dim">1311 tokens</td></tr>
+            <tr id="s10-r3"><td>lexical</td><td class="num">48</td><td class="num dim">516 tokens</td></tr>
+            <tr id="s10-r4"><td>hybrid</td><td class="num">48</td><td class="num dim">529 tokens</td></tr>
+            <tr id="s10-r5"><td>hybrid + 2 hop</td><td class="num">63</td><td class="num dim">1843 tokens</td></tr>
+            <tr id="s10-r6" class="win"><td>Lacuna</td><td class="num">64</td><td class="num">18 tokens</td></tr>
+          </table>
+        </div>
+      </section>
+      <section id="s11" class="clip scene parity" data-start="113.01" data-duration="9.53" data-track-index="1">
+        <div class="stack center">
+          <p class="kicker">SELF HOSTED NODE VERSUS HYDRADB CLOUD</p>
+          <h2 id="s11-h" class="big">ALL_IDENTICAL: true</h2>
+          <p id="s11-l" class="line">64 questions, compared field by field. artifacts/hydra/cloud-parity.json</p>
+        </div>
+      </section>
+      <section id="s12" class="clip scene close" data-start="122.54" data-duration="8.09" data-track-index="1">
+        <div class="stack center">
+          <div id="s12-mark" class="mark"></div>
+          <h2 id="s12-h" class="big">One context. Any agent.</h2>
+          <p id="s12-u" class="url">lacuna-five.vercel.app/judge</p>
+          <p id="s12-r" class="kicker">github.com/vaibhav4046/lacuna</p>
+        </div>
+      </section>
+      <audio id="s01-vo" src="assets/narration/s01.mp3" data-start="0.8" data-duration="4.78" data-track-index="2"></audio>
+      <audio id="s02-vo" src="assets/narration/s02.mp3" data-start="6.98" data-duration="14.44" data-track-index="2"></audio>
+      <audio id="s03-vo" src="assets/narration/s03.mp3" data-start="22.82" data-duration="11.19" data-track-index="2"></audio>
+      <audio id="s04-vo" src="assets/narration/s04.mp3" data-start="35.41" data-duration="8.54" data-track-index="2"></audio>
+      <audio id="s05-vo" src="assets/narration/s05.mp3" data-start="45.35" data-duration="9.47" data-track-index="2"></audio>
+      <audio id="s06-vo" src="assets/narration/s06.mp3" data-start="56.22" data-duration="9.01" data-track-index="2"></audio>
+      <audio id="s07-vo" src="assets/narration/s07.mp3" data-start="66.63" data-duration="7.06" data-track-index="2"></audio>
+      <audio id="s08-vo" src="assets/narration/s08.mp3" data-start="75.09" data-duration="8.27" data-track-index="2"></audio>
+      <audio id="s09-vo" src="assets/narration/s09.mp3" data-start="84.76" data-duration="11.94" data-track-index="2"></audio>
+      <audio id="s10-vo" src="assets/narration/s10.mp3" data-start="98.1" data-duration="13.51" data-track-index="2"></audio>
+      <audio id="s11-vo" src="assets/narration/s11.mp3" data-start="113.01" data-duration="8.13" data-track-index="2"></audio>
+      <audio id="s12-vo" src="assets/narration/s12.mp3" data-start="122.54" data-duration="6.69" data-track-index="2"></audio>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+  tl.fromTo("#s01", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0.8);
+  tl.fromTo("#s01-mark", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.1, ease: "power3.out" }, 0.9);
+  tl.fromTo("#s01-h", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: "power3.out" }, 1.3);
+  tl.fromTo("#s01-k", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 2.2);
+  tl.fromTo("#s02", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 6.98);
+  tl.fromTo("#s02-a", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 7.58);
+  tl.fromTo("#s02-b", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 9.08);
+  tl.fromTo("#s02-c", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 10.58);
+  tl.fromTo("#s02-d", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 12.08);
+  tl.fromTo("#s02-q", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 14.38);
+  tl.fromTo("#s03", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 22.82);
+  tl.fromTo("#s03-1", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 23.52);
+  tl.fromTo("#s03-2", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 24.22);
+  tl.fromTo("#s03-3", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 24.919999999999998);
+  tl.fromTo("#s03-4", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 25.619999999999997);
+  tl.fromTo("#s03-5", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 26.32);
+  tl.fromTo("#s03-l", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 28.02);
+  tl.fromTo("#s04", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 35.41);
+  tl.fromTo("#s04-img", { x: -560, y: -492 }, { x: -560, y: -462, duration: 9.94, ease: "none" }, 35.41);
+  tl.fromTo("#s04-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 35.709999999999994);
+  tl.fromTo("#s05", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 45.35);
+  tl.fromTo("#s05-img", { x: -560, y: -932 }, { x: -560, y: -902, duration: 10.87, ease: "none" }, 45.35);
+  tl.fromTo("#s05-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 45.65);
+  tl.fromTo("#s06", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 56.22);
+  tl.fromTo("#s06-img", { x: -560, y: -1352 }, { x: -560, y: -1322, duration: 10.41, ease: "none" }, 56.22);
+  tl.fromTo("#s06-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 56.519999999999996);
+  tl.fromTo("#s07", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 66.63);
+  tl.fromTo("#s07-img", { x: -560, y: -2252 }, { x: -560, y: -2222, duration: 8.46, ease: "none" }, 66.63);
+  tl.fromTo("#s07-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 66.92999999999999);
+  tl.fromTo("#s08", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 75.09);
+  tl.fromTo("#s08-img", { x: -560, y: -2652 }, { x: -560, y: -2622, duration: 9.67, ease: "none" }, 75.09);
+  tl.fromTo("#s08-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 75.39);
+  tl.fromTo("#s09", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 84.76);
+  tl.fromTo("#s09-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 13.34, ease: "none" }, 84.76);
+  tl.fromTo("#s09-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 85.06);
+  tl.fromTo("#s10", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 98.1);
+  tl.fromTo("#s10-r1", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 99);
+  tl.fromTo("#s10-r2", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 100.35);
+  tl.fromTo("#s10-r3", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 101.7);
+  tl.fromTo("#s10-r4", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 103.05);
+  tl.fromTo("#s10-r5", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 104.4);
+  tl.fromTo("#s10-r6", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 105.75);
+  tl.fromTo("#s11", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 113.01);
+  tl.fromTo("#s11-h", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 113.41000000000001);
+  tl.fromTo("#s11-l", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 115.21000000000001);
+  tl.fromTo("#s12", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 122.54);
+  tl.fromTo("#s12-mark", { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 1, ease: "power3.out" }, 122.64);
+  tl.fromTo("#s12-h", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 123.14);
+  tl.fromTo("#s12-u", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 124.14);
+  tl.fromTo("#s12-r", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 124.94000000000001);
+      window.__timelines["lacuna"] = tl;
+    </script>
+  </body>
+</html>

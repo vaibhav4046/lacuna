@@ -1,0 +1,67 @@
+{
+  "voice": "JBFqnCBsd6RMkjVDRZzb",
+  "model": "eleven_multilingual_v2",
+  "scenes": [
+    {
+      "id": "s01",
+      "seconds": 4.78,
+      "words": 14
+    },
+    {
+      "id": "s02",
+      "seconds": 14.44,
+      "words": 40
+    },
+    {
+      "id": "s03",
+      "seconds": 11.19,
+      "words": 33
+    },
+    {
+      "id": "s04",
+      "seconds": 8.54,
+      "words": 26
+    },
+    {
+      "id": "s05",
+      "seconds": 9.47,
+      "words": 28
+    },
+    {
+      "id": "s06",
+      "seconds": 9.01,
+      "words": 23
+    },
+    {
+      "id": "s07",
+      "seconds": 7.06,
+      "words": 21
+    },
+    {
+      "id": "s08",
+      "seconds": 8.27,
+      "words": 22
+    },
+    {
+      "id": "s09",
+      "seconds": 11.94,
+      "words": 29
+    },
+    {
+      "id": "s10",
+      "seconds": 13.51,
+      "words": 31
+    },
+    {
+      "id": "s11",
+      "seconds": 8.13,
+      "words": 20
+    },
+    {
+      "id": "s12",
+      "seconds": 6.69,
+      "words": 16
+    }
+  ],
+  "totalSeconds": 113.03
+}

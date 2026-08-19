@@ -1,0 +1,65 @@
+# Lacuna — demo narration
+
+Locked. Every number here is in the repository as an artifact, and nothing is
+said that a viewer could not check.
+
+- 64 of 64, 18 context tokens, and the baselines: `artifacts/bench/results.json`
+- 72 conversations, 86 entity records: `artifacts/hydra/cloud-ingest.json`
+- identical across both stores: `artifacts/hydra/cloud-parity.json`
+
+Latency is deliberately not narrated. It is measured per request and it is on
+the screen in every capture; a spoken figure would be a figure from one run
+presented as a property of the product.
+
+Voice: ElevenLabs, George. One clip per scene so a timing repair does not cost
+the whole track.
+
+---
+
+## s01 · open
+
+An agent that remembers everything has a problem. It cannot tell you what changed.
+
+## s02 · problem
+
+A README says Redis. A Slack thread proposes Postgres. A pull request implements it. A runbook confirms it. All four are still in memory. Ask where session state lives now, and a retriever hands the model all four and hopes.
+
+## s03 · project
+
+Lacuna is a context layer built on HydraDB. It reads the conversations, turns them into claims that carry a time and a source, and answers from the claims rather than from the text.
+
+## s04 · current
+
+This is the deployed product, and every row on it is computed when the page loads. Current state: answered, with the two sources it rests on.
+
+## s05 · revised
+
+A value that changed. The answer is the current one. The one it replaced stays readable as history, because nothing is deleted to make the picture look clean.
+
+## s06 · conflict
+
+Two sources disagree. Lacuna keeps both and refuses to pick. A confident guess here is the failure this whole product exists to prevent.
+
+## s07 · abstain
+
+A real subject, and a value nobody ever stated. No evidence, so no answer, and the reason is on the screen.
+
+## s08 · hop
+
+The contact for the vendor behind a package. That answer sits on a second entity, reached through the first. Answered, and cited.
+
+## s09 · hydradb
+
+HydraDB Cloud holds all of it. Seventy two conversations as evidence. Eighty six entity records as claims. Evidence and claims kept apart, because they are different kinds of thing.
+
+## s10 · benchmark
+
+Measured against five retrieval baselines over sixty four questions. The strongest baseline reaches sixty three, and spends eighteen hundred context tokens to do it. Lacuna answers all sixty four, on eighteen.
+
+## s11 · parity
+
+The same sixty four questions asked of a self hosted node and of HydraDB Cloud, compared field by field. Identical.
+
+## s12 · close
+
+One context. Any agent. The repository, the deployment, and every artifact behind these numbers are public.

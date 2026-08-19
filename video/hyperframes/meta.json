@@ -1,0 +1,78 @@
+{
+  "title": "Lacuna — memory that knows what changed",
+  "durationSeconds": 131.23,
+  "scenes": [
+    {
+      "id": "s01",
+      "kind": "open",
+      "start": 0.8,
+      "duration": 6.18
+    },
+    {
+      "id": "s02",
+      "kind": "problem",
+      "start": 6.98,
+      "duration": 15.84
+    },
+    {
+      "id": "s03",
+      "kind": "project",
+      "start": 22.82,
+      "duration": 12.59
+    },
+    {
+      "id": "s04",
+      "kind": "judge",
+      "start": 35.41,
+      "duration": 9.94
+    },
+    {
+      "id": "s05",
+      "kind": "judge",
+      "start": 45.35,
+      "duration": 10.87
+    },
+    {
+      "id": "s06",
+      "kind": "judge",
+      "start": 56.22,
+      "duration": 10.41
+    },
+    {
+      "id": "s07",
+      "kind": "judge",
+      "start": 66.63,
+      "duration": 8.46
+    },
+    {
+      "id": "s08",
+      "kind": "judge",
+      "start": 75.09,
+      "duration": 9.67
+    },
+    {
+      "id": "s09",
+      "kind": "shot",
+      "start": 84.76,
+      "duration": 13.34
+    },
+    {
+      "id": "s10",
+      "kind": "bench",
+      "start": 98.1,
+      "duration": 14.91
+    },
+    {
+      "id": "s11",
+      "kind": "parity",
+      "start": 113.01,
+      "duration": 9.53
+    },
+    {
+      "id": "s12",
+      "kind": "close",
+      "start": 122.54,
+      "duration": 8.09
+    }
+  ]
+}

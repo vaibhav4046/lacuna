@@ -412,9 +412,9 @@ function check(shot: Shot, reading: Reading): void {
 const LIVE_SHOTS: readonly Shot[] = [
   { file: 'live-landing-1920x1080.png', url: '/', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 2_500 },
   { file: 'live-landing-375x812.png', url: '/', width: 375, height: 812, prefers: 'dark', whole: false, settleMs: 2_500 },
-  { file: 'live-judge-fullpage.png', url: '/judge', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 9_000 },
-  { file: 'live-judge-1920x1080.png', url: '/judge', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 9_000 },
-  { file: 'live-judge-375x812.png', url: '/judge', width: 375, height: 812, prefers: 'dark', whole: false, settleMs: 9_000 },
+  { file: 'live-judge-fullpage.png', url: '/judge', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 22_000 },
+  { file: 'live-judge-1920x1080.png', url: '/judge', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 22_000 },
+  { file: 'live-judge-375x812.png', url: '/judge', width: 375, height: 812, prefers: 'dark', whole: false, settleMs: 22_000 },
   { file: 'live-dashboard-1920x1080.png', url: '/demo/dash', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
   { file: 'live-memory-fullpage.png', url: '/demo/memory', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 4_000 },
   { file: 'live-timeline-1920x1080.png', url: '/demo/timeline', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },

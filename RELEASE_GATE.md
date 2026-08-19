@@ -47,6 +47,8 @@ started as a subprocess, all reading the same HydraDB Cloud workspace.
 | Gate | Result | Command |
 | --- | --- | --- |
 | Google sign in, on production, in a real browser | a new account created from a verified address, landing on onboarding | by hand, recorded in this table |
+| the same account signing in again | went straight to the dashboard rather than onboarding, so the account and its workspace survived in HydraDB Cloud and the callback routed on stored state. Settings confirmed the same address. **The workspace name differed from the one entered minutes earlier**, and that is recorded rather than explained away: the browser is the owner's own and was in use, so the change cannot be attributed with certainty and is not claimed as a defect or as a pass | by hand |
+| the five onboarding steps | completed end to end for a Google account, HydraDB reporting genuinely connected at step two, and the dashboard opening on a real empty workspace at `0 current · 0 historical · 0 conflict` rather than seeded data | by hand |
 | what Lacuna refuses as an identity | 15 of 15, and eleven of them are refusals: an unverified address, a token minted for another application, another issuer, an expired token, no address, a failed exchange, and something that is not a JWT | `npx vitest run tests/unit/google-auth.test.ts` |
 | sign up, session survives another invocation, workspace persists, sign out, sign back in from a clean jar, wrong password refused | 12 of 12 | `npm run smoke:auth -- https://lacuna-five.vercel.app` |
 

@@ -164,7 +164,11 @@ describe('lacuna, as a process', () => {
     // shape is a JSON error object; the shape that keeps a pipeline honest is
     // silence on stdout and the reason on stderr, because half a document is
     // worse than none.
+    // Pinned to the node profile as well as blanked, so the case is the same
+    // case on a machine that also has a cloud database configured. Without the
+    // pin this test asks whichever store the developer happens to have.
     const result = await cli(['ask', 'Bellwether', 'beta_partner', '--json'], {
+      LACUNA_PROFILE: 'node',
       HYDRA_HTTP_URL: '',
     });
 

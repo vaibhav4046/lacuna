@@ -3,6 +3,7 @@ import { bestPerFamily } from '../report/bench.js';
 import type { Answer } from '../retrieval/types.js';
 import type { BenchResult } from './bench.js';
 import type { DoctorReport } from './doctor.js';
+import type { ProfileReport } from './profile.js';
 import type { StatusReport } from './status.js';
 
 /**
@@ -37,6 +38,18 @@ export function doctorPayload(report: DoctorReport): unknown {
       state: check.state,
       detail: check.detail,
     })),
+  };
+}
+
+/** Which store this machine reads. Names only: no address, no token. */
+export function profilePayload(report: ProfileReport): unknown {
+  return {
+    command: 'profile',
+    profile: report.profile,
+    decidedBy: report.decidedBy,
+    store: report.store,
+    available: report.available,
+    problem: report.problem,
   };
 }
 

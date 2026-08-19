@@ -10,6 +10,9 @@ import { renderAsk, renderExplain, renderTimeline } from './human.js';
 import { renderBench, renderDoctor, renderStatus } from './human-report.js';
 import { benchPayload, doctorPayload, questionPayload, render, statusPayload } from './json.js';
 import { readRequiredNode, readVersion } from './manifest.js';
+import { profilePayload } from './json.js';
+import { renderProfile } from './human-report.js';
+import { runProfile } from './profile.js';
 import { runQuestion } from './question.js';
 import { runStatus } from './status.js';
 
@@ -30,8 +33,16 @@ import { runStatus } from './status.js';
 /** src/cli/main.ts sits two levels below the repository root. */
 const ROOT = new URL('../../', import.meta.url);
 
-/** Read when it exists. Never overwrites a variable the shell already set. */
-const ENV_FILE = '.env.local';
+/**
+ * Read when they exist, in this order, and neither overwrites a variable the
+ * shell already set.
+ *
+ * Two files because there are two stores. `.env.local` configures the
+ * self-hosted node; `.env.cloud` configures HydraDB Cloud under distinct
+ * names, so a machine can hold both and `LACUNA_PROFILE` picks between them
+ * rather than one file silently overwriting the other.
+ */
+const ENV_FILES = ['.env.local', '.env.cloud'] as const;
 
 export interface Streams {
   readonly out: (text: string) => void;
@@ -71,6 +82,12 @@ async function dispatch(
   if (command === 'status') {
     const report = await runStatus(env, timeoutMs);
     streams.out(json ? render(statusPayload(report)) : block(renderStatus(report, palette)));
+    return EXIT_OK;
+  }
+
+  if (command === 'profile') {
+    const report = runProfile(env);
+    streams.out(json ? render(profilePayload(report)) : block(renderProfile(report, palette)));
     return EXIT_OK;
   }
 
@@ -123,7 +140,7 @@ export async function main(
   argv: readonly string[],
   streams: Streams = PROCESS_STREAMS,
 ): Promise<number> {
-  loadEnvFile(new URL(ENV_FILE, ROOT));
+  for (const file of ENV_FILES) loadEnvFile(new URL(file, ROOT));
   const env = process.env;
 
   try {

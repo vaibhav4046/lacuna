@@ -1,0 +1,85 @@
+{
+  "store": "HydraDB Cloud, database lacuna, collection backend",
+  "deployment": "https://lacuna-five.vercel.app",
+  "clients": [
+    "web (https)",
+    "cli (local process)",
+    "mcp (stdio subprocess)"
+  ],
+  "questions": 6,
+  "identical": true,
+  "rows": [
+    {
+      "id": "q-stable-01",
+      "same": true,
+      "envelope": {
+        "status": "ANSWERED",
+        "answer": "25 July 2026",
+        "evidence": 1,
+        "revisions": 0,
+        "conflicts": 0,
+        "reason": null
+      }
+    },
+    {
+      "id": "q-revised-01",
+      "same": true,
+      "envelope": {
+        "status": "ANSWERED",
+        "answer": "Halverd",
+        "evidence": 1,
+        "revisions": 2,
+        "conflicts": 0,
+        "reason": null
+      }
+    },
+    {
+      "id": "q-retracted-01",
+      "same": true,
+      "envelope": {
+        "status": "NO_EVIDENCE",
+        "answer": null,
+        "evidence": 2,
+        "revisions": 1,
+        "conflicts": 0,
+        "reason": "retracted"
+      }
+    },
+    {
+      "id": "q-contradicted-01",
+      "same": true,
+      "envelope": {
+        "status": "CONFLICT",
+        "answer": null,
+        "evidence": 2,
+        "revisions": 0,
+        "conflicts": 1,
+        "reason": "contradicted"
+      }
+    },
+    {
+      "id": "q-multi_hop-01",
+      "same": true,
+      "envelope": {
+        "status": "ANSWERED",
+        "answer": "Farah Haddad",
+        "evidence": 2,
+        "revisions": 0,
+        "conflicts": 0,
+        "reason": null
+      }
+    },
+    {
+      "id": "q-out_of_scope-01",
+      "same": true,
+      "envelope": {
+        "status": "NO_EVIDENCE",
+        "answer": null,
+        "evidence": 0,
+        "revisions": 0,
+        "conflicts": 0,
+        "reason": "out_of_scope"
+      }
+    }
+  ]
+}

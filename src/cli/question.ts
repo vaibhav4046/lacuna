@@ -1,6 +1,4 @@
-import { HydraClient } from '../hydra/client.js';
-import { NodeSource } from '../hydra/node-source.js';
-import { loadHydraConfig } from '../hydra/config.js';
+import { openSource } from '../hydra/open.js';
 import { ask } from '../retrieval/fetch.js';
 import { buildQuestion } from '../retrieval/question.js';
 import type { Answer } from '../retrieval/types.js';
@@ -27,8 +25,9 @@ export async function runQuestion(
   },
   timeoutMs: number,
 ): Promise<Answer> {
-  const config = loadHydraConfig(env);
-  const client = new HydraClient(config);
+  // Whichever store this machine is configured for. The command does not
+  // know which one answered and does not need to: both return claims.
+  const { source } = openSource(env);
   const question = buildQuestion(request.subject, request.predicate, request.via);
-  return ask(new NodeSource(client), question, { timeoutMs });
+  return ask(source, question, { timeoutMs });
 }

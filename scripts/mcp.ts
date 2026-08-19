@@ -5,8 +5,8 @@ import { format } from 'node:util';
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { HydraClient } from '../src/hydra/client.js';
 import { loadHydraConfig } from '../src/hydra/config.js';
+import { openSource } from '../src/hydra/open.js';
 import { createMcpListener, MCP_PATH } from '../src/mcp/http.js';
 import { describeNode } from '../src/mcp/result.js';
 import { createMcpServer, SERVER_NAME, SERVER_VERSION, type ToolContext } from '../src/mcp/server.js';
@@ -111,10 +111,19 @@ function sendConsoleToStderr(): void {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  const config = loadHydraConfig();
+  // Whichever store this machine is configured for. LACUNA_PROFILE=cloud
+  // makes this server read the same workspace production reads.
+  const opened = openSource();
   const context: ToolContext = {
-    client: new HydraClient(config),
-    node: describeNode(config),
+    source: opened.source,
+    node: opened.client === null
+      ? {
+        namespace: opened.cloud?.database ?? 'unknown',
+        graph: opened.cloud?.collection ?? 'unknown',
+        cell: 'hydradb-cloud',
+      }
+      : describeNode(loadHydraConfig()),
+    store: opened.profile,
   };
 
   if (options.transport === 'stdio') {

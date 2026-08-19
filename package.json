@@ -34,7 +34,8 @@
     "test:all": "vitest run",
     "ingest:cloud": "tsx scripts/ingest-cloud.ts",
     "parity:cloud": "tsx scripts/cloud-parity.ts",
-    "smoke:demo": "tsx scripts/smoke-demo.ts"
+    "smoke:demo": "tsx scripts/smoke-demo.ts",
+    "continuity": "tsx scripts/continuity.ts"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",

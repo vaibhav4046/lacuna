@@ -8,10 +8,8 @@ import {
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import type { HydraClient } from '../hydra/client.js';
-import { NodeSource } from '../hydra/node-source.js';
+import type { HydraSource } from '../hydra/source.js';
 import { ask, buildQuestion, RetrievalError, type RetrievalQuestion } from '../retrieval/index.js';
-import { entityByName } from '../retrieval/queries.js';
 
 import {
   askResult,
@@ -75,9 +73,15 @@ const INSTRUCTIONS
 
 /** Everything a tool call needs, and nothing that would let it write. */
 export interface ToolContext {
-  readonly client: HydraClient;
+  /**
+   * The store this server reads. A node on loopback or HydraDB Cloud; the
+   * tools cannot tell which and do not need to, because both return claims.
+   */
+  readonly source: HydraSource;
   /** Namespace, graph and cell. Never the base URL and never the token. */
   readonly node: NodeIdentity;
+  /** Which store answered, said plainly rather than inferred from the names. */
+  readonly store: 'node' | 'cloud';
   /** Deadline for one whole call. Defaults to `TOOL_TIMEOUT_MS`. */
   readonly timeoutMs?: number;
 }
@@ -228,32 +232,32 @@ export function readQuestion(args: unknown): RetrievalQuestion {
   }
 }
 
-/** One probe read, which is enough to know the node is there and what it saw. */
+/** One probe read, which is enough to know the store is there and what it saw. */
 export async function health(context: ToolContext): Promise<HealthResult> {
   const started = performance.now();
-  const probe = entityByName(HEALTH_PROBE_NAME);
 
   try {
-    const page = await context.client.query({
-      cypher: probe.cypher,
-      parameters: probe.parameters,
-      timeoutMs: context.timeoutMs ?? TOOL_TIMEOUT_MS,
-    });
+    // The same read every question starts with, against whichever store is
+    // configured. A probe that only worked on one of them would report health
+    // for a store this server might not be reading.
+    const read = await context.source.entity(
+      HEALTH_PROBE_NAME,
+      context.timeoutMs ?? TOOL_TIMEOUT_MS,
+    );
     const ms = Math.round((performance.now() - started) * 10) / 10;
+    const epoch = read.traces.find((trace) => trace.readEpoch !== null)?.readEpoch ?? null;
 
     return {
       reachable: true,
-      hydra: { ...context.node, readEpoch: page.readEpoch },
-      queries: [
-        {
-          cypher: probe.cypher,
-          request: probe.cypher,
-          parameters: probe.parameters,
-          rows: page.rows.length,
-          ms,
-          readEpoch: page.readEpoch,
-        },
-      ],
+      hydra: { ...context.node, store: context.store, readEpoch: epoch },
+      queries: read.traces.map((trace) => ({
+        cypher: trace.cypher,
+        request: trace.request,
+        parameters: trace.parameters,
+        rows: trace.rows,
+        ms: trace.ms,
+        readEpoch: trace.readEpoch,
+      })),
       timingMs: ms,
       sourceState: 'live',
       error: null,
@@ -261,7 +265,7 @@ export async function health(context: ToolContext): Promise<HealthResult> {
   } catch (error) {
     return {
       reachable: false,
-      hydra: { ...context.node, readEpoch: null },
+      hydra: { ...context.node, store: context.store, readEpoch: null },
       queries: [],
       timingMs: Math.round((performance.now() - started) * 10) / 10,
       sourceState: 'live',
@@ -316,19 +320,19 @@ export async function callTool(
 
   try {
     const answer = await withDeadline(
-      ask(new NodeSource(context.client), question, { timeoutMs }),
+      ask(context.source, question, { timeoutMs }),
       timeoutMs,
       name,
     );
 
     if (name === ASK_TOOL) {
-      return toolResult({ ...askResult(answer, context.node) });
+      return toolResult({ ...askResult(answer, context.node, context.store) });
     }
     if (name === EXPLAIN_TOOL) {
-      return toolResult({ ...explainResult(answer, context.node) });
+      return toolResult({ ...explainResult(answer, context.node, context.store) });
     }
     // The lookup above admitted four names and the other three have returned.
-    return toolResult({ ...timelineResult(answer, context.node) });
+    return toolResult({ ...timelineResult(answer, context.node, context.store) });
   } catch (error) {
     const mcpError = toMcpError(error);
     if (mcpError.code === ErrorCode.InvalidParams) {

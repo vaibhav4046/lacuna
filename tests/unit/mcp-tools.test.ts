@@ -105,7 +105,7 @@ function answer(over: Partial<Answer> = {}): Answer {
 
 describe('askResult, answered', () => {
   it('carries the value, the claim it came from, and no reason code', () => {
-    const result = askResult(answer(), NODE);
+    const result = askResult(answer(), NODE, 'node');
 
     expect(result.status).toBe('answered');
     expect(result.answer).toBe('Northfold');
@@ -114,9 +114,10 @@ describe('askResult, answered', () => {
   });
 
   it('reports the node and the epoch without the address or the token', () => {
-    const result = askResult(answer(), NODE);
+    const result = askResult(answer(), NODE, 'node');
 
     expect(result.hydra).toEqual({
+      store: 'node',
       namespace: 'test-namespace',
       graph: 'default',
       cell: 'cell-0',
@@ -129,7 +130,7 @@ describe('askResult, answered', () => {
   it('passes the queries through with their own measurements', () => {
     const result = askResult(answer({
       queries: [query({ ms: 3.1, rows: 2 }), query({ ms: 9.9, rows: 7 })],
-    }), NODE);
+    }), NODE, 'node');
 
     expect(result.queries).toHaveLength(2);
     expect(result.queries.map((item) => item.ms)).toEqual([3.1, 9.9]);
@@ -137,7 +138,7 @@ describe('askResult, answered', () => {
   });
 
   it('keeps each quotation attached to its session and message', () => {
-    const result = askResult(answer(), NODE);
+    const result = askResult(answer(), NODE, 'node');
 
     expect(result.evidence).toEqual([{
       spanId: 500,
@@ -163,7 +164,7 @@ describe('askResult, abstained', () => {
         trace: ['Looked up Bellwether.'],
       },
       evidence: [],
-    }), NODE);
+    }), NODE, 'node');
 
     expect(result.status).toBe('abstained');
     expect(result.answer).toBeNull();
@@ -185,7 +186,7 @@ describe('askResult, abstained', () => {
         trace: [],
       },
       evidence: [evidence({ claimId: 1 }), evidence({ claimId: 2, spanId: 501 })],
-    }), NODE);
+    }), NODE, 'node');
 
     expect(result.status).toBe('abstained');
     expect(result.evidence).toHaveLength(2);
@@ -209,14 +210,14 @@ describe('askResult, revision chains', () => {
   });
 
   it('lists the replaced claims in the order the resolver considered them', () => {
-    const result = askResult(revised, NODE);
+    const result = askResult(revised, NODE, 'node');
 
     expect(result.supersededClaims).toEqual([50, 70]);
     expect(result.claimId).toBe(9);
   });
 
   it('gives the timeline every claim, oldest first, with what replaced it', () => {
-    const result = timelineResult(revised, NODE);
+    const result = timelineResult(revised, NODE, 'node');
 
     expect(result.considered.map((item) => item.claimId)).toEqual([50, 70, 9]);
     expect(result.considered.map((item) => item.current)).toEqual([false, false, true]);
@@ -244,7 +245,7 @@ describe('askResult, revision chains', () => {
         hop: null,
         trace: [],
       },
-    }), NODE);
+    }), NODE, 'node');
 
     expect(result.considered[0]?.validFrom).toBe('2026-03-01T00:00:00.000Z');
     expect(result.considered[0]?.txTime).toBe('2026-05-20T00:00:00.000Z');
@@ -257,7 +258,7 @@ describe('askResult, evidence cap', () => {
       { length: MAX_EVIDENCE_ITEMS + 12 },
       (_unused, index) => evidence({ spanId: 900 + index }),
     );
-    const result = askResult(answer({ evidence: many }), NODE);
+    const result = askResult(answer({ evidence: many }), NODE, 'node');
 
     expect(result.evidence).toHaveLength(MAX_EVIDENCE_ITEMS);
     expect(result.evidenceTotal).toBe(MAX_EVIDENCE_ITEMS + 12);
@@ -268,7 +269,7 @@ describe('askResult, evidence cap', () => {
   });
 
   it('leaves a short list alone and reports the same number twice', () => {
-    const result = askResult(answer({ evidence: [evidence(), evidence({ spanId: 501 })] }), NODE);
+    const result = askResult(answer({ evidence: [evidence(), evidence({ spanId: 501 })] }), NODE, 'node');
 
     expect(result.evidence).toHaveLength(2);
     expect(result.evidenceTotal).toBe(2);
@@ -277,7 +278,7 @@ describe('askResult, evidence cap', () => {
 
 describe('explainResult', () => {
   it('adds the resolver\'s own explanation and trace to the envelope', () => {
-    const result = explainResult(answer(), NODE);
+    const result = explainResult(answer(), NODE, 'node');
 
     expect(result.status).toBe('answered');
     expect(result.explanation).toBe('Stated once and never contradicted or withdrawn.');
@@ -327,7 +328,7 @@ describe('renderJson', () => {
     // The text block and structuredContent carry the same payload. A client that
     // reads only one of them must not see a different answer from one that reads
     // the other.
-    const result = askResult(answer(), NODE);
+    const result = askResult(answer(), NODE, 'node');
 
     expect(JSON.parse(renderJson(result))).toEqual(result);
   });

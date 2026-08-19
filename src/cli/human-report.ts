@@ -2,6 +2,7 @@ import { bestPerFamily } from '../report/bench.js';
 import type { BenchResult } from './bench.js';
 import type { Palette } from './color.js';
 import type { DoctorReport } from './doctor.js';
+import type { ProfileReport } from './profile.js';
 import type { StatusReport } from './status.js';
 import { columns } from './table.js';
 
@@ -42,6 +43,27 @@ export function renderDoctor(report: DoctorReport, palette: Palette): string {
   // escape sequence plus four rather than four. Both values are the same length
   // in every row, which is why that does not misalign anything here.
   return [...columns(rows, '  '), '', `  ${verdict}`].join('\n');
+}
+
+/**
+ * The active store, and the ones this machine could reach if asked.
+ *
+ * Printed before the store is queried, so it still answers when the store is
+ * down. That is the point of the command: "which one am I talking to" is a
+ * different question from "is it up".
+ */
+export function renderProfile(report: ProfileReport, palette: Palette): string {
+  const rows = columns(
+    [
+      ['profile', report.profile],
+      ['decided by', report.decidedBy],
+      ['store', report.store],
+      ['available', report.available.length === 0 ? 'none configured' : report.available.join(', ')],
+    ],
+    '  ',
+  );
+  const warning = report.problem === null ? [] : ['', palette.warn(report.problem)];
+  return [...rows, ...warning].join(String.fromCharCode(10));
 }
 
 export function renderStatus(report: StatusReport, palette: Palette): string {

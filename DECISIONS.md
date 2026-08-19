@@ -3287,3 +3287,52 @@ frame; a spoken figure would be one run's reading presented as a property of
 the product. `docs/VIDEO_CLAIM_MAP.md` maps each of the film's twelve claims to
 the artifact that checks it, including the three things it deliberately does
 not say.
+
+### D-122: one context, any agent, as a check rather than a slogan
+
+The web read HydraDB Cloud and the CLI and the MCP server read a node on
+loopback. Three surfaces agreed with each other and not necessarily with
+production, which made the product's own sentence untrue in the one place it
+mattered: a person at a terminal was not reading the workspace the browser was.
+
+`src/hydra/open.ts` decides which store a client reads, once, in one place.
+`LACUNA_PROFILE` names it; otherwise a configured cloud wins, because a machine
+that has been given a cloud database has been told which store it belongs to. A
+machine with neither is a configuration error rather than a silent fallback:
+answering from the wrong store is worse than refusing to answer.
+
+`npm run continuity` is the gate. The deployed web API over HTTPS, the CLI on
+this machine, and an MCP server started as a subprocess the way an editor starts
+one, all pointed at the same cloud workspace and asked the same six questions:
+
+    ONE_CONTEXT_IDENTICAL: true
+
+Two existing gates had to be pinned rather than left to infer, and finding out
+why is the useful part. `npm run parity` compares three surfaces over one store;
+once this machine had a cloud database configured, its CLI leg silently began
+reading the other one and the sweep reported a disagreement that was really two
+correct answers from two stores. The children now carry `LACUNA_PROFILE=node`
+explicitly. A CLI process test failed the same way, for the same reason, and is
+now pinned too. Both were the gate telling the truth about an ambiguity that
+should never have been left to the environment.
+
+### D-123: the local node's write path broke, and the store is regenerable
+
+After a restart the node refused every write with a 500. The cause is upstream
+and visible in its own log:
+
+    object store error: Operation `put_opts` with mode `PutMode::Update`
+    not yet implemented by LocalFileSystem(...)
+
+Reads were unaffected — the 64-question sweep stayed green throughout — so the
+product was never wrong, only unable to ingest. A clean restart did not clear
+it: the store had reached a state whose recovery needs a conditional put the
+local filesystem backend does not implement.
+
+The fix is the one the architecture already paid for. Ingest is a pure function
+of a seed, so the store is derived data: it was moved aside, not deleted, a
+fresh one was created, and `npm run ingest` rebuilt it. `npm run census` then
+reported the graph matches the plan exactly, and both parity gates returned.
+
+Recorded because the tempting reading was "the contract tests broke". They did
+not. They correctly reported that a dependency could no longer accept a write.

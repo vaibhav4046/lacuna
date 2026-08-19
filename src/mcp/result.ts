@@ -59,6 +59,8 @@ export interface NodeIdentity {
 
 /** The node identity a result carries, plus the epoch the reads observed. */
 export interface HydraIdentity extends NodeIdentity {
+  /** Which store answered. A node on loopback, or HydraDB Cloud. */
+  readonly store: 'node' | 'cloud';
   readonly readEpoch: number | null;
 }
 
@@ -116,10 +118,10 @@ export function describeNode(config: HydraConfig): NodeIdentity {
  * this function adds is the part only a transport knows: which node served the
  * request, and the epoch its reads observed.
  */
-export function askResult(answer: Answer, node: NodeIdentity): AskResult {
+export function askResult(answer: Answer, node: NodeIdentity, store: 'node' | 'cloud'): AskResult {
   return {
     ...askCore(answer),
-    hydra: { ...node, readEpoch: lastReadEpoch(answer.queries) },
+    hydra: { ...node, store, readEpoch: lastReadEpoch(answer.queries) },
   };
 }
 
@@ -130,9 +132,9 @@ export function askResult(answer: Answer, node: NodeIdentity): AskResult {
  * because "why did you not answer" is the question this system exists to make
  * answerable, and a caller should not have to infer it from the reason code.
  */
-export function explainResult(answer: Answer, node: NodeIdentity): ExplainResult {
+export function explainResult(answer: Answer, node: NodeIdentity, store: 'node' | 'cloud'): ExplainResult {
   return {
-    ...askResult(answer, node),
+    ...askResult(answer, node, store),
     explanation: answer.resolution.explanation,
     trace: answer.resolution.trace,
   };
@@ -145,9 +147,9 @@ export function explainResult(answer: Answer, node: NodeIdentity): ExplainResult
  * superseded claims alongside the current one, with both timestamps, so a
  * caller can see what the corpus used to say and when it changed its mind.
  */
-export function timelineResult(answer: Answer, node: NodeIdentity): TimelineResult {
+export function timelineResult(answer: Answer, node: NodeIdentity, store: 'node' | 'cloud'): TimelineResult {
   return {
-    ...askResult(answer, node),
+    ...askResult(answer, node, store),
     considered: answer.resolution.considered.map(toRevisionItem),
   };
 }

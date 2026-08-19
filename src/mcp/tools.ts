@@ -107,14 +107,15 @@ const QUERIES_SCHEMA = {
 
 const HYDRA_SCHEMA = {
   type: 'object',
-  description: 'Which node answered. Namespace, graph and cell only, never an address or a token.',
+  description: 'Which store answered. Names only, never an address or a token.',
   properties: {
+    store: { type: 'string', enum: ['node', 'cloud'], description: 'Which store answered: a self-hosted node, or HydraDB Cloud.' },
     namespace: { type: 'string' },
     graph: { type: 'string' },
     cell: { type: 'string' },
     readEpoch: { type: ['integer', 'null'] },
   },
-  required: ['namespace', 'graph', 'cell', 'readEpoch'],
+  required: ['store', 'namespace', 'graph', 'cell', 'readEpoch'],
 } as const;
 
 /** The envelope every question tool returns. */

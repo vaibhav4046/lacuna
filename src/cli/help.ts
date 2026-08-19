@@ -48,6 +48,24 @@ exit codes
 An abstention is not a failure. "No answer" with a reason code exits 0.`;
 
 const PER_COMMAND: Record<Command, string> = {
+  profile: `lacuna profile - which context store this machine reads
+
+usage
+  lacuna profile [--json]
+
+Prints the active profile, how it was decided, and which profiles this machine
+could reach if asked. It does not query the store, so it still answers when the
+store is down.
+
+  cloud   HydraDB Cloud, configured in .env.cloud. What production reads.
+  node    the self-hosted node, configured in .env.local.
+
+LACUNA_PROFILE=cloud or LACUNA_PROFILE=node decides. Without it, a configured
+cloud wins, because a machine given a cloud database has been told which store
+it belongs to.
+
+Names of a database and a collection are printed. An address and a token are
+never printed.`,
   doctor: `lacuna doctor - check that an answer is possible
 
 usage

@@ -3,6 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { type CallToolResult, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 
+import { NodeSource } from '../../src/hydra/node-source.js';
 import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server.js';
@@ -53,9 +54,12 @@ function contextWith(
   handler: () => Promise<Response>,
   timeoutMs?: number,
 ): ToolContext {
-  const client = new HydraClient(CONFIG, { fetch: handler });
+  const source = new NodeSource(new HydraClient(CONFIG, { fetch: handler }));
   const node = describeNode(CONFIG);
-  return timeoutMs === undefined ? { client, node } : { client, node, timeoutMs };
+  const store = 'node' as const;
+  return timeoutMs === undefined
+    ? { source, node, store }
+    : { source, node, store, timeoutMs };
 }
 
 /** A node that is up and knows nothing. */
@@ -184,6 +188,7 @@ describe('callTool', () => {
       );
 
       expect(structuredOf(result)['hydra']).toEqual({
+        store: 'node',
         namespace: 'test-namespace',
         graph: 'default',
         cell: 'cell-0',
@@ -229,6 +234,7 @@ describe('callTool', () => {
     expect(structured['reachable']).toBe(true);
     expect(structured['error']).toBeNull();
     expect(structured['hydra']).toEqual({
+      store: 'node',
       namespace: 'test-namespace',
       graph: 'default',
       cell: 'cell-0',

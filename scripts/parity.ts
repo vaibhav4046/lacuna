@@ -158,7 +158,11 @@ interface StdioSession {
  * between them, and the part worth proving is many calls through one process.
  */
 async function startStdio(): Promise<StdioSession> {
-  const child = spawn(process.execPath, ['--import', 'tsx', MCP_SCRIPT, '--stdio'], { cwd: ROOT });
+  const child = spawn(process.execPath, ['--import', 'tsx', MCP_SCRIPT, '--stdio'],
+    // Pinned rather than inherited: this gate compares three surfaces over one
+    // store, and a machine that has also been given a cloud database would
+    // otherwise start the child against a different one.
+    { cwd: ROOT, env: { ...process.env, LACUNA_PROFILE: 'node' } });
   const lines: string[] = [];
   const errors: string[] = [];
   let pending = '';
@@ -263,7 +267,7 @@ async function startHttp(): Promise<Listener> {
   const child = spawn(
     process.execPath,
     ['--import', 'tsx', MCP_SCRIPT, '--http', '--port', String(HTTP_PORT)],
-    { cwd: ROOT },
+    { cwd: ROOT, env: { ...process.env, LACUNA_PROFILE: 'node' } },
   );
   const errors: string[] = [];
   let listening = false;
@@ -327,7 +331,11 @@ async function overCli(question: Question): Promise<AskCore> {
       '--json',
       ...(question.via === null ? [] : ['--via', question.via]),
     ],
-    { cwd: ROOT },
+    // Pinned like the two MCP children: this gate compares three surfaces over
+    // one store, and the CLI would otherwise read whichever store this machine
+    // is configured for, which on a machine with a cloud database is a
+    // different one.
+    { cwd: ROOT, env: { ...process.env, LACUNA_PROFILE: 'node' } },
   );
   const chunks: string[] = [];
   child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk.toString()));

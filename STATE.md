@@ -6,6 +6,32 @@ What exists right now. Updated as things change, and never ahead of them.
 
 ## Built and verified
 
+- **The terminal on the landing page is a recording, not a drawing.** It used
+  to be a hand written block: a workspace called acme, a model called qwen2.5,
+  a green CONNECTED dot, a trace id, and a list of thirteen commands of which
+  six existed. `npm run capture:cli` runs the CLI against HydraDB Cloud and
+  keeps every byte in
+  [artifacts/cli/session.txt](artifacts/cli/session.txt); the page renders that
+  file. Recording it found a real bug, below.
+- **`lacuna status` reports the store the answers come from.** It used to load
+  the node configuration directly rather than going through `openSource`, so on
+  a machine with `LACUNA_PROFILE=cloud` it printed the loopback node's counts
+  while every question in the same shell was answered by HydraDB Cloud. Fixed
+  at the seam, with a regression test that needs no network.
+- **The CLI prints the Lacuna mark.** Sampled from the same three arcs the SVG
+  path holds, five rows interactive and nine when there is height for it.
+  Suppressed when stdout is not a terminal, under `--json`, and when the
+  terminal is too narrow. Snapshots at 40, 60, 80, 120 and 160 columns.
+- **A phone can reach the navigation.** The five section links were
+  `display:none` below 940px with nothing in their place. They are in a
+  disclosure sheet now, no script, all targets 44px or taller, and the page
+  carries no horizontal overflow at 360px where it used to carry nine pixels.
+- **The two hard questions are recorded.** `npm run proof` walks the graph for
+  what a package change reaches, and asks an unsupported premise beside a real
+  revision through three clients. 13 services at depth 3, both stores agreeing,
+  one superseded dependency edge refused, three clients identical, two of three
+  questions refused rather than guessed.
+  Evidence in [artifacts/proof/proofs.json](artifacts/proof/proofs.json).
 - **The deployed product answers questions.** HydraDB Cloud holds the corpus
   and the claim graph as 159 records; `ask()` reads them through a source seam
   that also serves the self-hosted node. `npm run parity:cloud` asks all 64

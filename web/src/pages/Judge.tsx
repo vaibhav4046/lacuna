@@ -164,17 +164,23 @@ function Result({ envelope }: { envelope: Envelope | 'running' }) {
       */}
       {envelope.history.length > 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingTop: '2px' }}>
-          {envelope.history.map((claim, index) => (
+          {envelope.history.map((claim, index) => {
+            // The arrow means "this replaced the one above". Two live values
+            // that disagree are not a chain, and drawing one between them would
+            // assert a supersession the graph does not hold.
+            const replacesPrevious = index > 0 && envelope.history[index - 1]?.standing === 'superseded';
+            return (
             <div key={claim.claim_id} style={{ display: 'flex', gap: '12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
               <span style={{ ...mono, fontSize: '9.5px', letterSpacing: '0.14em', color: STANDING_COLOUR[claim.standing], minWidth: '124px' }}>
-                {index === 0 ? '' : '↓ '}{STANDING_LABEL[claim.standing]}
+                {replacesPrevious ? '↓ ' : ''}{STANDING_LABEL[claim.standing]}
               </span>
               <span style={{ fontSize: '15px', color: claim.standing === 'superseded' ? '#71717A' : '#FFFFFF', textDecoration: claim.standing === 'superseded' ? 'line-through' : 'none' }}>
                 {claim.value}
               </span>
               <span style={{ ...mono, fontSize: '10px', color: '#5E5E5E' }}>{claim.valid_from.slice(0, 10)}</span>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

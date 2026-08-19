@@ -46,10 +46,21 @@ const APP_ROUTES = [
   'mcp', 'sdk', 'cli', 'conn', 'evals', 'hydra', 'settings',
 ] as const;
 
+/**
+ * `/docs` is deliberately absent.
+ *
+ * It was in this list and it passed, with more drawn text than most routes.
+ * Nothing in the application defines it and nothing links to it: the catch all
+ * rewrite sends every unknown path to index.html, so `/docs` rendered the
+ * landing page and the audit counted a route that does not exist as working.
+ * Widening the sweep to nine viewports widened that blind spot nine ways.
+ *
+ * The check below closes the class rather than the instance, so a path added
+ * here in future cannot pass on the same trick.
+ */
 const PATHS = [
   '/',
   '/judge',
-  '/docs',
   '/signin',
   '/signup',
   ...APP_ROUTES.map((route) => `/demo/${route}`),
@@ -99,6 +110,8 @@ interface Finding {
   readonly unauthorised: number;
   readonly horizontalOverflowPx: number;
   readonly textLength: number;
+  /** True when a non-root path drew the landing page, so it is not a route. */
+  readonly renderedTheLandingPage: boolean;
   readonly ok: boolean;
 }
 
@@ -133,6 +146,8 @@ print(`viewports ${VIEWPORTS.map((viewport) => viewport.name).join(', ')}\n`);
 
 const findings: Finding[] = [];
 let devtools: Devtools | undefined;
+/** The landing page's opening text at the current viewport. */
+let rootHead: string | null = null;
 
 try {
   devtools = await Devtools.open(await debuggerUrl(port));
@@ -221,15 +236,28 @@ try {
       const measured = await devtools.send('Runtime.evaluate', {
         expression: `JSON.stringify({
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          text: (document.body.innerText || '').trim().length
+          text: (document.body.innerText || '').trim().length,
+          head: (document.body.innerText || '').trim().slice(0, 400)
         })`,
         returnByValue: true,
       }) as { result?: { value?: string } };
 
-      const reading = JSON.parse(measured.result?.value ?? '{"overflow":0,"text":0}') as {
+      const reading = JSON.parse(measured.result?.value ?? '{"overflow":0,"text":0,"head":""}') as {
         overflow: number;
         text: number;
+        head: string;
       };
+
+      // The landing page, as this viewport drew it, to compare the rest against.
+      if (path === '/') rootHead = reading.head;
+
+      // A path that is not a route still answers 200 here, because the catch all
+      // rewrite hands every unknown URL to index.html and React draws the
+      // landing page. That is the SPA working and it is also how `/docs`, which
+      // this project does not have, sat in this list passing. A non-root path
+      // whose text is the landing page's text has not been verified, it has been
+      // redirected, and the audit says so instead of counting it.
+      const isLandingInDisguise = path !== '/' && rootHead !== null && reading.head === rootHead;
 
       const finding: Finding = {
         path,
@@ -240,11 +268,13 @@ try {
         unauthorised,
         horizontalOverflowPx: Math.max(0, reading.overflow),
         textLength: reading.text,
+        renderedTheLandingPage: isLandingInDisguise,
         ok: consoleErrors.length === 0
           && exceptions.length === 0
           && failedRequests.length === 0
           && reading.overflow <= 0
-          && reading.text > 80,
+          && reading.text > 80
+          && !isLandingInDisguise,
       };
       findings.push(finding);
 
@@ -254,6 +284,7 @@ try {
         finding.failedRequests.length > 0 ? `${finding.failedRequests.length} requests` : '',
         finding.horizontalOverflowPx > 0 ? `${finding.horizontalOverflowPx}px sideways` : '',
         finding.textLength <= 80 ? `only ${finding.textLength} characters drawn` : '',
+        finding.renderedTheLandingPage ? 'not a route, the catch all drew the landing page' : '',
       ].filter((flag) => flag !== '').join(', ');
 
       print(`  ${finding.ok ? 'ok  ' : 'FAIL'}  ${path.padEnd(18)}${flags}`);
@@ -289,6 +320,7 @@ const report = {
     exceptions: findings.reduce((sum, finding) => sum + finding.exceptions.length, 0),
     failedRequests: findings.reduce((sum, finding) => sum + finding.failedRequests.length, 0),
     routesScrollingSideways: findings.filter((finding) => finding.horizontalOverflowPx > 0).length,
+    pathsThatAreNotRoutes: findings.filter((finding) => finding.renderedTheLandingPage).length,
     unauthorisedResponses: findings.reduce((sum, finding) => sum + finding.unauthorised, 0),
   },
   findings,

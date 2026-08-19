@@ -3,7 +3,9 @@
 Every gate below was run in this session, in this order, and the output pasted
 is the output it produced. A gate with no evidence line is not a gate.
 
-Commit: see `git rev-parse HEAD` at the tag `v7-freeze`.
+Commit: the tag `v7-1-convergence`. This line named `v7-freeze` while HEAD was
+sixteen commits past it, so the table was pinned to a tree that predated most
+of what it records.
 Production: https://lacuna-five.vercel.app
 
 ## Core
@@ -11,7 +13,7 @@ Production: https://lacuna-five.vercel.app
 | Gate | Result | Command |
 | --- | --- | --- |
 | typecheck | exit 0 | `npx tsc --noEmit` |
-| unit | 1001 of 1001, 48 files | `npx vitest run tests/unit` |
+| unit | 1016 of 1016, 50 files | `npx vitest run tests/unit` |
 | contract, live node | 77 of 77, 4 files | `npx vitest run tests/contract` |
 | census | graph matches the plan exactly | `npm run census` |
 | ground-truth isolation | inside the unit suite, fails if the runtime imports it | `npx vitest run tests/unit` |
@@ -56,16 +58,24 @@ onboarding, five steps name a workspace, and the dashboard opens reporting
 | --- | --- | --- |
 | shell, first paint, deep-route refresh | 9 of 9 | `npm run smoke:web -- https://lacuna-five.vercel.app` |
 | every demo read, one live question per outcome, four public pages | 30 of 30 | `npm run smoke:demo -- https://lacuna-five.vercel.app` |
-| every route in a real browser, at nine viewports from 360px to 4K | 207 of 207 | `npm run audit:routes` |
-| the same sweep with prefers-reduced-motion set | 207 of 207 | `npm run audit:routes -- <url> --reduced-motion` |
+| every route in a real browser, at nine viewports from 360px to 4K | 198 of 198 | `npm run audit:routes` |
+| the same sweep with prefers-reduced-motion set | 198 of 198 | `npm run audit:routes -- <url> --reduced-motion` |
 
 The route audit replaces a line that used to read "no console errors across all
 18 app routes" with the Browser pane named as its evidence. That was somebody
 having looked once, which is the one kind of entry this table is not allowed to
-contain. It now opens all 23 routes at two viewports and keeps what the browser
+contain. It now opens all 22 routes at nine viewports and keeps what the browser
 said: console errors, uncaught exceptions, failed and 400-and-above requests,
 whether the document scrolls sideways, and whether anything was drawn at all.
 Its first run failed 18 of 23, which is recorded below.
+
+It counted 23 routes until a judge pass noticed that one of them, `/docs`, is
+not a route. Nothing defines it and nothing links to it, and the catch all
+rewrite handed it to index.html, so it drew the landing page and passed with
+more text than most real routes. It is removed, and the audit now fails any
+non-root path whose text matches the landing page's, which closes the class
+rather than the one instance. Verified by putting `/docs` back: it fails at all
+nine viewports.
 
 Evidence in [artifacts/route-audit/routes.json](artifacts/route-audit/routes.json)
 and [routes-reduced-motion.json](artifacts/route-audit/routes-reduced-motion.json).

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Panel, Stage } from '../state';
+import { Extractor } from './extractor';
 
 /**
  * The CONTEXT group: Memory, Timeline, Graph and Context health.
@@ -99,6 +100,7 @@ export function Memory() {
           </div>
         ) : null}
       </div>
+      <Extractor />
     </div>
   );
 }

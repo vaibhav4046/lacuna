@@ -1,0 +1,203 @@
+{
+  "recorded": "2026-08-19",
+  "deployment": "https://lacuna-five.vercel.app",
+  "proofA": {
+    "bothStoresAgree": true,
+    "staleEdgesRefused": 1,
+    "walks": [
+      {
+        "question": "if pact-check changes, which services are affected?",
+        "agree": true,
+        "cloud": {
+          "store": "HydraDB Cloud, database lacuna, collection backend",
+          "services": [
+            "audit-sink",
+            "billing-gate",
+            "dead-letter-sweeper",
+            "export-runner",
+            "ingest-worker",
+            "ledger-api",
+            "media-thumbs",
+            "notify-relay",
+            "quota-broker",
+            "replay-queue",
+            "session-mint",
+            "tenant-router",
+            "trace-collector"
+          ],
+          "depth": 3,
+          "through": [
+            "cursor-walk",
+            "drift-gauge",
+            "hash-fence",
+            "queue-comb",
+            "retry-ladder",
+            "token-forge",
+            "wire-format"
+          ],
+          "ignored": 0,
+          "ms": 2403,
+          "reads": 25
+        },
+        "node": {
+          "store": "HydraDB node, namespace local, graph default",
+          "services": [
+            "audit-sink",
+            "billing-gate",
+            "dead-letter-sweeper",
+            "export-runner",
+            "ingest-worker",
+            "ledger-api",
+            "media-thumbs",
+            "notify-relay",
+            "quota-broker",
+            "replay-queue",
+            "session-mint",
+            "tenant-router",
+            "trace-collector"
+          ],
+          "depth": 3,
+          "through": [
+            "cursor-walk",
+            "drift-gauge",
+            "hash-fence",
+            "queue-comb",
+            "retry-ladder",
+            "token-forge",
+            "wire-format"
+          ],
+          "ignored": 0,
+          "ms": 965,
+          "reads": 42
+        }
+      },
+      {
+        "question": "if moss-index changes, which services are affected?",
+        "agree": true,
+        "cloud": {
+          "store": "HydraDB Cloud, database lacuna, collection backend",
+          "services": [
+            "audit-sink",
+            "billing-gate",
+            "dead-letter-sweeper",
+            "export-runner",
+            "ingest-worker",
+            "ledger-api",
+            "media-thumbs",
+            "notify-relay",
+            "quota-broker",
+            "replay-queue",
+            "session-mint",
+            "tenant-router",
+            "trace-collector"
+          ],
+          "depth": 3,
+          "through": [
+            "clock-skew",
+            "cursor-walk",
+            "drift-gauge",
+            "gate-latch",
+            "hash-fence",
+            "null-mask",
+            "pact-check",
+            "queue-comb",
+            "retry-ladder",
+            "tide-buffer",
+            "token-forge",
+            "warm-start",
+            "wire-format"
+          ],
+          "ignored": 1,
+          "ms": 2063,
+          "reads": 32
+        },
+        "node": {
+          "store": "HydraDB node, namespace local, graph default",
+          "services": [
+            "audit-sink",
+            "billing-gate",
+            "dead-letter-sweeper",
+            "export-runner",
+            "ingest-worker",
+            "ledger-api",
+            "media-thumbs",
+            "notify-relay",
+            "quota-broker",
+            "replay-queue",
+            "session-mint",
+            "tenant-router",
+            "trace-collector"
+          ],
+          "depth": 3,
+          "through": [
+            "clock-skew",
+            "cursor-walk",
+            "drift-gauge",
+            "gate-latch",
+            "hash-fence",
+            "null-mask",
+            "pact-check",
+            "queue-comb",
+            "retry-ladder",
+            "tide-buffer",
+            "token-forge",
+            "warm-start",
+            "wire-format"
+          ],
+          "ignored": 1,
+          "ms": 1165,
+          "reads": 48
+        }
+      }
+    ]
+  },
+  "proofB": {
+    "clients": [
+      "web (https)",
+      "cli (local process)",
+      "mcp (stdio subprocess)"
+    ],
+    "identical": true,
+    "rows": [
+      {
+        "subject": "Meridian",
+        "predicate": "migration_window",
+        "label": "the premise the sessions never support",
+        "same": true,
+        "envelope": {
+          "status": "NO_EVIDENCE",
+          "answer": null,
+          "evidence": 0,
+          "revisions": 0,
+          "reason": "never_stated"
+        }
+      },
+      {
+        "subject": "Bellwether",
+        "predicate": "beta_partner",
+        "label": "the value that really was revised, twice",
+        "same": true,
+        "envelope": {
+          "status": "ANSWERED",
+          "answer": "Halverd",
+          "evidence": 1,
+          "revisions": 2,
+          "reason": null
+        }
+      },
+      {
+        "subject": "Redshank",
+        "predicate": "launch_date",
+        "label": "a subject that is not in the sessions at all",
+        "same": true,
+        "envelope": {
+          "status": "NO_EVIDENCE",
+          "answer": null,
+          "evidence": 0,
+          "revisions": 0,
+          "reason": "out_of_scope"
+        }
+      }
+    ]
+  }
+}

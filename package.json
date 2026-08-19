@@ -36,7 +36,9 @@
     "parity:cloud": "tsx scripts/cloud-parity.ts",
     "smoke:demo": "tsx scripts/smoke-demo.ts",
     "continuity": "tsx scripts/continuity.ts",
-    "smoke:auth": "tsx scripts/smoke-auth.ts"
+    "smoke:auth": "tsx scripts/smoke-auth.ts",
+    "proof": "tsx scripts/proof.ts",
+    "capture:cli": "tsx scripts/capture-cli.ts"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",

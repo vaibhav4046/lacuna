@@ -56,7 +56,8 @@ onboarding, five steps name a workspace, and the dashboard opens reporting
 | --- | --- | --- |
 | shell, first paint, deep-route refresh | 9 of 9 | `npm run smoke:web -- https://lacuna-five.vercel.app` |
 | every demo read, one live question per outcome, four public pages | 30 of 30 | `npm run smoke:demo -- https://lacuna-five.vercel.app` |
-| every route in a real browser, at a laptop and a phone | 46 of 46 | `npm run audit:routes` |
+| every route in a real browser, at nine viewports from 360px to 4K | 207 of 207 | `npm run audit:routes` |
+| the same sweep with prefers-reduced-motion set | 207 of 207 | `npm run audit:routes -- <url> --reduced-motion` |
 
 The route audit replaces a line that used to read "no console errors across all
 18 app routes" with the Browser pane named as its evidence. That was somebody
@@ -66,7 +67,42 @@ said: console errors, uncaught exceptions, failed and 400-and-above requests,
 whether the document scrolls sideways, and whether anything was drawn at all.
 Its first run failed 18 of 23, which is recorded below.
 
-Evidence in [artifacts/route-audit/routes.json](artifacts/route-audit/routes.json).
+Evidence in [artifacts/route-audit/routes.json](artifacts/route-audit/routes.json)
+and [routes-reduced-motion.json](artifacts/route-audit/routes-reduced-motion.json).
+
+## Secrets
+
+| Gate | Result | How |
+| --- | --- | --- |
+| no credential value in any tracked file | 0 | the value of each live key searched with `git grep -F` |
+| no credential value anywhere in history | 0 commits | `git log --all -S<value>` per key |
+
+Names and availability are inventoried in
+[docs/CREDENTIAL_ROTATION_CHECKLIST.md](docs/CREDENTIAL_ROTATION_CHECKLIST.md),
+which holds no value, prefix or suffix of any key.
+
+## The harness, stated honestly
+
+The directive this project works to specifies a harness with a canonical
+RunState, run modes, a Capability Manifest, budgets that terminate a run,
+progressive hydration, a context trajectory, tool output externalisation,
+checkpoints, cancellation and selective writeback.
+
+**Roughly a fifth of that exists.** Nothing is IMPLEMENTED end to end, four
+items are PARTIAL and six are ABSENT, counted item by item in
+[docs/HARNESS_CONFORMANCE_MATRIX.md](docs/HARNESS_CONFORMANCE_MATRIX.md).
+Everything present is scoped to a single question rather than to a run, because
+there is no run object: the bounds are per read, the trace is per answer and is
+discarded with the response, and the abort signal belongs to an HTTP request.
+
+Two pieces are real and are worth naming exactly rather than inflating. The
+query trace keeps the statement, the bound parameters, the row count, the
+latency and the store epoch for every round trip. The graph walk is bounded by
+depth, visits each entity once, cites the claim id at every hop, and counts the
+superseded edges it refused to follow.
+
+The landing page does not claim more than this. It says models do the work and
+Lacuna keeps the state, which the continuity gate supports.
 
 All three were run against a preview build first and then against production
 after promoting it. The preview reports 21 of 30 on the demo gate and says why:

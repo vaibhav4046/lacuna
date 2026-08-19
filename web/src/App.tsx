@@ -9,6 +9,7 @@ import Forgot from './auth/Forgot';
 import Onboarding from './onboarding/Onboarding';
 import Shell from './app/Shell';
 import { Judge } from './pages/Judge';
+import NotFound from './pages/NotFound';
 import { ScopeProvider } from './api/scope';
 
 /**
@@ -31,7 +32,12 @@ export default function App() {
         <Route path="/app/:route" element={<RequireSession><Shell /></RequireSession>} />
         <Route path="/demo" element={<Navigate to="/demo/dash" replace />} />
         <Route path="/demo/:route" element={<ScopeProvider demo><Shell /></ScopeProvider>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/*
+          A real Not Found rather than a redirect to the front page. Sending a
+          mistyped address to `/` shows a reader a working page and hides the
+          fact that the link they followed is broken.
+        */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </SessionProvider>
   );

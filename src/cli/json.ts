@@ -59,14 +59,20 @@ export function statusPayload(report: StatusReport): unknown {
 
   return {
     command: 'status',
-    node: {
-      baseUrl: report.baseUrl,
-      namespace: report.namespace,
-      graph: report.graph,
-      cell: report.cell,
-    },
+    profile: report.profile,
+    store: report.store,
+    // Null on the cloud profile, which has no node identity to report. A
+    // consumer checks the profile rather than assuming these fields are there.
+    node: report.node === null
+      ? null
+      : {
+        baseUrl: report.node.baseUrl,
+        namespace: report.node.namespace,
+        graph: report.node.graph,
+        cell: report.node.cell,
+      },
     counts,
-    readEpoch: report.readEpoch,
+    readEpoch: report.node?.readEpoch ?? null,
   };
 }
 

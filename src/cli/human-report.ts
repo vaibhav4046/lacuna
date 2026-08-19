@@ -67,13 +67,31 @@ export function renderProfile(report: ProfileReport, palette: Palette): string {
 }
 
 export function renderStatus(report: StatusReport, palette: Palette): string {
+  const node = report.node;
+
+  if (node === null) {
+    // The cloud is a document API addressed by id. There is no label count to
+    // print, so this says what it is rather than printing zeros that would read
+    // as an empty store.
+    return columns(
+      [
+        ['profile', report.profile],
+        ['store', report.store],
+        ['counts', 'not available on this store'],
+      ],
+      '  ',
+    ).join('\n');
+  }
+
   const identity = columns(
     [
-      ['node', report.baseUrl],
-      ['namespace', report.namespace],
-      ['graph', report.graph],
-      ['cell', report.cell],
-      ['read epoch', report.readEpoch === null ? 'not reported' : String(report.readEpoch)],
+      ['profile', report.profile],
+      ['store', report.store],
+      ['node', node.baseUrl],
+      ['namespace', node.namespace],
+      ['graph', node.graph],
+      ['cell', node.cell],
+      ['read epoch', node.readEpoch === null ? 'not reported' : String(node.readEpoch)],
     ],
     '  ',
   );

@@ -138,6 +138,28 @@ export class HydraClient {
   }
 
   /**
+   * Which node this client talks to, without the token.
+   *
+   * `status` prints these four and nothing else about the configuration. The
+   * token is deliberately not reachable through this: a getter that returned
+   * the whole config would put the credential one property access away from
+   * every renderer, and one of them prints to a terminal someone screenshots.
+   */
+  get identity(): {
+    readonly baseUrl: string;
+    readonly namespace: string;
+    readonly graph: string;
+    readonly cell: string;
+  } {
+    return {
+      baseUrl: this.#config.baseUrl,
+      namespace: this.#config.namespace,
+      graph: this.#config.graph,
+      cell: this.#config.cell,
+    };
+  }
+
+  /**
    * A client-minted query id, per DECISIONS.md D-012. The server will supply
    * one if this is omitted, but a cursor is scoped to the query id it was
    * issued under, and minting our own is what makes a paged read a thing this

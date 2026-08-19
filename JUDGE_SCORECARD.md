@@ -9,7 +9,7 @@ Last run: 2026-08-19, at the commit tagged in `RELEASE_GATE.md`.
 
 ## Technical execution — 8/10
 
-**Evidence.** 970 unit tests, 77 contract tests against a live node, a
+**Evidence.** 1023 unit tests, 77 contract tests against a live node, a
 64-question sweep across three surfaces (`ALL_IDENTICAL: True`), a 64-question
 sweep across two stores (`ALL_IDENTICAL: true`), and a three-client check
 against production (`ONE_CONTEXT_IDENTICAL: true`). Ground truth is physically
@@ -20,12 +20,16 @@ imports it.
 budget, and there is no run object to hold a budget on: roughly a fifth of the
 harness the plan describes exists, counted in
 [docs/HARNESS_CONFORMANCE_MATRIX.md](docs/HARNESS_CONFORMANCE_MATRIX.md). Voice
-is not implemented. **The deployment has no model provider configured at all**:
-`/api/demo/model` returns `NOT CONFIGURED` and `/api/demo/models` returns an
-empty list, because the provider key is set locally and not in the Vercel
-environment. Nothing on the answer path needs one, which is the point of the
-design, and the screens report it honestly. This entry previously said one
-provider was configured, which was wrong.
+is not implemented. One model provider is configured on the deployment and six
+models report CONNECTED with a measured latency; nothing on the answer path
+needs any of them, which is the point of the design.
+
+This entry has now been wrong twice in opposite directions, which is worth
+recording rather than tidying away. It first claimed one provider was
+configured when the deployment had none. Adding the key made that sentence true
+and made its replacement, which said there were none, false within the hour. A
+scorecard that describes a moving deployment goes stale faster than the code
+does.
 
 **Smallest high-leverage fix.** Done, and it is no longer the weakest point
 here: `npm run soak` puts 400 requests at concurrency 12 through the deployed
@@ -46,19 +50,24 @@ same graph in Cypher, and the two agree question for question.
 **Why not higher.** The cloud path addresses records by id rather than
 traversing server-side, because the cloud API is a document API; the traversal
 happens in the product. That is the honest architecture for that API and it is
-still less graph-native than the Cypher path. The service's own
-`graph_context` and `/context/relations` are exercised but not load-bearing for
-an answer.
+still less graph-native than the Cypher path. `/context/relations` is now read
+and rendered, but it is a panel on one screen rather than something an answer
+depends on, and `graph_context` on the query endpoint is still not load-bearing.
 
-**Smallest high-leverage fix.** Surface the service's own returned relations on
-the HydraDB proof screen beside the product's traversal, so a judge can see
-both.
+**Smallest high-leverage fix.** Done: the HydraDB screen reads
+`/context/relations` and shows the 47 relations the store extracted from the
+transcripts itself, each with its predicate, its confidence and the sentence it
+came from. That matters because it separates the two graphs honestly. Lacuna's
+claim graph is built from structured annotations at ingest, and the store's is
+extracted from prose, so the screen shows what HydraDB contributes rather than
+implying the product did all of it. The next step, not taken today, would be to
+let a `graph_context` query participate in an answer.
 
 ## Product completeness and usability — 8/10
 
-**Evidence.** Eighteen application routes plus five public paths, every one of
+**Evidence.** Eighteen application routes plus four public paths, every one of
 them opened in a real browser at nine viewports and again with reduced motion,
-207 checks in each pass with no console error and nothing scrolling sideways
+198 checks in each pass with no console error and nothing scrolling sideways
 ([artifacts/route-audit/routes.json](artifacts/route-audit/routes.json)). The
 figure here used to read twenty-six, which no artifact supported. Sign up,
 onboarding, workspace

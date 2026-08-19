@@ -212,7 +212,15 @@ interface Segment {
  * as a text node, and the lint reports the `!` in a strict inequality as an
  * exclamation mark in the interface, which is the kind of finding that teaches
  * people to stop reading the output.
+ *
+ * The same class comes back between the arms of a ternary. In
+ * `) : !value.available ? (` the `>` closing one element and the `<` opening
+ * the next are separated by an expression, which reads as a text node and puts
+ * a `!` in front of the reader again. Prose in this product does not contain
+ * `) :`, `? (`, `&&`, `||` or `=>`, so a segment carrying one of them is code
+ * and is skipped.
  */
+const LOOKS_LIKE_CODE = /\)\s*:|\?\s*\(|&&|\|\||=>/;
 const SEGMENT_PATTERN = new RegExp(
   [
     "'(?:[^'\\\\\\n]|\\\\.)*'",
@@ -236,6 +244,7 @@ function segments(source: Source, content: string): readonly Segment[] {
     const raw = match[0] ?? '';
     const text = raw.slice(1, -1);
     if (text.trim().length === 0) continue;
+    if (LOOKS_LIKE_CODE.test(text)) continue;
     found.push({ line: content.slice(0, match.index).split('\n').length, text });
   }
   return found;

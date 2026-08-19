@@ -16,13 +16,23 @@ against production (`ONE_CONTEXT_IDENTICAL: true`). Ground truth is physically
 separated from the runtime and there is a test that fails if the runtime ever
 imports it.
 
-**Why not higher.** No load or soak evidence: nothing here has been run under
-concurrency for an hour. The blast walk is bounded by depth rather than by a
-measured budget. Voice is not implemented, and the model router has one real
-provider configured.
+**Why not higher.** The blast walk is bounded by depth rather than by a measured
+budget, and there is no run object to hold a budget on: roughly a fifth of the
+harness the plan describes exists, counted in
+[docs/HARNESS_CONFORMANCE_MATRIX.md](docs/HARNESS_CONFORMANCE_MATRIX.md). Voice
+is not implemented. **The deployment has no model provider configured at all**:
+`/api/demo/model` returns `NOT CONFIGURED` and `/api/demo/models` returns an
+empty list, because the provider key is set locally and not in the Vercel
+environment. Nothing on the answer path needs one, which is the point of the
+design, and the screens report it honestly. This entry previously said one
+provider was configured, which was wrong.
 
-**Smallest high-leverage fix.** A soak run of the deployed ask endpoint with
-concurrency, recorded as an artifact.
+**Smallest high-leverage fix.** Done, and it is no longer the weakest point
+here: `npm run soak` puts 400 requests at concurrency 12 through the deployed
+endpoint and compares every answer to the same question asked alone. 26.3 a
+second, p95 805ms, zero failures, no answer changed. Recorded in
+[artifacts/soak/soak.json](artifacts/soak/soak.json). What is still missing is
+evidence about two writers rather than two readers.
 
 ## Use of HydraDB and graph-native approaches — 8/10
 
@@ -46,7 +56,12 @@ both.
 
 ## Product completeness and usability — 8/10
 
-**Evidence.** Twenty-six routes, all reachable. Sign up, onboarding, workspace
+**Evidence.** Eighteen application routes plus five public paths, every one of
+them opened in a real browser at nine viewports and again with reduced motion,
+207 checks in each pass with no console error and nothing scrolling sideways
+([artifacts/route-audit/routes.json](artifacts/route-audit/routes.json)). The
+figure here used to read twenty-six, which no artifact supported. Sign up,
+onboarding, workspace
 persistence, sign out and sign back in all verified against production
 (`12 of 12`). A new account gets an empty workspace, not seeded data. `/judge`
 answers six questions live with no account. Every screen that has nothing to

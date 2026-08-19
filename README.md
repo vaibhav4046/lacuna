@@ -25,19 +25,28 @@ part everyone skips.
 ## The deployed copy
 
 <https://lacuna-five.vercel.app> is this repository running as one serverless
-function. It answers from a recorded snapshot: every HydraDB reply was produced
-by a live node at export time and stored byte for byte in
-[artifacts/snapshot](artifacts/snapshot/graph-snapshot.json), then decoded in
-production by the same client code the live server uses. The deployment says so
-itself on every page that shows an answer. To run the identical thing locally,
-with no database and no token:
+function, and it answers live from HydraDB Cloud. Every answer carries
+`source_state: live` and a measured time, and `/judge` asks six questions on
+load with no account, reaching six different outcomes.
+
+This paragraph used to say the deployment answered from a recorded snapshot.
+That was true of an earlier build and stopped being true when the cloud source
+landed. It is corrected here rather than quietly, because it understated the
+thing this project is actually claiming: not that a recording can be replayed,
+but that a browser, a terminal and an MCP server on different machines read one
+store and agree. `npm run continuity` is that check.
+
+The snapshot still exists and is still useful, as a way to run the identical
+decoder and resolver with no database and no token:
 
 ```bash
 npm run serve:snapshot
 ```
 
-Then open <http://127.0.0.1:3015>. The full stack against a live node is the
-next section.
+Then open <http://127.0.0.1:3015>. It replays HydraDB replies recorded byte for
+byte in [artifacts/snapshot](artifacts/snapshot/graph-snapshot.json). It is a
+local convenience and a reproducibility aid, and it is not what the deployment
+runs. The full stack against a live node is the next section.
 
 ## Running it
 

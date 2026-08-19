@@ -59,9 +59,14 @@ cell `cell-0`.
 The unit count and the contract count are two different things and the
 distinction is the point of keeping them apart. The unit suite needs no database
 and will pass on a laptop with nothing installed. The contract suite runs every
-query builder against a real node and **skips rather than fails** when no node
-answers, so the number 50 only means something next to the fact that the node was
-up: the run recorded above had 50 tests execute and none skip.
+query builder against a real node and **fails rather than skips** when no node
+answers. That is deliberate and both suites say so in their headers: a green run
+that quietly tested nothing is the failure this arrangement exists to prevent.
+This paragraph said the opposite until 2026-08-19, which was wrong about the
+code it exists to make checkable.
+
+The count is 77 across four files at the time of writing. An earlier recorded
+run of 50 is kept unedited in the artifacts rather than restated here.
 
 The seven stderr lines are asserted negative paths, not failures. Two refused
 connections, two ambiguous entity names, three 403s from a namespace the token

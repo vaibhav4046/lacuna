@@ -13,7 +13,7 @@ Production: https://lacuna-five.vercel.app
 | Gate | Result | Command |
 | --- | --- | --- |
 | typecheck | exit 0 | `npx tsc --noEmit` |
-| unit | 1048 of 1048, 53 files | `npx vitest run tests/unit` |
+| unit | 1071 of 1071, 54 files | `npx vitest run tests/unit` |
 | contract, live node | 77 of 77, 4 files | `npx vitest run tests/contract` |
 | census | graph matches the plan exactly | `npm run census` |
 | ground-truth isolation | inside the unit suite, fails if the runtime imports it | `npx vitest run tests/unit` |
@@ -149,6 +149,25 @@ annotations and the store's is extracted from prose.
 | touch targets in that sheet | 7 of 7 at 44px or taller, measured |
 | every signed-in route on a phone | 0 scrolling sideways. All 18 did, by 71px to 246px, from a header cluster wider than the space beside the title and from route content taking the document with it |
 | plain English in the public copy | 47 files, 0 findings | `npm run copy:lint` |
+
+## The official benchmark, and what has not been run
+
+| Gate | Result | Command |
+| --- | --- | --- |
+| the official LongMemEval schema, confirmed against the upstream source | tiers, input shape, hypothesis format, evaluator invocation and the abstention test all read off the repository rather than assumed. Two details could not be confirmed and say so | `docs/BENCHMARK_LONGMEMEVAL.md` |
+| ground truth cannot reach ingestion | the adapter copies eight named fields and `has_answer` is not one of them, proved by a test that hands it the answer bearing record on purpose | `npx vitest run tests/unit/longmemeval-adapter.test.ts` |
+| the runner without a dataset | fails loudly with the download command, and never invents data | `npm run bench:longmemeval` |
+
+**No LongMemEval number has been produced, and none is claimed anywhere in this
+repository.** No dataset was downloaded, no haystack ingested, no hypothesis
+written, and the official evaluator was not run. What exists is the integration
+and the honest account of what a real run still needs: the dataset, a claim
+extractor for raw prose, a question parser, a node to ingest into, and a paid
+judge model for 500 calls a run.
+
+The blocker is the claim extractor, which is the same weakness the README
+already names. That is not a coincidence: it is the one thing standing between
+this project and a real number on the track's own benchmark.
 
 ## Under load
 

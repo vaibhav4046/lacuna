@@ -391,13 +391,41 @@ await cloud.relations(200);
 await cloud.query('What does tenant-router depend on?', { maxResults: 6 });
 ```
 
-The deployed evidence needs no credentials. The first two answer today; the
-third answers once this branch is deployed, and returns `{"error":"route"}`
-against the build that predates it, which is itself a check that the route is
-new.
+The deployed evidence needs no credentials. All three answer.
 
 ```bash
 curl -s https://lacuna-five.vercel.app/api/health
 curl -s https://lacuna-five.vercel.app/api/demo/relations
 curl -s https://lacuna-five.vercel.app/api/demo/expansion
 ```
+
+## Verified in production
+
+Deployed and read back from <https://lacuna-five.vercel.app/api/demo/expansion>
+against the live HydraDB Cloud database, 2026-08-19:
+
+| | |
+| --- | --- |
+| subject | `tenant-router` |
+| edges HydraDB reached | 21 |
+| current | 6 |
+| historical | 2 |
+| contradicted | 3 |
+| unstated | 10 |
+| round trip | 2,918 ms |
+
+Ten predicates came back, including ones no annotation in this corpus uses:
+`depends on`, `queried by`, `deferred`, `has on-call rotation of`, `status is`,
+`is unchanged`, `will be picked up by`, `has status`, `skipped`,
+`has on-call length`.
+
+The distribution matches the local probe exactly, which is the point of running
+it twice. The ten unstated edges are relations HydraDB read out of the prose
+that Lacuna's claim graph has nothing to say about, and they are the honest
+shape of what the store contributes on its own.
+
+`/demo/hydra` renders this under **The same graph, walked for one subject**,
+labelling each edge STANDS, REPLACED, DISPUTED or NOT A CLAIM. The two
+`depends on` edges to `moss-index` both read REPLACED and the two to
+`token-forge` both read STANDS, which is the correction the transcripts make
+and the reason this subject was chosen.

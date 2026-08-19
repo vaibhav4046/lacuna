@@ -283,6 +283,24 @@ export function Judge() {
           );
         })}
 
+        <section style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <span style={label}>THE ARGUMENT, IN ONE SCREEN</span>
+          <p style={{ color: '#FFFFFF', fontSize: '18px', lineHeight: 1.6, margin: 0, maxWidth: '62ch', fontWeight: 300 }}>
+            A memory that stores everything answers &ldquo;deferred&rdquo; when you ask what a
+            service depends on.
+          </p>
+          <p style={{ color: '#9A9A9A', fontSize: '15px', lineHeight: 1.65, margin: 0, maxWidth: '64ch' }}>
+            HydraDB builds a graph of its own from these same transcripts.{' '}
+            <Link to="/demo/hydra" style={{ color: '#B79BFF' }}>Walked for one subject</Link> it
+            reaches 21 edges: 6 that stand, 2 the transcripts replaced, 3 disputed, and 10 that are
+            not claims at all. Those 10 are sentences saying nothing happened, a discussion
+            deferred, an item skipped, notes reread and unchanged. Lacuna files none of them,
+            because{' '}
+            <Link to="/demo/memory" style={{ color: '#B79BFF' }}>what may become a claim</Link> is
+            decided before anything is written. Both screens are live and neither needs an account.
+          </p>
+        </section>
+
         <footer style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '20px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
           <a href="https://github.com/vaibhav4046/lacuna" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
             SOURCE

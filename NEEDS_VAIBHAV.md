@@ -12,6 +12,32 @@ Status values: `open`, `done`, `dropped`.
 
 ---
 
+## 0. Delete the burned Google client secret
+
+- **Status:** open, and it is the only security item on this list.
+- **Why it needs you:** it is a thirty second console action, and it is recorded
+  here rather than left to memory because a burned credential that nobody
+  deletes is how a leak becomes an incident.
+- **What happened:** the first OAuth client secret was displayed in a console
+  dialog that was captured during setup, which put it in a transcript. It was
+  replaced the same hour. A second secret was created, checked against Google's
+  token endpoint before being stored, and the deployment runs on that one.
+- **What to do:** open the client `Lacuna web` in project `lacuna-auth-506009`,
+  find the secret ending `ERa7`, disable it, confirm sign in still works, then
+  delete it. The live secret ends `gCcp`. Nothing running uses the old one.
+- **Blocking?** No. Sign in works today.
+
+## 0b. What is ready and waiting on you
+
+- **Day 7 social package**, built from real recorded output, sitting unpublished
+  in `social/day7/`. Nothing posts automatically.
+- **The demo film**, at `video/hyperframes/renders/lacuna-demo-master.mp4`. The
+  30MB master is over the browser tool's upload cap, so the upload is by hand.
+- **The submission form**, with everything it asks for collected in
+  `docs/SUBMISSION_FINAL.md`.
+
+---
+
 ## 1. Hackathon registration (Luma) and Discord
 
 - **Status:** open

@@ -51,7 +51,7 @@ export default function Shell() {
 
   return (
     <div style={{ position: 'relative', zIndex: 1, display: 'flex', minHeight: '100vh', background: '#000000' }}>
-      <aside style={{ width: '216px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', padding: '20px 14px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+      <aside data-shellnav="1" style={{ width: '216px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', padding: '20px 14px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <button onClick={() => go('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '9px', padding: '6px 10px', textAlign: 'left' }}>
           <Mark size={17} />
           <span style={{ fontSize: '13.5px', fontWeight: 500, color: '#FFFFFF' }}>Lacuna</span>
@@ -111,12 +111,19 @@ export default function Shell() {
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', padding: '15px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.24em', textTransform: 'uppercase', color: '#BDBDBD' }}>{routeTitle(route, workspace)}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* A keyboard hint and a status label. On a phone this pair was wider
+              than the space left beside the title, and it pushed every one of
+              the eighteen routes sideways by 71px before the route had drawn
+              anything of its own. Neither is reachable by touch anyway. */}
+          <div data-mhide="1" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <span style={{ border: '1px solid rgba(255,255,255,0.14)', borderRadius: '5px', padding: '4px 9px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#9A9A9A' }}>⌘ K</span>
             <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#5E5E5E' }}>MODEL · {model}</span>
           </div>
         </div>
-        <div style={{ flex: 1, padding: '40px 32px 84px' }}>
+        {/* A route wider than the frame scrolls inside the frame. Without this
+            a single wide table takes the whole document sideways with it, and
+            the reader loses the navigation as well as the table. */}
+        <div style={{ flex: 1, minWidth: 0, overflowX: 'auto', padding: '40px 32px 84px' }}>
           <RouteBody route={route} />
         </div>
       </main>

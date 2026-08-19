@@ -38,7 +38,10 @@
     "continuity": "tsx scripts/continuity.ts",
     "smoke:auth": "tsx scripts/smoke-auth.ts",
     "proof": "tsx scripts/proof.ts",
-    "capture:cli": "tsx scripts/capture-cli.ts"
+    "capture:cli": "tsx scripts/capture-cli.ts",
+    "copy:lint": "tsx scripts/copy-lint.ts",
+    "soak": "tsx scripts/soak.ts",
+    "audit:routes": "tsx scripts/route-audit.ts"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",

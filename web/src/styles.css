@@ -238,6 +238,14 @@ input::placeholder { color:#5E5E5E; }
 }
 @media (max-width: 860px) { [data-mhide] { display:none !important; } }
 
+/* The signed-in frame on a narrow screen. The sidebar keeps its seven groups
+   and every route stays one tap away, at a width that leaves the route itself
+   something to sit in: 216px of a 375px screen is most of the screen. The
+   labels are already uppercase mono at 10px, so they survive the loss. */
+@media (max-width: 860px) {
+  [data-shellnav] { width: 132px !important; padding: 16px 8px !important; }
+}
+
 /* ------------------------------------------------------------------ *
  * Hover states. One class per distinct style-hover value in the design,
  * six in total, values copied character for character from the source.

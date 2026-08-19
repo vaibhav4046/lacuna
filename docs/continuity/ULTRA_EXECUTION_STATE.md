@@ -37,6 +37,8 @@ Three things closed that.
 | **parity, 2 stores, 64 questions** | **`ALL_IDENTICAL: true`** | `npm run parity:cloud` |
 | cloud ingest | 159 of 159 indexed, read back byte identical | `npm run ingest:cloud` |
 | web smoke, production | 9 of 9 | `npm run smoke:web -- https://lacuna-five.vercel.app` |
+| demo surface, production | 30 of 30 | `npm run smoke:demo -- https://lacuna-five.vercel.app` |
+| film | check passed, 131s rendered | `npx hyperframes check` in `video/hyperframes` |
 | production browser | 0 console errors, six live rows on /judge | Browser pane |
 
 `npm run parity:cloud` is the new one and the one that matters. It asks every
@@ -81,11 +83,26 @@ for a sampled entity and for the index.
 - Preview deployments are behind Vercel SSO. Production is public, so
   verification ran there. One toggle in project settings turns it off.
 
-## Next
+## Since then
 
-- Video capture from the tagged release, using `/judge` for the product rows.
-- `docs/EVIDENCE_INDEX.md` entries for `artifacts/hydra/cloud-parity.json` and
-  `artifacts/hydra/cloud-ingest.json`.
+- **The whole product runs signed out.** `/demo/:route` renders the same
+  eighteen screens against `/api/demo`, which serves the corpus read only and
+  refuses writes. Accounts cannot persist on a read-only filesystem, so this is
+  the only way the deployed product is reachable at all.
+- **Evaluations shows the measured run.** It said "no recorded runs" while
+  `artifacts/bench/results.json` held one.
+- **13 captures of production** in `artifacts/screens/live/`, each checked for
+  ground colour and pixel density on write.
+- **The film is rendered.** 131s, 1920x1080, H.264 with ElevenLabs narration
+  and a caption track, in `video/hyperframes/renders/`. Every screen in it is a
+  capture of production answering. `docs/VIDEO_CLAIM_MAP.md` maps each of its
+  twelve claims to the artifact that checks it.
+
+## Next, and it needs a browser signed in as the operator
+
+- Upload the video, unlisted, and paste the link into the form.
+- Submit the form. Every field it asks for is in `docs/SUBMISSION_FINAL.md`.
+- Optional: turn preview protection off so preview links open.
 
 ## Commands
 

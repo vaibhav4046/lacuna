@@ -3240,3 +3240,50 @@ stores return the same answers, so a terminal reading the node and a browser
 reading the cloud are reading the same claims. Changing the MCP context to
 carry a source rather than a client would put the green 64 question parity
 sweep at risk to prove something a passing check already proves.
+
+### D-120: the product was unreachable, not incomplete
+
+Every screen behind `RequireSession` was unreachable on the deployed URL,
+because accounts cannot persist on a read-only filesystem. Eighteen working
+screens existed and a visitor could see none of them. That is a worse failure
+than a missing feature: the work was done and the product looked empty.
+
+`/demo/:route` renders the same eighteen screens, from the same components,
+against `/api/demo`, which serves the ingested corpus without a session and
+refuses writes. One scope context decides where a screen reads and where its
+links point. A screen that forgets to use it reads the signed-in endpoint and
+draws an empty workspace, which is loud rather than subtle.
+
+Two smaller things fell out of the same audit. The Evaluations screen said
+"no recorded runs" while `artifacts/bench/results.json` held one; it now shows
+one row per retrieval family at that family's best cutoff, which is the reading
+least favourable to this product. And the HydraDB screen showed an em dash for
+a round trip the health check had already measured, because the reader wanted
+"in 170ms" and the cloud doctor wrote "ready for ingestion, 170ms".
+
+`npm run smoke:demo` is the gate that would have caught all three: 30 checks
+against a deployment, including one live question per outcome the resolver can
+reach.
+
+### D-121: the film is cut from the product, not about it
+
+131 seconds, under the three minute ceiling, and every screen in it is a
+capture of the deployed product answering a real question. `npm run screens --
+<url> --live` takes them, and each capture is checked on write for its ground
+colour and pixel density so a blank frame cannot pass as a page.
+
+The edit is a program. `narrate.mjs` speaks each scene and measures what came
+back; `build.mjs` writes the composition from those measurements, so a scene
+lasts as long as its own narration clip plus a fixed breath. Re-recording a
+line moves the timeline rather than desynchronising it, which is the property
+that makes a late script change cheap.
+
+Two greys were lightened from the site's `#5E5E5E`. At 1080p over black they
+fail WCAG AA, `hyperframes check` said so, and a caption a viewer cannot read
+is not a caption.
+
+Latency is never narrated. It is measured per request and legible in every
+frame; a spoken figure would be one run's reading presented as a property of
+the product. `docs/VIDEO_CLAIM_MAP.md` maps each of the film's twelve claims to
+the artifact that checks it, including the three things it deliberately does
+not say.

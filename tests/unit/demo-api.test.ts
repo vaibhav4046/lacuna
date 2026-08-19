@@ -366,6 +366,33 @@ describe('prose into the claim graph, over HTTP', () => {
     expect(body.readableProperties).not.toContain('language');
   });
 
+  it('hands markup back as text and never as a field the page could run', async () => {
+    // The endpoint is public and unauthenticated and its output is rendered, so
+    // the payload has to survive as data. Verified in the browser as well:
+    // window.__pwned stayed null, no img element was created, and the CSP
+    // allows script-src 'self' only. This pins the server half of that.
+    const payload = 'a: <script>window.x=1</script> is owned by <img src=x onerror=1>.';
+    const body = await (await fetch(`${base}/api/demo/extract?text=${encodeURIComponent(payload)}`)).json() as {
+      claims: { objectText: string; quote: string }[];
+    };
+    expect(body.claims).toHaveLength(1);
+    // Kept verbatim rather than stripped. Escaping belongs to the renderer, and
+    // silently rewriting somebody's text would be a worse answer than showing it.
+    expect(body.claims[0]?.objectText).toBe('<img src=x onerror=1>');
+    expect(body.claims[0]?.quote).toBe(payload.slice('a: '.length));
+  });
+
+  it('answers rather than falls over on very long, unicode and empty input', async () => {
+    const long = `a: ${'x'.repeat(3000)} is stored in y.`;
+    const cases = [long, 'a: \u{1D54A}essions are stored in Valhalla.', ''];
+    for (const text of cases) {
+      const response = await fetch(`${base}/api/demo/extract?text=${encodeURIComponent(text)}`);
+      expect(response.status).toBe(200);
+      const body = await response.json() as { claims: unknown[] };
+      expect(Array.isArray(body.claims)).toBe(true);
+    }
+  });
+
   it('writes nothing, so the workspace is unchanged after a call', async () => {
     const before = await (await fetch(`${base}/api/demo/memory`)).text();
     await fetch(`${base}/api/demo/extract?text=${encodeURIComponent('a: sessions are stored in Cassandra.')}`);

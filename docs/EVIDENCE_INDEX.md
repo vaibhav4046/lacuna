@@ -165,6 +165,7 @@ has to discover the trade-off for themselves.
 | The Cypher subset the engine implements | SUBMISSION, HYDRADB_INTEGRATION | [artifacts/cypher-probe/](../artifacts/cypher-probe/), six rounds with results | `python artifacts/cypher-probe/roundN.py` | `RECORDED` |
 | Four reads answer a direct question | SUBMISSION, JUDGE_SCORECARD, HYDRADB_INTEGRATION | the proof panel on any answer page, and [artifacts/screens/](../artifacts/screens/) | `npm run serve` | `LIVE` |
 | Eight reads answer a two-hop question | HYDRADB_INTEGRATION | same | same | `LIVE` |
+| The store's own graph, walked for one subject: 21 edges, 6 current, 2 historical, 3 contradicted, 10 unstated, 2918ms | HYDRADB_GRAPH_AUDIT, `/demo/hydra` | [docs/HYDRADB_GRAPH_AUDIT.md](HYDRADB_GRAPH_AUDIT.md) | `curl -s https://lacuna-five.vercel.app/api/demo/expansion` | `LIVE` |
 | AGPL-3.0, consumed as a service, not vendored | README, SUBMISSION, THIRD_PARTY | [docs/SOURCE_LOG.md](SOURCE_LOG.md) | not a measurement, a licence fact | `LIVE` |
 
 The Cypher probe rounds are the reason the query layer is written the way it is.
@@ -173,6 +174,27 @@ than summarised, because a summary of a refusal is not checkable. One honest not
 that the repository keeps in the place it would have been easiest to drop:
 `algo.SPpaths` probed successfully and is deliberately not on the answer path,
 because shortest path needs two known endpoints and a question arrives with one.
+
+## Extraction
+
+| Number or claim | Said in | Artifact | Command | State |
+|---|---|---|---|---|
+| Prose becomes claims, with the reading each was taken under | README, STATE, `/demo/memory` | none, it is a pure endpoint | `curl -s https://lacuna-five.vercel.app/api/demo/extract` | `LIVE` |
+| A forged `SYSTEM:` line files onto a slot no answer reads | `/demo/memory`, tests | [tests/unit/demo-api.test.ts](../tests/unit/demo-api.test.ts) | `npx vitest run tests/unit/demo-api.test.ts` | `LIVE` |
+| The frame table reads seven properties, not English | every extract response, README | the `readableProperties` field on every response | same curl | `LIVE` |
+| 500 published LongMemEval instances: 0 parse failures, 0 adapter failures, 0 ground truth leaks | BENCHMARK_LONGMEMEVAL | [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json) | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
+| **The extractor does not read the LongMemEval domain**: 116 claims from 3.3M tokens, mostly wrong on inspection | BENCHMARK_LONGMEMEVAL | same | same | `RECORDED` |
+| No LongMemEval score exists | BENCHMARK_LONGMEMEVAL | nothing, because nothing was run | there is no command | `UNAVAILABLE` |
+
+The last three rows are the ones a sceptical reader should start with. The first
+two of them are the honest result of pointing this project's extractor at
+somebody else's data, and the third is what follows from it.
+
+The command for the ingest check needs the dataset, which is not committed:
+
+```bash
+wget -P data https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json
+```
 
 ## Interface
 

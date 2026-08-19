@@ -19,6 +19,7 @@ export function Header() {
         <a href="#faq" style={link}>FAQ</a>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
+        <button className="hv-text" onClick={() => go('/judge')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#BDBDBD', fontSize: '14px', padding: '9px 14px' }}>Live demo</button>
         <button className="hv-text" onClick={() => go('/signin')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#BDBDBD', fontSize: '14px', padding: '9px 14px' }}>Sign in</button>
         <button className="hv-violet" onClick={() => go('/signup')} style={{ background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '14px', fontWeight: 500, padding: '9px 18px', borderRadius: '8px' }}>Get started</button>
       </div>

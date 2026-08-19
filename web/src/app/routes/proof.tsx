@@ -1,4 +1,5 @@
-import { useLoaded } from '../../api/client';
+
+import { useScoped } from '../../api/scope';
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import type { HealthReport } from '../../api/health';
 import { icStyle } from '../../design/icons';
@@ -28,7 +29,7 @@ interface EvalRow {
 const EVAL_GRID = '1fr 1fr 0.8fr';
 
 export function Evaluations() {
-  const rows = useLoaded<readonly EvalRow[]>('/api/workspace/evaluations');
+  const rows = useScoped<readonly EvalRow[]>('evaluations');
   const list = rows.state === 'ready' ? rows.value : [];
 
   return (
@@ -61,7 +62,10 @@ function roundTripMs(report: HealthReport | null): string {
   if (report === null) return '—';
   const check = report.checks.find((c) => c.name === 'round trip');
   if (check === undefined || check.state === 'fail') return '—';
-  const match = /in ([\d.]+)ms/.exec(check.detail);
+  // Any milliseconds the check reported, however the sentence around them is
+  // worded: the node's doctor writes "in 12ms" and the cloud's writes
+  // "ready for ingestion, 170ms", and both are the same measurement.
+  const match = /([\d.]+)\s*ms/.exec(check.detail);
   return match?.[1] === undefined ? '—' : `${match[1]} ms`;
 }
 

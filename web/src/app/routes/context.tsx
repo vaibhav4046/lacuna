@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useLoaded } from '../../api/client';
+
+import { useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Panel, Stage } from '../state';
 
@@ -54,7 +55,7 @@ function StateMark({ st }: { st: MemoryRow['st'] }) {
 }
 
 export function Memory() {
-  const page = useLoaded<MemoryPage>('/api/workspace/memory');
+  const page = useScoped<MemoryPage>('memory');
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -106,8 +107,8 @@ interface Change { readonly t: string; readonly d: string }
 interface Conflict { readonly t: string; readonly state: string }
 
 export function Timeline() {
-  const changes = useLoaded<readonly Change[]>('/api/workspace/changes');
-  const conflicts = useLoaded<readonly Conflict[]>('/api/workspace/conflicts');
+  const changes = useScoped<readonly Change[]>('changes');
+  const conflicts = useScoped<readonly Conflict[]>('conflicts');
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '38px' }}>
@@ -152,7 +153,7 @@ export function Timeline() {
  * for anyone who cannot use the picture.
  */
 export function Graph() {
-  const page = useLoaded<MemoryPage>('/api/workspace/memory');
+  const page = useScoped<MemoryPage>('memory');
   const rows = page.state === 'ready' ? page.value.rows.slice(0, 6) : [];
 
   return (
@@ -207,7 +208,7 @@ export function Graph() {
 }
 
 export function Health() {
-  const cats = useLoaded<readonly Category[]>('/api/workspace/categories');
+  const cats = useScoped<readonly Category[]>('categories');
   const [selected, setSelected] = useState(-1);
   const rows = cats.state === 'ready' ? cats.value : [];
   const total = rows.reduce((sum, c) => sum + c.n, 0);

@@ -61,7 +61,7 @@ async function cloudHealth(): Promise<unknown> {
         { name: 'config', ok: true, state: 'pass', detail: `HydraDB Cloud, database ${cloud.database}, collection ${cloud.collection}` },
         { name: 'token', ok: true, state: 'pass', detail: 'set' },
         { name: 'reachable', ok: true, state: 'pass', detail: `api.hydradb.com answered in ${ms}ms` },
-        { name: 'round trip', ok: ready, state: ready ? 'pass' : 'fail', detail: ready ? `database ready for ingestion, ${ms}ms` : 'the database is still provisioning' },
+        { name: 'round trip', ok: ready, state: ready ? 'pass' : 'fail', detail: ready ? `database ready for ingestion in ${ms}ms` : 'the database is still provisioning' },
       ],
     };
   } catch (error) {

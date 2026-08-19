@@ -1,6 +1,7 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { hydraState, useHealth, useModelLabel } from '../api/health';
 import { useSession } from '../api/session';
+import { useScope } from '../api/scope';
 import { icStyle } from '../design/icons';
 import { MONO, Mark } from '../design/mark';
 import { DEFAULT_ROUTE, NAV_GROUPS, isRouteKey, routeTitle } from './routes';
@@ -33,15 +34,19 @@ export default function Shell() {
   const go = useNavigate();
   const params = useParams();
   const { loaded } = useSession();
+  const scope = useScope();
   const health = useHealth();
   const model = useModelLabel();
 
   const route = params['route'];
-  if (!isRouteKey(route)) return <Navigate to={`/app/${DEFAULT_ROUTE}`} replace />;
+  if (!isRouteKey(route)) return <Navigate to={`${scope.prefix}/${DEFAULT_ROUTE}`} replace />;
 
   const account = loaded.state === 'ready' && loaded.value.signedIn ? loaded.value.session : null;
-  const workspace = account?.workspace ?? null;
-  const email = account?.email ?? null;
+  // The demo names its workspace because that is the one it reads. It has no
+  // account, and drawing an empty address row would look like a session that
+  // failed to load rather than one that was never asked for.
+  const workspace = scope.demo ? SAMPLE_WORKSPACE : account?.workspace ?? null;
+  const email = scope.demo ? null : account?.email ?? null;
   const initial = email === null ? '' : (email[0] ?? '').toUpperCase();
 
   return (
@@ -59,7 +64,7 @@ export default function Shell() {
                 <button
                   key={key}
                   className="hv-surface4"
-                  onClick={() => go(`/app/${key}`)}
+                  onClick={() => go(`${scope.prefix}/${key}`)}
                   aria-current={route === key ? 'page' : undefined}
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
                 >
@@ -90,10 +95,17 @@ export default function Shell() {
           {workspace === SAMPLE_WORKSPACE ? (
             <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>SAMPLE WORKSPACE</span>
           ) : null}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginTop: '8px' }}>
-            <span style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#BDBDBD' }}>{initial}</span>
-            <span style={{ fontSize: '12px', color: '#BDBDBD' }}>{email ?? '—'}</span>
-          </div>
+          {scope.demo ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#8052FF' }}>DEMO · READ ONLY</span>
+              <button onClick={() => go('/signin')} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>SIGN IN</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginTop: '8px' }}>
+              <span style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#BDBDBD' }}>{initial}</span>
+              <span style={{ fontSize: '12px', color: '#BDBDBD' }}>{email ?? '—'}</span>
+            </div>
+          )}
         </div>
       </aside>
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>

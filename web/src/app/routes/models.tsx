@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useLoaded } from '../../api/client';
+
+import { useScoped } from '../../api/scope';
 import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Stage } from '../state';
@@ -30,7 +31,7 @@ interface Model {
 }
 
 export function Models() {
-  const models = useLoaded<readonly Model[]>('/api/workspace/models');
+  const models = useScoped<readonly Model[]>('models');
   const [mode, setMode] = useState(0);
   const rows = models.state === 'ready' ? models.value : [];
 

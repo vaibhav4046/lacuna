@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useLoaded } from '../../api/client';
+
+import { useScoped } from '../../api/scope';
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import { CONNECTOR_GROUPS, dotFor } from '../../design/connectors';
 import { icStyle } from '../../design/icons';
@@ -19,7 +20,7 @@ const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
 
 export function Mcp() {
-  const calls = useLoaded<readonly unknown[]>('/api/workspace/runs');
+  const calls = useScoped<readonly unknown[]>('runs');
 
   return (
     <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>

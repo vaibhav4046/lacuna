@@ -1,4 +1,5 @@
-import { useLoaded } from '../../api/client';
+
+import { useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Stage } from '../state';
 
@@ -19,7 +20,7 @@ const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', col
 const STAGES = ['REQUEST', 'CONTEXT', 'AGENT', 'TOOLS', 'OUTCOME', 'WRITEBACK'] as const;
 
 export function Work() {
-  const runs = useLoaded<readonly unknown[]>('/api/workspace/runs');
+  const runs = useScoped<readonly unknown[]>('runs');
 
   return (
     <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -61,7 +62,7 @@ interface Agent {
 const AGENT_GRID = '1.2fr 0.9fr 1.1fr 0.8fr';
 
 export function Agents() {
-  const agents = useLoaded<readonly Agent[]>('/api/workspace/agents');
+  const agents = useScoped<readonly Agent[]>('agents');
   const rows = agents.state === 'ready' ? agents.value : [];
 
   return (
@@ -106,7 +107,7 @@ interface Tool {
 const TOOL_GRID = '1.3fr 1fr 0.9fr 0.9fr 0.6fr';
 
 export function Tools() {
-  const tools = useLoaded<readonly Tool[]>('/api/workspace/tools');
+  const tools = useScoped<readonly Tool[]>('tools');
   const rows = tools.state === 'ready' ? tools.value : [];
 
   return (

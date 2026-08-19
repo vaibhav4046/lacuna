@@ -12,6 +12,7 @@
  */
 
 import { useLoaded } from './client';
+import { useScoped } from './scope';
 import type { Loaded } from './client';
 
 export type CheckState = 'pass' | 'warn' | 'fail';
@@ -64,6 +65,6 @@ export function hydraState(loaded: Loaded<HealthReport>): string {
  * because one of them answered and said so.
  */
 export function useModelLabel(): string {
-  const loaded = useLoaded<{ readonly label: string }>('/api/workspace/model');
+  const loaded = useScoped<{ readonly label: string }>('model');
   return loaded.state === 'ready' ? loaded.value.label : UNCHECKED;
 }

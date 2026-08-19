@@ -3,6 +3,7 @@ import { signOut } from '../../api/auth';
 import { postJson } from '../../api/client';
 import { hydraState, useHealth, useModelLabel } from '../../api/health';
 import { useSession } from '../../api/session';
+import { useScope } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { SAMPLE_WORKSPACE } from '../Shell';
 
@@ -25,12 +26,13 @@ export function Settings() {
   const { loaded, refresh } = useSession();
   const health = useHealth();
   const model = useModelLabel();
+  const scope = useScope();
   const account = loaded.state === 'ready' && loaded.value.signedIn ? loaded.value.session : null;
-  const onDemo = account?.workspace === SAMPLE_WORKSPACE;
+  const onDemo = scope.demo || account?.workspace === SAMPLE_WORKSPACE;
 
   const rows: readonly (readonly [string, string])[] = [
-    ['Workspace', account?.workspace ?? '—'],
-    ['Signed in as', account?.email ?? '—'],
+    ['Workspace', scope.demo ? SAMPLE_WORKSPACE : account?.workspace ?? '—'],
+    ['Signed in as', scope.demo ? 'nobody, this is the read only demo' : account?.email ?? '—'],
     ['HydraDB', hydraState(health).toLowerCase()],
     ['Models', model.toLowerCase()],
     ['Voice', 'not configured'],
@@ -64,21 +66,23 @@ export function Settings() {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'center', padding: '16px', marginTop: '22px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>{onDemo ? 'You are in the demo workspace' : 'Open the demo workspace'}</span>
         {onDemo ? (
-          <span style={note}>ITS CONTENTS ARE THE GENERATED CORPUS</span>
+          <span style={note}>{scope.demo ? 'READ ONLY · ITS CONTENTS ARE THE GENERATED CORPUS' : 'ITS CONTENTS ARE THE GENERATED CORPUS'}</span>
         ) : (
           <button className="hv-edge35" onClick={() => void openDemo()} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '7px', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '9px 14px' }}>OPEN DEMO WORKSPACE</button>
         )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'center', padding: '16px', marginTop: '10px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>Sign out</span>
-        <button className="hv-edge35" onClick={() => void leave()} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '7px', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '9px 14px' }}>SIGN OUT</button>
+        <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>{scope.demo ? 'Sign in' : 'Sign out'}</span>
+        <button className="hv-edge35" onClick={() => { if (scope.demo) go('/signin'); else void leave(); }} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '7px', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '9px 14px' }}>{scope.demo ? 'SIGN IN' : 'SIGN OUT'}</button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'baseline', padding: '16px', marginTop: '10px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px' }}>
-        <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>Delete workspace</span>
-        <span style={note}>TYPE THE NAME TO CONFIRM</span>
-      </div>
+      {!scope.demo && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'baseline', padding: '16px', marginTop: '10px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px' }}>
+          <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>Delete workspace</span>
+          <span style={note}>TYPE THE NAME TO CONFIRM</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postFor, useLoaded } from '../../api/client';
+import { postFor } from '../../api/client';
+import { useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 
 /**
@@ -68,7 +69,7 @@ const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flex
 
 export function Ask() {
   const go = useNavigate();
-  const suggested = useLoaded<readonly Suggestion[]>('/api/workspace/questions');
+  const suggested = useScoped<readonly Suggestion[]>('questions');
   const [asked, setAsked] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
   const [predicate, setPredicate] = useState('');

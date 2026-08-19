@@ -304,6 +304,18 @@ export class ApiRouter {
       const inventory = this.#inventory;
       const view = inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
       const part = path.slice('/api/demo/'.length);
+
+      // Probed rather than listed, same as the signed-in route: these two ask
+      // the endpoints and report what answered.
+      if (part === 'models') {
+        send(response, 200, await modelRows(process.env));
+        return HANDLED;
+      }
+      if (part === 'model') {
+        send(response, 200, { label: headerModel(await modelRows(process.env)) });
+        return HANDLED;
+      }
+
       const body = part === 'hops'
         ? hopSuggestions(inventory)
         : workspacePart(view, part);

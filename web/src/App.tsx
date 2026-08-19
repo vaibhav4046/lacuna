@@ -9,6 +9,7 @@ import Forgot from './auth/Forgot';
 import Onboarding from './onboarding/Onboarding';
 import Shell from './app/Shell';
 import { Judge } from './pages/Judge';
+import { ScopeProvider } from './api/scope';
 
 /**
  * The canvas mounts once, above the router, the way it sits above every view
@@ -28,6 +29,8 @@ export default function App() {
         <Route path="/onboarding" element={<RequireSession><Onboarding /></RequireSession>} />
         <Route path="/app" element={<Navigate to="/app/dash" replace />} />
         <Route path="/app/:route" element={<RequireSession><Shell /></RequireSession>} />
+        <Route path="/demo" element={<Navigate to="/demo/dash" replace />} />
+        <Route path="/demo/:route" element={<ScopeProvider demo><Shell /></ScopeProvider>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SessionProvider>

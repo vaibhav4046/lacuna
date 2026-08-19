@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { useLoaded } from '../../api/client';
+
+import { useScoped } from '../../api/scope';
 import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { dotFor } from '../../design/connectors';
@@ -42,11 +43,11 @@ const rowMeta = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', co
 
 export function Dashboard() {
   const go = useNavigate();
-  const changes = useLoaded<readonly Change[]>('/api/workspace/changes');
-  const conflicts = useLoaded<readonly Conflict[]>('/api/workspace/conflicts');
-  const connections = useLoaded<readonly Connection[]>('/api/workspace/connections');
-  const runs = useLoaded<readonly unknown[]>('/api/workspace/runs');
-  const counts = useLoaded<HealthCounts>('/api/workspace/health');
+  const changes = useScoped<readonly Change[]>('changes');
+  const conflicts = useScoped<readonly Conflict[]>('conflicts');
+  const connections = useScoped<readonly Connection[]>('connections');
+  const runs = useScoped<readonly unknown[]>('runs');
+  const counts = useScoped<HealthCounts>('health');
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>

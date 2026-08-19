@@ -9,7 +9,7 @@ Last run: 2026-08-19, at the commit tagged in `RELEASE_GATE.md`.
 
 ## Technical execution — 8/10
 
-**Evidence.** 1023 unit tests, 77 contract tests against a live node, a
+**Evidence.** 1033 unit tests, 77 contract tests against a live node, a
 64-question sweep across three surfaces (`ALL_IDENTICAL: True`), a 64-question
 sweep across two stores (`ALL_IDENTICAL: true`), and a three-client check
 against production (`ONE_CONTEXT_IDENTICAL: true`). Ground truth is physically

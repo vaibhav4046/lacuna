@@ -13,7 +13,7 @@ Production: https://lacuna-five.vercel.app
 | Gate | Result | Command |
 | --- | --- | --- |
 | typecheck | exit 0 | `npx tsc --noEmit` |
-| unit | 1023 of 1023, 51 files | `npx vitest run tests/unit` |
+| unit | 1033 of 1033, 52 files | `npx vitest run tests/unit` |
 | contract, live node | 77 of 77, 4 files | `npx vitest run tests/contract` |
 | census | graph matches the plan exactly | `npm run census` |
 | ground-truth isolation | inside the unit suite, fails if the runtime imports it | `npx vitest run tests/unit` |

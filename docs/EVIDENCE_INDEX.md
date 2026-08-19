@@ -50,8 +50,8 @@ cell `cell-0`.
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 893 unit tests over 39 files | SUBMISSION, JUDGE_SCORECARD, RULES_MATRIX | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
-| 50 contract tests over 3 files | README, SUBMISSION, JUDGE_SCORECARD | [artifacts/verification/2026-08-18/contract.txt](../artifacts/verification/2026-08-18/contract.txt) | `npm run test:contract` | `LIVE` |
+| 1033 unit tests over 52 files | JUDGE_SCORECARD, RELEASE_GATE, END_TO_END_MATRIX | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
+| 77 contract tests over 4 files | RELEASE_GATE, END_TO_END_MATRIX | [artifacts/verification/2026-08-18/contract.txt](../artifacts/verification/2026-08-18/contract.txt) | `npm run test:contract` | `LIVE` |
 | 943 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
 | Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
 | Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-18/typecheck.txt](../artifacts/verification/2026-08-18/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
@@ -265,7 +265,7 @@ not the count now, which is 84. Both are true and they are not the same fact.
 |---|---|---|---|---|
 | <https://lacuna-five.vercel.app> serves every page, 404s unknown paths, 405s POST | README, CLAIMS, SUBMISSION | [artifacts/verification/2026-08-14f/prod-routes.txt](../artifacts/verification/2026-08-14f/prod-routes.txt) | `curl` against the URL, listed in [that run's README](../artifacts/verification/2026-08-14f/README.md) | `RECORDED` |
 | The deployed copy returns the recorded answer for one question of each kind, and discloses the replay on its own pages | README, CLAIMS | [artifacts/verification/2026-08-14f/prod-answers.txt](../artifacts/verification/2026-08-14f/prod-answers.txt) | same | `RECORDED` |
-| The deployed copy sends the same CSP and nosniff headers as the local server | CLAIMS | [artifacts/verification/2026-08-14f/prod-routes.txt](../artifacts/verification/2026-08-14f/prod-routes.txt) | same | `RECORDED` |
+| The deployment and the local HTML server send **different** policies, both strict | CLAIMS | `curl -sD- -o /dev/null https://lacuna-five.vercel.app/` and [src/view/layout.ts](../src/view/layout.ts) | `LIVE` |
 | The snapshot replays all sixty-four gold questions with zero mismatches | README, CLAIMS | [artifacts/verification/2026-08-18/snapshot-verify.txt](../artifacts/verification/2026-08-18/snapshot-verify.txt) | `npm run snapshot:verify` | `RECORDED` |
 
 The deployment is a replay, not a hosted node. Every reply it serves was
@@ -288,8 +288,10 @@ the state this file exists to make visible rather than to hide.
 Some numbers here go stale the moment new work lands, and saying so is cheaper
 than being caught by it.
 
-**The unit test count.** It has been 712, then 805, then 807, then 816, and is
-893 at the run above.
+**The unit test count.** It has been 712, then 805, then 807, then 816, then
+893, and is 1033 at the run above. This paragraph explained exactly how a stale
+count survives and then carried one for a day: 893 sat here while three other
+documents said 1002, 1016 and 1023, all on the same tree.
 It moves whenever a test is added, which is often, and it was written into six
 files at once, which is exactly how a stale count survives. The durable fix was
 to stop repeating it: the README and the scorecard now tell a reader to look at

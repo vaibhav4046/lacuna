@@ -26,6 +26,22 @@ What exists right now. Updated as things change, and never ahead of them.
   `display:none` below 940px with nothing in their place. They are in a
   disclosure sheet now, no script, all targets 44px or taller, and the page
   carries no horizontal overflow at 360px where it used to carry nine pixels.
+- **Every route was opened in a real browser and the console kept.**
+  `npm run audit:routes` walks all 23 routes at a laptop and a phone viewport
+  and records console errors, exceptions, failed requests, sideways scroll and
+  whether anything was drawn. Its first run failed 18 of 23: every signed-in
+  route scrolled sideways on a 375px screen. Fixed, and 46 of 46 now, against
+  production. Evidence in
+  [artifacts/route-audit/routes.json](artifacts/route-audit/routes.json).
+- **It holds up under load.** 400 requests at concurrency 12 against the
+  deployed endpoint: 26.3 a second, p95 805ms, zero failures, and every answer
+  identical to the same question asked alone, so a run cannot get fast by
+  returning something stale. Evidence in
+  [artifacts/soak/soak.json](artifacts/soak/soak.json).
+- **The boundaries are a test, not a habit.** `tests/unit/architecture.test.ts`
+  fails if the web imports the resolver, if a surface opens its own store
+  outside the seam, if a client re-decides which claim is current, or if any
+  route names a gold answer. Both new guards were checked by breaking them.
 - **The two hard questions are recorded.** `npm run proof` walks the graph for
   what a package change reaches, and asks an unsupported premise beside a real
   revision through three clients. 13 services at depth 3, both stores agreeing,

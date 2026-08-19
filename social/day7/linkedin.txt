@@ -1,0 +1,18 @@
+I found the bug in my own product by taking a screenshot of it.
+
+The landing page had a terminal on it. Box drawing characters, a green CONNECTED dot, a workspace called acme, a model called qwen2.5, a trace id. All of it typed by me, under a CONCEPT PREVIEW label that was honest about the block being a drawing and did nothing about the strings inside it being invented.
+
+So I replaced it with a recording. A script runs the real CLI against the real store and keeps every byte. The page renders that file. I ran it with the cloud profile set, and the first command in the recording said this:
+
+  node        http://127.0.0.1:18443
+  namespace   local
+
+Then the next command in the same recording answered out of HydraDB Cloud. The status command was reading a node on my laptop and reporting that instead. It loaded its own config rather than going through the seam every other command uses, so it named one store while every answer came from another. Neither said so.
+
+Today's other number: a change to one package walks the graph to 13 affected services at depth 3, and refuses one dependency edge that was superseded. Same 13 from the cloud and from the self hosted node.
+
+If your product screenshots are hand made, what is in them that is no longer true?
+
+[tag the HydraDB company page here in the composer]
+
+#HydraDB #HackHydra #AgentMemory

@@ -1,0 +1,166 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Lacuna day 7</title>
+<!--
+  The Day 7 card.
+
+  Every string inside the terminal block is copied from artifacts/proof/proofs.json
+  and artifacts/cli/session.txt, both written by runs recorded on 2026-08-19. The
+  mark at the top left is the same five row mark the CLI prints, character for
+  character. Nothing here is typed to look like output.
+
+  Rendered by scripts/social-card.ts at 1080x1350 and 1600x900.
+-->
+<style>
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('../../web/public/fonts/jetbrains-mono-latin.woff2') format('woff2');
+    font-weight: 400 700;
+    font-display: block;
+  }
+
+  :root {
+    --ink: #FFFFFF;
+    --mid: #9A9A9A;
+    --dim: #5E5E5E;
+    --violet: #8052FF;
+    --amber: #FFB829;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: #000000;
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Plain block flow, deliberately.
+     This was a flex column with the transcript on flex:1 and centred inside
+     itself. That arrangement kept pushing the closing rule and the provenance
+     line past the fixed height, where overflow:hidden removed them without the
+     render failing, so the card looked finished and had lost its attribution.
+     Nothing here needs to stretch. Blocks stack, the card is authored to fill,
+     and what is written is what is drawn. */
+  body {
+    width: var(--w);
+    height: var(--h);
+    padding: var(--pad);
+    overflow: hidden;
+  }
+
+  .top {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    padding-bottom: var(--gap);
+    flex-shrink: 0;
+  }
+
+  .mark {
+    font-size: var(--mark);
+    line-height: 1.18;
+    color: var(--dim);
+    white-space: pre;
+    letter-spacing: 0.06em;
+  }
+  .mark b { color: var(--amber); font-weight: 400; }
+
+  .wordmark {
+    font-size: var(--word);
+    letter-spacing: -0.01em;
+    padding-top: 0.15em;
+  }
+  .kicker {
+    font-size: var(--kick);
+    letter-spacing: 0.26em;
+    color: var(--mid);
+    text-transform: uppercase;
+    padding-top: 0.7em;
+  }
+
+  /* The one structural rule. Violet, and thick enough to read as a colour
+     rather than as an antialiased grey hairline. */
+  .rule { height: 2px; background: var(--violet); flex-shrink: 0; }
+
+  .term {
+    display: flex;
+    flex-direction: column;
+    gap: var(--line);
+    font-size: var(--code);
+    line-height: 1.55;
+    padding: var(--gap) 0;
+  }
+
+  .q { color: var(--ink); }
+  .q i { color: var(--violet); font-style: normal; }
+  .out { color: var(--mid); white-space: pre-wrap; }
+  .out b { color: var(--ink); font-weight: 400; }
+  .out u { color: var(--amber); text-decoration: none; }
+  .spacer { height: calc(var(--line) * 0.5); }
+
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 20px;
+    font-size: var(--kick);
+    letter-spacing: 0.16em;
+    color: var(--mid);
+    text-transform: uppercase;
+    padding-top: calc(var(--gap) * 0.6);
+    flex-shrink: 0;
+  }
+  .foot span:last-child { color: var(--dim); }
+</style>
+
+<div class="top">
+  <div class="mark">   <b>●</b>···
+ ···  ··
+··     ·
+··    ··
+ ······</div>
+  <div>
+    <div class="wordmark">lacuna</div>
+    <div class="kicker">Day 7 · one context, from the terminal</div>
+  </div>
+</div>
+
+<div class="rule"></div>
+
+<div class="term">
+  <div class="q">$ lacuna <i>status</i></div>
+  <div class="out">  profile  cloud
+  store    <b>HydraDB Cloud, database lacuna, collection backend</b></div>
+
+  <div class="spacer"></div>
+
+  <div class="q">$ if <i>moss-index</i> changes, which services are affected?</div>
+  <div class="out">  <b>13 services</b>, depth <b>3</b>, 32 reads, 1702ms
+  audit-sink, billing-gate, dead-letter-sweeper, export-runner,
+  ingest-worker, ledger-api, media-thumbs, notify-relay, quota-broker,
+  replay-queue, session-mint, tenant-router, trace-collector
+  through 13 packages
+  <u>1 superseded dependency claim not followed</u></div>
+
+  <div class="spacer"></div>
+
+  <div class="q">$ lacuna <i>ask</i> Meridian migration_window</div>
+  <div class="out">  <b>No answer</b> (<u>never_stated</u>)
+  Nothing in the sessions ever stated this.</div>
+
+  <div class="spacer"></div>
+
+  <div class="q">$ lacuna <i>ask</i> Bellwether beta_partner</div>
+  <div class="out">  <b>Halverd</b>
+  This replaced <b>2</b> earlier values and nothing has superseded it.
+  Cited from a data planning call, 2025-04-20.</div>
+</div>
+
+<div class="rule"></div>
+
+<div class="foot">
+  <span>web · cli · mcp returned this identically</span>
+  <span>artifacts/proof/proofs.json</span>
+</div>

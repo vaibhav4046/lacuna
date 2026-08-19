@@ -1,0 +1,7 @@
+Replaced the hand drawn terminal on my landing page with a recording of the real CLI.
+
+First run exposed a bug: `status` was reporting a node on my laptop while every answer came from HydraDB Cloud. It loaded its own config instead of going through the same seam `ask` uses.
+
+A drawing would never have told me.
+
+#HydraDB #HackHydra

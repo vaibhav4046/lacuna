@@ -13,7 +13,7 @@ export function Final() {
             <button className="hv-violet" onClick={() => go('/signup')} style={{ background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '15px', fontWeight: 500, padding: '13px 24px', borderRadius: '8px', whiteSpace: 'nowrap' }}>Start building</button>
             <a href="#dev" style={{ fontSize: '15px', color: '#BDBDBD', borderBottom: '1px solid rgba(255,255,255,0.28)', paddingBottom: '3px', whiteSpace: 'nowrap' }}>Read the docs</a>
           </div>
-          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#5E5E5E', marginTop: '8px' }}>Built on HydraDB.</span>
+          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#7A7A7A', marginTop: '8px' }}>Built on HydraDB.</span>
         </div>
       </div>
     </section>

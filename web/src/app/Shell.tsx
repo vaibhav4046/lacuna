@@ -25,7 +25,7 @@ import { RouteBody } from './RouteBody';
 
 const groupHead = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.24em', color: '#4A4A4A', padding: '0 10px 5px' } as const;
 const navLabel = { fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em' } as const;
-const footLabel = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.22em', color: '#5E5E5E' } as const;
+const footLabel = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.22em', color: '#7A7A7A' } as const;
 
 /** The one workspace whose numbers are the design's sample values. */
 export const SAMPLE_WORKSPACE = 'acme / backend';
@@ -93,12 +93,12 @@ export default function Shell() {
             <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#9A9A9A' }}>HYDRADB {hydraState(health)}</span>
           </div>
           {workspace === SAMPLE_WORKSPACE ? (
-            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>SAMPLE WORKSPACE</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>SAMPLE WORKSPACE</span>
           ) : null}
           {scope.demo ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
               <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#8052FF' }}>DEMO · READ ONLY</span>
-              <button onClick={() => go('/signin')} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>SIGN IN</button>
+              <button onClick={() => go('/signin')} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>SIGN IN</button>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginTop: '8px' }}>
@@ -117,7 +117,7 @@ export default function Shell() {
               anything of its own. Neither is reachable by touch anyway. */}
           <div data-mhide="1" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <span style={{ border: '1px solid rgba(255,255,255,0.14)', borderRadius: '5px', padding: '4px 9px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#9A9A9A' }}>⌘ K</span>
-            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#5E5E5E' }}>MODEL · {model}</span>
+            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#7A7A7A' }}>MODEL · {model}</span>
           </div>
         </div>
         {/* A route wider than the frame scrolls inside the frame. Without this

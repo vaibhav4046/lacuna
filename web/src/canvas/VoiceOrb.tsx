@@ -83,7 +83,7 @@ export function VoiceOrb() {
       const theta = i * 2.399963;
       const r = 96 * Math.sqrt(i / 260);
       ctx.globalAlpha = 0.20 + 0.25 * (i / 260);
-      ctx.fillStyle = i % 37 === 0 ? '#8052FF' : '#5E5E5E';
+      ctx.fillStyle = i % 37 === 0 ? '#8052FF' : '#7A7A7A';
       ctx.beginPath();
       ctx.arc(cx + Math.cos(theta) * r, cy + Math.sin(theta) * r, 1.1, 0, 6.283);
       ctx.fill();
@@ -161,7 +161,7 @@ export function VoiceOrb() {
         const theta = i * 2.399963 + now * 0.00012;
         const r = radius * Math.sqrt(i / 260);
         ctx.globalAlpha = 0.22 + 0.4 * (i / 260);
-        ctx.fillStyle = i % 37 === 0 ? '#8052FF' : '#5E5E5E';
+        ctx.fillStyle = i % 37 === 0 ? '#8052FF' : '#7A7A7A';
         ctx.beginPath();
         ctx.arc(cx + Math.cos(theta) * r, cy + Math.sin(theta) * r, 1.1, 0, 6.283);
         ctx.fill();
@@ -242,16 +242,16 @@ export function VoiceOrb() {
     setPitch(null);
   }
 
-  const dim = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em', color: '#5E5E5E' } as const;
+  const dim = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em', color: '#7A7A7A' } as const;
 
   return (
     <>
       <canvas ref={canvasRef} style={{ width: 'min(300px, 100%)', aspectRatio: '1', flexShrink: 0 }} aria-hidden="true" />
       <div style={{ flex: 1, minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '26px' }}>
         <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: live ? '#15846E' : '#5E5E5E' }}></span>
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: live ? '#15846E' : '#7A7A7A' }}></span>
           <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#BDBDBD' }}>VOICE · {live ? 'MICROPHONE LIVE' : 'NOT CONFIGURED'}</span>
-          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>PROVIDER · NOT CONFIGURED · SPEECH ONLY · LACUNA KEEPS THE CONTEXT</span>
+          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#7A7A7A' }}>PROVIDER · NOT CONFIGURED · SPEECH ONLY · LACUNA KEEPS THE CONTEXT</span>
         </div>
 
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -260,13 +260,13 @@ export function VoiceOrb() {
           ) : (
             <button className="hv-violet" onClick={() => void enable()} style={{ background: '#8052FF', border: 'none', borderRadius: '7px', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '9px 14px' }}>ENABLE MICROPHONE</button>
           )}
-          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>LOCAL INPUT ONLY · AUDIO IS NOT SENT ANYWHERE</span>
+          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#7A7A7A' }}>LOCAL INPUT ONLY · AUDIO IS NOT SENT ANYWHERE</span>
         </div>
         {problem === null ? null : <span role="alert" style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#BDBDBD' }}>{problem}</span>}
 
         <div style={{ display: 'flex', gap: 'clamp(14px, 3vw, 34px)', flexWrap: 'wrap', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em' }}>
           {CHIPS.map((c) => (
-            <span key={c} style={{ color: live && c === 'LISTENING' ? '#FFFFFF' : '#5E5E5E', transition: 'color 400ms ease' }}>{c}</span>
+            <span key={c} style={{ color: live && c === 'LISTENING' ? '#FFFFFF' : '#7A7A7A', transition: 'color 400ms ease' }}>{c}</span>
           ))}
         </div>
 

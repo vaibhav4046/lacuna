@@ -35,7 +35,7 @@ export function GoogleButton({ label }: { label: string }) {
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '2px 0' }}>
         <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#5E5E5E' }}>OR</span>
+        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#7A7A7A' }}>OR</span>
         <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
       </div>
       <a

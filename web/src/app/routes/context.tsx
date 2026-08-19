@@ -42,18 +42,18 @@ const STATE_LABEL: Readonly<Record<MemoryRow['st'], string>> = {
   CUR: 'CURRENT', SUP: 'HISTORICAL', PRO: 'PROPOSAL', CON: 'CONTRADICTED', UN: 'UNSUPPORTED',
 };
 const STATE_COLOUR: Readonly<Record<MemoryRow['st'], string>> = {
-  CUR: '#8052FF', CON: '#BDBDBD', SUP: '#71717A', PRO: '#71717A', UN: '#71717A',
+  CUR: '#8052FF', CON: '#BDBDBD', SUP: '#7A7A84', PRO: '#7A7A84', UN: '#7A7A84',
 };
 
 const GRID = '22px 1.8fr 0.7fr 1fr 0.7fr 1fr';
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
 /** The design's five state glyphs. Shape carries the state, never colour alone. */
 function StateMark({ st }: { st: MemoryRow['st'] }) {
   if (st === 'CUR') return <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.2" fill="#8052FF" /></svg>;
-  if (st === 'SUP') return <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#71717A" strokeWidth="1.2" /></svg>;
-  if (st === 'PRO') return <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#71717A" strokeWidth="1.2" strokeDasharray="2 2" /></svg>;
+  if (st === 'SUP') return <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#7A7A84" strokeWidth="1.2" /></svg>;
+  if (st === 'PRO') return <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#7A7A84" strokeWidth="1.2" strokeDasharray="2 2" /></svg>;
   if (st === 'CON') return <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 9V5.5M5 5.5L2 1.5M5 5.5L8 1.5" fill="none" stroke="#BDBDBD" strokeWidth="1.2" /></svg>;
   return <svg width="10" height="10" viewBox="0 0 10 10"><path d="M8 5A3 3 0 1 1 5 2" fill="none" stroke="#9A9A9A" strokeWidth="1.2" /></svg>;
 }
@@ -82,7 +82,7 @@ export function Memory() {
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input className="fv-violet" type="text" placeholder="Search claims" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: '200px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontFamily: MONO, fontSize: '12px', outline: 'none' }} />
         {FILTERS.map((l) => (
-          <button key={l} className="hv-text" onClick={() => setFilter(l)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 11px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', border: '1px solid rgba(255,255,255,0.12)', color: filter === l ? '#FFFFFF' : '#9A9A9A' }}>{l}</button>
+          <button key={l} className="hv-text" aria-pressed={filter === l} onClick={() => setFilter(l)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 11px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', border: '1px solid rgba(255,255,255,0.12)', color: filter === l ? '#FFFFFF' : '#9A9A9A' }}>{l}</button>
         ))}
       </div>
       <div>
@@ -140,7 +140,7 @@ export function Timeline() {
                 {i > 0 ? <span style={{ width: '38px', height: '1px', background: 'rgba(255,255,255,0.18)', margin: '0 2px' }}></span> : null}
                 <span style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '14px 20px', display: 'block' }}>
                   <span style={{ fontSize: '19px', color: '#9A9A9A', display: 'block' }}>{c.t}</span>
-                  <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#5E5E5E', marginTop: '6px', display: 'block' }}>{c.d} · HISTORICAL</span>
+                  <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A', marginTop: '6px', display: 'block' }}>{c.d} · HISTORICAL</span>
                 </span>
               </span>
             ))}
@@ -154,7 +154,7 @@ export function Timeline() {
             {(rows) => rows.map((c) => (
               <div key={c.t} style={{ border: '1px dashed rgba(255,255,255,0.22)', borderRadius: '10px', padding: '14px 20px', flex: 1, minWidth: '240px' }}>
                 <div style={{ fontSize: '17px', color: '#FFFFFF' }}>{c.t}</div>
-                <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#5E5E5E', marginTop: '6px' }}>{c.state}</div>
+                <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A', marginTop: '6px' }}>{c.state}</div>
               </div>
             ))}
           </Panel>
@@ -185,10 +185,10 @@ export function Graph() {
       {rows.length > 0 ? (
         <>
           <svg viewBox={`0 0 960 ${Math.max(200, 60 + rows.length * 62)}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Claims, their evidence and their sources">
-            <text x="70" y="30" fill="#5E5E5E" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">QUERY</text>
-            <text x="330" y="30" fill="#5E5E5E" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">CLAIMS</text>
-            <text x="610" y="30" fill="#5E5E5E" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">EVIDENCE</text>
-            <text x="840" y="30" fill="#5E5E5E" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">SOURCES</text>
+            <text x="70" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">QUERY</text>
+            <text x="330" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">CLAIMS</text>
+            <text x="610" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">EVIDENCE</text>
+            <text x="840" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">SOURCES</text>
             {rows.map((r, i) => {
               const y = 70 + i * 62;
               const current = r.st === 'CUR';
@@ -200,7 +200,7 @@ export function Graph() {
                   <line x1="750" y1={y + 22} x2="830" y2={y + 22} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
                   <rect x="320" y={y} width="150" height="44" rx="8" fill="none" stroke={stroke} strokeWidth={current ? 1.4 : 1} strokeDasharray={current ? undefined : '4 4'} />
                   <text x="338" y={y + 20} fill={current ? '#FFFFFF' : '#9A9A9A'} fontSize="13" fontFamily="Space Grotesk, sans-serif">{r.claim.slice(0, 18)}</text>
-                  <text x="338" y={y + 36} fill={current ? '#8052FF' : '#5E5E5E'} fontSize="9" letterSpacing="2" fontFamily="JetBrains Mono, monospace">{STATE_LABEL[r.st]}</text>
+                  <text x="338" y={y + 36} fill={current ? '#8052FF' : '#7A7A7A'} fontSize="9" letterSpacing="2" fontFamily="JetBrains Mono, monospace">{STATE_LABEL[r.st]}</text>
                   <rect x="600" y={y} width="150" height="44" rx="8" fill="none" stroke="rgba(255,255,255,0.3)" />
                   <circle cx="608" cy={y + 22} r="2.5" fill="#FFB829" />
                   <text x="618" y={y + 26} fill="#BDBDBD" fontSize="12" fontFamily="Space Grotesk, sans-serif">{r.src.slice(0, 16)}</text>

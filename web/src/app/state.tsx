@@ -31,7 +31,7 @@ export function Empty({ headline, detail }: { headline: string; detail: string }
 export function Stage({ label }: { label: string }) {
   return (
     <div style={{ padding: '22px 2px' }}>
-      <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' }}>{label}</span>
+      <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' }}>{label}</span>
     </div>
   );
 }

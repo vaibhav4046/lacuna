@@ -92,7 +92,7 @@ const STATUS_COLOUR: Readonly<Record<Envelope['status'], string>> = {
 };
 
 const mono = { fontFamily: MONO } as const;
-const label = { ...mono, fontSize: '10px', letterSpacing: '0.18em', color: '#5E5E5E' } as const;
+const label = { ...mono, fontSize: '10px', letterSpacing: '0.18em', color: '#7A7A7A' } as const;
 
 /**
  * The subjects come from the workspace rather than from this file.
@@ -133,12 +133,18 @@ function rowsFrom(suggestions: readonly Suggestion[], hop: Suggestion | null): r
 
 function Result({ envelope }: { envelope: Envelope | 'running' }) {
   if (envelope === 'running') {
-    return <div style={{ ...mono, fontSize: '11.5px', color: '#5E5E5E', letterSpacing: '0.14em' }}>READING…</div>;
+    return (
+      <div role="status" aria-live="polite" style={{ ...mono, fontSize: '11.5px', color: '#7A7A7A', letterSpacing: '0.14em' }}>
+        READING…
+      </div>
+    );
   }
 
   const colour = STATUS_COLOUR[envelope.status];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    // Announced when it arrives. Each row fills in one at a time, and a screen
+    // reader that is never told is a screen reader watching a blank page.
+    <div role="status" aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
         <span style={{ ...mono, fontSize: '10px', letterSpacing: '0.18em', color: colour }}>
           {STATUS_WORD[envelope.status]}
@@ -174,10 +180,10 @@ function Result({ envelope }: { envelope: Envelope | 'running' }) {
               <span style={{ ...mono, fontSize: '9.5px', letterSpacing: '0.14em', color: STANDING_COLOUR[claim.standing], minWidth: '124px' }}>
                 {replacesPrevious ? '↓ ' : ''}{STANDING_LABEL[claim.standing]}
               </span>
-              <span style={{ fontSize: '15px', color: claim.standing === 'superseded' ? '#71717A' : '#FFFFFF', textDecoration: claim.standing === 'superseded' ? 'line-through' : 'none' }}>
+              <span style={{ fontSize: '15px', color: claim.standing === 'superseded' ? '#7A7A84' : '#FFFFFF', textDecoration: claim.standing === 'superseded' ? 'line-through' : 'none' }}>
                 {claim.value}
               </span>
-              <span style={{ ...mono, fontSize: '10px', color: '#5E5E5E' }}>{claim.valid_from.slice(0, 10)}</span>
+              <span style={{ ...mono, fontSize: '10px', color: '#7A7A7A' }}>{claim.valid_from.slice(0, 10)}</span>
             </div>
             );
           })}
@@ -199,7 +205,7 @@ function Result({ envelope }: { envelope: Envelope | 'running' }) {
                 {STANDING_LABEL[item.standing]}
               </span>
               <span style={{ color: '#BDBDBD', fontSize: '14px' }}>{item.source}</span>
-              <span style={{ ...mono, fontSize: '11px', color: '#5E5E5E' }}>{item.meta}</span>
+              <span style={{ ...mono, fontSize: '11px', color: '#7A7A7A' }}>{item.meta}</span>
             </li>
           ))}
         </ul>
@@ -365,7 +371,7 @@ export function Judge() {
     <main style={{ background: '#000000', minHeight: '100vh', color: '#FFFFFF', padding: '48px 24px 96px' }}>
       <div style={{ maxWidth: '840px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '36px' }}>
         <header style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <Link to="/" style={{ ...label, textDecoration: 'none', color: '#5E5E5E' }}>← LACUNA</Link>
+          <Link to="/" style={{ ...label, textDecoration: 'none', color: '#7A7A7A' }}>← LACUNA</Link>
           <h1 style={{ fontSize: 'clamp(30px, 5vw, 44px)', fontWeight: 300, letterSpacing: '-0.02em', margin: 0 }}>
             Six questions, answered live.
           </h1>
@@ -388,7 +394,7 @@ export function Judge() {
         )}
 
         {rows === null && !failed && (
-          <p style={{ ...mono, fontSize: '11.5px', color: '#5E5E5E', letterSpacing: '0.14em' }}>LOADING…</p>
+          <p style={{ ...mono, fontSize: '11.5px', color: '#7A7A7A', letterSpacing: '0.14em' }}>LOADING…</p>
         )}
 
         {(rows ?? []).map((row) => {
@@ -408,7 +414,7 @@ export function Judge() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ ...label, color: '#8052FF' }}>{row.heading.toUpperCase()}</span>
                 <span style={{ color: '#BDBDBD', fontSize: '15px' }}>{row.note}</span>
-                <span style={{ ...mono, fontSize: '12px', color: '#5E5E5E' }}>
+                <span style={{ ...mono, fontSize: '12px', color: '#7A7A7A' }}>
                   {row.subject} · {row.predicate.replace(/_/g, ' ')}
                   {row.via === null ? '' : ` · via ${row.via}`}
                 </span>

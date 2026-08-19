@@ -277,3 +277,23 @@ summary:focus-visible {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/*
+ * Somebody who asked for less motion gets less motion.
+ *
+ * The canvas already reads the preference and stops its own animation. This is
+ * for everything else: the transitions on hover, the pulses, the entrance
+ * animations. Not removed entirely, because an element that snaps between
+ * states with no transition at all can be harder to follow rather than easier;
+ * reduced to a duration short enough not to be motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

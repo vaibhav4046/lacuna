@@ -28,7 +28,7 @@ export const STANDING_LABEL: Readonly<Record<EvidenceStanding, string>> = {
 export const STANDING_COLOUR: Readonly<Record<EvidenceStanding, string>> = {
   current: '#FFB829',
   current_conflicting: '#FFB829',
-  superseded: '#5E5E5E',
+  superseded: '#7A7A7A',
   withdrawal_current: '#BDBDBD',
-  proposal: '#5E5E5E',
+  proposal: '#7A7A7A',
 };

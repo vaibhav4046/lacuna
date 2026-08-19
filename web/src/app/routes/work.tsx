@@ -14,8 +14,8 @@ import { Empty, Failed, Stage } from '../state';
 const chip = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', borderRadius: '7px', padding: '7px 11px' } as const;
 const stage = { fontFamily: MONO, fontSize: '11px', letterSpacing: '0.18em', color: '#BDBDBD' } as const;
 const rule = { width: '30px', height: '1px', background: 'rgba(255,255,255,0.16)' } as const;
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
 const STAGES = ['REQUEST', 'CONTEXT', 'AGENT', 'TOOLS', 'OUTCOME', 'WRITEBACK'] as const;
 
@@ -26,9 +26,9 @@ export function Work() {
     <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.16)', color: '#FFFFFF' }}>ACTIVE</span>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#71717A' }}>WAITING</span>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#71717A' }}>COMPLETED</span>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#71717A' }}>SCHEDULED</span>
+        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#7A7A84' }}>WAITING</span>
+        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#7A7A84' }}>COMPLETED</span>
+        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#7A7A84' }}>SCHEDULED</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         {STAGES.map((s, i) => (
@@ -85,10 +85,10 @@ export function Agents() {
             </div>
             <span style={{ fontFamily: MONO, fontSize: '12px', color: '#BDBDBD' }}>{a.model}</span>
             <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{a.tools}</span>
-            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>{a.state}</span>
+            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#7A7A7A' }}>{a.state}</span>
           </div>
         ))}
-        <div style={{ border: '1px dashed rgba(255,255,255,0.16)', borderRadius: '8px', padding: '16px', textAlign: 'center', marginTop: '18px', fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#5E5E5E' }}>+ NEW AGENT</div>
+        <div style={{ border: '1px dashed rgba(255,255,255,0.16)', borderRadius: '8px', padding: '16px', textAlign: 'center', marginTop: '18px', fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#7A7A7A' }}>+ NEW AGENT</div>
       </div>
     </div>
   );
@@ -126,7 +126,7 @@ export function Tools() {
           <div key={t.name} className="hv-surface3" style={{ display: 'grid', gridTemplateColumns: TOOL_GRID, gap: '16px', alignItems: 'baseline', padding: '15px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', transition: 'background 140ms ease' }}>
             <div>
               <div style={{ fontFamily: MONO, fontSize: '13px', color: '#FFFFFF' }}>{t.name}</div>
-              <div style={{ fontFamily: MONO, fontSize: '10px', color: '#5E5E5E', marginTop: '5px' }}>{t.kind}</div>
+              <div style={{ fontFamily: MONO, fontSize: '10px', color: '#7A7A7A', marginTop: '5px' }}>{t.kind}</div>
             </div>
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: t.dot }}></span>
@@ -134,7 +134,7 @@ export function Tools() {
             </span>
             <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{t.perm}</span>
             <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{t.acc}</span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#5E5E5E' }}>{t.last}</span>
+            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#7A7A7A' }}>{t.last}</span>
           </div>
         ))}
       </div>

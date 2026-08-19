@@ -17,7 +17,7 @@ export const FORM: CSSProperties = { margin: 0, width: 'min(360px, 100%)', displ
 export const LEAD: CSSProperties = { fontSize: '17px', lineHeight: 1.7, color: '#9A9A9A', margin: 0 };
 export const PRIMARY: CSSProperties = { background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '15px', fontWeight: 500, padding: '13px 22px', borderRadius: '8px', marginTop: '6px' };
 export const MINOR: CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: '#BDBDBD', padding: 0, fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em' };
-export const MINOR_DIM: CSSProperties = { ...MINOR, color: '#5E5E5E' };
+export const MINOR_DIM: CSSProperties = { ...MINOR, color: '#7A7A7A' };
 
 export function Brand() {
   const go = useNavigate();

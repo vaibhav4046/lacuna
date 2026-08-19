@@ -37,7 +37,7 @@ interface HealthCounts {
   readonly conflicts: number;
 }
 
-const head = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.22em', color: '#5E5E5E', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.12)' } as const;
+const head = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.22em', color: '#7A7A7A', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.12)' } as const;
 const headLater = { ...head, padding: '26px 0 10px', paddingBottom: '10px' } as const;
 const rowMeta = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', color: '#9A9A9A', flexShrink: 0 } as const;
 
@@ -54,7 +54,7 @@ export function Dashboard() {
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
       <button className="hv-edge30" onClick={() => go(`${prefix}/ask`)} style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px', background: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
         <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
-        <span style={{ fontFamily: MONO, fontSize: '13px', color: '#5E5E5E' }}>Ask Lacuna anything in this workspace…</span>
+        <span style={{ fontFamily: MONO, fontSize: '13px', color: '#7A7A7A' }}>Ask Lacuna anything in this workspace…</span>
       </button>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: '40px' }}>
@@ -103,7 +103,7 @@ export function Dashboard() {
           </Panel>
 
           <button className="hv-surface3" onClick={() => go(`${prefix}/health`)} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'baseline', padding: '13px 2px', borderTop: '1px solid rgba(255,255,255,0.12)', background: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', cursor: 'pointer', textAlign: 'left' }}>
-            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.22em', color: '#5E5E5E' }}>CONTEXT HEALTH</span>
+            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.22em', color: '#7A7A7A' }}>CONTEXT HEALTH</span>
             <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.08em', color: '#9A9A9A' }}>
               {counts.state === 'ready'
                 ? `${counts.value.current} current · ${counts.value.historical} historical · ${counts.value.conflicts} conflict`

@@ -26,7 +26,7 @@ export const DOT: Readonly<Record<string, string>> = {
   CONNECTED: '#15846E',
   SYNCING: '#FFB829',
   AVAILABLE: '#9A9A9A',
-  PLANNED: '#5E5E5E',
+  PLANNED: '#7A7A7A',
 };
 
 export interface ConnectorItem {
@@ -49,5 +49,5 @@ export const CONNECTOR_GROUPS: readonly ConnectorGroup[] = [
 ];
 
 export function dotFor(state: string): string {
-  return DOT[state] ?? '#5E5E5E';
+  return DOT[state] ?? '#7A7A7A';
 }

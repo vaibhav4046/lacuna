@@ -19,8 +19,8 @@ import { Empty, Failed, Stage } from '../state';
 /** Matches the cap the endpoint enforces, so the counter is not a decoration. */
 const MAX_PROSE = 4000;
 
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
 interface ExtractedRow {
   readonly key: string;
@@ -142,7 +142,7 @@ export function Extractor() {
       />
 
       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ ...note, color: text.length > MAX_PROSE * 0.9 ? '#FFB829' : '#5E5E5E' }}>
+        <span style={{ ...note, color: text.length > MAX_PROSE * 0.9 ? '#FFB829' : '#7A7A7A' }}>
           {text.length} / {MAX_PROSE}
         </span>
         <button

@@ -19,7 +19,7 @@ import { SAMPLE_WORKSPACE } from '../Shell';
  * Nothing loads it silently.
  */
 
-const note = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#5E5E5E' } as const;
+const note = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7A7A' } as const;
 
 export function Settings() {
   const go = useNavigate();

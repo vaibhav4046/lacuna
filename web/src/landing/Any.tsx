@@ -1,7 +1,7 @@
 import { MONO } from '../design/mark';
 import { icStyle } from '../design/icons';
 
-const client = { display: 'flex', alignItems: 'center', gap: '8px', position: 'absolute', transform: 'translate(-50%, 30px)', fontFamily: MONO, fontSize: '12.5px', letterSpacing: '0.22em', color: '#71717A', transition: 'color 500ms ease' } as const;
+const client = { display: 'flex', alignItems: 'center', gap: '8px', position: 'absolute', transform: 'translate(-50%, 30px)', fontFamily: MONO, fontSize: '12.5px', letterSpacing: '0.22em', color: '#7A7A84', transition: 'color 500ms ease' } as const;
 
 export function Any() {
   return (

@@ -12,7 +12,7 @@ import { MONO } from '../design/mark';
  * stays broken without anybody noticing.
  */
 
-const label = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em', color: '#5E5E5E' } as const;
+const label = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em', color: '#7A7A7A' } as const;
 
 export default function NotFound() {
   return (

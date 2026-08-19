@@ -1,6 +1,6 @@
 import { MONO } from '../design/mark';
 
-const stage = { color: '#71717A', transition: 'color 400ms ease' } as const;
+const stage = { color: '#7A7A84', transition: 'color 400ms ease' } as const;
 
 export function Hand() {
   return (

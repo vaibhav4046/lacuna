@@ -1,5 +1,5 @@
 {
-  "crawledAt": "2026-08-19T16:30:15.329Z",
+  "crawledAt": "2026-08-19T17:15:05.931Z",
   "base": "https://lacuna-five.vercel.app",
   "routesVisited": [
     "/",
@@ -21,7 +21,6 @@
     "/demo/tools",
     "/demo/voice",
     "/demo/work",
-    "/forgot",
     "/judge",
     "/signin",
     "/signup"

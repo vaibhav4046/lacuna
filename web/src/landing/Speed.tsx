@@ -1,6 +1,6 @@
 import { MONO } from '../design/mark';
 
-const k = { color: '#5E5E5E' } as const;
+const k = { color: '#7A7A7A' } as const;
 const v = { color: '#9A9A9A' } as const;
 
 /**
@@ -22,7 +22,7 @@ export function Speed() {
           <span style={k}>CONTEXT COMPILE</span><span style={v}>— MS</span>
           <span style={k}>MODEL</span><span style={v}>— MS</span>
           <span style={k}>END TO END</span><span style={v}>— MS</span>
-          <span style={{ gridColumn: '1 / -1', color: '#5E5E5E', marginTop: '4px' }}>MEASURED AFTER CONNECTION</span>
+          <span style={{ gridColumn: '1 / -1', color: '#7A7A7A', marginTop: '4px' }}>MEASURED AFTER CONNECTION</span>
         </div>
       </div>
     </section>

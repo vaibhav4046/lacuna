@@ -128,7 +128,7 @@ export class MemoryFieldEngine {
     const d = this.props.density || 'auto';
     let n = d === 'high' ? 1900 : d === 'balanced' ? 1200 : d === 'low' ? 650 : (W < 760 ? 520 : W < 1200 ? 1050 : 1500);
     this.P = [];
-    const grey = ['#EDEDED', '#B9B9B9', '#8A8A8A', '#5E5E5E'];
+    const grey = ['#EDEDED', '#B9B9B9', '#8A8A8A', '#7A7A7A'];
     for (let i = 0; i < n; i++) {
       const cr = Math.random();
       let col, amber = false;
@@ -452,7 +452,7 @@ export class MemoryFieldEngine {
       for (let e = 0; e < hn.edges.length; e++) { const [a2, b2] = hn.edges[e]; ctx.strokeStyle = Math.sin(e * 3.7) > 0.75 ? 'rgba(128,82,255,0.42)' : 'rgba(255,255,255,0.13)'; ctx.beginPath(); ctx.moveTo(hn.pts[a2][0], hn.pts[a2][1]); ctx.lineTo(hn.pts[b2][0], hn.pts[b2][1]); ctx.stroke(); }
       ctx.globalAlpha = this.cl((pr - 0.35) * 4);
       ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.ellipse(cx, cy, m * 0.28, m * 0.19, 0, -1.1, 4.2); ctx.stroke();
-      ctx.font = '500 9.5px ' + mono; ctx.fillStyle = '#71717A'; ctx.textAlign = 'center';
+      ctx.font = '500 9.5px ' + mono; ctx.fillStyle = '#7A7A84'; ctx.textAlign = 'center';
       const MOD = ['SCOPE', 'EVIDENCE', 'CONFLICTS', 'ABSTENTION', 'HEALTH', 'COMPILER', 'ROUTER', 'RUNTIME', 'TOOL MESH', 'POLICY', 'TRACE'];
       ctx.globalAlpha = this.cl((pr - 0.2) * 4); ctx.fillStyle = '#9A9A9A'; ctx.font = '500 10px ' + mono;
       if (pr > 0.58) {
@@ -460,7 +460,7 @@ export class MemoryFieldEngine {
         ctx.strokeStyle = 'rgba(128,82,255,0.5)'; ctx.beginPath(); ctx.moveTo(cx + m * 0.16, cy - m * 0.02); ctx.lineTo(W * 0.86 - 22, H * 0.50); ctx.stroke();
         ctx.fillStyle = '#9A9A9A'; ctx.fillText('CONTEXT PACK', W * 0.86, H * 0.50 + 34);
       }
-      if (pr > 0.76) { ctx.globalAlpha = this.cl((pr - 0.76) * 5); ctx.fillStyle = '#71717A'; ctx.fillText('REMEMBER WHAT MATTERS', W * 0.72, H * 0.36); }
+      if (pr > 0.76) { ctx.globalAlpha = this.cl((pr - 0.76) * 5); ctx.fillStyle = '#7A7A84'; ctx.fillText('REMEMBER WHAT MATTERS', W * 0.72, H * 0.36); }
       ctx.textAlign = 'left';
     }
     if (sc === 'funnel') {
@@ -511,7 +511,7 @@ export class MemoryFieldEngine {
       if (fo) { ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.fillStyle = '#BDBDBD'; ctx.textAlign = 'center'; const OF = [[-0.09, -0.07, 'FACTS'], [0.09, -0.07, 'EVIDENCE'], [-0.09, 0.07, 'CONSTRAINTS'], [0.09, 0.07, 'OPEN QUESTIONS']]; OF.forEach((o) => ctx.fillText(o[2], px + o[0] * m, py + o[1] * m + m * 0.045)); ctx.textAlign = 'left'; }
     }
     if (sc === 'speed') {
-      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#71717A';
+      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#7A7A84';
       ctx.fillText('RAW HISTORY', W * 0.30, H * 0.55 + m * 0.26 + 26);
       ctx.fillText('CONTEXT PACK', W * 0.72, H * 0.55 + 40);
       ctx.textAlign = 'left';
@@ -524,7 +524,7 @@ export class MemoryFieldEngine {
       const cx = W * (W < 900 ? 0.5 : 0.62), cy = H * (W < 900 ? 0.74 : 0.56);
       ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.13)';
       ctx.beginPath(); ctx.ellipse(cx, cy, m * 0.30, m * 0.205, 0, -1.15, 4.25); ctx.stroke();
-      ctx.font = '500 9.5px ' + mono; ctx.fillStyle = '#71717A'; ctx.textAlign = 'center';
+      ctx.font = '500 9.5px ' + mono; ctx.fillStyle = '#7A7A84'; ctx.textAlign = 'center';
       const MOD = ['AGENT RUNTIME', 'MODEL ROUTER', 'SKILL ENGINE', 'TOOL MESH', 'POLICY', 'CONTEXT COMPILER', 'TRACE', 'HYDRADB ADAPTER'];
       for (let k2 = 0; k2 < 8; k2++) { const an = -1.1 + k2 * (5.35 / 7); ctx.fillText(MOD[k2], cx + Math.cos(an) * m * 0.345, cy + Math.sin(an) * m * 0.24); }
       ctx.fillStyle = '#9A9A9A'; ctx.font = '500 10px ' + mono;
@@ -535,7 +535,7 @@ export class MemoryFieldEngine {
       ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.13)';
       ctx.beginPath(); ctx.moveTo(W * 0.22 + m * 0.05, H * 0.555); ctx.lineTo(W * 0.5 - m * 0.05, H * 0.505); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(W * 0.5 + m * 0.05, H * 0.505); ctx.lineTo(W * 0.78 - m * 0.05, H * 0.555); ctx.stroke();
-      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#71717A';
+      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#7A7A84';
       ctx.fillText('PLANNER', W * 0.22, H * 0.56 + m * 0.045 + 24);
       ctx.fillText('CODER', W * 0.5, H * 0.50 + m * 0.045 + 24);
       ctx.fillText('REVIEWER', W * 0.78, H * 0.56 + m * 0.045 + 24);
@@ -614,13 +614,13 @@ export class MemoryFieldEngine {
     if (sc === 'voice') {
       const k = rm ? 0 : Math.floor(tm / 2600) % 5;
       const vs = q('[data-vs]');
-      for (let i2 = 0; i2 < vs.length; i2++) vs[i2].style.color = i2 === k ? '#FFFFFF' : '#5E5E5E';
+      for (let i2 = 0; i2 < vs.length; i2++) vs[i2].style.color = i2 === k ? '#FFFFFF' : '#7A7A7A';
       const vt = q('[data-vt]');
       for (let i2 = 0; i2 < vt.length; i2++) { const on = (k >= 1 && i2 === 0) || (k === 3 && i2 === 1) || (k === 4 && i2 === 2); vt[i2].style.opacity = on ? 1 : 0.14; }
     }
-    if (sc === 'any') { const act = rm ? 0 : Math.floor(tm / 1900) % 5; const cls = q('[data-client]'); for (let i2 = 0; i2 < cls.length; i2++) cls[i2].style.color = i2 === act ? '#FFFFFF' : '#71717A'; }
-    if (sc === 'route') { const act = rm ? 0 : Math.floor(tm / 2100) % 4; const mo = q('[data-model]'); for (let i2 = 0; i2 < mo.length; i2++) mo[i2].style.color = i2 === act ? '#FFFFFF' : '#71717A'; }
-    if (sc === 'hand') { const T = rm ? 0.1 : (tm % 8000) / 8000; const phn = T < 0.20 ? 0 : T < 0.42 ? 1 : T < 0.78 ? 2 : 3; const hs = q('[data-ho]'); for (let i2 = 0; i2 < hs.length; i2++) hs[i2].style.color = i2 === phn ? '#FFFFFF' : '#71717A'; }
+    if (sc === 'any') { const act = rm ? 0 : Math.floor(tm / 1900) % 5; const cls = q('[data-client]'); for (let i2 = 0; i2 < cls.length; i2++) cls[i2].style.color = i2 === act ? '#FFFFFF' : '#7A7A84'; }
+    if (sc === 'route') { const act = rm ? 0 : Math.floor(tm / 2100) % 4; const mo = q('[data-model]'); for (let i2 = 0; i2 < mo.length; i2++) mo[i2].style.color = i2 === act ? '#FFFFFF' : '#7A7A84'; }
+    if (sc === 'hand') { const T = rm ? 0.1 : (tm % 8000) / 8000; const phn = T < 0.20 ? 0 : T < 0.42 ? 1 : T < 0.78 ? 2 : 3; const hs = q('[data-ho]'); for (let i2 = 0; i2 < hs.length; i2++) hs[i2].style.color = i2 === phn ? '#FFFFFF' : '#7A7A84'; }
   }
   loop(t) {
     if (this.raf) cancelAnimationFrame(this.raf);

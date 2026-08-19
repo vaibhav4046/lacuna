@@ -14,7 +14,7 @@ export function Faq() {
             <div key={q} style={{ borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
               <button onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '20px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '24px', cursor: 'pointer' }}>
                 <span style={{ fontSize: '17px', fontWeight: 400, color: '#FFFFFF' }}>{q}</span>
-                <span style={{ fontFamily: MONO, fontSize: '14px', color: '#5E5E5E' }}>{open === i ? '—' : '+'}</span>
+                <span style={{ fontFamily: MONO, fontSize: '14px', color: '#7A7A7A' }}>{open === i ? '—' : '+'}</span>
               </button>
               {open === i ? (
                 <p style={{ margin: 0, padding: '0 4px 26px', fontSize: '16px', lineHeight: 1.8, color: '#9A9A9A', maxWidth: '68ch', textWrap: 'pretty' }}>{a}</p>

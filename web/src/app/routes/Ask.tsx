@@ -64,7 +64,7 @@ const STATUS_COLOUR: Readonly<Record<Envelope['status'], string>> = {
 };
 
 const meta = { fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.14em', color: '#9A9A9A' } as const;
-const key = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#5E5E5E', paddingTop: '3px' } as const;
+const key = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A', paddingTop: '3px' } as const;
 const value = { color: '#BDBDBD' } as const;
 const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flexShrink: 0 } as const;
 
@@ -126,7 +126,7 @@ export function Ask() {
         />
         <button className="hv-violet" onClick={() => void runTyped()} style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '7px 12px' }}>ASK</button>
         <button className="hv-edge35" onClick={() => setVoiceOn(!voiceOn)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#5E5E5E' }}>MODE · FAST</span>
+        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#7A7A7A' }}>MODE · FAST</span>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -134,7 +134,7 @@ export function Ask() {
           <button key={c.label} className="hv-text" onClick={() => void run(c)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 12px', fontFamily: MONO, fontSize: '11px', letterSpacing: '0.06em', border: '1px solid rgba(255,255,255,0.12)', color: asked === c.label ? '#FFFFFF' : '#9A9A9A' }}>{c.label}</button>
         ))}
         {suggested.state === 'ready' && chips.length === 0 ? (
-          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#5E5E5E' }}>NO SUGGESTIONS · THIS WORKSPACE HOLDS NO CLAIMS YET</span>
+          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A' }}>NO SUGGESTIONS · THIS WORKSPACE HOLDS NO CLAIMS YET</span>
         ) : null}
       </div>
 
@@ -146,15 +146,15 @@ export function Ask() {
             that is the product claiming a state it cannot prove. The panel says
             what is actually true instead.
           */}
-          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#5E5E5E' }}></span>
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#7A7A7A' }}></span>
           <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.2em', color: '#BDBDBD' }}>VOICE NOT CONFIGURED</span>
-          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>NO MICROPHONE IS OPEN · TEXT IS STILL AVAILABLE</span>
+          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#7A7A7A' }}>NO MICROPHONE IS OPEN · TEXT IS STILL AVAILABLE</span>
         </div>
       ) : null}
 
       {stage !== null ? (
         <div style={{ padding: '22px 4px' }}>
-          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' }}>{stage}</span>
+          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' }}>{stage}</span>
         </div>
       ) : null}
 
@@ -181,7 +181,7 @@ export function Ask() {
                 <button onClick={() => setEvOpen(!evOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#FFFFFF', borderBottom: '1px solid #8052FF' }}>Evidence</button>
                 <button className="hv-text" onClick={() => go(`${prefix}/timeline`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#BDBDBD', borderBottom: '1px solid transparent' }}>Timeline</button>
                 <button className="hv-text" onClick={() => go(`${prefix}/graph`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#BDBDBD', borderBottom: '1px solid transparent' }}>Graph</button>
-                <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>TRACE {result.trace_id.toUpperCase()}</span>
+                <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>TRACE {result.trace_id.toUpperCase()}</span>
               </div>
               {evOpen ? (
                 <div style={{ border: '1px solid rgba(255,255,255,0.10)', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', padding: '4px 18px', marginTop: '6px' }}>
@@ -211,7 +211,7 @@ export function Ask() {
                 <span style={key}>STANDING</span><span style={value}>Both claims stay visible with equal weight</span>
                 <span style={key}>RESOLVES</span><span style={value}>Evidence, or an explicit policy. Recency alone never wins.</span>
               </div>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E', marginTop: '8px' }}>ABSTAIN_REASON · {(result.abstain_reason ?? 'contradicted').toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>ABSTAIN_REASON · {(result.abstain_reason ?? 'contradicted').toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
             </>
           ) : null}
 
@@ -224,7 +224,7 @@ export function Ask() {
                 <span style={key}>MISSING</span><span style={value}>A source that commits to a value</span>
                 <span style={key}>RESOLVES</span><span style={value}>Ingest the source, or record the decision</span>
               </div>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E', marginTop: '8px' }}>ABSTAIN_REASON · {(result.abstain_reason ?? 'no_evidence').toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>ABSTAIN_REASON · {(result.abstain_reason ?? 'no_evidence').toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
             </>
           ) : null}
 
@@ -232,7 +232,7 @@ export function Ask() {
             <>
               <div style={{ fontSize: 'clamp(30px, 3.2vw, 46px)', fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#FFFFFF' }}>HydraDB unavailable.</div>
               <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#9A9A9A', margin: 0, maxWidth: '52ch' }}>This is a dependency failure, not an answer. Nothing about the memory changed and no claim was made.</p>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E', marginTop: '8px' }}>SOURCE_STATE · {result.source_state.toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>SOURCE_STATE · {result.source_state.toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
             </>
           ) : null}
         </div>

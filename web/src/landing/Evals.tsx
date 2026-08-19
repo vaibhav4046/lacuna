@@ -75,7 +75,7 @@ export function Evals() {
           ))}
         </div>
 
-        <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E', lineHeight: 2.1 }}>
+        <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', lineHeight: 2.1 }}>
           0 FALSE ANSWERS · 32 CORRECT ABSTENTIONS · 5 REASON CODES
           <br />
           THE SCALE CURVE HOLDS THE CLAIM SET FIXED, SO IT MEASURES HISTORY VOLUME AND NOT CLAIM GROWTH

@@ -17,9 +17,9 @@ import { Empty, Failed, Stage } from '../state';
  * measured.
  */
 
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
-const key = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#5E5E5E', paddingTop: '2px' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
+const key = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A', paddingTop: '2px' } as const;
 
 interface EvalRow {
   readonly method: string;
@@ -48,8 +48,8 @@ export function Evaluations() {
         {list.map((e) => (
           <div key={e.method} className="hv-surface3" style={{ display: 'grid', gridTemplateColumns: EVAL_GRID, gap: '16px', alignItems: 'baseline', padding: '15px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', transition: 'background 140ms ease' }}>
             <span style={{ fontSize: '14.5px', color: '#FFFFFF' }}>{e.method}</span>
-            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.08em', color: '#71717A' }}>{e.cases}</span>
-            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>{e.result}</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.08em', color: '#7A7A84' }}>{e.cases}</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>{e.result}</span>
           </div>
         ))}
       </div>
@@ -111,7 +111,7 @@ const STANDING_COLOUR: Readonly<Record<ExpansionRow['standing'], string>> = {
   historical: '#FFB829',
   contradicted: '#FFB829',
   withdrawn: '#9A9A9A',
-  unstated: '#5E5E5E',
+  unstated: '#7A7A7A',
 };
 
 const STANDING_LABEL: Readonly<Record<ExpansionRow['standing'], string>> = {
@@ -216,12 +216,12 @@ function GraphImpact() {
           {(it.accepted ?? []).length} CROSSED
         </span>
         {[...byReason.entries()].map(([reason, n]) => (
-          <span key={reason} style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#5E5E5E' }}>
+          <span key={reason} style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7A7A' }}>
             {n} {REJECTION_LABEL[reason]}
           </span>
         ))}
         {it.duplicates === undefined || it.duplicates === 0 ? null : (
-          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#5E5E5E' }}>
+          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7A7A' }}>
             {it.duplicates} DUPLICATE
           </span>
         )}
@@ -240,7 +240,7 @@ function GraphImpact() {
 
       {(it.accepted ?? []).map((edge, i) => (
         <div key={`a${i}`} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', padding: '7px 0', fontFamily: MONO, fontSize: '12px' }}>
-          <span style={{ color: '#5E5E5E' }}>D{edge.depth}</span>
+          <span style={{ color: '#7A7A7A' }}>D{edge.depth}</span>
           <span style={{ color: '#FFFFFF' }}>{edge.source}</span>
           <span style={{ color: '#8052FF' }}>{edge.predicate}</span>
           <span style={{ color: '#FFFFFF' }}>{edge.target}</span>
@@ -252,12 +252,12 @@ function GraphImpact() {
         <div key={`r${i}`} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '7px 0', opacity: 0.7 }}>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', fontFamily: MONO, fontSize: '12px' }}>
             <span style={{ color: '#BDBDBD' }}>{edge.source}</span>
-            <span style={{ color: '#71717A' }}>{edge.predicate}</span>
+            <span style={{ color: '#7A7A84' }}>{edge.predicate}</span>
             <span style={{ color: '#BDBDBD' }}>{edge.target}</span>
             <span style={{ color: '#FFB829', fontSize: '10px', letterSpacing: '0.14em' }}>{REJECTION_LABEL[edge.reason]}</span>
           </div>
           {edge.context === null ? null : (
-            <span style={{ fontSize: '12.5px', color: '#5E5E5E', lineHeight: 1.6, maxWidth: '70ch' }}>{edge.context}</span>
+            <span style={{ fontSize: '12.5px', color: '#7A7A7A', lineHeight: 1.6, maxWidth: '70ch' }}>{edge.context}</span>
           )}
         </div>
       ))}
@@ -326,13 +326,13 @@ export function HydraDb() {
                   <span style={{ color: '#8052FF' }}>{r.predicate ?? 'related to'}</span>
                   <span style={{ color: '#FFFFFF' }}>{r.target ?? 'unnamed'}</span>
                   {r.confidence !== null && (
-                    <span style={{ color: '#5E5E5E', fontSize: '10px', letterSpacing: '0.12em' }}>
+                    <span style={{ color: '#7A7A7A', fontSize: '10px', letterSpacing: '0.12em' }}>
                       {Math.round(r.confidence * 100)}% CONFIDENCE
                     </span>
                   )}
                 </div>
                 {r.context !== null && (
-                  <span style={{ fontSize: '12.5px', color: '#5E5E5E', lineHeight: 1.6, maxWidth: '70ch' }}>{r.context}</span>
+                  <span style={{ fontSize: '12.5px', color: '#7A7A7A', lineHeight: 1.6, maxWidth: '70ch' }}>{r.context}</span>
                 )}
               </div>
             ))}
@@ -396,7 +396,7 @@ export function HydraDb() {
                   </span>
                 </div>
                 {r.context !== null && (
-                  <span style={{ fontSize: '12.5px', color: '#5E5E5E', lineHeight: 1.6, maxWidth: '70ch' }}>{r.context}</span>
+                  <span style={{ fontSize: '12.5px', color: '#7A7A7A', lineHeight: 1.6, maxWidth: '70ch' }}>{r.context}</span>
                 )}
               </div>
             ))}

@@ -15,8 +15,8 @@ import { VoiceOrb } from '../../canvas/VoiceOrb';
  * until one has run.
  */
 
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 const GRID = '1.2fr 0.8fr 0.8fr 0.9fr 0.7fr';
 
 const ROUTER_MODES = ['AUTO', 'LOCAL FIRST', 'QUALITY FIRST', 'PRIVACY FIRST', 'COST FIRST', 'LATENCY FIRST', 'CUSTOM'] as const;
@@ -38,7 +38,7 @@ export function Models() {
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#5E5E5E', marginRight: '6px' }}>ROUTER</span>
+        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#7A7A7A', marginRight: '6px' }}>ROUTER</span>
         {ROUTER_MODES.map((l, i) => (
           <button key={l} className="hv-text" onClick={() => setMode(i)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 11px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', border: '1px solid rgba(255,255,255,0.12)', color: mode === i ? '#FFFFFF' : '#9A9A9A' }}>{l}</button>
         ))}
@@ -64,7 +64,7 @@ export function Models() {
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: m.dot }}></span>
               <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', color: '#BDBDBD' }}>{m.state}</span>
             </span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#5E5E5E' }}>{m.lat}</span>
+            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#7A7A7A' }}>{m.lat}</span>
           </div>
         ))}
       </div>

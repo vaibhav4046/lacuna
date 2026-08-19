@@ -15,8 +15,8 @@ import { DEVCODE } from '../../landing/copy';
  * is real.
  */
 
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
 /**
  * The MCP server, as something a reader can connect rather than read about.
@@ -95,7 +95,7 @@ export function Mcp() {
             CALL THE SERVER
           </button>
           {probe === 'idle' ? null : (
-            <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.1em', color: probe === 'running' ? '#5E5E5E' : '#B79BFF' }}>
+            <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.1em', color: probe === 'running' ? '#7A7A7A' : '#B79BFF' }}>
               {probe === 'running' ? 'CALLING…' : probe}
             </span>
           )}
@@ -148,9 +148,9 @@ export function Cli() {
   return (
     <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '12px 22px', maxWidth: '560px', fontFamily: MONO }}>
-        <span style={{ fontSize: '11px', color: '#5E5E5E' }}>RUN</span><span style={{ fontSize: '12.5px', color: '#BDBDBD' }}>$ npm run cli -- doctor</span>
-        <span style={{ fontSize: '11px', color: '#5E5E5E' }}>ASK</span><span style={{ fontSize: '12.5px', color: '#BDBDBD' }}>$ npm run cli -- ask session-store runs_on</span>
-        <span style={{ fontSize: '11px', color: '#5E5E5E' }}>JSON</span><span style={{ fontSize: '12.5px', color: '#BDBDBD' }}>$ npm run cli -- ask session-store runs_on --json</span>
+        <span style={{ fontSize: '11px', color: '#7A7A7A' }}>RUN</span><span style={{ fontSize: '12.5px', color: '#BDBDBD' }}>$ npm run cli -- doctor</span>
+        <span style={{ fontSize: '11px', color: '#7A7A7A' }}>ASK</span><span style={{ fontSize: '12.5px', color: '#BDBDBD' }}>$ npm run cli -- ask session-store runs_on</span>
+        <span style={{ fontSize: '11px', color: '#7A7A7A' }}>JSON</span><span style={{ fontSize: '12.5px', color: '#BDBDBD' }}>$ npm run cli -- ask session-store runs_on --json</span>
       </div>
       <div style={{ border: '1px solid rgba(255,255,255,0.10)', borderRadius: '10px', background: '#030303', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', ...note, letterSpacing: '0.2em' }}>
@@ -159,7 +159,7 @@ export function Cli() {
         </div>
         <pre style={{ margin: 0, padding: '24px 22px', fontFamily: MONO, fontSize: '12.5px', lineHeight: 1.9, color: '#BDBDBD', whiteSpace: 'pre-wrap' }}>
           {'  '}<span style={{ color: '#FFB829' }}>·</span>{'  '}<span style={{ color: '#FFFFFF' }}>L A C U N A</span>
-          {'\n  '}<span style={{ color: '#5E5E5E' }}>context for long-running agents</span>
+          {'\n  '}<span style={{ color: '#7A7A7A' }}>context for long-running agents</span>
           {'\n\n  hydradb  '}<span style={{ color: hydra === 'CONNECTED' ? '#15846E' : '#9A9A9A' }}>{hydra === UNCHECKED ? '—' : `● ${hydra.toLowerCase()}`}</span>
           {'\n  context  '}<span style={{ color: '#BDBDBD' }}>{hydra === 'CONNECTED' ? 'ready' : 'unavailable'}</span>
           <span style={{ color: '#8052FF' }}>{'\n\n❯'}</span>
@@ -168,10 +168,10 @@ export function Cli() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '8px 16px', background: 'rgba(255,255,255,0.04)', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.18em' }}>
           <span style={{ color: hydra === 'CONNECTED' ? '#15846E' : '#9A9A9A' }}>● {hydra === UNCHECKED ? '—' : hydra}</span>
           <span style={{ color: '#9A9A9A' }}>LOCAL WORKER · SAME MEMORY</span>
-          <span style={{ color: '#5E5E5E' }}>⌘K</span>
+          <span style={{ color: '#7A7A7A' }}>⌘K</span>
         </div>
       </div>
-      <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#71717A' }}>{CLI_COMMANDS}</span>
+      <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>{CLI_COMMANDS}</span>
       <span style={note}>THESE ARE THE COMMANDS THAT EXIST · THE DESIGNED SET IS LARGER AND LANDS AS EACH ONE IS BUILT</span>
     </div>
   );
@@ -216,13 +216,13 @@ export function Connectors() {
               <span style={icStyle(c.n, 14)}></span>
               <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{c.n}</span>
             </span>
-            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>{c.g}</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>{c.g}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotFor(c.st) }}></span>
               <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#BDBDBD' }}>{c.st}</span>
             </span>
             <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{c.scope}</span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#5E5E5E' }}>{c.sync}</span>
+            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#7A7A7A' }}>{c.sync}</span>
           </div>
         ))}
       </div>

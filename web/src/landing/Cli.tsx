@@ -21,7 +21,7 @@ import { CLI_SESSION } from './cli-session';
  * particular answer, so a re-recording that returns something else still renders.
  */
 
-const dim = { color: '#5E5E5E' } as const;
+const dim = { color: '#7A7A7A' } as const;
 const violet = { color: '#8052FF' } as const;
 const amber = { color: '#FFB829' } as const;
 const white = { color: '#FFFFFF' } as const;
@@ -104,7 +104,7 @@ export function Cli() {
       </div>
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#030303', marginTop: '34px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 clamp(20px, 4.4vw, 72px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.07)', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.07)', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' }}>
             <span style={{ color: '#9A9A9A' }}>LACUNA TERMINAL</span>
             <span>RECORDED RUN</span>
             <span>HYDRADB CLOUD</span>
@@ -125,8 +125,8 @@ export function Cli() {
         </div>
       </div>
       <div style={{ maxWidth: '1100px', margin: '22px auto 0', padding: '0 clamp(20px, 4.4vw, 72px)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#71717A' }}>lacuna doctor · status · ask · explain · timeline · bench</span>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' }}>EVERY COMMAND ABOVE EXISTS · LACUNA --HELP LISTS THE SAME SIX</span>
+        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>lacuna doctor · status · ask · explain · timeline · bench</span>
+        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' }}>EVERY COMMAND ABOVE EXISTS · LACUNA --HELP LISTS THE SAME SIX</span>
       </div>
     </section>
   );

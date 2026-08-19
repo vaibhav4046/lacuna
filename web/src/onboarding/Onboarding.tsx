@@ -75,12 +75,12 @@ export default function Onboarding() {
                     circles they are the same mark to anyone not separating them
                     by hue. The shape carries it and the colour agrees. */}
                 <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid #15846E', boxSizing: 'border-box', flexShrink: 0 }}></span>
-                <span style={{ ...label, color: '#71717A' }}>{s.l}</span>
+                <span style={{ ...label, color: '#7A7A84' }}>{s.l}</span>
               </>
             ) : (
               <>
                 <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.25)', flexShrink: 0 }}></span>
-                <span style={{ ...label, color: '#71717A' }}>{s.l}</span>
+                <span style={{ ...label, color: '#7A7A84' }}>{s.l}</span>
               </>
             )}
           </div>
@@ -114,7 +114,7 @@ export default function Onboarding() {
         {step === 2 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.1em' }}>
             {MODELS.map((name, i) => (
-              <button key={name} type="button" onClick={() => setModel(i)} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', color: model === i ? '#FFFFFF' : '#71717A' }}>
+              <button key={name} type="button" onClick={() => setModel(i)} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', color: model === i ? '#FFFFFF' : '#7A7A84' }}>
                 {model === i ? '●' : '○'} {name}
               </button>
             ))}

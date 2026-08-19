@@ -1,7 +1,7 @@
 import { MONO } from '../design/mark';
 
 const transcript = { opacity: 0.14, transition: 'opacity 500ms ease' } as const;
-const state = { color: '#5E5E5E', transition: 'color 400ms ease' } as const;
+const state = { color: '#7A7A7A', transition: 'color 400ms ease' } as const;
 
 export function Voice() {
   return (

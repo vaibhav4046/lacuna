@@ -15,7 +15,7 @@ export function Hero() {
             <button className="hv-edge35" onClick={() => go('/judge')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer', color: '#FFFFFF', fontSize: '15px', padding: '13px 22px', whiteSpace: 'nowrap' }}>See it answer, live</button>
             <a href="#how" style={{ fontSize: '15px', color: '#BDBDBD', borderBottom: '1px solid rgba(255,255,255,0.28)', paddingBottom: '3px', whiteSpace: 'nowrap' }}>See how it works</a>
           </div>
-          <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 400, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#5E5E5E', marginTop: '14px', animation: 'heroIn 0.7s ease 1s both' }}>Built on HydraDB.</span>
+          <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 400, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#7A7A7A', marginTop: '14px', animation: 'heroIn 0.7s ease 1s both' }}>Built on HydraDB.</span>
         </div>
       </div>
     </section>

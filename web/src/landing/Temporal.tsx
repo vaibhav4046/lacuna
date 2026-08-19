@@ -3,7 +3,7 @@ import { MONO } from '../design/mark';
 import { REVS } from './copy';
 
 const chip = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em' } as const;
-const key = { color: '#5E5E5E' } as const;
+const key = { color: '#7A7A7A' } as const;
 
 export function Temporal() {
   const [hover, setHover] = useState(-1);
@@ -20,8 +20,8 @@ export function Temporal() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '16px' }}>
                   <span style={{ fontSize: '17px', color: '#FFFFFF' }}>{r.date}</span>
                   {r.cur ? <span style={{ ...chip, color: '#8052FF' }}>CURRENT</span> : null}
-                  {r.pro ? <span style={{ ...chip, color: '#5E5E5E' }}>PROPOSAL · NEVER CURRENT</span> : null}
-                  {!r.cur && !r.pro ? <span style={{ ...chip, color: '#5E5E5E' }}>HISTORICAL</span> : null}
+                  {r.pro ? <span style={{ ...chip, color: '#7A7A7A' }}>PROPOSAL · NEVER CURRENT</span> : null}
+                  {!r.cur && !r.pro ? <span style={{ ...chip, color: '#7A7A7A' }}>HISTORICAL</span> : null}
                 </div>
                 {hover === i ? (
                   <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '5px 20px', fontFamily: MONO, fontSize: '11px', letterSpacing: '0.06em', color: '#9A9A9A' }}>

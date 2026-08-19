@@ -16,8 +16,8 @@ import { csrfHeaders } from '../../api/client';
  * extracted at all, which is a result rather than an error.
  */
 
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
+const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
 /** Matches the cap the endpoint enforces, so the counter is not a decoration. */
 const MAX_SOURCE = 20_000;
@@ -125,7 +125,7 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
       />
 
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ ...note, color: text.length > MAX_SOURCE * 0.9 ? '#FFB829' : '#5E5E5E' }}>
+        <span style={{ ...note, color: text.length > MAX_SOURCE * 0.9 ? '#FFB829' : '#7A7A7A' }}>
           {text.length} / {MAX_SOURCE}
         </span>
         <button
@@ -141,7 +141,7 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
             fontSize: '10px',
             letterSpacing: '0.12em',
             border: '1px solid rgba(128,82,255,0.55)',
-            color: state === 'working' ? '#5E5E5E' : '#FFFFFF',
+            color: state === 'working' ? '#7A7A7A' : '#FFFFFF',
           }}
         >
           {state === 'working' ? 'READING AND STORING…' : 'ADD TO MEMORY'}

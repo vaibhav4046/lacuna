@@ -3,6 +3,7 @@ import { useScoped } from '../../api/scope';
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import type { HealthReport } from '../../api/health';
 import { icStyle } from '../../design/icons';
+import { useLoaded } from '../../api/client';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Stage } from '../state';
 
@@ -141,6 +142,127 @@ function representative(rows: readonly ExpansionRow[]): readonly ExpansionRow[] 
     }
   }
   return [...first, ...rest].slice(0, 8);
+}
+
+
+interface ImpactEdge {
+  readonly source: string;
+  readonly target: string;
+  readonly predicate: string;
+  readonly context: string | null;
+  readonly depth: number;
+}
+
+interface RejectedEdge extends Omit<ImpactEdge, 'depth'> {
+  readonly reason: 'historical' | 'contradicted' | 'unstated' | 'not_structural';
+}
+
+interface ImpactReply {
+  readonly available: boolean;
+  readonly reason?: string;
+  readonly subject: string | null;
+  readonly reached?: number;
+  readonly accepted?: readonly ImpactEdge[];
+  readonly rejected?: readonly RejectedEdge[];
+  readonly duplicates?: number;
+  readonly affected?: readonly string[];
+  readonly depth?: number;
+  readonly ms?: number;
+}
+
+const REJECTION_LABEL: Readonly<Record<RejectedEdge['reason'], string>> = {
+  historical: 'REPLACED',
+  contradicted: 'DISPUTED',
+  unstated: 'NOT A CLAIM',
+  not_structural: 'NOT A DEPENDENCY',
+};
+
+/**
+ * The one answer the store's graph decides.
+ *
+ * Everything else on this screen sets HydraDB's graph beside Lacuna's. This
+ * computes a result out of it: the store's traversal supplies every candidate
+ * edge, this project's policy removes the ones the conversation replaced,
+ * disputed or never asserted, and what is reachable over the remainder is the
+ * answer. Both halves are shown, because a filter nobody can see is a claim.
+ */
+function GraphImpact() {
+  const impact = useLoaded<ImpactReply>('/api/demo/impact');
+
+  if (impact.state !== 'ready') {
+    return <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Computing over the store&rsquo;s graph.</span>;
+  }
+  if (!impact.value.available || impact.value.accepted === undefined) {
+    return <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Not available: {impact.value.reason}.</span>;
+  }
+
+  const it = impact.value;
+  const rejected = it.rejected ?? [];
+  const byReason = new Map<RejectedEdge['reason'], number>();
+  for (const edge of rejected) byReason.set(edge.reason, (byReason.get(edge.reason) ?? 0) + 1);
+
+  return (
+    <>
+      <span style={{ fontSize: '13.5px', color: '#9A9A9A', maxWidth: '62ch', lineHeight: 1.7 }}>
+        HydraDB traversed its own graph for <span style={{ color: '#FFFFFF' }}>{it.subject}</span> and
+        returned <span style={{ color: '#FFFFFF' }}>{it.reached}</span> candidate edges. It has no way
+        to know which of them the conversation later replaced, disputed, or never asserted, so this
+        project&rsquo;s policy decides that and the reachable set is computed over what survives.
+        Every rejection is below with its reason and the store&rsquo;s own sentence.
+      </span>
+
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', paddingTop: '2px' }}>
+        <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#8052FF' }}>
+          {(it.accepted ?? []).length} CROSSED
+        </span>
+        {[...byReason.entries()].map(([reason, n]) => (
+          <span key={reason} style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#5E5E5E' }}>
+            {n} {REJECTION_LABEL[reason]}
+          </span>
+        ))}
+        {it.duplicates === undefined || it.duplicates === 0 ? null : (
+          <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#5E5E5E' }}>
+            {it.duplicates} DUPLICATE
+          </span>
+        )}
+      </div>
+
+      <div style={{ padding: '12px 0' }}>
+        <span style={{ fontSize: '17px', color: '#FFFFFF' }}>
+          {(it.affected ?? []).length === 0
+            ? 'Nothing current depends on it.'
+            : `${(it.affected ?? []).join(', ')}`}
+        </span>
+        <div style={{ ...note, letterSpacing: '0.14em', paddingTop: '6px' }}>
+          AFFECTED AT DEPTH {it.depth} · COMPUTED IN {it.ms} MS
+        </div>
+      </div>
+
+      {(it.accepted ?? []).map((edge, i) => (
+        <div key={`a${i}`} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', padding: '7px 0', fontFamily: MONO, fontSize: '12px' }}>
+          <span style={{ color: '#5E5E5E' }}>D{edge.depth}</span>
+          <span style={{ color: '#FFFFFF' }}>{edge.source}</span>
+          <span style={{ color: '#8052FF' }}>{edge.predicate}</span>
+          <span style={{ color: '#FFFFFF' }}>{edge.target}</span>
+          <span style={{ color: '#8052FF', fontSize: '10px', letterSpacing: '0.14em' }}>CROSSED</span>
+        </div>
+      ))}
+
+      {rejected.filter((edge) => edge.reason !== 'not_structural').slice(0, 3).map((edge, i) => (
+        <div key={`r${i}`} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '7px 0', opacity: 0.7 }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', fontFamily: MONO, fontSize: '12px' }}>
+            <span style={{ color: '#BDBDBD' }}>{edge.source}</span>
+            <span style={{ color: '#71717A' }}>{edge.predicate}</span>
+            <span style={{ color: '#BDBDBD' }}>{edge.target}</span>
+            <span style={{ color: '#FFB829', fontSize: '10px', letterSpacing: '0.14em' }}>{REJECTION_LABEL[edge.reason]}</span>
+          </div>
+          {edge.context === null ? null : (
+            <span style={{ fontSize: '12.5px', color: '#5E5E5E', lineHeight: 1.6, maxWidth: '70ch' }}>{edge.context}</span>
+          )}
+        </div>
+      ))}
+    </>
+  );
 }
 
 export function HydraDb() {
@@ -283,6 +405,11 @@ export function HydraDb() {
             </span>
           </>
         )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '22px' }}>
+        <span style={{ ...note, letterSpacing: '0.2em' }}>WHAT DEPENDS ON IT · THE STORE&rsquo;S GRAPH, THIS PROJECT&rsquo;S POLICY</span>
+        <GraphImpact />
       </div>
     </div>
   );

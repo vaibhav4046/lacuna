@@ -18,6 +18,7 @@ import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, storeWorkspace, validateQuestion } from './workspace.js';
 import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
+import { graphImpact } from './impact.js';
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
@@ -562,6 +563,41 @@ export class ApiRouter {
       // conversation in has no reason to expect that.
       if (part === 'extract') {
         send(response, 200, extractionReport(null));
+        return HANDLED;
+      }
+
+      /**
+       * The one result the store's graph decides.
+       *
+       * HydraDB traverses its own relations for the subject and returns the
+       * candidate edges; this project's policy then removes the ones the
+       * conversation replaced, disputed, or never asserted, and the reachable
+       * set is computed over what survives. Every rejection is returned with
+       * its reason, so the contribution of each side is readable rather than
+       * claimed.
+       */
+      if (part === 'impact') {
+        const walk = this.#expansion;
+        const all = this.#relations;
+        const subject = expansionSubject(inventory);
+        if (walk === undefined || all === undefined || subject === null || inventory === undefined) {
+          send(response, 200, {
+            available: false,
+            reason: 'this deployment has no graph walk endpoint',
+            subject: null,
+          });
+          return HANDLED;
+        }
+        try {
+          const started = Date.now();
+          const [seed, edges] = await Promise.all([walk(subject), all()]);
+          send(response, 200, {
+            available: true,
+            ...graphImpact(inventory, subject, seed, edges, started),
+          });
+        } catch {
+          send(response, 200, { available: false, reason: 'the store did not answer', subject });
+        }
         return HANDLED;
       }
 

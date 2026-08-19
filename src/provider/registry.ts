@@ -98,7 +98,13 @@ export async function modelRows(
       });
       continue;
     }
-    for (const model of health.models.slice(0, MAX_MODELS_PER_PROVIDER)) {
+    // Sorted before it is cut. A provider returns its catalogue in whatever
+    // order it likes and that order changes between calls, so slicing first
+    // took a different handful of models on every request: the Models screen
+    // listed a different six each load and the header named a different one.
+    // Sorting first makes both the table and the header the same twice running.
+    const catalogue = [...health.models].sort((a, b) => a.id.localeCompare(b.id));
+    for (const model of catalogue.slice(0, MAX_MODELS_PER_PROVIDER)) {
       rows.push({
         name: model.id,
         prov: config.name,
@@ -113,11 +119,33 @@ export async function modelRows(
 }
 
 /**
+ * Models a provider lists that are not general purpose workers.
+ *
+ * A speech recogniser, a text to speech voice and a prompt classifier are all
+ * real models and none of them is the answer to "what is this workspace
+ * running". They are skipped for the header line only, and still appear in the
+ * table on the Models screen, because the table is an inventory and the header
+ * is a summary.
+ */
+const NOT_A_WORKER = /whisper|prompt-guard|orpheus|tts|embed|guard|moderation|rerank/i;
+
+/**
  * The one line the application header shows. A model is named only when an
  * endpoint answered and said it has that model.
+ *
+ * Sorted before it is picked. A provider returns its catalogue in whatever
+ * order it likes and that order changes between calls, so taking the first row
+ * meant the header named a different model on every load: on one request it
+ * read ORPHEUS-ARABIC-SAUDI, which is a text to speech voice and tells a reader
+ * nothing true about what answers their questions. Sorting makes the line
+ * stable, and skipping the non-workers makes it sensible.
  */
 export function headerModel(rows: readonly ModelRow[]): string {
-  const live = rows.find((row) => row.state === 'CONNECTED');
-  if (live === undefined) return 'NOT CONFIGURED';
-  return `${live.name.toUpperCase()} · ${live.where.toUpperCase()}`;
+  const live = rows
+    .filter((row) => row.state === 'CONNECTED')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (live.length === 0) return 'NOT CONFIGURED';
+
+  const worker = live.find((row) => !NOT_A_WORKER.test(row.name)) ?? live[0]!;
+  return `${worker.name.toUpperCase()} · ${worker.where.toUpperCase()}`;
 }

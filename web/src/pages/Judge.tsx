@@ -29,10 +29,19 @@ interface Evidence {
   readonly standing: 'current' | 'current_conflicting' | 'superseded' | 'withdrawal_current' | 'proposal';
 }
 
+interface EnvelopeClaim {
+  readonly claim_id: number;
+  readonly predicate: string;
+  readonly value: string;
+  readonly standing: 'current' | 'current_conflicting' | 'superseded' | 'withdrawal_current' | 'proposal';
+  readonly valid_from: string;
+}
+
 interface Envelope {
   readonly status: 'ANSWERED' | 'PARTIAL' | 'CONFLICT' | 'NO_EVIDENCE' | 'SYSTEM_ERROR';
   readonly answer: string | null;
   readonly evidence: readonly Evidence[];
+  readonly history: readonly EnvelopeClaim[];
   readonly revisions: readonly number[];
   readonly conflicts: readonly string[];
   readonly abstain_reason: string | null;
@@ -147,6 +156,27 @@ function Result({ envelope }: { envelope: Envelope | 'running' }) {
         <span>TRACE {envelope.trace_id}</span>
         <span>{envelope.source_state.toUpperCase()}</span>
       </div>
+
+      {/*
+        What changed, rather than how many times it changed. "2 superseded" is
+        a number; the reader wants to see the value that was replaced and the
+        one that replaced it, in order.
+      */}
+      {envelope.history.length > 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingTop: '2px' }}>
+          {envelope.history.map((claim, index) => (
+            <div key={claim.claim_id} style={{ display: 'flex', gap: '12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+              <span style={{ ...mono, fontSize: '9.5px', letterSpacing: '0.14em', color: STANDING_COLOUR[claim.standing], minWidth: '124px' }}>
+                {index === 0 ? '' : '↓ '}{STANDING_LABEL[claim.standing]}
+              </span>
+              <span style={{ fontSize: '15px', color: claim.standing === 'superseded' ? '#71717A' : '#FFFFFF', textDecoration: claim.standing === 'superseded' ? 'line-through' : 'none' }}>
+                {claim.value}
+              </span>
+              <span style={{ ...mono, fontSize: '10px', color: '#5E5E5E' }}>{claim.valid_from.slice(0, 10)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {envelope.evidence.length > 0 && (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -307,7 +337,7 @@ export function Judge() {
           setResults((current) => ({
             ...current,
             [key]: envelope ?? {
-              status: 'SYSTEM_ERROR', answer: null, evidence: [], revisions: [], conflicts: [],
+              status: 'SYSTEM_ERROR', answer: null, evidence: [], history: [], revisions: [], conflicts: [],
               abstain_reason: 'the request did not reach the context store',
               trace_id: '—', source_state: 'unavailable', took_ms: 0,
             },

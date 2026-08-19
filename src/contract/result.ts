@@ -67,6 +67,22 @@ export type EvidenceStanding =
   | 'withdrawal_current'
   | 'proposal';
 
+/**
+ * One claim the resolver weighed, and where it stands.
+ *
+ * The envelope used to report only how many claims had been superseded, so a
+ * screen could say "2 superseded" and could not say what they were. A revision
+ * nobody can see is a number, and the point of keeping history queryable is
+ * that somebody can read what changed.
+ */
+export interface ConsideredClaim {
+  readonly id: number;
+  readonly predicate: string;
+  readonly objectText: string;
+  readonly standing: EvidenceStanding;
+  readonly validFrom: string;
+}
+
 export interface EvidenceItem {
   readonly spanId: number;
   readonly claimId: number;
@@ -133,6 +149,8 @@ export interface AskCore {
   readonly supersededClaims: readonly number[];
   readonly evidence: readonly EvidenceItem[];
   readonly evidenceTotal: number;
+  /** Every claim the resolver weighed, oldest first, each with its standing. */
+  readonly history: readonly ConsideredClaim[];
   readonly queries: readonly QueryItem[];
   readonly timingMs: number;
   readonly sourceState: 'live';
@@ -167,6 +185,20 @@ export function standingOfClaim(
     return 'current_conflicting';
   }
   return 'current';
+}
+
+export function toConsidered(
+  claim: ClaimRecord,
+  considered: readonly ClaimRecord[],
+  outcome: Outcome,
+): ConsideredClaim {
+  return {
+    id: claim.id,
+    predicate: claim.predicate,
+    objectText: claim.objectText,
+    standing: standingOfClaim(claim.id, considered, outcome),
+    validFrom: claim.validFrom,
+  };
 }
 
 export function toEvidenceItem(
@@ -243,6 +275,10 @@ export function askCore(answer: Answer): AskCore {
     evidence: answer.evidence
       .slice(0, MAX_EVIDENCE_ITEMS)
       .map((record) => toEvidenceItem(record, answer.resolution.considered, outcome)),
+    // Oldest first, which is the order a revision reads in.
+    history: [...answer.resolution.considered]
+      .sort((a, b) => (a.validFrom < b.validFrom ? -1 : a.validFrom > b.validFrom ? 1 : 0))
+      .map((claim) => toConsidered(claim, answer.resolution.considered, outcome)),
     evidenceTotal: answer.evidence.length,
     queries: answer.queries.map(toQueryItem),
     timingMs: answer.ms,

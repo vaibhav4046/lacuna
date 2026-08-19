@@ -58,6 +58,15 @@ export const MAX_QUESTION_CHARS = 200;
  */
 export const MEMORY_PAGE = 40;
 
+/** One claim on the pair the question asked about, and where it stands. */
+export interface EnvelopeClaim {
+  readonly claim_id: number;
+  readonly predicate: string;
+  readonly value: string;
+  readonly standing: EvidenceStanding;
+  readonly valid_from: string;
+}
+
 export interface EnvelopeEvidence {
   readonly source: string;
   readonly meta: string;
@@ -84,6 +93,11 @@ export interface AnswerEnvelope {
   readonly status: AnswerStatus;
   readonly answer: string | null;
   readonly evidence: readonly EnvelopeEvidence[];
+  /**
+   * Every claim on the pair, oldest first, so a revision can be read rather
+   * than counted. `revisions` below is the count that used to be all there was.
+   */
+  readonly history: readonly EnvelopeClaim[];
   readonly revisions: readonly number[];
   readonly conflicts: readonly string[];
   readonly abstain_reason: string | null;
@@ -110,6 +124,7 @@ export function invalidRequest(reason: InvalidReason): AnswerEnvelope {
     status: 'INVALID_REQUEST',
     answer: null,
     evidence: [],
+    history: [],
     revisions: [],
     conflicts: [],
     abstain_reason: reason,
@@ -176,11 +191,20 @@ export async function askEnvelope(
       standing: item.standing,
     }));
 
+    const history: EnvelopeClaim[] = core.history.map((claim) => ({
+      claim_id: claim.id,
+      predicate: claim.predicate,
+      value: claim.objectText,
+      standing: claim.standing,
+      valid_from: claim.validFrom,
+    }));
+
     if (core.status === 'answered') {
       return {
         status: 'ANSWERED',
         answer: core.answer,
         evidence,
+        history,
         revisions: core.supersededClaims,
         conflicts: [],
         abstain_reason: null,
@@ -196,6 +220,7 @@ export async function askEnvelope(
       status: contradicted ? 'CONFLICT' : 'NO_EVIDENCE',
       answer: null,
       evidence,
+      history,
       revisions: core.supersededClaims,
       conflicts: contradicted ? ['the sources disagree and nothing has resolved it'] : [],
       abstain_reason: core.reasonCode,
@@ -209,6 +234,7 @@ export async function askEnvelope(
       status: 'SYSTEM_ERROR',
       answer: null,
       evidence: [],
+      history: [],
       revisions: [],
       conflicts: [],
       abstain_reason: error instanceof Error ? error.message : 'the context store did not answer',

@@ -1,0 +1,17 @@
+{
+  "recorded": "2026-08-19",
+  "target": "https://lacuna-five.vercel.app",
+  "concurrency": 12,
+  "requests": 400,
+  "elapsedMs": 15188,
+  "requestsPerSecond": 26.34,
+  "failures": 0,
+  "answersUnchangedUnderLoad": true,
+  "latencyMs": {
+    "p50": 387,
+    "p90": 686,
+    "p95": 805,
+    "p99": 1423,
+    "max": 1871
+  }
+}

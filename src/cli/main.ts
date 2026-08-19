@@ -6,6 +6,7 @@ import { runDoctor } from './doctor.js';
 import { loadEnvFile } from './env.js';
 import { EXIT_OK, EXIT_USAGE, exitCodeFor, messageFor } from './exit.js';
 import { helpText } from './help.js';
+import { markHeader } from './mark.js';
 import { renderAsk, renderExplain, renderTimeline } from './human.js';
 import { renderBench, renderDoctor, renderStatus } from './human-report.js';
 import { benchPayload, doctorPayload, questionPayload, render, statusPayload } from './json.js';
@@ -48,17 +49,40 @@ export interface Streams {
   readonly out: (text: string) => void;
   readonly err: (text: string) => void;
   readonly isTTY: boolean;
+  /** Terminal width, when there is a terminal. Only the mark reads it. */
+  readonly columns?: number;
 }
+
+/** What a terminal that never told us its width is assumed to be. */
+const ASSUMED_COLUMNS = 80;
 
 const PROCESS_STREAMS: Streams = {
   out: (text) => { process.stdout.write(text); },
   err: (text) => { process.stderr.write(text); },
   isTTY: process.stdout.isTTY === true,
+  columns: process.stdout.columns,
 };
 
 /** Human output is a block of lines; it is written with one trailing newline. */
 function block(text: string): string {
   return `${text}\n`;
+}
+
+/**
+ * The mark, above the three commands that answer "what am I pointed at".
+ *
+ * Not above `ask`, `explain` or `timeline`. Those get run in a loop and a logo
+ * reprinted on every question is litter. `markHeader` returns nothing at all
+ * when stdout is redirected or `--json` is set, so this adds no bytes to any
+ * output something else is going to read.
+ */
+function markLines(palette: Palette, streams: Streams, json: boolean): string {
+  const rows = markHeader(palette, {
+    isTTY: streams.isTTY,
+    json,
+    columns: streams.columns ?? ASSUMED_COLUMNS,
+  });
+  return rows.length === 0 ? '' : `${rows.join('\n')}\n\n`;
 }
 
 async function dispatch(
@@ -75,13 +99,21 @@ async function dispatch(
       root: ROOT,
       requiredNode: readRequiredNode(ROOT),
     });
-    streams.out(json ? render(doctorPayload(report)) : block(renderDoctor(report, palette)));
+    streams.out(
+      json
+        ? render(doctorPayload(report))
+        : `${markLines(palette, streams, json)}${block(renderDoctor(report, palette))}`,
+    );
     return report.code;
   }
 
   if (command === 'status') {
     const report = await runStatus(env, timeoutMs);
-    streams.out(json ? render(statusPayload(report)) : block(renderStatus(report, palette)));
+    streams.out(
+      json
+        ? render(statusPayload(report))
+        : `${markLines(palette, streams, json)}${block(renderStatus(report, palette))}`,
+    );
     return EXIT_OK;
   }
 
@@ -146,7 +178,8 @@ export async function main(
   try {
     const parsed = parseArgs(argv);
     if (parsed.kind === 'help') {
-      streams.out(block(helpText(parsed.command)));
+      const palette = paletteFor({ isTTY: streams.isTTY }, env);
+      streams.out(`${markLines(palette, streams, false)}${block(helpText(parsed.command))}`);
       return EXIT_OK;
     }
     if (parsed.kind === 'version') {

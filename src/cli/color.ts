@@ -17,6 +17,8 @@ export interface Palette {
   readonly good: (text: string) => string;
   readonly warn: (text: string) => string;
   readonly bad: (text: string) => string;
+  /** The amber at the head of the mark. Decoration, and never a verdict. */
+  readonly accent: (text: string) => string;
 }
 
 const identity = (text: string): string => text;
@@ -27,6 +29,7 @@ export const PLAIN: Palette = {
   good: identity,
   warn: identity,
   bad: identity,
+  accent: identity,
 };
 
 /** Built from the code point so no invisible byte lives in this file. */
@@ -41,6 +44,8 @@ export const ANSI: Palette = {
   good: wrap('32'),
   warn: wrap('33'),
   bad: wrap('31'),
+  /** 256 colour 214, the nearest terminal amber to the mark's #FFB829. */
+  accent: wrap('38;5;214'),
 };
 
 export function paletteFor(

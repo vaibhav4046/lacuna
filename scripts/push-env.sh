@@ -18,7 +18,12 @@ FILE="${1:-.env.deploy}"
 [ -f "$FILE" ] || { echo "no $FILE. Copy .env.deploy.example and fill it in."; exit 1; }
 
 # The server needs these. Anything else in the file is skipped on purpose.
-ALLOWED="HYDRA_DATABASE HYDRA_COLLECTION HYDRA_HTTP_URL HYDRA_NAMESPACE HYDRA_GRAPH HYDRA_CELL HYDRA_TOKEN GROQ_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID LACUNA_SESSION_SECRET LACUNA_ACCOUNTS_DIR LACUNA_SECURE_COOKIES"
+# Every variable the deployment reads, matching .env.deploy.example, which is
+# itself generated from the code that consumes them. This list was missing the
+# cloud credentials and the Google client, which are exactly the ones the
+# production deployment cannot run without, so the documented deploy path could
+# not actually configure a deployment.
+ALLOWED="HYDRA_CLOUD_URL HYDRA_CLOUD_TOKEN HYDRA_DATABASE HYDRA_COLLECTION LACUNA_PROFILE HYDRA_HTTP_URL HYDRA_NAMESPACE HYDRA_GRAPH HYDRA_CELL HYDRA_TOKEN HYDRA_ALLOW_PLAINTEXT_REMOTE GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET LACUNA_SITE_ORIGIN GROQ_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY OLLAMA_BASE_URL VLLM_BASE_URL ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID LACUNA_SESSION_SECRET LACUNA_ACCOUNTS_DIR LACUNA_SECURE_COOKIES"
 
 set -a
 # shellcheck disable=SC1090

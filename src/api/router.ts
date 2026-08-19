@@ -21,7 +21,7 @@ import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
 import type { HydraSource } from '../hydra/source.js';
-import type { Inventory } from '../report/inventory.js';
+import type { ClaimState, Inventory } from '../report/inventory.js';
 import type { EvalRow } from '../report/evaluations.js';
 import { headerModel, modelRows } from '../provider/registry.js';
 
@@ -95,6 +95,14 @@ export interface ApiOptions {
    * screen instead of showing an empty table.
    */
   readonly relations?: () => Promise<readonly ServiceRelation[]>;
+  /**
+   * The store's own graph, walked for one subject rather than listed.
+   *
+   * `relations` above asks what edges exist. This asks the store to traverse
+   * them for a question and hand back the paths it reached, which is the thing
+   * a list cannot demonstrate. Injected and optional for the same reasons.
+   */
+  readonly expansion?: (subject: string) => Promise<readonly ServiceRelation[]>;
   /**
    * Google sign in, when the deployment has been given a client.
    *
@@ -194,6 +202,57 @@ function hopSuggestions(inventory: Inventory | undefined): readonly { label: str
   }];
 }
 
+/**
+ * The subject worth asking the store to walk.
+ *
+ * A correction is the whole argument, so the subject picked is one the corpus
+ * corrected: a `depends_on` claim that a later claim replaced. HydraDB's own
+ * graph holds both the old edge and the new one and marks neither, so walking
+ * that subject shows exactly what the store contributes and exactly what the
+ * resolver above it decides. Derived from the inventory rather than written
+ * down here, so a regenerated corpus moves it instead of stranding it.
+ */
+function expansionSubject(inventory: Inventory | undefined): string | null {
+  if (inventory === undefined) return null;
+  const replaced = inventory.claims.find(
+    (row) => row.state === 'historical' && row.predicate === 'depends_on',
+  ) ?? inventory.claims.find((row) => row.state === 'historical');
+  return replaced?.subject ?? null;
+}
+
+/** One row of the store's walk, beside what Lacuna's claim graph says about it. */
+export interface ExpansionRow extends ServiceRelation {
+  /**
+   * The state of the claim this edge lines up with, or `unstated` where the
+   * claim graph holds nothing joining these two. `unstated` is not a fault: the
+   * store extracted from prose the annotations never described.
+   */
+  readonly standing: ClaimState | 'unstated';
+}
+
+/**
+ * What Lacuna's claim graph says about an edge the store reached.
+ *
+ * The store names two entities; a claim about the subject names one object. So
+ * the other end of the edge is looked up as that object, case-insensitively,
+ * because the store lowercases the names it extracts and the corpus does not.
+ * Nothing here changes an answer: this is the comparison the HydraDB screen
+ * renders, and the resolver never sees it.
+ */
+function standingOf(
+  inventory: Inventory,
+  subject: string,
+  relation: ServiceRelation,
+): ClaimState | 'unstated' {
+  const lower = subject.toLowerCase();
+  const other = relation.source?.toLowerCase() === lower ? relation.target : relation.source;
+  if (other === null || other === undefined) return 'unstated';
+  const claim = inventory.claims.find(
+    (row) => row.subject.toLowerCase() === lower && row.objectText.toLowerCase() === other.toLowerCase(),
+  );
+  return claim?.state ?? 'unstated';
+}
+
 export class ApiRouter {
   readonly #store: Accounts;
   readonly #secure: boolean;
@@ -202,6 +261,7 @@ export class ApiRouter {
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
+  readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
@@ -215,6 +275,7 @@ export class ApiRouter {
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#relations = options.relations;
+    this.#expansion = options.expansion;
     this.#google = options.google;
     this.#now = options.now ?? (() => Date.now());
   }
@@ -389,6 +450,42 @@ export class ApiRouter {
           send(response, 200, { available: true, ms: Date.now() - started, relations });
         } catch {
           send(response, 200, { available: false, reason: 'the store did not answer', relations: [] });
+        }
+        return HANDLED;
+      }
+
+      // The same graph, walked rather than listed.
+      //
+      // One subject goes to the store's own retrieval with graph context asked
+      // for, and what comes back is the paths it reached, each set beside the
+      // state Lacuna's claim graph holds for the same pair. The corrected
+      // subject is the one chosen, so the row the store cannot rank and the
+      // resolver refuses is visible rather than described. Read only: no answer
+      // on any other screen consults this.
+      if (part === 'expansion') {
+        const walk = this.#expansion;
+        const subject = expansionSubject(inventory);
+        if (walk === undefined || subject === null || inventory === undefined) {
+          send(response, 200, {
+            available: false,
+            reason: walk === undefined
+              ? 'this deployment has no graph walk endpoint'
+              : 'the corpus holds no corrected claim to walk',
+            subject: null,
+            relations: [],
+          });
+          return HANDLED;
+        }
+        try {
+          const started = Date.now();
+          const walked = await walk(subject);
+          const rows: ExpansionRow[] = walked.map((relation) => ({
+            ...relation,
+            standing: standingOf(inventory, subject, relation),
+          }));
+          send(response, 200, { available: true, subject, ms: Date.now() - started, relations: rows });
+        } catch {
+          send(response, 200, { available: false, reason: 'the store did not answer', subject, relations: [] });
         }
         return HANDLED;
       }

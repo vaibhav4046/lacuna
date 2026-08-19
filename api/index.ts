@@ -24,7 +24,7 @@ import { AccountStore } from '../src/auth/store.js';
 import { CloudAccounts, FileAccounts } from '../src/auth/accounts.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
-import { normaliseRelations, type ServiceRelation } from '../src/hydra/relations.js';
+import { normaliseGraphContext, normaliseRelations, type ServiceRelation } from '../src/hydra/relations.js';
 import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
@@ -120,6 +120,15 @@ const api = new ApiRouter({
   // browsable index of them.
   ...(cloud === null ? {} : {
     relations: async (): Promise<readonly ServiceRelation[]> => normaliseRelations(await cloud.relations(24)),
+  }),
+  // The same graph, walked for one subject. `/query` with graph_context asked
+  // for returns the paths the store reached rather than the edges it holds,
+  // which is the traversal a list cannot show. It costs seconds where the
+  // answer path costs milliseconds, so it stays on its own endpoint and no
+  // question waits on it.
+  ...(cloud === null ? {} : {
+    expansion: async (subject: string): Promise<readonly ServiceRelation[]> =>
+      normaliseGraphContext((await cloud.query(subject, { maxResults: 6 })).graphContext),
   }),
   // Google sign in, only when this deployment has been given a client. Without
   // both halves the button is not offered, rather than offered and broken.

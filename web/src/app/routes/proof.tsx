@@ -76,6 +76,8 @@ function configLine(report: HealthReport | null): string {
 }
 
 interface ServiceRelationRow {
+  /** The store's own id for the edge. Null where the response omitted one. */
+  readonly id: string | null;
   readonly source: string | null;
   readonly target: string | null;
   readonly predicate: string | null;
@@ -90,9 +92,39 @@ interface RelationsReply {
   readonly relations: readonly ServiceRelationRow[];
 }
 
+/** A row of the store's own walk, with what Lacuna's claim graph says about it. */
+interface ExpansionRow extends ServiceRelationRow {
+  readonly standing: 'current' | 'historical' | 'contradicted' | 'withdrawn' | 'unstated';
+}
+
+interface ExpansionReply {
+  readonly available: boolean;
+  readonly reason?: string;
+  readonly ms?: number;
+  readonly subject: string | null;
+  readonly relations: readonly ExpansionRow[];
+}
+
+const STANDING_COLOUR: Readonly<Record<ExpansionRow['standing'], string>> = {
+  current: '#15846E',
+  historical: '#FFB829',
+  contradicted: '#FFB829',
+  withdrawn: '#9A9A9A',
+  unstated: '#5E5E5E',
+};
+
+const STANDING_LABEL: Readonly<Record<ExpansionRow['standing'], string>> = {
+  current: 'STANDS',
+  historical: 'REPLACED',
+  contradicted: 'DISPUTED',
+  withdrawn: 'WITHDRAWN',
+  unstated: 'NOT A CLAIM',
+};
+
 export function HydraDb() {
   const health = useHealth();
   const relations = useScoped<RelationsReply>('relations');
+  const expansion = useScoped<ExpansionReply>('expansion');
   const report = health.state === 'ready' ? health.value : null;
   const state = hydraState(health);
 
@@ -162,6 +194,51 @@ export function HydraDb() {
             ))}
             <span style={{ ...note, letterSpacing: '0.14em' }}>
               GET /context/relations · {relations.value.relations.length} RETURNED IN {relations.value.ms} MS
+            </span>
+          </>
+        )}
+      </div>
+      {/* The same graph, walked instead of listed.
+          The block above is an inventory of edges. This one hands the store a
+          subject the corpus later corrected and asks it to traverse: what comes
+          back is the paths it reached, and beside each is the state Lacuna's
+          claim graph holds for the same pair. The store returns the replaced
+          edge and the live one and marks neither, which is precisely the work
+          the resolver above it does. */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <span style={{ ...note, letterSpacing: '0.2em' }}>THE SAME GRAPH, WALKED FOR ONE SUBJECT</span>
+        {expansion.state !== 'ready' ? (
+          <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Walking the store.</span>
+        ) : !expansion.value.available ? (
+          <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Not available: {expansion.value.reason}.</span>
+        ) : expansion.value.relations.length === 0 ? (
+          <span style={{ fontSize: '14px', color: '#9A9A9A' }}>The store walked and reached nothing.</span>
+        ) : (
+          <>
+            <span style={{ fontSize: '13.5px', color: '#9A9A9A', maxWidth: '62ch', lineHeight: 1.7 }}>
+              HydraDB traversed its own graph for <span style={{ color: '#FFFFFF' }}>{expansion.value.subject}</span>,
+              a subject the transcripts later corrected. Every edge it reached is below, beside
+              what Lacuna's claim graph says of the same pair. The store reaches the replaced
+              edge and the live one alike; deciding between them is the resolver's work, not the
+              store's.
+            </span>
+            {expansion.value.relations.slice(0, 8).map((r, i) => (
+              <div key={r.id ?? i} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '12px' }}>
+                  <span style={{ color: '#FFFFFF' }}>{r.source ?? 'unnamed'}</span>
+                  <span style={{ color: '#8052FF' }}>{r.predicate ?? 'related to'}</span>
+                  <span style={{ color: '#FFFFFF' }}>{r.target ?? 'unnamed'}</span>
+                  <span style={{ color: STANDING_COLOUR[r.standing], fontSize: '10px', letterSpacing: '0.14em' }}>
+                    {STANDING_LABEL[r.standing]}
+                  </span>
+                </div>
+                {r.context !== null && (
+                  <span style={{ fontSize: '12.5px', color: '#5E5E5E', lineHeight: 1.6, maxWidth: '70ch' }}>{r.context}</span>
+                )}
+              </div>
+            ))}
+            <span style={{ ...note, letterSpacing: '0.14em' }}>
+              POST /query GRAPH_CONTEXT · {expansion.value.relations.length} EDGES REACHED IN {expansion.value.ms} MS
             </span>
           </>
         )}

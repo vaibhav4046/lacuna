@@ -285,24 +285,15 @@
     },
     {
       "id": "no-runtime-dependencies",
-      "claim": "The package declares one runtime dependency, the official MCP SDK. Nothing the web server imports touches it.",
+      "claim": "The package declares two runtime dependencies: the official MCP SDK, and hash-wasm for content hashing. Neither is on the answer path.",
       "capability": "VERIFIED",
       "data": null,
       "why_no_data": "This is a fact about package.json, not a measurement the product displays.",
       "measured": {
-        "dependencies": {
-          "@modelcontextprotocol/sdk": "1.30.0"
-        },
-        "devDependencies": [
-          "@huggingface/transformers",
-          "@types/node",
-          "tsx",
-          "typescript",
-          "vitest"
-        ],
-        "imported_by": [
-          "src/mcp",
-          "scripts/mcp.ts"
+        "runtime_dependencies": 2,
+        "names": [
+          "@modelcontextprotocol/sdk",
+          "hash-wasm"
         ]
       },
       "evidence": [
@@ -310,26 +301,27 @@
         "package-lock.json",
         "src/mcp"
       ],
-      "reproduce": "node -e \"const p=require('./package.json');console.log(p.dependencies)\"  # then: grep -rn modelcontextprotocol src/server src/view src/retrieval src/hydra",
-      "caveat": "It was zero until the MCP server needed a spec-compliant transport, and writing one by hand would have been a worse answer than installing the maintained SDK. The dependency is confined to src/mcp and scripts/mcp.ts: the pages the judge opens still import nothing from node_modules at runtime and still ship no script."
+      "reproduce": "node -e \"console.log(Object.keys(require('./package.json').dependencies))\"",
+      "caveat": "This said one dependency until 2026-08-19. A second was added and the entry was not updated, which is the failure mode a claims ledger exists to prevent, so it is recorded rather than silently corrected."
     },
     {
       "id": "no-client-script",
-      "claim": "No page ships a script. The policy that says so is served as a header and repeated in a meta tag.",
+      "claim": "The local HTML server at src/view ships no script, and serves default-src 'none' to say so. The deployed product is a React application and does ship one: a single same-origin bundle, under a Content-Security-Policy of script-src 'self'.",
       "capability": "VERIFIED",
       "data": null,
       "why_no_data": "This is a fact about what the server emits, not a measurement.",
       "measured": {
-        "script_src": "none",
-        "default_src": "none"
+        "html_server_script_src": "none",
+        "deployment_script_src": "'self'"
       },
       "evidence": [
         "src/view/layout.ts",
         "src/server",
         "tests/unit"
       ],
-      "reproduce": "npm run serve  # then: curl -sI http://127.0.0.1:3014/ | grep -i content-security-policy",
-      "caveat": "This is why the voice surface is reachable by URL rather than driven by a client. It is a constraint the design was fitted to, not a feature."
+      "reproduce": "npm run serve  # then: curl -sI http://127.0.0.1:3014/ | grep -i content-security-policy\ncurl -sI https://lacuna-five.vercel.app/ | grep -i content-security-policy",
+      "caveat": "This entry read 'No page ships a script' until 2026-08-19, which was true of the HTML server it was written about and false of the deployment after the React cutover. The two are different servers and the claim now says which one it is about.",
+      "scope": "src/view only, not the deployment"
     },
     {
       "id": "voice-surface",
@@ -449,20 +441,12 @@
     },
     {
       "id": "deployment",
-      "claim": "A copy of the product is public at https://lacuna-five.vercel.app. It serves every page and answers every gold question from a recorded snapshot: replies a live HydraDB node produced at export time, stored byte for byte, decoded in production by the same client code the live server uses.",
+      "claim": "A copy of the product is public at https://lacuna-five.vercel.app. It answers live from HydraDB Cloud: every answer carries source_state 'live' and a measured time, and /judge asks six questions on load with no account.",
       "capability": "VERIFIED",
       "data": "RECORDED",
       "measured": {
-        "url": "https://lacuna-five.vercel.app",
-        "routes_200": ["/", "/memory", "/memory?filter=contradicted", "/health", "/blast?package=pact-check",
-          "/ask?subject=Bellwether&predicate=beta_partner", "/bench", "/hydradb", "/interface", "/voice",
-          "/lacuna.css", "/favicon.svg"],
-        "missing_argument": "400 on /ask and /blast with no terms, which is a notice page and not an error",
-        "matches_local_snapshot": "every page byte for byte except the measured durations it prints",
-        "unknown_path": 404,
-        "post_ask": 405,
-        "csp": "default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
-        "snapshot_replay": "64 questions, 0 answer mismatches, 0 wrong verdicts"
+        "source_state": "live",
+        "store": "HydraDB Cloud"
       },
       "evidence": [
         "artifacts/verification/2026-08-14f/README.md",
@@ -478,8 +462,8 @@
         "scripts/serve-snapshot.ts",
         "vercel.json"
       ],
-      "reproduce": "npm run serve:snapshot  # http://127.0.0.1:3015, same code and snapshot as the URL; npm run snapshot:verify replays all sixty-four gold questions",
-      "caveat": "The deployment is a replay, not a live node, and says so on its own pages. No writes happen there and no token is present there. The graph store limit below is why a long lived hosted node is still not honest; the snapshot is the honest shape a public copy can take today."
+      "reproduce": "curl -s https://lacuna-five.vercel.app/api/health",
+      "caveat": "This described the deployment as answering from a recorded snapshot, which was true of an earlier build and stopped being true when the cloud source landed. The snapshot still exists and is served by npm run serve:snapshot, which is not what the deployment runs. The route names in the old text (/memory, /bench, /hydradb, /interface) belong to the HTML server."
     },
     {
       "id": "graph-store-durability",

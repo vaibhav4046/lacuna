@@ -121,6 +121,28 @@ const STANDING_LABEL: Readonly<Record<ExpansionRow['standing'], string>> = {
   unstated: 'NOT A CLAIM',
 };
 
+
+/**
+ * Eight rows that between them show every standing the walk produced.
+ *
+ * Taking the first eight hid the point: the walk returns its edges grouped, so
+ * the rows that read NOT A CLAIM sat past the cut and a reader saw only the
+ * dependency edges. This takes one of each standing first, then fills.
+ */
+function representative(rows: readonly ExpansionRow[]): readonly ExpansionRow[] {
+  const seen = new Set<string>();
+  const first: ExpansionRow[] = [];
+  const rest: ExpansionRow[] = [];
+  for (const row of rows) {
+    if (seen.has(row.standing)) rest.push(row);
+    else {
+      seen.add(row.standing);
+      first.push(row);
+    }
+  }
+  return [...first, ...rest].slice(0, 8);
+}
+
 export function HydraDb() {
   const health = useHealth();
   const relations = useScoped<RelationsReply>('relations');
@@ -222,7 +244,26 @@ export function HydraDb() {
               edge and the live one alike; deciding between them is the resolver's work, not the
               store's.
             </span>
-            {expansion.value.relations.slice(0, 8).map((r, i) => (
+            <span style={{ fontSize: '13.5px', color: '#9A9A9A', maxWidth: '62ch', lineHeight: 1.7 }}>
+              The <span style={{ color: '#FFFFFF' }}>NOT A CLAIM</span> rows are the ones to read
+              twice. Each is a relation the store read out of a sentence saying that nothing
+              happened: a discussion deferred, an item skipped, notes reread and unchanged,
+              nothing to report. They are not gaps in this memory. They are what a memory looks
+              like when everything gets stored, and answering from one means answering
+              &ldquo;deferred&rdquo; when somebody asks what a service depends on.
+            </span>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', paddingTop: '2px' }}>
+              {(['current', 'historical', 'contradicted', 'unstated'] as const).map((standing) => {
+                const n = expansion.value.relations.filter((r) => r.standing === standing).length;
+                if (n === 0) return null;
+                return (
+                  <span key={standing} style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: STANDING_COLOUR[standing] }}>
+                    {n} {STANDING_LABEL[standing]}
+                  </span>
+                );
+              })}
+            </div>
+            {representative(expansion.value.relations).map((r, i) => (
               <div key={r.id ?? i} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '12px' }}>
                   <span style={{ color: '#FFFFFF' }}>{r.source ?? 'unnamed'}</span>

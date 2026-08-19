@@ -98,7 +98,7 @@ There is deliberately no LLM anywhere in the demo path. The claims are about
 retrieval and abstention, and a generated sentence on top would make every one
 of them harder to check.
 
-893 unit tests across 39 files run with no database. Four contract suites run
+1,152 unit tests across 55 files run with no database. Four contract suites run
 every query builder against a live HydraDB node and fail loudly if the node is
 absent rather than quietly mocking it. 970 tests in total with a node running.
 ```

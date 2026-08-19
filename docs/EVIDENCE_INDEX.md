@@ -50,11 +50,11 @@ cell `cell-0`.
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 1033 unit tests over 52 files | JUDGE_SCORECARD, RELEASE_GATE, END_TO_END_MATRIX | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
-| 77 contract tests over 4 files | RELEASE_GATE, END_TO_END_MATRIX | [artifacts/verification/2026-08-18/contract.txt](../artifacts/verification/2026-08-18/contract.txt) | `npm run test:contract` | `LIVE` |
-| 943 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
-| Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-18/unit.txt](../artifacts/verification/2026-08-18/unit.txt) | `npm test` | `FIXTURE` |
-| Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-18/typecheck.txt](../artifacts/verification/2026-08-18/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
+| 1,152 unit tests over 55 files | JUDGE_SCORECARD, RELEASE_GATE, END_TO_END_MATRIX, SUBMISSION | [artifacts/verification/2026-08-19/unit.txt](../artifacts/verification/2026-08-19/unit.txt) | `npm test` | `FIXTURE` |
+| 77 contract tests over 4 files | RELEASE_GATE, END_TO_END_MATRIX | [artifacts/verification/2026-08-19/contract.txt](../artifacts/verification/2026-08-19/contract.txt) | `npm run test:contract` | `LIVE` |
+| 1,229 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
+| Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-19/unit.txt](../artifacts/verification/2026-08-19/unit.txt) | `npm test` | `FIXTURE` |
+| Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-19/typecheck.txt](../artifacts/verification/2026-08-19/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
 
 The unit count and the contract count are two different things and the
 distinction is the point of keeping them apart. The unit suite needs no database

@@ -1,0 +1,79 @@
+{
+  "measuredAt": "2026-08-19T12:25:17.701Z",
+  "store": "http://127.0.0.1:18443",
+  "note": "Same gold questions, claims and entities at every size. Only the surrounding history changes.",
+  "historyGrowth": 6.89,
+  "contextGrowth": 1,
+  "points": [
+    {
+      "sessions": 10,
+      "messages": 722,
+      "estimatedTokens": 16994,
+      "goldQuestions": 64,
+      "claims": 174,
+      "entities": 86,
+      "correct": 64,
+      "falseAnswers": 0,
+      "meanContextTokens": 18.27,
+      "p50Ms": 249.1,
+      "p95Ms": 429.4,
+      "ingestMs": 31196
+    },
+    {
+      "sessions": 20,
+      "messages": 1470,
+      "estimatedTokens": 33589,
+      "goldQuestions": 64,
+      "claims": 174,
+      "entities": 86,
+      "correct": 64,
+      "falseAnswers": 0,
+      "meanContextTokens": 18.27,
+      "p50Ms": 457.2,
+      "p95Ms": 747.1,
+      "ingestMs": 55627
+    },
+    {
+      "sessions": 30,
+      "messages": 2196,
+      "estimatedTokens": 49509,
+      "goldQuestions": 64,
+      "claims": 174,
+      "entities": 86,
+      "correct": 64,
+      "falseAnswers": 0,
+      "meanContextTokens": 18.27,
+      "p50Ms": 262.3,
+      "p95Ms": 477.9,
+      "ingestMs": 75414
+    },
+    {
+      "sessions": 40,
+      "messages": 2894,
+      "estimatedTokens": 65112,
+      "goldQuestions": 64,
+      "claims": 174,
+      "entities": 86,
+      "correct": 64,
+      "falseAnswers": 0,
+      "meanContextTokens": 18.27,
+      "p50Ms": 218,
+      "p95Ms": 676,
+      "ingestMs": 91592
+    },
+    {
+      "sessions": 72,
+      "messages": 5246,
+      "estimatedTokens": 117041,
+      "goldQuestions": 64,
+      "claims": 174,
+      "entities": 86,
+      "correct": 64,
+      "falseAnswers": 0,
+      "meanContextTokens": 18.27,
+      "p50Ms": 288.4,
+      "p95Ms": 528.2,
+      "ingestMs": 152308
+    }
+  ]
+}

@@ -12,16 +12,19 @@ clean. No count in this file is carried forward from an earlier run.
 | Gate | Result |
 | --- | --- |
 | typecheck | exit 0 |
-| unit | 1048 of 1048, 53 files |
+| unit | 1,152 of 1,152, 55 files |
 | contract, live node | 77 of 77 |
 | three surfaces, one store, 64 questions | `ALL_IDENTICAL: True` |
 | two stores, 64 questions | `ALL_IDENTICAL: true` |
 | census | graph matches the plan exactly |
 | production web, demo, auth | 9 of 9, 30 of 30, 12 of 12 |
 | three clients, one cloud workspace | `ONE_CONTEXT_IDENTICAL: true` |
-| copy lint | 48 files, 0 findings |
+| copy lint | 49 files, 0 findings |
 | HydraDB Cloud health | ok |
 | the store's own relations | 47 returned in 59ms |
+| the store's own graph, walked for one subject | 21 edges, 6 current, 2 historical, 3 contradicted, 10 unstated |
+| history 17k to 117k tokens | context handed to the answering step grew 1.00x, 64/64 at every size |
+| 500 published LongMemEval instances | 0 parse failures, 0 ground truth leaks |
 | Google sign in | redirect live, `openid email profile` |
 | secrets in tracked files and in history | 0 and 0 |
 

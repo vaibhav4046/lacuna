@@ -166,7 +166,7 @@ function workspacePart(view: WorkspaceView, part: string): unknown {
       : part === 'connections' ? view.connections
         : part === 'runs' ? view.runs
           : part === 'health' ? view.health
-            : part === 'memory' ? { rows: view.memory, total: view.memoryTotal, demo: view.demo }
+            : part === 'memory' ? { rows: view.memory, total: view.memoryTotal, loaded: view.memoryPage, demo: view.demo }
               : part === 'categories' ? view.categories
                 : part === 'questions' ? view.questions
                   : part === 'summary' ? view

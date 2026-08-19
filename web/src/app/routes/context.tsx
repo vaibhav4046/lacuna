@@ -25,6 +25,8 @@ interface MemoryRow {
 interface MemoryPage {
   readonly rows: readonly MemoryRow[];
   readonly total: number;
+  /** How many of `total` were actually sent, which is what search covers. */
+  readonly loaded: number;
   readonly demo: boolean;
 }
 
@@ -96,7 +98,14 @@ export function Memory() {
         ))}
         {page.state === 'ready' && rows.length > 0 ? (
           <div style={{ padding: '12px 4px', ...note }}>
-            {shown.length} OF {page.value.total} CLAIMS{page.value.demo ? ' · SAMPLE WORKSPACE' : ''}
+            {/*
+              Three numbers, because two of them were being read as one. The
+              search box filters the rows this page was sent, and saying
+              "48 of 174" next to it implied it had searched all 174.
+            */}
+            {shown.length} SHOWN · {page.value.rows.length} LOADED · {page.value.total} IN THIS WORKSPACE
+            {page.value.rows.length < page.value.total ? ' · SEARCH COVERS THE LOADED ROWS' : ''}
+            {page.value.demo ? ' · SAMPLE WORKSPACE' : ''}
           </div>
         ) : null}
       </div>

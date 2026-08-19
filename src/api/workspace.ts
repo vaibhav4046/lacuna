@@ -49,6 +49,15 @@ export type InvalidReason =
 /** A subject or predicate longer than this is not a name, it is a payload. */
 export const MAX_QUESTION_CHARS = 200;
 
+/**
+ * How many claims one read of the memory list returns.
+ *
+ * Bounded because the corpus is 174 claims today and a real workspace is not,
+ * and the page has to stay honest about the bound rather than pretending the
+ * search box reaches past it.
+ */
+export const MEMORY_PAGE = 40;
+
 export interface EnvelopeEvidence {
   readonly source: string;
   readonly meta: string;
@@ -249,6 +258,14 @@ export interface WorkspaceView {
   readonly health: WorkspaceHealth;
   readonly memory: readonly MemoryRow[];
   readonly memoryTotal: number;
+  /**
+   * How many rows `memory` actually holds.
+   *
+   * The screen filters and searches the rows it was given, so it has to be able
+   * to say what it searched. Reporting a total of 174 beside a list of 40 and a
+   * search box implied the search covered all of them.
+   */
+  readonly memoryPage: number;
   readonly categories: readonly HealthCategory[];
 }
 
@@ -263,6 +280,7 @@ export function emptyWorkspace(): WorkspaceView {
     health: { current: 0, historical: 0, conflicts: 0 },
     memory: [],
     memoryTotal: 0,
+    memoryPage: 0,
     categories: [],
     questions: [],
   };
@@ -324,8 +342,9 @@ export function demoWorkspace(inventory: Inventory): WorkspaceView {
     connections: [{ n: 'HydraDB', st: 'CONNECTED' }],
     runs: [],
     health: { current, historical, conflicts: conflicted },
-    memory: rows.slice(0, 40),
+    memory: rows.slice(0, MEMORY_PAGE),
     memoryTotal: rows.length,
+    memoryPage: MEMORY_PAGE,
     categories: [
       { l: 'Historical', n: historical, col: '#6E6E6E' },
       { l: 'Contradicted', n: conflicted, col: '#FFB829' },

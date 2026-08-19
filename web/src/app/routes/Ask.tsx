@@ -139,9 +139,15 @@ export function Ask() {
 
       {voiceOn ? (
         <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#FFB829', animation: 'lpulse 1.6s ease-in-out infinite' }}></span>
-          <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.2em', color: '#BDBDBD' }}>LISTENING</span>
-          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>VOICE PROVIDER NOT CONFIGURED · TEXT IS STILL AVAILABLE</span>
+          {/*
+            No pulsing dot and no LISTENING. Nothing has opened a microphone,
+            there is no MediaStreamTrack, and animating a live indicator over
+            that is the product claiming a state it cannot prove. The panel says
+            what is actually true instead.
+          */}
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#5E5E5E' }}></span>
+          <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.2em', color: '#BDBDBD' }}>VOICE NOT CONFIGURED</span>
+          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>NO MICROPHONE IS OPEN · TEXT IS STILL AVAILABLE</span>
         </div>
       ) : null}
 

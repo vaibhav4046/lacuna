@@ -19,6 +19,7 @@ import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './wo
 import type { WorkspaceView } from './workspace.js';
 import type { HydraSource } from '../hydra/source.js';
 import type { Inventory } from '../report/inventory.js';
+import type { EvalRow } from '../report/evaluations.js';
 import { headerModel, modelRows } from '../provider/registry.js';
 
 /**
@@ -64,6 +65,14 @@ export interface ApiOptions {
   readonly source?: () => HydraSource;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
+  /**
+   * The recorded benchmark, already read from its artifact by the caller.
+   *
+   * Passed in rather than loaded here: this router has no filesystem in the
+   * deployment it runs in, and a screen that shows a measured run should read
+   * the same file a person checking the claim would open.
+   */
+  readonly evaluations?: readonly EvalRow[];
   readonly now?: () => number;
 }
 
@@ -161,6 +170,7 @@ export class ApiRouter {
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: (() => HydraSource) | undefined;
   readonly #inventory: Inventory | undefined;
+  readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
@@ -171,6 +181,7 @@ export class ApiRouter {
     this.#health = options.health;
     this.#source = options.source;
     this.#inventory = options.inventory;
+    this.#evaluations = options.evaluations;
     this.#now = options.now ?? (() => Date.now());
   }
 
@@ -318,7 +329,9 @@ export class ApiRouter {
 
       const body = part === 'hops'
         ? hopSuggestions(inventory)
-        : workspacePart(view, part);
+        : part === 'evaluations'
+          ? this.#evaluations ?? []
+          : workspacePart(view, part);
       if (body === null) {
         send(response, 404, { error: 'route' });
         return HANDLED;
@@ -342,7 +355,9 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      const body = workspacePart(view, part);
+      const body = part === 'evaluations'
+        ? this.#evaluations ?? []
+        : workspacePart(view, part);
 
       if (body === null) {
         send(response, 404, { error: 'route' });

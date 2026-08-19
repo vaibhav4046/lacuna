@@ -24,6 +24,8 @@ import { AccountStore } from '../src/auth/store.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
 import { buildDemo } from '../src/server/examples.js';
+import { evaluationRows } from '../src/report/evaluations.js';
+import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
@@ -83,6 +85,9 @@ const api = new ApiRouter({
   secure: true,
   health: cloudHealth,
   inventory: buildDemo().inventory,
+  // artifacts/** ships with the function, so the measured run the repository
+  // holds is the one the screen shows.
+  evaluations: evaluationRows(loadArtifacts(process.cwd()).bench),
   // A source per request: the memo inside one lives exactly as long as the
   // question that filled it, so a warm instance cannot answer from a record
   // the store has since replaced.

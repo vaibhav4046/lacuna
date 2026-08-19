@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 import { ApiRouter } from '../src/api/router.js';
+import { evaluationRows } from '../src/report/evaluations.js';
 import { AccountStore } from '../src/auth/store.js';
 import { runDoctor } from '../src/cli/doctor.js';
 import { doctorPayload } from '../src/cli/json.js';
@@ -83,6 +84,7 @@ const server = createServer(createHandler({
     // The same client and the same corpus the pages use. One core.
     source: () => new NodeSource(new HydraClient(config)),
     inventory: demo.inventory,
+    evaluations: evaluationRows(artifacts.bench),
   }),
 }));
 

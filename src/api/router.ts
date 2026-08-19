@@ -18,6 +18,7 @@ import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace } from './workspace.js';
 import type { WorkspaceView } from './workspace.js';
+import type { ServiceRelation } from '../hydra/relations.js';
 import type { HydraSource } from '../hydra/source.js';
 import type { Inventory } from '../report/inventory.js';
 import type { EvalRow } from '../report/evaluations.js';
@@ -74,6 +75,15 @@ export interface ApiOptions {
    * the same file a person checking the claim would open.
    */
   readonly evaluations?: readonly EvalRow[];
+  /**
+   * HydraDB's own relation graph, read from the service rather than built here.
+   *
+   * Injected for the same reason the source is: this router does not choose a
+   * store and does not know one exists. It is optional because the self-hosted
+   * node has no equivalent endpoint, and a deployment without it says so on the
+   * screen instead of showing an empty table.
+   */
+  readonly relations?: () => Promise<readonly ServiceRelation[]>;
   readonly now?: () => number;
 }
 
@@ -172,6 +182,7 @@ export class ApiRouter {
   readonly #source: (() => HydraSource) | undefined;
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
+  readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
@@ -183,6 +194,7 @@ export class ApiRouter {
     this.#source = options.source;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
+    this.#relations = options.relations;
     this.#now = options.now ?? (() => Date.now());
   }
 
@@ -325,6 +337,26 @@ export class ApiRouter {
       }
       if (part === 'model') {
         send(response, 200, { label: headerModel(await modelRows(process.env)) });
+        return HANDLED;
+      }
+
+      // HydraDB's own graph, not the product's. The service extracted these
+      // relations from the same transcripts at ingest, so the screen can show
+      // what the store found beside what the product traversed. A failure is
+      // reported as unavailable rather than as an empty graph, because an empty
+      // table and a store that did not answer are different facts.
+      if (part === 'relations') {
+        if (this.#relations === undefined) {
+          send(response, 200, { available: false, reason: 'this deployment has no relations endpoint', relations: [] });
+          return HANDLED;
+        }
+        try {
+          const started = Date.now();
+          const relations = await this.#relations();
+          send(response, 200, { available: true, ms: Date.now() - started, relations });
+        } catch {
+          send(response, 200, { available: false, reason: 'the store did not answer', relations: [] });
+        }
         return HANDLED;
       }
 

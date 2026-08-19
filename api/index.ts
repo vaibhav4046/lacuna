@@ -24,6 +24,7 @@ import { AccountStore } from '../src/auth/store.js';
 import { CloudAccounts, FileAccounts } from '../src/auth/accounts.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
+import { normaliseRelations, type ServiceRelation } from '../src/hydra/relations.js';
 import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
@@ -105,6 +106,12 @@ const api = new ApiRouter({
   // question that filled it, so a warm instance cannot answer from a record
   // the store has since replaced.
   ...(cloud === null ? {} : { source: (): CloudSource => new CloudSource(cloud) }),
+  // The store's own relation graph, read from the service. Kept small: this is
+  // a proof that HydraDB extracted relations from the transcripts, not a
+  // browsable index of them.
+  ...(cloud === null ? {} : {
+    relations: async (): Promise<readonly ServiceRelation[]> => normaliseRelations(await cloud.relations(24)),
+  }),
 });
 
 export default function handler(request: IncomingMessage, response: ServerResponse): void {

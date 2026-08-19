@@ -391,7 +391,10 @@ await cloud.relations(200);
 await cloud.query('What does tenant-router depend on?', { maxResults: 6 });
 ```
 
-The deployed evidence is two commands and needs no credentials:
+The deployed evidence needs no credentials. The first two answer today; the
+third answers once this branch is deployed, and returns `{"error":"route"}`
+against the build that predates it, which is itself a check that the route is
+new.
 
 ```bash
 curl -s https://lacuna-five.vercel.app/api/health

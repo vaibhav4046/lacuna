@@ -13,7 +13,7 @@ Production: https://lacuna-five.vercel.app
 | Gate | Result | Command |
 | --- | --- | --- |
 | typecheck | exit 0 | `npx tsc --noEmit` |
-| unit | 1016 of 1016, 50 files | `npx vitest run tests/unit` |
+| unit | 1023 of 1023, 51 files | `npx vitest run tests/unit` |
 | contract, live node | 77 of 77, 4 files | `npx vitest run tests/contract` |
 | census | graph matches the plan exactly | `npm run census` |
 | ground-truth isolation | inside the unit suite, fails if the runtime imports it | `npx vitest run tests/unit` |
@@ -118,6 +118,19 @@ All three were run against a preview build first and then against production
 after promoting it. The preview reports 21 of 30 on the demo gate and says why:
 the HydraDB variables are set on the production environment only, so a preview
 has no context store. Everything a preview can check, it checks.
+
+## HydraDB's own graph
+
+| Gate | Result |
+| --- | --- |
+| the store's relation endpoint is called and rendered | 47 relations in about 150ms on the HydraDB screen, with the sentence the store read each one out of |
+| a deployment without the endpoint | says unavailable rather than drawing an empty graph, which a preview build demonstrates |
+
+Every other screen shows the graph Lacuna traversed. This one shows the graph
+HydraDB built from the same transcripts on its own, which is the part of the
+work the store did rather than the product. The two are labelled as different
+things on the screen, because Lacuna's claim graph is built from structured
+annotations and the store's is extracted from prose.
 
 ## The landing page
 

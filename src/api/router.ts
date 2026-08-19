@@ -124,6 +124,11 @@ export interface ApiOptions {
    */
   readonly evaluations?: readonly EvalRow[];
   /**
+   * The recorded one-context run, read from its artifact by the caller for the
+   * same reason the evaluation is: this router has no filesystem where it runs.
+   */
+  readonly continuity?: Readonly<Record<string, unknown>>;
+  /**
    * HydraDB's own relation graph, read from the service rather than built here.
    *
    * Injected for the same reason the source is: this router does not choose a
@@ -298,6 +303,7 @@ export class ApiRouter {
   readonly #ingest: ApiOptions['ingest'];
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
+  readonly #continuity: Readonly<Record<string, unknown>> | undefined;
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
@@ -315,6 +321,7 @@ export class ApiRouter {
     this.#ingest = options.ingest;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
+    this.#continuity = options.continuity;
     this.#relations = options.relations;
     this.#expansion = options.expansion;
     this.#google = options.google;
@@ -584,6 +591,25 @@ export class ApiRouter {
       // POST body: a transcript in a query string ends up in access logs, in
       // proxy caches and in browser history, and somebody pasting a real
       // conversation in has no reason to expect that.
+      /**
+       * One question, asked of three clients, compared field by field.
+       *
+       * A recorded run rather than a live one, and labelled that way, because
+       * a browser cannot spawn a subprocess and pretending otherwise would be
+       * the page claiming something it cannot do. The run itself was real: a
+       * web request, a local CLI process and an MCP subprocess each asked the
+       * same six questions of the same store.
+       */
+      if (part === 'continuity') {
+        const recorded = this.#continuity;
+        if (recorded === undefined) {
+          send(response, 200, { available: false, reason: 'no recorded run ships with this build' });
+          return HANDLED;
+        }
+        send(response, 200, { available: true, kind: 'recorded', ...recorded });
+        return HANDLED;
+      }
+
       if (part === 'extract') {
         send(response, 200, extractionReport(null));
         return HANDLED;

@@ -18,6 +18,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { ApiRouter } from '../src/api/router.js';
@@ -34,6 +36,20 @@ import { ingestSource } from '../src/api/ingest.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
+
+/**
+ * The recorded run comparing a browser, a CLI process and an MCP subprocess.
+ * Absent on a build that does not ship it, and the screen says so.
+ */
+const continuityRun = ((): Readonly<Record<string, unknown>> | null => {
+  try {
+    return JSON.parse(
+      readFileSync(join(process.cwd(), 'artifacts/continuity/one-context.json'), 'utf8'),
+    ) as Readonly<Record<string, unknown>>;
+  } catch {
+    return null;
+  }
+})();
 
 
 /**
@@ -114,6 +130,9 @@ const api = new ApiRouter({
   // artifacts/** ships with the function, so the measured run the repository
   // holds is the one the screen shows.
   evaluations: evaluationRows(loadArtifacts(process.cwd()).bench),
+  // The recorded one-context run. Read here because the function has no
+  // filesystem to read it from later.
+  ...(continuityRun === null ? {} : { continuity: continuityRun }),
   // A source per request: the memo inside one lives exactly as long as the
   // question that filled it, so a warm instance cannot answer from a record
   // the store has since replaced.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getJson, postFor } from '../api/client';
+import { getJson, postFor, useLoaded } from '../api/client';
 import { MONO } from '../design/mark';
 import { STANDING_COLOUR, STANDING_LABEL } from '../design/standing';
 
@@ -172,6 +172,104 @@ function Result({ envelope }: { envelope: Envelope | 'running' }) {
   );
 }
 
+
+interface ImpactReply {
+  readonly available: boolean;
+  readonly subject: string | null;
+  readonly reached?: number;
+  readonly accepted?: readonly { readonly source: string; readonly target: string; readonly predicate: string; readonly depth: number }[];
+  readonly rejected?: readonly { readonly target: string; readonly reason: string; readonly context: string | null }[];
+  readonly affected?: readonly string[];
+  readonly depth?: number;
+  readonly ms?: number;
+}
+
+interface ContinuityReply {
+  readonly available: boolean;
+  readonly kind?: string;
+  readonly store?: string;
+  readonly deployment?: string;
+  readonly clients?: readonly string[];
+  readonly questions?: number;
+  readonly identical?: boolean;
+}
+
+/**
+ * The proof a similarity index cannot produce.
+ *
+ * HydraDB traverses its own graph and hands back every candidate edge; this
+ * project then refuses the ones the conversation replaced, disputed, or never
+ * asserted, and the affected set is computed over what is left. Both halves
+ * are named, because a filter nobody can see is a claim rather than a proof.
+ */
+function GraphProof() {
+  const impact = useLoaded<ImpactReply>('/api/demo/impact');
+  if (impact.state !== 'ready') return <span style={{ ...label }}>WALKING THE STORE…</span>;
+  if (!impact.value.available || impact.value.accepted === undefined) {
+    return <span style={{ ...label }}>GRAPH WALK UNAVAILABLE</span>;
+  }
+  const it = impact.value;
+  const refused = (it.rejected ?? []).find((edge) => edge.reason === 'historical');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+        <span style={{ ...mono, fontSize: '10px', letterSpacing: '0.18em', color: '#8052FF' }}>GRAPH IMPACT</span>
+        <span style={{ fontSize: '22px', color: '#FFFFFF' }}>{(it.affected ?? []).join(', ') || 'nothing current'}</span>
+      </div>
+      <div style={{ ...label, display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+        <span>{it.reached} EDGES REACHED</span>
+        <span>{(it.accepted ?? []).length} CROSSED</span>
+        <span>{(it.rejected ?? []).length} REFUSED</span>
+        <span>DEPTH {it.depth}</span>
+        <span>{it.ms} MS</span>
+      </div>
+      {refused === undefined ? null : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ ...mono, fontSize: '9.5px', letterSpacing: '0.14em', color: '#FFB829' }}>
+            ONE STALE DEPENDENCY REFUSED · {refused.target}
+          </span>
+          <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '64ch', lineHeight: 1.55 }}>
+            {refused.context}
+          </span>
+        </div>
+      )}
+      <span style={{ fontSize: '13.5px', color: '#9A9A9A', maxWidth: '64ch', lineHeight: 1.6 }}>
+        The store returned every one of those edges. It cannot know which the conversation later
+        replaced, so a walk over its raw output would still be following the corrected dependency.
+      </span>
+    </div>
+  );
+}
+
+/** One question, three clients, compared field by field. A recorded run, labelled. */
+function ContinuityProof() {
+  const run = useLoaded<ContinuityReply>('/api/demo/continuity');
+  if (run.state !== 'ready' || !run.value.available) return null;
+  const it = run.value;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+        <span style={{ ...mono, fontSize: '10px', letterSpacing: '0.18em', color: '#8052FF' }}>ONE CONTEXT, ANY AGENT</span>
+        <span style={{ fontSize: '22px', color: '#FFFFFF' }}>
+          {it.identical === true ? 'Identical across all three' : 'Not identical'}
+        </span>
+      </div>
+      <div style={{ ...label, display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+        <span>{(it.clients ?? []).join(' · ').toUpperCase()}</span>
+        <span>{it.questions} QUESTIONS</span>
+        <span>RECORDED VERIFIED RUN</span>
+      </div>
+      <span style={{ fontSize: '13.5px', color: '#9A9A9A', maxWidth: '64ch', lineHeight: 1.6 }}>
+        A browser, a local command line and an MCP subprocess asked the same questions of{' '}
+        {it.store}. This is a recorded run rather than a live one, because a page in a browser
+        cannot spawn a subprocess and pretending it had would be the thing this product is against.
+        The MCP server is live and callable at <span style={{ color: '#B79BFF' }}>/mcp</span>.
+      </span>
+    </div>
+  );
+}
+
 export function Judge() {
   const [rows, setRows] = useState<readonly Row[] | null>(null);
   const [results, setResults] = useState<Readonly<Record<string, Envelope | 'running'>>>({});
@@ -283,6 +381,11 @@ export function Judge() {
             </section>
           );
         })}
+
+        <section style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '26px' }}>
+          <GraphProof />
+          <ContinuityProof />
+        </section>
 
         <section style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <span style={label}>THE ARGUMENT, IN ONE SCREEN</span>

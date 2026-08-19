@@ -117,4 +117,168 @@ describe('the demo workspace without a session', () => {
     const response = await fetch(`${base}/api/demo/questions`, { method: 'POST' });
     expect(response.status).toBe(404);
   });
+
+  it('reports the graph walk as unavailable where no store was given one', async () => {
+    const body = (await (await fetch(`${base}/api/demo/expansion`)).json()) as ExpansionReply;
+    expect(body.available).toBe(false);
+    expect(body.relations).toEqual([]);
+  });
+});
+
+interface ExpansionReply {
+  readonly available: boolean;
+  readonly reason?: string;
+  readonly subject: string | null;
+  readonly relations: readonly {
+    readonly id: string | null;
+    readonly source: string | null;
+    readonly target: string | null;
+    readonly standing: string;
+  }[];
+}
+
+/**
+ * The store's own graph, walked, beside the claim graph.
+ *
+ * The walk itself is HydraDB's and costs seconds, so it is stubbed here and the
+ * network is not touched. What is under test is the part this repository owns:
+ * which subject gets walked, and whether each edge the store reached is set
+ * against the right state in the claim graph. The rows below are the shape a
+ * real answer returned for the corrected subject.
+ */
+describe('the graph walk set beside the claim graph', () => {
+  let walkServer: Server;
+  let walkBase: string;
+  let walkDir: string;
+  let asked: string[] = [];
+  const inventory = buildDemo().inventory;
+  const corrected = inventory.claims.find(
+    (row) => row.state === 'historical' && row.predicate === 'depends_on',
+  );
+
+  function relation(target: string, id: string) {
+    return {
+      id,
+      source: corrected?.subject ?? null,
+      sourceType: 'PRODUCT',
+      target,
+      targetType: 'PRODUCT',
+      predicate: 'depends on',
+      confidence: null,
+      context: `${corrected?.subject ?? 'it'} depends on ${target}.`,
+    };
+  }
+
+  beforeAll(async () => {
+    walkDir = mkdtempSync(join(tmpdir(), 'lacuna-walk-'));
+    const current = inventory.claims.find(
+      (row) => row.subject === corrected?.subject
+        && row.predicate === 'depends_on'
+        && row.state === 'current',
+    );
+    const router = new ApiRouter({
+      store: new FileAccounts(new AccountStore(walkDir)),
+      secure: false,
+      health: null,
+      inventory,
+      expansion: async (subject: string) => {
+        asked.push(subject);
+        return [
+          relation(current?.objectText ?? 'unknown', 'r-current'),
+          // Lowercased, as the store returns its extracted names.
+          relation((corrected?.objectText ?? 'unknown').toLowerCase(), 'r-replaced'),
+          relation('a package no claim joins to this subject', 'r-unstated'),
+        ];
+      },
+    });
+    walkServer = createServer((request, response) => {
+      const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+      void router.handle(request, response, path).then((outcome) => {
+        if (!outcome.handled) response.writeHead(404).end('{}');
+      });
+    });
+    await new Promise<void>((resolve) => walkServer.listen(0, '127.0.0.1', resolve));
+    const address = walkServer.address();
+    if (address === null || typeof address === 'string') throw new Error('no port');
+    walkBase = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => walkServer.close(() => resolve()));
+    rmSync(walkDir, { recursive: true, force: true });
+  });
+
+  it('walks a subject the corpus corrected, not one written down here', async () => {
+    asked = [];
+    const body = (await (await fetch(`${walkBase}/api/demo/expansion`)).json()) as ExpansionReply;
+
+    expect(corrected).toBeDefined();
+    expect(body.available).toBe(true);
+    expect(body.subject).toBe(corrected?.subject);
+    expect(asked).toEqual([corrected?.subject]);
+  });
+
+  it('marks the replaced edge historical and the live one current', async () => {
+    const body = (await (await fetch(`${walkBase}/api/demo/expansion`)).json()) as ExpansionReply;
+    const standing = new Map(body.relations.map((row) => [row.id, row.standing]));
+
+    expect(standing.get('r-current')).toBe('current');
+    expect(standing.get('r-replaced')).toBe('historical');
+  });
+
+  it('calls an edge unstated rather than wrong where no claim joins the pair', async () => {
+    const body = (await (await fetch(`${walkBase}/api/demo/expansion`)).json()) as ExpansionReply;
+    const unstated = body.relations.find((row) => row.id === 'r-unstated');
+
+    expect(unstated?.standing).toBe('unstated');
+  });
+
+  it('is read only: a write to the walk is not a route', async () => {
+    const response = await fetch(`${walkBase}/api/demo/expansion`, { method: 'POST' });
+    expect(response.status).toBe(404);
+  });
+});
+
+/** A store that does not answer is an unavailable walk, not a failed request. */
+describe('a graph walk the store refuses', () => {
+  let brokenServer: Server;
+  let brokenBase: string;
+  let brokenDir: string;
+
+  beforeAll(async () => {
+    brokenDir = mkdtempSync(join(tmpdir(), 'lacuna-walk-broken-'));
+    const router = new ApiRouter({
+      store: new FileAccounts(new AccountStore(brokenDir)),
+      secure: false,
+      health: null,
+      inventory: buildDemo().inventory,
+      expansion: async () => {
+        throw new Error('the token is wrong, and this message must not travel');
+      },
+    });
+    brokenServer = createServer((request, response) => {
+      const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+      void router.handle(request, response, path).then((outcome) => {
+        if (!outcome.handled) response.writeHead(404).end('{}');
+      });
+    });
+    await new Promise<void>((resolve) => brokenServer.listen(0, '127.0.0.1', resolve));
+    const address = brokenServer.address();
+    if (address === null || typeof address === 'string') throw new Error('no port');
+    brokenBase = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => brokenServer.close(() => resolve()));
+    rmSync(brokenDir, { recursive: true, force: true });
+  });
+
+  it('answers unavailable, and never repeats what the store said', async () => {
+    const response = await fetch(`${brokenBase}/api/demo/expansion`);
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).not.toContain('token');
+    expect((JSON.parse(text) as ExpansionReply).available).toBe(false);
+  });
 });

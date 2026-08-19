@@ -22,17 +22,30 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
-**What this does not do.** It does not read claims out of prose. The graph is
-built from structured annotations that the corpus generator emits alongside the
-transcripts, so ingestion knows which statement supersedes which because it was
-told, not because it worked it out. Everything downstream is real: the
-supersession, the contradiction handling, the abstention, the traversal, and the
-comparison against five retrieval baselines over the same corpus. But point this
-at a folder of somebody else's meeting notes today and there is no step that
-turns those sentences into claims. That extraction is the obvious next piece and
-it is deliberately not faked here, because a claim graph built by a generator is
-a fair test of what to do with a claim graph, and it is not a demonstration that
-one can be built from arbitrary text.
+**What this does not do.** It reads claims out of prose, and it reads eleven
+sentence shapes rather than English. `src/extract` turns a transcript into
+subjects, predicates, objects and the quotation each one came from, decides
+whether a sentence is a statement, a plan, a question or a reported change, and
+files anything that is not a statement onto a slot the resolver structurally
+cannot answer from. That is what makes an unadopted proposal, and a forged
+`SYSTEM:` line telling it what to record, unable to become an answer. It is on
+[the memory screen](https://lacuna-five.vercel.app/demo/memory) with a box to
+paste your own text into.
+
+The ceiling is the frame table: eleven connective phrases covering storage,
+owner, ttl, pool size, region, depends on and policy. A sentence about anything
+else produces nothing rather than a guess, which is the right failure but is
+still a failure, and the endpoint reports what it can read on every response so
+an empty result is a stated limit rather than a mystery.
+
+The measured numbers below are over a graph built from **structured
+annotations**, not from that extractor. The corpus generator emits the
+annotations alongside the transcripts, so ingestion knows which statement
+supersedes which because it was told. That is a fair test of what to do with a
+claim graph and it is not a claim about building one from arbitrary text. The
+LongMemEval integration is the one path that runs extraction end to end, and
+`docs/BENCHMARK_LONGMEMEVAL.md` records exactly how far that goes and what it
+still needs.
 
 ## The deployed copy
 

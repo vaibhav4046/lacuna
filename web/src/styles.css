@@ -224,7 +224,18 @@ input { font-family:inherit; }
 input::placeholder { color:#5E5E5E; }
 @keyframes lpulse { 0%, 100% { opacity:0.3; } 50% { opacity:1; } }
 @keyframes heroIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
-@media (max-width: 940px) { [data-navlinks] { display:none !important; } }
+/* The header swaps its navigation at 940px. Above it the five links sit in the
+   bar and there is no Menu. Below it they move into the disclosure sheet, and
+   Live demo and Sign in go with them so one filled action is left in the bar.
+   The marker is removed in both syntaxes because Safari still wants its own. */
+[data-navmenu] { display:none; }
+[data-navmenu] > summary { list-style:none; }
+[data-navmenu] > summary::-webkit-details-marker { display:none; }
+@media (max-width: 940px) {
+  [data-navlinks] { display:none !important; }
+  [data-navwide] { display:none !important; }
+  [data-navmenu] { display:block !important; }
+}
 @media (max-width: 860px) { [data-mhide] { display:none !important; } }
 
 /* ------------------------------------------------------------------ *

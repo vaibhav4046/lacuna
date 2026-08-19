@@ -74,6 +74,11 @@ export function useLoaded<T>(path: string): Loaded<T> {
 /** The name of the double-submit cookie the server sets for mutations. */
 const CSRF_COOKIE = 'lacuna_csrf';
 
+/** The double submit header, for a caller that builds its own request. */
+export function csrfHeaders(): Readonly<Record<string, string>> {
+  return { 'X-CSRF-Token': csrfToken() };
+}
+
 function csrfToken(): string {
   for (const part of document.cookie.split(';')) {
     const [name, ...rest] = part.trim().split('=');

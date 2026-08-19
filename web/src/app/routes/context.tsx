@@ -1,9 +1,10 @@
 import { useState } from 'react';
 
-import { useScoped } from '../../api/scope';
+import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Panel, Stage } from '../state';
 import { Extractor } from './extractor';
+import { AddSource } from './ingest';
 
 /**
  * The CONTEXT group: Memory, Timeline, Graph and Context health.
@@ -59,6 +60,7 @@ function StateMark({ st }: { st: MemoryRow['st'] }) {
 
 export function Memory() {
   const page = useScoped<MemoryPage>('memory');
+  const { demo } = useScope();
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -71,6 +73,12 @@ export function Memory() {
 
   return (
     <div style={{ maxWidth: '1220px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/*
+        Only where there is a workspace to write into. The public demo reads a
+        corpus that ships here, and offering to add to it would be offering
+        something the endpoint refuses.
+      */}
+      {demo ? null : <AddSource onIngested={() => window.location.reload()} />}
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input className="fv-violet" type="text" placeholder="Search claims" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: '200px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontFamily: MONO, fontSize: '12px', outline: 'none' }} />
         {FILTERS.map((l) => (

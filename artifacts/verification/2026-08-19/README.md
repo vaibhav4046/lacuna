@@ -14,11 +14,11 @@ that: it reads every stored key back and names anything the plan did not write.
 | File | Command | Result | Exit |
 |---|---|---|---|
 | `typecheck.txt` | `npm run typecheck` | clean | 0 |
-| `unit.txt` | `npm test` | 58 files, 1,189 tests | 0 |
+| `unit.txt` | `npm test` | 59 files, 1,202 tests | 0 |
 | `contract.txt` | `npm run test:contract` | 4 files, 77 tests, 33.55s | 0 |
 | `census.txt` | `npm run census` | graph matches the plan exactly | 0 |
 
-1,266 tests with a node running, which is the two suites added together and is
+1,279 tests with a node running, which is the two suites added together and is
 the only number that needs both.
 
 The graph, read back rather than asserted:
@@ -43,7 +43,7 @@ The graph, read back rather than asserted:
 
 ## What moved since 2026-08-18
 
-The unit suite went from 893 tests over 39 files to 1,189 over 58. The contract
+The unit suite went from 893 tests over 39 files to 1,202 over 59. The contract
 suite went from 50 tests over 3 files to 77 over 4. Nothing was removed to get
 there and no assertion was loosened; the additions cover the extractor, the
 assertion-mode gating, the LongMemEval adapter and its leakage guarantee, the

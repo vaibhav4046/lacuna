@@ -50,9 +50,9 @@ cell `cell-0`.
 
 | Number | Said in | Artifact | Command | State |
 |---|---|---|---|---|
-| 1,189 unit tests over 58 files | JUDGE_SCORECARD, RELEASE_GATE, END_TO_END_MATRIX, SUBMISSION | [artifacts/verification/2026-08-19/unit.txt](../artifacts/verification/2026-08-19/unit.txt) | `npm test` | `FIXTURE` |
+| 1,202 unit tests over 59 files | JUDGE_SCORECARD, RELEASE_GATE, END_TO_END_MATRIX, SUBMISSION | [artifacts/verification/2026-08-19/unit.txt](../artifacts/verification/2026-08-19/unit.txt) | `npm test` | `FIXTURE` |
 | 77 contract tests over 4 files | RELEASE_GATE, END_TO_END_MATRIX | [artifacts/verification/2026-08-19/contract.txt](../artifacts/verification/2026-08-19/contract.txt) | `npm run test:contract` | `LIVE` |
-| 1,266 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
+| 1,279 tests with a node running | SUBMISSION | the two files above | both commands | mixed, see above |
 | Seven error lines on stderr are meant to be there | README | [artifacts/verification/2026-08-19/unit.txt](../artifacts/verification/2026-08-19/unit.txt) | `npm test` | `FIXTURE` |
 | Typecheck is clean | JUDGE_SCORECARD | [artifacts/verification/2026-08-19/typecheck.txt](../artifacts/verification/2026-08-19/typecheck.txt) | `npm run typecheck` | `FIXTURE` |
 

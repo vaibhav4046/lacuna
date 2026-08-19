@@ -394,12 +394,17 @@ describe('prose into the claim graph, over HTTP', () => {
     const payload = 'a: <script>window.x=1</script> is owned by <img src=x onerror=1>.';
     const body = await (await post(payload)).json() as {
       claims: { objectText: string; quote: string }[];
+      sentences: number;
     };
-    expect(body.claims).toHaveLength(1);
-    // Kept verbatim rather than stripped. Escaping belongs to the renderer, and
-    // silently rewriting somebody's text would be a worse answer than showing it.
-    expect(body.claims[0]?.objectText).toBe('<img src=x onerror=1>');
-    expect(body.claims[0]?.quote).toBe(payload.slice('a: '.length));
+
+    // Nothing in it becomes a claim. A name does not contain angle brackets or
+    // a pipe, which is also what keeps a chat template's control tokens from
+    // being filed as an entity, and that is a stronger guarantee than returning
+    // the markup safely: it is never a fact about anything in the first place.
+    expect(body.claims).toEqual([]);
+    // The sentence was still read, so this is a refusal rather than a parser
+    // that fell over on the input.
+    expect(body.sentences).toBeGreaterThan(0);
   });
 
   it('answers rather than falls over on very long, unicode and empty input', async () => {

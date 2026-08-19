@@ -126,7 +126,7 @@ const TRAILING_TIME =
   /\s+(?:now|today|currently|any\s?more|from\s+now\s+on|going\s+forward|at\s+the\s+moment|right\s+now|yesterday|recently|(?:last|this)\s+(?:night|week|month|year|quarter|morning|afternoon|evening)|at\s+some\s+point|soon|eventually|later)$/i;
 
 /** Where a value ends. Anything past one of these is another clause. */
-const VALUE_END = /[.!?,;]|\s+(?:because|so\s+that|and|but|since|which|that|on|for|from|as\s+of|with|until|while)\s+/i;
+const VALUE_END = /[.!?,;]|\s+(?:because|so\s+that|and|but|since|which|that|if|unless|when|on|for|from|as\s+of|with|until|while)\s+/i;
 
 const MONTHS: readonly string[] = [
   'january', 'february', 'march', 'april', 'may', 'june',
@@ -274,6 +274,10 @@ const MAX_NAME_WORDS = 6;
  */
 function usable(text: string): boolean {
   if (text === '' || !/[A-Za-z0-9]/.test(text)) return false;
+  // Control-token payloads. A chat template's own delimiters are not part of
+  // anybody's name, and a claim filed under `<|im_start|>system` is a fact
+  // about a string somebody pasted in to try to be a system prompt.
+  if (/[<>|]/.test(text)) return false;
   // A name does not contain a sentence boundary. These arrive when a frame
   // matched across a clause the sentence splitter kept together.
   if (/[,;:]/.test(text)) return false;

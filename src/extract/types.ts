@@ -53,6 +53,12 @@ export const ASSERTION_MODES = [
    * where no question about the value can reach it.
    */
   'ABSENCE',
+  /**
+   * True only if something else is. "If we scale up, sessions are stored in
+   * Redis" describes an arrangement that does not exist yet, and reading it as
+   * state answers a question about where sessions are with a hypothetical.
+   */
+  'CONDITIONAL',
 ] as const;
 
 export type AssertionMode = (typeof ASSERTION_MODES)[number];
@@ -91,6 +97,7 @@ export const MODE_SLOT: Readonly<Record<AssertionMode, string | null>> = Object.
   SPECULATION: 'speculation',
   HISTORICAL: 'historical',
   ABSENCE: 'absence',
+  CONDITIONAL: 'conditional',
 });
 
 /** The predicate a claim in this mode is filed under. */

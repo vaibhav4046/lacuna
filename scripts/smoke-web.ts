@@ -82,7 +82,7 @@ const GATES: readonly Gate[] = [
       // Order against a module script does not matter: those are deferred and
       // do not block the parser or the first paint. A classic script does
       // block, so one of those in front of the stylesheet is a real fault.
-      const blocking = /<script(?![^>]*type="module")[^>]*src=/i.exec(html.slice(0, css));
+      const blocking = /<script(?![^>]*\btype="module")[^>]*\bsrc=/i.exec(html.slice(0, css));
       return blocking === null ? null : `a render blocking script precedes boot.css: ${blocking[0]}`;
     },
   },

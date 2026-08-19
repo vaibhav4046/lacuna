@@ -72,6 +72,16 @@ const RULES: readonly Rule[] = [
     marker: /^(?:before|until|prior to)\b|\b(?:used to|previously|at the time|back then|no longer|up until)\b/i,
   },
   {
+    /**
+     * A clause the sentence has not asserted. Anchored at the start, because
+     * "the pool size is 12 if you count replicas" is a statement with a
+     * qualifier and "if we scale up, sessions are in Redis" is not a statement
+     * at all.
+     */
+    mode: 'CONDITIONAL',
+    marker: /^\s*(?:if|unless|assuming|suppose|in case|were we to|should we)\b/i,
+  },
+  {
     mode: 'SPECULATION',
     marker:
       /\b(?:i think|i believe|i suspect|i assume|probably|presumably|maybe|might be|i guess|not sure|as far as i know|afaik)\b/i,

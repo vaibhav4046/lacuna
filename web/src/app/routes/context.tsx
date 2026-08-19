@@ -238,7 +238,7 @@ export function Health() {
         })}
       </svg>
       <div style={{ flex: 1, minWidth: '280px', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#9A9A9A', margin: '0 0 12px' }}>Not one score. The spiral is the memory itself — every fragment placed by age, coloured by state. Select a category to isolate it.</p>
+        <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#9A9A9A', margin: '0 0 12px' }}>Not one score. The spiral is the memory itself: every fragment placed by age, coloured by state. Select a category to isolate it.</p>
         {cats.state === 'loading' ? <Stage label="CHECKING CONTEXT" /> : null}
         {cats.state === 'failed' ? <Failed reason={cats.reason} /> : null}
         {cats.state === 'ready' && rows.length === 0 ? (

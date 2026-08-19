@@ -102,7 +102,7 @@ questions through the stored snapshot and asks the live node the same sixty-four
 then fails on any mismatch between the two. It needs a running node, because
 comparing a recording against the real thing is the whole point of it. Two
 fields are excluded from the comparison: wall-clock milliseconds and the read
-epoch, which measure the run rather than the answer — every write to the node
+epoch, which measure the run rather than the answer. Every write to the node
 advances the epoch, so it differs whenever anything has been ingested since the
 snapshot was exported.
 

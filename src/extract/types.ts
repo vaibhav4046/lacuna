@@ -42,6 +42,17 @@ export const ASSERTION_MODES = [
   'SPECULATION',
   /** Explicitly about the past. "Before 5 March 2026, sessions were stored in Redis." */
   'HISTORICAL',
+  /**
+   * A statement that the value is not known or not written down.
+   *
+   * "The connection pool size is not documented" is a fact about the record,
+   * not about the pool. Read as a statement it produces the answer "not
+   * documented" to the question "what is the pool size", which is a false fact
+   * of exactly the kind this module exists to refuse, and it is worse than
+   * abstaining because it looks like knowledge. It is kept, quotable, and filed
+   * where no question about the value can reach it.
+   */
+  'ABSENCE',
 ] as const;
 
 export type AssertionMode = (typeof ASSERTION_MODES)[number];
@@ -79,6 +90,7 @@ export const MODE_SLOT: Readonly<Record<AssertionMode, string | null>> = Object.
   PLAN: 'plan',
   SPECULATION: 'speculation',
   HISTORICAL: 'historical',
+  ABSENCE: 'absence',
 });
 
 /** The predicate a claim in this mode is filed under. */

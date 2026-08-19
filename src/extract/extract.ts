@@ -226,7 +226,27 @@ const RELATIVE = new Set([
 const NOT_A_NAME_START = new Set([
   'to', 'in', 'on', 'for', 'from', 'with', 'by', 'at', 'of', 'between',
   'and', 'but', 'or', 'because', 'if', 'when', 'while',
+  // Negation determiners. "No owner is assigned to checkout" was producing an
+  // entity called "No" with an owner of "assigned to checkout", which is a
+  // fact about nothing. The sentence means the owner is absent, and absence is
+  // not a value.
+  'no', 'none', 'nobody', 'nothing', 'neither', 'not',
 ]);
+
+/**
+ * Values that say the thing is not known or not written down.
+ *
+ * "The connection pool size is not documented" fills the value slot with "not
+ * documented", and a resolver reading that answers the question "what is the
+ * pool size" with it. That is a fact about the record rather than about the
+ * pool, and answering with it is worse than abstaining, because an abstention
+ * is visibly an absence and this looks like knowledge.
+ *
+ * Matched on the whole value rather than as a substring, so "not documented
+ * anywhere" still matches and "documented in Confluence" does not.
+ */
+const ABSENCE_VALUE =
+  /^(?:not\s+(?:documented|recorded|specified|set|known|decided|configured|available|written\s+down)|undocumented|unknown|unclear|unspecified|undecided|tbd|to\s+be\s+decided|n\/?a|missing|none|nothing)\b/i;
 
 /** A name is a name. Six words is generous for one and short for a clause. */
 const MAX_NAME_WORDS = 6;
@@ -451,11 +471,26 @@ interface Context {
 }
 
 function readSentence(context: Context): readonly ExtractedClaim[] {
-  const swapped = context.mode === 'CORRECTION' ? readSwap(context) : null;
-  if (swapped !== null) return [swapped];
-
   const hit = readFrame(context.sentence.text);
-  if (hit === null) return [];
+
+  /**
+   * The frame wins when there is one, and the swap is the fallback.
+   *
+   * Both readings apply to "Actually sessions are stored in Postgres, not
+   * Redis": the frame says storage of Sessions is Postgres, and the swap says
+   * whatever held Redis now holds "sessions are stored in Postgres". The swap
+   * has no way to know where the value starts, so it produced the object text
+   * "stored in Postgres", which is not a store.
+   *
+   * So the swap is for the shape it was written for, "It is Postgres, not
+   * Redis", where there is no frame and the old value is the only pointer into
+   * the graph. Where a frame matches, the frame knows which words are the
+   * value and the mode already carries the correction.
+   */
+  if (hit === null) {
+    const swapped = context.mode === 'CORRECTION' ? readSwap(context) : null;
+    return swapped === null ? [] : [swapped];
+  }
 
   const subject = resolveSubject(context, hit);
   if (subject === null) return [];
@@ -526,8 +561,21 @@ interface Draft {
  * because a claim nobody can check is worth less than no claim.
  */
 function build(context: Context, draft: Draft): ExtractedClaim | null {
-  const { turn, sentence, mode } = context;
+  const { turn, sentence } = context;
   const quote = sentence.text;
+
+  /**
+   * Absence is decided here rather than in the classifier, because the
+   * classifier reads the sentence and this needs the value.
+   *
+   * "The connection pool size is not documented" classifies as a plain
+   * statement, and it is one: the sentence is true. What it is not is a pool
+   * size. Filing it as state answers the question "what is the pool size" with
+   * "not documented", which is a false fact wearing the clothes of a real one.
+   * The mode is corrected once the value is known, so the claim stays in the
+   * graph, keeps its span, and cannot be reached by a question about the value.
+   */
+  const mode: AssertionMode = ABSENCE_VALUE.test(draft.objectText) ? 'ABSENCE' : context.mode;
 
   if (turn.text.slice(sentence.start, sentence.end) !== quote) {
     context.rejected.push({

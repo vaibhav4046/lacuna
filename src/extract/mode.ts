@@ -48,9 +48,21 @@ interface Rule {
 const RULES: readonly Rule[] = [
   { mode: 'QUESTION', marker: /\?\s*$/ },
   {
+    /**
+     * A correction names the thing it replaces, and people write it two ways:
+     * as an apology, and as a contrast.
+     *
+     * The contrast form is the one that was missing. "Actually sessions are
+     * stored in Postgres, not Redis" read as a plain statement, so it filed
+     * beside the Redis claim instead of superseding it, and the subject ended
+     * up holding two live values that disagreed. A trailing `, not X` is the
+     * marker: it is rare in prose that is not correcting something, and it is
+     * the part of the sentence that points at the earlier claim rather than at
+     * the new value.
+     */
     mode: 'CORRECTION',
     marker:
-      /\b(?:correction|i was wrong|we were wrong|that was wrong|i misspoke|scratch that|to correct)\b/i,
+      /\b(?:correction|i was wrong|we were wrong|that was wrong|i misspoke|scratch that|to correct)\b|,\s*not\s+[A-Za-z0-9]|^\s*(?:actually|in fact)\b/i,
   },
   {
     // Anchored past, not past tense. "Sessions were stored in Redis" is how a

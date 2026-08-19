@@ -29,6 +29,7 @@ import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
+import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -141,8 +142,43 @@ const api = new ApiRouter({
   }),
 });
 
+/**
+ * The MCP endpoint, reachable by any client that speaks Streamable HTTP.
+ *
+ * Without this the server existed and could only be run on the machine that
+ * cloned the repository, which is a different product from one an agent
+ * somewhere else can connect to. It reads the same public demo corpus
+ * `/api/demo/*` already serves, over the same resolver, so exposing it widens
+ * who can ask and not what can be read. Every tool is a read; nothing here
+ * writes.
+ *
+ * `allowAnyOrigin` is on because the Origin check in the transport exists to
+ * stop a browser page reaching a server bound to loopback. That is a real
+ * attack against a local process and not one against a public HTTPS endpoint
+ * that clients are meant to call directly.
+ */
+const mcp = cloud === null ? null : createMcpListener({
+  allowAnyOrigin: true,
+  context: {
+    source: new CloudSource(cloud),
+    node: { namespace: cloud.database, graph: cloud.collection, cell: 'cloud' },
+    store: 'cloud',
+  },
+});
+
 export default function handler(request: IncomingMessage, response: ServerResponse): void {
   const path = new URL(request.url ?? '/', 'http://lacuna.invalid').pathname;
+
+  if (path === MCP_PATH) {
+    if (mcp === null) {
+      response.writeHead(503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'no context store is configured' }));
+      return;
+    }
+    mcp(request, response);
+    return;
+  }
+
   if (path.startsWith('/api/')) {
     void api.handle(request, response, path).then((outcome) => {
       if (!outcome.handled) snapshot(request, response);

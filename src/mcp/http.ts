@@ -83,6 +83,20 @@ export interface HttpOptions {
   readonly context: ToolContext;
   /** Called once per rejected request. Never called with a header value. */
   readonly log?: (line: string) => void;
+  /**
+   * Serve requests from any origin, for a deployment rather than a laptop.
+   *
+   * The Origin check exists to stop a page in a browser reaching a server bound
+   * to loopback, which is a real attack against a local process and not a
+   * meaningful one against a public HTTPS endpoint that any client may call
+   * directly. A hosted server that refuses every remote origin is a server no
+   * hosted client can use.
+   *
+   * Turning it on does not widen what the tools can read. Every tool is a read
+   * against the context it was constructed with, and the deployment constructs
+   * it over the same public demo corpus `/api/demo/*` already serves.
+   */
+  readonly allowAnyOrigin?: boolean;
 }
 
 /**
@@ -98,7 +112,7 @@ export function createMcpListener(
   const log = options.log ?? ((): void => {});
 
   return (req, res) => {
-    void handle(req, res, options.context, log);
+    void handle(req, res, options.context, log, options.allowAnyOrigin === true);
   };
 }
 
@@ -107,6 +121,7 @@ async function handle(
   res: ServerResponse,
   context: ToolContext,
   log: (line: string) => void,
+  allowAnyOrigin: boolean,
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
@@ -121,7 +136,7 @@ async function handle(
     return;
   }
 
-  if (!isLoopbackOrigin(header(req, 'origin'))) {
+  if (!allowAnyOrigin && !isLoopbackOrigin(header(req, 'origin'))) {
     log('rejected a request with a non-loopback Origin');
     refuse(res, 403, 'this endpoint serves loopback origins only');
     return;

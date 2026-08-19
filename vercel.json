@@ -9,7 +9,8 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/((?!api/|assets/|fonts/|favicon.svg|boot.css).*)", "destination": "/index.html" }
+    { "source": "/mcp", "destination": "/api/index" },
+    { "source": "/((?!api/|mcp|assets/|fonts/|favicon.svg|boot.css).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

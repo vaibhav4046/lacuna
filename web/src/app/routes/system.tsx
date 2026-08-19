@@ -23,6 +23,7 @@ const note = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', colo
 
 export function Settings() {
   const go = useNavigate();
+  const { prefix } = useScope();
   const { loaded, refresh } = useSession();
   const health = useHealth();
   const model = useModelLabel();
@@ -45,7 +46,7 @@ export function Settings() {
   async function openDemo() {
     await postJson('/api/workspace', { workspace: SAMPLE_WORKSPACE });
     await refresh();
-    go('/app/dash');
+    go(`${prefix}/dash`);
   }
 
   async function leave() {

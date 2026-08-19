@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postFor } from '../../api/client';
-import { useScoped } from '../../api/scope';
+import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { STANDING_COLOUR, STANDING_LABEL } from '../../design/standing';
 
@@ -70,6 +70,7 @@ const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flex
 
 export function Ask() {
   const go = useNavigate();
+  const { prefix } = useScope();
   const suggested = useScoped<readonly Suggestion[]>('questions');
   const [asked, setAsked] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
@@ -178,8 +179,8 @@ export function Ask() {
               </div>
               <div style={{ display: 'flex', gap: '22px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'baseline' }}>
                 <button onClick={() => setEvOpen(!evOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#FFFFFF', borderBottom: '1px solid #8052FF' }}>Evidence</button>
-                <button className="hv-text" onClick={() => go('/app/timeline')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#BDBDBD', borderBottom: '1px solid transparent' }}>Timeline</button>
-                <button className="hv-text" onClick={() => go('/app/graph')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#BDBDBD', borderBottom: '1px solid transparent' }}>Graph</button>
+                <button className="hv-text" onClick={() => go(`${prefix}/timeline`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#BDBDBD', borderBottom: '1px solid transparent' }}>Timeline</button>
+                <button className="hv-text" onClick={() => go(`${prefix}/graph`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 3px', fontSize: '14px', color: '#BDBDBD', borderBottom: '1px solid transparent' }}>Graph</button>
                 <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#5E5E5E' }}>TRACE {result.trace_id.toUpperCase()}</span>
               </div>
               {evOpen ? (

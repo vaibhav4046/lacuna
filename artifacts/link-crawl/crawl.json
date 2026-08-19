@@ -1,0 +1,244 @@
+{
+  "crawledAt": "2026-08-19T15:58:54.665Z",
+  "base": "https://lacuna-five.vercel.app",
+  "routesVisited": [
+    "/",
+    "/demo/agents",
+    "/demo/ask",
+    "/demo/cli",
+    "/demo/conn",
+    "/demo/dash",
+    "/demo/evals",
+    "/demo/graph",
+    "/demo/health",
+    "/demo/hydra",
+    "/demo/mcp",
+    "/demo/memory",
+    "/demo/models",
+    "/demo/sdk",
+    "/demo/settings",
+    "/demo/timeline",
+    "/demo/tools",
+    "/demo/voice",
+    "/demo/work",
+    "/judge"
+  ],
+  "findings": [
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Sign in",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Get started",
+      "detail": "clicking it landed on /signup"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Sign in",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Start building",
+      "detail": "clicking it landed on /signup"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "INSPECT CONFLICT",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Open Lacuna",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Start building",
+      "detail": "clicking it landed on /signup"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Sign in",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/",
+      "control": "Create account",
+      "detail": "clicking it landed on /signup"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "ASKAsk Lacuna anything in this workspace…",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "billing-gate · Rasmus BergUNRESOLVED",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "billing-gate · Priya RamanUNRESOLVED",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "tenant-router · 14 daysUNRESOLVED",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "tenant-router · 7 daysUNRESOLVED",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "media-thumbs · the weekend of 9 February 2026UNRESOLVED",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "audit-sink · pausedUNRESOLVED",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/dash",
+      "control": "CONTEXT HEALTH134 current · 22 historical · 12 conflict",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/ask",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/memory",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/timeline",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/graph",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/health",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/hydra",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/evals",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/work",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/agents",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/tools",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/models",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/voice",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/mcp",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/sdk",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/cli",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/conn",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/settings",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    },
+    {
+      "kind": "sign_in_redirect",
+      "from": "/demo/settings",
+      "control": "SIGN IN",
+      "detail": "clicking it landed on /signin"
+    }
+  ]
+}

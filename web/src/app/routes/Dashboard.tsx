@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 
-import { useScoped } from '../../api/scope';
+import { useScope, useScoped } from '../../api/scope';
 import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { dotFor } from '../../design/connectors';
@@ -43,6 +43,7 @@ const rowMeta = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', co
 
 export function Dashboard() {
   const go = useNavigate();
+  const { prefix } = useScope();
   const changes = useScoped<readonly Change[]>('changes');
   const conflicts = useScoped<readonly Conflict[]>('conflicts');
   const connections = useScoped<readonly Connection[]>('connections');
@@ -51,7 +52,7 @@ export function Dashboard() {
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-      <button className="hv-edge30" onClick={() => go('/app/ask')} style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px', background: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+      <button className="hv-edge30" onClick={() => go(`${prefix}/ask`)} style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px', background: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
         <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
         <span style={{ fontFamily: MONO, fontSize: '13px', color: '#5E5E5E' }}>Ask Lacuna anything in this workspace…</span>
       </button>
@@ -71,7 +72,7 @@ export function Dashboard() {
           <span style={headLater}>OPEN CONFLICTS</span>
           <Panel loaded={conflicts} stage="CHECKING CURRENT STATE" empty={{ headline: 'No open conflicts.', detail: 'A conflict appears when two sources disagree and neither has been resolved.' }}>
             {(rows) => rows.map((c) => (
-              <button key={c.t} className="hv-surface3" onClick={() => go('/app/graph')} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'baseline', padding: '13px 2px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', borderLeft: 'none', borderRight: 'none', borderTop: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <button key={c.t} className="hv-surface3" onClick={() => go(`${prefix}/graph`)} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'baseline', padding: '13px 2px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', borderLeft: 'none', borderRight: 'none', borderTop: 'none', cursor: 'pointer', textAlign: 'left' }}>
                 <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{c.t}</span>
                 <span style={{ ...rowMeta, color: '#BDBDBD' }}>{c.state}</span>
               </button>
@@ -101,7 +102,7 @@ export function Dashboard() {
             {() => null}
           </Panel>
 
-          <button className="hv-surface3" onClick={() => go('/app/health')} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'baseline', padding: '13px 2px', borderTop: '1px solid rgba(255,255,255,0.12)', background: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', cursor: 'pointer', textAlign: 'left' }}>
+          <button className="hv-surface3" onClick={() => go(`${prefix}/health`)} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'baseline', padding: '13px 2px', borderTop: '1px solid rgba(255,255,255,0.12)', background: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', cursor: 'pointer', textAlign: 'left' }}>
             <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.22em', color: '#5E5E5E' }}>CONTEXT HEALTH</span>
             <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.08em', color: '#9A9A9A' }}>
               {counts.state === 'ready'

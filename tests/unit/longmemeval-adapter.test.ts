@@ -201,7 +201,7 @@ describe('the answer cannot reach the ingestion shape', () => {
 describe('a value changed in a later session', () => {
   const UPDATED = {
     question_id: 'update_1',
-    question_type: 'knowledge-update',
+    question_type: 'knowledge-update' as const,
     question: 'Where are sessions stored?',
     question_date: '2023/06/01 (Thu) 09:00',
     haystack_session_ids: ['s_may', 'answer_s_june'],

@@ -12,7 +12,7 @@ clean. No count in this file is carried forward from an earlier run.
 | Gate | Result |
 | --- | --- |
 | typecheck | exit 0 |
-| unit | 1,152 of 1,152, 55 files |
+| unit | 1,189 of 1,189, 58 files |
 | contract, live node | 77 of 77 |
 | three surfaces, one store, 64 questions | `ALL_IDENTICAL: True` |
 | two stores, 64 questions | `ALL_IDENTICAL: true` |

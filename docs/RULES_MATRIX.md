@@ -93,7 +93,7 @@ open. The summary:
 
 | Criterion | What Lacuna leans on |
 |---|---|
-| Technical execution | Working end-to-end product, 1,152 unit tests plus 77 contract tests against a live node, measured numbers, no mocks in the demo path |
+| Technical execution | Working end-to-end product, 1,189 unit tests plus 77 contract tests against a live node, measured numbers, no mocks in the demo path |
 | Use of HydraDB and graph-native approaches | Four graph reads on the answer path and no similarity score. The traversal is the answer, not a decoration on a ranked list |
 | Product completeness and usability | A developer product someone can run, verified from a fresh clone, not a benchmark script with a chart |
 | Quality of results | Measured against lexical, vector and hybrid baselines over 51 configurations, reported honestly: on correctness it is a tie, and the difference is context size and construction |

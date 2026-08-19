@@ -287,6 +287,10 @@ export function Judge() {
           <a href="https://github.com/vaibhav4046/lacuna" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
             SOURCE
           </a>
+          <Link to="/demo/memory" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
+            PASTE YOUR OWN TRANSCRIPT
+          </Link>
+          <Link to="/demo/hydra" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>WHAT HYDRADB FOUND</Link>
           <Link to="/demo/dash" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>OPEN THE WHOLE PRODUCT</Link>
           <Link to="/signin" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>SIGN IN</Link>
           <span style={label}>NOTHING ON THIS PAGE IS RECORDED</span>

@@ -7,8 +7,8 @@
     "cloud": 119
   },
   "medianMs": {
-    "node": 91,
-    "cloud": 227
+    "node": 99,
+    "cloud": 242
   },
   "database": "lacuna",
   "collection": "backend"

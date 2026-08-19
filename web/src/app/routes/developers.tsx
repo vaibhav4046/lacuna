@@ -1,6 +1,5 @@
 import { useState } from 'react';
 
-import { useScoped } from '../../api/scope';
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import { CONNECTOR_GROUPS, dotFor } from '../../design/connectors';
 import { icStyle } from '../../design/icons';
@@ -19,31 +18,88 @@ import { DEVCODE } from '../../landing/copy';
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#5E5E5E' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#5E5E5E' } as const;
 
+/**
+ * The MCP server, as something a reader can connect rather than read about.
+ *
+ * This page used to say SERVER · NOT CONFIGURED, which was true of the
+ * deployment and not of the code: the server spoke Streamable HTTP and nothing
+ * mounted it, so it could only ever be run by somebody who had cloned the
+ * repository. It is mounted now, so the page shows the endpoint, the config to
+ * paste, and a button that calls the live server and prints what came back.
+ */
 export function Mcp() {
-  const calls = useScoped<readonly unknown[]>('runs');
+  const [probe, setProbe] = useState<'idle' | 'running' | string>('idle');
+  const endpoint = `${window.location.origin}/mcp`;
+
+  const config = `{
+  "mcpServers": {
+    "lacuna": {
+      "type": "http",
+      "url": "${endpoint}"
+    }
+  }
+}`;
+
+  async function callIt() {
+    setProbe('running');
+    try {
+      const response = await fetch('/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      });
+      const body = await response.json() as { result?: { tools?: { name: string }[] } };
+      const names = (body.result?.tools ?? []).map((tool) => tool.name);
+      setProbe(names.length > 0 ? `${names.length} TOOLS · ${names.join(' · ')}` : 'THE SERVER ANSWERED WITH NO TOOLS');
+    } catch {
+      setProbe('THE SERVER DID NOT ANSWER');
+    }
+  }
 
   return (
-    <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#5E5E5E' }}></span>
-        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#BDBDBD' }}>SERVER · NOT CONFIGURED</span>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#5E5E5E' }}>LACUNA-CONTEXT · THE HIGHER-LEVEL CONTEXT CONTRACT OVER HYDRADB MCP</span>
+    <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
+      <div style={{ border: '1px solid rgba(128,82,255,0.4)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#8052FF' }}></span>
+        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#FFFFFF' }}>SERVER · LIVE</span>
+        <span style={{ fontFamily: MONO, fontSize: '11px', color: '#B79BFF' }}>{endpoint}</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '12px 22px', maxWidth: '560px' }}>
-        {['Get the config for your client', "Add it to the client's MCP settings", 'Restart the client', 'Context is available'].map((step, i) => (
-          <span key={step} style={{ display: 'contents' }}>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#5E5E5E' }}>{i + 1}</span>
-            <span style={{ fontSize: '15px', color: '#BDBDBD' }}>{step}</span>
-          </span>
-        ))}
+
+      <p style={{ fontSize: '14.5px', color: '#BDBDBD', margin: 0, maxWidth: '72ch', lineHeight: 1.6 }}>
+        Streamable HTTP, no key, no account. It reads the same public corpus the demo screens
+        read, over the same resolver, and every tool is a read. Point any MCP client at the URL
+        above and ask it about this workspace from wherever that client runs.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <span style={{ ...note, letterSpacing: '0.2em' }}>CLIENT CONFIG</span>
+        <pre style={{ margin: 0, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', overflowX: 'auto', fontFamily: MONO, fontSize: '12px', color: '#BDBDBD', lineHeight: 1.7 }}>{config}</pre>
       </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <span style={{ ...note, letterSpacing: '0.2em' }}>OR FROM A TERMINAL</span>
+        <pre style={{ margin: 0, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', overflowX: 'auto', fontFamily: MONO, fontSize: '11.5px', color: '#BDBDBD', lineHeight: 1.7 }}>{`curl -s ${endpoint} \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`}</pre>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '20px' }}>
         <span style={{ ...note, letterSpacing: '0.2em' }}>TOOLS</span>
         <span style={{ fontFamily: MONO, fontSize: '12px', letterSpacing: '0.08em', color: '#BDBDBD', lineHeight: 2 }}>lacuna_ask · lacuna_explain · lacuna_timeline · lacuna_health</span>
-        <span style={{ ...note, letterSpacing: '0.2em', marginTop: '10px' }}>RECENT CALLS</span>
-        <span style={{ fontSize: '14px', color: '#9A9A9A' }}>
-          {calls.state === 'ready' && calls.value.length === 0 ? 'No calls yet. Calls appear when a client connects.' : '—'}
-        </span>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
+          <button
+            className="hv-text"
+            onClick={() => void callIt()}
+            style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '8px 14px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF' }}
+          >
+            CALL THE SERVER
+          </button>
+          {probe === 'idle' ? null : (
+            <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.1em', color: probe === 'running' ? '#5E5E5E' : '#B79BFF' }}>
+              {probe === 'running' ? 'CALLING…' : probe}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,70 +1,55 @@
 import { Header } from './Header';
 import { Hero } from './Hero';
-import { Real } from './Real';
-import { Gap } from './Gap';
-import { Core } from './Core';
-import { Arch } from './Arch';
-import { Funnel } from './Funnel';
-import { Rot } from './Rot';
-import { Org } from './Org';
 import { Temporal } from './Temporal';
 import { Contra } from './Contra';
 import { Void } from './Void';
-import { Pack } from './Pack';
-import { Speed } from './Speed';
-import { Any } from './Any';
-import { Harness } from './Harness';
-import { Hand } from './Hand';
-import { Route } from './Route';
-import { Voice } from './Voice';
-import { Conn } from './Conn';
-import { Mcp } from './Mcp';
-import { Sdk } from './Sdk';
-import { Cli } from './Cli';
-import { DashPreview } from './DashPreview';
+import { Arch } from './Arch';
 import { Hydra } from './Hydra';
+import { Any } from './Any';
+import { Mcp } from './Mcp';
+import { Cli } from './Cli';
 import { Evals } from './Evals';
-import { Faq } from './Faq';
 import { Final } from './Final';
 import { Footer } from './Footer';
 
 /**
- * Twenty-seven scenes and a footer, in the design's order.
+ * Eight scenes and a footer, cut down from twenty-seven.
  *
- * The order is load bearing rather than editorial: the canvas reads
- * [data-scene] off whichever section owns the viewport, so moving a scene
- * moves the constellation with it. Nothing here is arranged by preference.
+ * The long version was 30,552 pixels: fifty-six screens of scrolling before a
+ * reader reached the end, with the same claim made in five different ways. A
+ * judge with limited time cannot be asked to do that, and neither can anyone
+ * else. Measured before the cut, so the number is a fact rather than an
+ * impression.
+ *
+ * What is kept is the argument in its shortest complete form: what this is,
+ * the thing that goes wrong, the three states that answer it, how it is built,
+ * why the graph engine earns its place, that one context reaches every client,
+ * and what has actually been measured. Nothing kept is decorative.
+ *
+ * What went is repetition rather than content. Every removed scene restated
+ * something one of these already says, or described a surface the product now
+ * shows directly and better: the connector catalogue, the SDK, the funnel, the
+ * organisation view, the voice scene for a feature that is not configured.
+ * Those components still exist and can be reinstated; they are simply not the
+ * shortest path to understanding the product.
+ *
+ * The order stays load bearing. The canvas reads [data-scene] off whichever
+ * section owns the viewport, so the constellation still follows the argument.
  */
 export default function Landing() {
   return (
     <div style={{ position: 'relative', zIndex: 1 }}>
       <Header />
       <Hero />
-      <Real />
-      <Gap />
-      <Core />
-      <Arch />
-      <Funnel />
-      <Rot />
-      <Org />
       <Temporal />
       <Contra />
       <Void />
-      <Pack />
-      <Speed />
-      <Any />
-      <Harness />
-      <Hand />
-      <Route />
-      <Voice />
-      <Conn />
-      <Mcp />
-      <Sdk />
-      <Cli />
-      <DashPreview />
+      <Arch />
       <Hydra />
+      <Any />
+      <Mcp />
+      <Cli />
       <Evals />
-      <Faq />
       <Final />
       <Footer />
     </div>

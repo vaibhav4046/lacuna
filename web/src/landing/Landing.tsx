@@ -1,6 +1,7 @@
 import { Header } from './Header';
 import { Hero } from './Hero';
 import { Temporal } from './Temporal';
+import { Try } from './Try';
 import { Contra } from './Contra';
 import { Void } from './Void';
 import { Arch } from './Arch';
@@ -41,6 +42,7 @@ export default function Landing() {
     <div style={{ position: 'relative', zIndex: 1 }}>
       <Header />
       <Hero />
+      <Try />
       <Temporal />
       <Contra />
       <Void />

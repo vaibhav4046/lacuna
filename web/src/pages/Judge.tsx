@@ -491,7 +491,7 @@ function AskYourOwn() {
     setBusy(true);
     setReply(null);
     const planned = await postFor<PlannedReply>('/api/explore/query', { question: text.trim() });
-    setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null });
+    setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null, ms: 0 });
     setBusy(false);
   }
 
@@ -526,7 +526,7 @@ function AskYourOwn() {
             {reply.reading.via === null ? '' : ` · via ${reply.reading.via}`}
           </span>
           <span style={{ ...mono, fontSize: '11px', letterSpacing: '0.16em', color: answer.status === 'ANSWERED' ? '#8052FF' : '#FFB829' }}>
-            {answer.status.replace(/_/g, ' ')}
+            {answer.status.replace(/_/g, ' ')} · {reply.ms} MS
           </span>
           <span style={{ fontSize: '17px', color: '#FFFFFF', lineHeight: 1.5 }}>
             {answer.answer ?? NO_ANSWER[answer.abstain_reason ?? ''] ?? 'Nothing in this workspace answers that.'}
@@ -563,4 +563,6 @@ interface PlannedReply {
   readonly knownSubjects: readonly string[];
   readonly available: readonly string[];
   readonly answer: Envelope | null;
+  /** The whole request, not just the resolve. See PlannedAnswer.ms. */
+  readonly ms: number;
 }

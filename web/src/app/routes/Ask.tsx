@@ -54,6 +54,8 @@ interface Planned {
   /** What this workspace records about the subject that matched. */
   readonly available: readonly string[];
   readonly answer: Envelope | null;
+  /** The whole request, not just the resolve. See PlannedAnswer.ms. */
+  readonly ms: number;
 }
 
 interface Unread {
@@ -171,7 +173,7 @@ export function Ask() {
           value={sentence}
           onChange={(e) => setSentence(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void runSentence(); }}
-          placeholder="Ask in a sentence — who owns Checkout? what is Sessions stored in?"
+          placeholder="Ask in a sentence. Who owns token-forge? When does Lowbank launch?"
           aria-label="Ask a question"
           style={{ flex: 1, minWidth: '0', background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '15px', outline: 'none' }}
         />
@@ -196,7 +198,7 @@ export function Ask() {
         <div style={{ border: '1px solid rgba(255,184,41,0.35)', borderRadius: '10px', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <span style={{ fontSize: '14px', color: '#FFB829', maxWidth: '70ch', lineHeight: 1.6 }}>
             {unread.failure === 'no_subject'
-              ? 'Nothing in that question names something this workspace holds. It is not that the answer is unknown — the subject is.'
+              ? 'Nothing in that question names something this workspace holds. The subject is unknown, not the answer.'
               : unread.failure === 'no_predicate'
                 ? `That names something this workspace holds, but asks for a property it does not record${unread.available.length === 0 ? '.' : `. About ${unread.knownSubjects[0] ?? 'it'} it records ${unread.available.map((p) => p.replace(/_/g, ' ')).join(', ')}.`}`
                 : unread.failure === 'unreachable'

@@ -518,15 +518,25 @@ export async function plannedAskEnvelope(
   known: readonly string[],
   timeoutMs: number,
 ): Promise<PlannedAnswer> {
+  /**
+   * The whole request, not the part of it that happened to be cold.
+   *
+   * `askEnvelope` times its own resolve, and on this path the predicate read
+   * above has already warmed the source memo, so that timer reported 0ms for a
+   * request that really took half a second. A number that means something
+   * different depending on which route produced it is worse than no number, so
+   * this one covers everything from reading the question to holding the answer.
+   */
+  const started = Date.now();
   if (typeof text !== 'string' || text.trim() === '') {
-    return { reading: null, unread: 'empty', knownSubjects: [], available: [], answer: null };
+    return { reading: null, unread: 'empty', knownSubjects: [], available: [], answer: null, ms: 0 };
   }
 
   // The subject first, because what predicates are even askable depends on it.
   const subjects = subjectsIn(text, known);
   const [subject, second] = subjects;
   if (subject === undefined) {
-    return { reading: null, unread: 'no_subject', knownSubjects: known.slice(0, 12), available: [], answer: null };
+    return { reading: null, unread: 'no_subject', knownSubjects: known.slice(0, 12), available: [], answer: null, ms: Date.now() - started };
   }
 
   /**
@@ -553,16 +563,18 @@ export async function plannedAskEnvelope(
   const available = recorded;
   const predicate = predicateIn(text, askable);
   if (predicate === null) {
-    return { reading: null, unread: 'no_predicate', knownSubjects: [subject], available, answer: null };
+    return { reading: null, unread: 'no_predicate', knownSubjects: [subject], available, answer: null, ms: Date.now() - started };
   }
 
   const via = second ?? null;
+  const answer = await askEnvelope(source, subject, predicate.predicate, via, timeoutMs);
   return {
     reading: { subject, predicate: predicate.predicate, via, matched: { subject, predicate: predicate.matched } },
     unread: null,
     knownSubjects: [],
     available,
-    answer: await askEnvelope(source, subject, predicate.predicate, via, timeoutMs),
+    answer,
+    ms: Date.now() - started,
   };
 }
 
@@ -579,4 +591,11 @@ export interface PlannedAnswer {
   /** What this workspace actually records about the matched subject. */
   readonly available: readonly string[];
   readonly answer: AnswerEnvelope | null;
+  /**
+   * The whole request: reading the question, reading the subject, resolving.
+   *
+   * Not `answer.took_ms`, which times only the resolve and on this path sees a
+   * source the predicate read already warmed.
+   */
+  readonly ms: number;
 }

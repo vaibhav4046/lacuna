@@ -79,6 +79,32 @@ function runAgent(task: string): string {
   })()`;
 }
 
+/**
+ * Types a question and waits for the reading to appear.
+ *
+ * The screen's whole point is that a sentence gets read into a subject and a
+ * predicate before anything is resolved, so a still of the empty box would show
+ * none of it. This waits for READ AS specifically rather than for any text,
+ * because that line is what proves the question was understood.
+ */
+function askSentence(question: string, placeholderStartsWith: string): string {
+  return `(async () => {
+    const box = [...document.querySelectorAll('input')]
+      .find((i) => (i.placeholder || '').startsWith(${JSON.stringify(placeholderStartsWith)}));
+    if (!box) return 'MISS';
+    const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    set.call(box, ${JSON.stringify(question)});
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    for (let waited = 0; waited < 30_000; waited += 500) {
+      await new Promise((r) => setTimeout(r, 500));
+      if (document.body.innerText.includes('READ AS')) return 'OK';
+    }
+    return 'MISS';
+  })()`;
+}
+
 const SET: readonly Shot[] = [
   {
     // The top of the same screen, for the scene that talks about what the
@@ -109,6 +135,15 @@ const SET: readonly Shot[] = [
     url: '/explore/agents',
     focus: runAgent('What does trace-collector depend on, and who owns it?'),
     settleMs: 2_000,
+  },
+  {
+    // A question typed as a sentence, showing the reading beside the answer.
+    // Captured after it resolves, because a photograph of the empty box would
+    // show none of what this screen is for.
+    file: 'live-ask-1920x1080.png',
+    url: '/explore/ask',
+    focus: askSentence('who is the runbook owner for billing-gate?', 'Ask in a sentence'),
+    settleMs: 2_500,
   },
 ];
 

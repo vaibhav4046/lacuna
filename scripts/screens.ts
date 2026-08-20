@@ -250,8 +250,6 @@ const LIVE_SHOTS: readonly Shot[] = [
   { file: 'live-health-1920x1080.png', url: '/explore/health', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
   { file: 'live-evaluations-1920x1080.png', url: '/explore/evals', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
   { file: 'live-hydradb-1920x1080.png', url: '/explore/hydra', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-ask-1920x1080.png', url: '/explore/ask', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-agents-1920x1080.png', url: '/explore/agents', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
 ];
 
 /** `--live` captures the deployed application; the default captures the recorded site. */

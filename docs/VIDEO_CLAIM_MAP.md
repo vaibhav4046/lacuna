@@ -1,37 +1,23 @@
-# Every claim the film makes, and where to check it
+# Every claim the V8 film makes, and where to check it
 
-The demo video says twelve things. Each line below is one of them, with the
-artifact or the URL a viewer can open to test it. Nothing is asserted in the
-narration that is not in this table.
-
-| Said | Checkable at |
+| Film claim | Checkable evidence |
 | --- | --- |
-| The deployed product answers questions live | https://lacuna-five.vercel.app/judge — six rows, computed on load |
-| Every row is computed when the page loads | `web/src/pages/Judge.tsx`; no recorded reply, no branch on the question |
-| Current state, answered with its sources | `/judge` row 1; `POST /api/ask` returns `ANSWERED` with evidence |
-| A revised value keeps its history | `/judge` row 2; the envelope carries `revisions` |
-| Sources that disagree are both kept | `/judge` row 3; status `CONFLICT`, reason `contradicted` |
-| A value nobody stated gets no answer | `/judge` row 5; status `NO_EVIDENCE`, reason `never_stated` |
-| A two hop question is answered and cited | `/judge` row 6; `via=vendor`, two sources |
-| HydraDB Cloud holds 72 conversations and 86 entity records | `artifacts/hydra/cloud-ingest.json` — 159 records, all indexed, read back byte identical |
-| Evidence and claims are stored apart | `src/hydra/cloud-graph.ts`; session records and entity records are different ids |
-| Five baselines over 64 questions; best baseline 63 at 1843 tokens; Lacuna 64 at 18 | `artifacts/bench/results.json`, rendered live at `/demo/evals` |
-| Node and cloud answer identically | `artifacts/hydra/cloud-parity.json` — `identical: true`, 64 questions, field by field |
-| The repository and the deployment are public | https://github.com/vaibhav4046/lacuna · https://lacuna-five.vercel.app |
+| The deployed product answers on load | <https://lacuna-five.vercel.app/judge> and `web/src/pages/Judge.tsx` |
+| Current answers include their sources | `/judge`; `POST /api/ask` |
+| Replaced values remain revision history | `/judge`; answer envelope `revisions` |
+| Conflicting sources are both kept | `/judge`; `CONFLICT` / `contradicted` |
+| Unstated values produce no answer | `/judge`; `NO_EVIDENCE` / `never_stated` |
+| A two-hop answer is cited | `/judge`; `via=vendor`, two evidence records |
+| Site, CLI and MCP share one context | `artifacts/continuity/one-context.json` |
+| The public graph contains 453 nodes and 682 edges | `GET /api/explore/graph`; `artifacts/screens/v8/proof-dag-final.png` |
+| Two governed agent roles persist an eight-event completed run | `GET /api/explore/agents`, `GET /api/explore/runs`; `artifacts/screens/v8/agents-live.png` |
+| The voice UI has 15 explicit states and an honest fallback | `src/api/voice.ts`, `web/src/voice`; `artifacts/screens/v8/voice-idle.png` |
+| HydraDB Cloud stores conversations as evidence and entities as claims | `artifacts/hydra/cloud-ingest.json`; `src/hydra/cloud-graph.ts` |
+| Lacuna filters statements that do not assert a fact | `video/hyperframes/assets/screens/live-hydradb-1920x1080.png`; extraction tests |
+| Lacuna answers 64/64 at 18 context tokens in the recorded benchmark | `artifacts/bench/results.json`; `/demo/evals` |
+| Self-hosted node and HydraDB Cloud matched field by field | `artifacts/hydra/cloud-parity.json` |
+| Repository and deployment are public | <https://github.com/vaibhav4046/lacuna> · <https://lacuna-five.vercel.app> |
 
-## What the film deliberately does not say
-
-- **No latency figure is narrated.** It is measured per request and legible in
-  every frame. A spoken number would be one run's reading presented as a
-  property of the product.
-- **No claim of winning.** The benchmark table is shown with each baseline at
-  its own best cutoff, which is the reading least favourable to this product.
-- **No user testimonial, no adoption number, no third-party endorsement.**
-  There are none.
-
-## Provenance of the frames
-
-Every screen is a capture of production taken by
-`npm run screens -- https://lacuna-five.vercel.app --live`, stored in
-`artifacts/screens/live/`. Each capture is checked on write for its ground
-colour and pixel density, so a blank frame cannot pass as a page.
+The film does not narrate latency, adoption, a testimonial, a provider-enabled
+voice deployment, or arbitrary third-party connectors. Its graph, agent and
+voice frames are production captures, not reconstructed interfaces.

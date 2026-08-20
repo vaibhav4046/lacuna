@@ -16,9 +16,14 @@
 | voice idle state | guarded runtime visible | `artifacts/screens/v8/voice-idle.png` |
 | dashboard runtime | live run and next schedule | `artifacts/screens/v8/dashboard-runtime.png` |
 | live user-workspace memory | 9 sources, 21 claims, 34 records | `artifacts/continuity/v8-workspace-memory.json` |
+| normal-motion production routes | 198/198 clean, 22 routes × 9 viewports | `artifacts/route-audit/routes.json` |
+| reduced-motion production routes | 198/198 clean, 22 routes × 9 viewports | `artifacts/route-audit/routes-reduced-motion.json` |
+| exact proof DAG | production capture, visually inspected | `artifacts/screens/v8/proof-dag-final.png` |
+| V8 video proof-beat preview | graph, agents and voice frames | `video/hyperframes/snapshots-v8/contact-sheet.jpg` |
+| HyperFrames composition | 18 scenes, 175.2 seconds; checks passed | `video/hyperframes/meta.json` and `video/hyperframes/snapshots/` |
 
-The final deployment, route audit, cross-client proof, Supademo and media rows
-are appended only when their acceptance gates complete.
+Cross-client proof, Supademo publication, final MP4 and YouTube rows are appended
+only when their action-time confirmation gates complete.
 
 Every number this project states in public, and the file it came out of.
 

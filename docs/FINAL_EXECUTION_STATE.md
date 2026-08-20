@@ -7,8 +7,8 @@ Measured 2026-08-20. This file is the current state; dated V7 audits are history
 - Repository: `vaibhav4046/lacuna`
 - Production: <https://lacuna-five.vercel.app>
 - V8 product commit: `d1f41e32c5707cfd872f4c2fbe4ea7182ad8788d`
-- V8 production deployment: the stable alias above resolves to the latest
-  `READY` production deployment; the immutable deployment id remains in Vercel
+- V8 production deployment: `dpl_DUjMkGBk3E9f9snF8mET5Q4WKKeV`
+- Immutable URL: <https://lacuna-csu3pt3yg-vaibhav4046s-projects.vercel.app>
 - HydraDB: managed production source, with the self-hosted contract pinned in
   `SOURCE_LOG.md`
 
@@ -49,9 +49,14 @@ With the current environment the honest production result is
 | schedule API | 1 daily schedule |
 | landing axe WCAG A/AA | 0 violations |
 | landing overflow | 0 px at 390×844 and 1440×900 |
+| normal-motion route matrix | 198/198: 22 routes × 9 viewports, clean |
+| reduced-motion route matrix | 198/198: 22 routes × 9 viewports, clean |
+| graph, proof, agents and voice axe | 0 WCAG A/AA violations |
+| video composition | 18 scenes, 175.2 seconds; runtime/layout/motion clean and 16/16 contrast samples AA |
 
-The final browser, deployment, Git and media rows are updated only after their
-respective gates are rerun against the clean release commit.
+The video preview is built and checked. Final MP4 render, external-client
+prompts, Supademo publication and YouTube publication remain at their explicit
+human-confirmation boundaries.
 
 ## Named limitations
 

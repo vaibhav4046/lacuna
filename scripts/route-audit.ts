@@ -231,7 +231,22 @@ try {
       } catch {
         exceptions.push('the page never fired its load event');
       }
-      await wait(SETTLE_MS);
+      // `load` only proves that the SPA shell arrived. Most runtime routes are
+      // lazy chunks, so a busy production browser can still have an empty
+      // React root at the old fixed settle point. Wait for meaningful route
+      // copy before measuring; keep the fixed settle as a final ceiling so a
+      // genuinely blank route still fails instead of hanging the audit.
+      const renderDeadline = Date.now() + Math.max(SETTLE_MS, 10_000);
+      let renderedText = 0;
+      do {
+        const probe = await devtools.send('Runtime.evaluate', {
+          expression: `(document.body.innerText || '').trim().length`,
+          returnByValue: true,
+        }) as { result?: { value?: number } };
+        renderedText = probe.result?.value ?? 0;
+        if (renderedText > 80) break;
+        await wait(150);
+      } while (Date.now() < renderDeadline);
 
       const measured = await devtools.send('Runtime.evaluate', {
         expression: `JSON.stringify({

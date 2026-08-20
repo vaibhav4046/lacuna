@@ -1,4 +1,3 @@
-import { useState } from 'react';
 
 import { useScoped } from '../../api/scope';
 import { icStyle } from '../../design/icons';
@@ -19,8 +18,6 @@ const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 const GRID = '1.2fr 0.8fr 0.8fr 0.9fr 0.7fr';
 
-const ROUTER_MODES = ['AUTO', 'LOCAL FIRST', 'QUALITY FIRST', 'PRIVACY FIRST', 'COST FIRST', 'LATENCY FIRST', 'CUSTOM'] as const;
-
 interface Model {
   readonly name: string;
   readonly prov: string;
@@ -32,20 +29,25 @@ interface Model {
 
 export function Models() {
   const models = useScoped<readonly Model[]>('models');
-  const [mode, setMode] = useState(0);
   const rows = models.state === 'ready' ? models.value : [];
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#7A7A7A', marginRight: '6px' }}>ROUTER</span>
-        {ROUTER_MODES.map((l, i) => (
-          <button key={l} className="hv-text" onClick={() => setMode(i)} style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '7px 11px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', border: '1px solid rgba(255,255,255,0.12)', color: mode === i ? '#FFFFFF' : '#9A9A9A' }}>{l}</button>
-        ))}
-      </div>
+      {/*
+        There was a router here: seven modes, AUTO through CUSTOM, and clicking
+        one moved a highlight and changed nothing. Nothing in this product routes
+        between models. A control that looks like a setting and is not one is the
+        most expensive kind of decoration, because a reader who finds one stops
+        believing the controls that do work.
+      */}
+      <p style={{ fontSize: '14.5px', color: '#9A9A9A', margin: 0, maxWidth: '72ch', lineHeight: 1.7 }}>
+        The models a provider serves, and whether it answered. There is no router: an agent run
+        uses one model, named in its capability manifest before the run starts, and nothing here
+        chooses between them.
+      </p>
       <div>
         <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '16px', padding: '8px 4px', borderBottom: '1px solid rgba(255,255,255,0.14)', ...head }}>
-          <span>MODEL</span><span>PROVIDER</span><span>WHERE</span><span>STATE</span><span>LATENCY</span>
+          <span>MODEL</span><span>PROVIDER</span><span>WHERE</span><span>STATE</span><span>PROVIDER PROBE</span>
         </div>
         {models.state === 'loading' ? <Stage label="CHECKING CONTEXT" /> : null}
         {models.state === 'failed' ? <Failed reason={models.reason} /> : null}
@@ -68,7 +70,16 @@ export function Models() {
           </div>
         ))}
       </div>
-      <span style={note}>LATENCY APPEARS AFTER A REAL HEALTH CHECK · NO FAKE VALUES</span>
+      {/*
+        The number was labelled LATENCY and sat in a per-model row while being
+        one round trip to the provider's catalogue, identical for every model
+        that provider serves. Six models all reading exactly 120 ms directly
+        under the words NO FAKE VALUES is worse than showing nothing.
+      */}
+      <span style={{ ...note, lineHeight: 2 }}>
+        THE PROBE IS ONE ROUND TRIP TO THE PROVIDER&rsquo;S CATALOGUE, SO IT IS THE SAME FOR EVERY MODEL THAT PROVIDER SERVES<br />
+        NO PER-MODEL LATENCY HAS BEEN MEASURED, SO NONE IS SHOWN
+      </span>
     </div>
   );
 }

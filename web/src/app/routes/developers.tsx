@@ -111,6 +111,7 @@ const TABS = ['TypeScript', 'REST', 'MCP'];
 
 export function Sdk() {
   const [tab, setTab] = useState(0);
+  const sample = DEVCODE[tab] ?? DEVCODE[0]!;
 
   return (
     <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
@@ -128,13 +129,16 @@ export function Sdk() {
           </button>
         ))}
       </div>
-      {/* The same label the landing page carries, for the same reason: this
-          panel shows a package and an endpoint that do not exist. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: '1px solid rgba(255,184,41,0.35)', borderRadius: '7px', alignSelf: 'flex-start' }}>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FFB829', flexShrink: 0 }}></span>
-        <span style={{ fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.16em', color: '#FFB829' }}>NOT SHIPPED · DESIGN CONTRACT, NOT A RUNNING API</span>
+      {/*
+        Per tab, because one banner across all three said the MCP server was a
+        design contract while it was answering requests. Understating what works
+        costs the same credibility as overstating it.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: sample.shipped ? '1px solid rgba(128,82,255,0.45)' : '1px solid rgba(255,184,41,0.35)', borderRadius: '7px', alignSelf: 'flex-start' }}>
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: sample.shipped ? '#8052FF' : '#FFB829', flexShrink: 0 }}></span>
+        <span style={{ fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.16em', color: sample.shipped ? '#8052FF' : '#FFB829' }}>{sample.note}</span>
       </div>
-      <pre style={{ margin: 0, fontFamily: MONO, fontSize: '13px', lineHeight: 1.85, color: '#BDBDBD', whiteSpace: 'pre-wrap', maxWidth: '76ch' }}>{DEVCODE[tab]}</pre>
+      <pre style={{ margin: 0, fontFamily: MONO, fontSize: '13px', lineHeight: 1.85, color: '#BDBDBD', whiteSpace: 'pre-wrap', maxWidth: '76ch', overflowX: 'auto' }}>{sample.code}</pre>
       <span style={{ ...note, letterSpacing: '0.14em', lineHeight: 2 }}>ENVELOPE · status · answer · evidence · revisions · conflicts · abstain_reason · context_pack_id · trace_id · source_state<br />THE IMPLEMENTED API IS THE SOURCE OF TRUTH</span>
     </div>
   );

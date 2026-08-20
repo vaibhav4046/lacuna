@@ -32,7 +32,7 @@ export function Sdk() {
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FFB829', flexShrink: 0 }}></span>
           <span style={{ fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.16em', color: '#FFB829' }}>NOT SHIPPED · DESIGN CONTRACT, NOT A RUNNING API</span>
         </div>
-        <pre style={{ margin: 0, fontFamily: MONO, fontSize: '13.5px', lineHeight: 1.85, color: '#BDBDBD', whiteSpace: 'pre-wrap', maxWidth: '76ch' }}>{DEVCODE[tab]}</pre>
+        <pre style={{ margin: 0, fontFamily: MONO, fontSize: '13.5px', lineHeight: 1.85, color: '#BDBDBD', whiteSpace: 'pre-wrap', maxWidth: '76ch' }}>{(DEVCODE[tab] ?? DEVCODE[0]!).code}</pre>
         <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', lineHeight: 2 }}>ENVELOPE · status · answer · evidence · revisions · conflicts · abstain_reason · context_pack_id · trace_id · source_state<br />THE IMPLEMENTED API IS THE SOURCE OF TRUTH · THE TERMINAL SECTION ABOVE IS A RECORDED RUN</div>
       </div>
     </section>

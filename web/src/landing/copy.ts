@@ -26,10 +26,101 @@ export const FAQ: readonly (readonly [string, string])[] = [
   ['Does Lacuna expose chain of thought?', 'No. Lacuna shows evidence, retrieval and system traces, not hidden model reasoning.']
 ];
 
-export const DEVCODE: readonly string[] = [
-  'import { Lacuna } from "@lacuna/sdk";\n\nconst lacuna = new Lacuna({ workspace: "acme" });\n\nconst r = await lacuna.query("Where does session state live now?");\n// r.answer     "Postgres"\n// r.evidence   PR #184 · runbook\n// r.revisions  README (historical)\n\n// contract: remember · query · timeline\n// evidence · contextPack · health · handoff',
-  'POST /v1/query\n{ "workspace": "acme",\n  "query": "Where does session state live now?",\n  "mode": "fast" }\n\n// response envelope\n{ status, answer, evidence[], revisions[],\n  conflicts[], abstain_reason,\n  context_pack_id, trace_id, source_state }',
-  '// MCP server: lacuna-context\ntools:\n  query          answer with evidence, or abstain\n  remember       store context with source + scope\n  timeline       what changed, in order\n  evidence       why the answer holds\n  context.pack   compile for one task\n  handoff        smaller pack for a subagent\n\nresources:\n  context://acme/backend/current\n  context://acme/backend/conflicts'
+/**
+ * The three developer surfaces, and which of them exist.
+ *
+ * Two of these are now real and one is not, and they used to carry a single
+ * NOT SHIPPED banner across all three. That understated the two that work as
+ * badly as it would have overstated the one that does not: a reader was told
+ * the MCP server was a design contract while it was answering requests.
+ *
+ * So each entry says for itself. The REST and MCP samples are commands that
+ * run against the deployment as written, with no key, and were run before
+ * being pasted here. The TypeScript one is a package that does not exist.
+ */
+export interface DevSample {
+  readonly code: string;
+  /** True when the sample runs against the deployment exactly as written. */
+  readonly shipped: boolean;
+  readonly note: string;
+}
+
+const TYPESCRIPT = [
+  'import { Lacuna } from "@lacuna/sdk";',
+  '',
+  'const lacuna = new Lacuna({ workspace: "acme" });',
+  '',
+  'const r = await lacuna.query("Where does session state live now?");',
+  '// r.answer     "Postgres"',
+  '// r.evidence   PR #184 · runbook',
+  '// r.revisions  README (historical)',
+  '',
+  '// contract: remember · query · timeline',
+  '// evidence · contextPack · health · handoff',
+].join('\n');
+
+const REST = [
+  'curl -s https://lacuna-five.vercel.app/api/explore/query \\',
+  '  -H "Content-Type: application/json" \\',
+  '  -d \'{"question":"who is the runbook owner for billing-gate?"}\'',
+  '',
+  '// the reading it used, then the answer through the same resolver',
+  '{ reading: { subject, predicate, via, matched },',
+  '  unread, knownSubjects[], available[], ms,',
+  '  answer: { status, answer, evidence[], revisions[],',
+  '            conflicts[], abstain_reason,',
+  '            context_pack_id, trace_id, source_state } }',
+  '',
+  '// or name them directly, when you already know the vocabulary',
+  '// POST /api/explore/ask   {"subject","predicate","via"}',
+].join('\n');
+
+const MCP = [
+  '// endpoint:  https://lacuna-five.vercel.app/mcp',
+  '// transport: streamable HTTP, and stdio locally',
+  '',
+  'tools:',
+  '  lacuna_read_question   ask in a sentence, returns its reading',
+  '  lacuna_ask             subject and predicate, with evidence',
+  '  lacuna_explain         the same read, plus why it decided',
+  '  lacuna_timeline        every claim for that predicate, in order',
+  '  lacuna_health          which node answered, and at what epoch',
+  '',
+  'curl -s https://lacuna-five.vercel.app/mcp \\',
+  '  -H "Content-Type: application/json" \\',
+  '  -H "Accept: application/json, text/event-stream" \\',
+  '  -d \'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}\'',
+].join('\n');
+
+/**
+ * The three developer surfaces, and which of them exist.
+ *
+ * Two of these are real and one is not, and they used to carry a single NOT
+ * SHIPPED banner across all three. That understated the two that work as badly
+ * as it would have overstated the one that does not: a reader was told the MCP
+ * server was a design contract while it was answering requests.
+ *
+ * So each entry says for itself. The REST and MCP samples are commands that run
+ * against the deployment exactly as written, with no key and no account, and
+ * both were run before being pasted here. The TypeScript one is a package that
+ * does not exist, and says so.
+ */
+export const DEVCODE: readonly DevSample[] = [
+  {
+    shipped: false,
+    note: 'NOT SHIPPED · DESIGN CONTRACT, NOT A PUBLISHED PACKAGE',
+    code: TYPESCRIPT,
+  },
+  {
+    shipped: true,
+    note: 'LIVE · RUNS AS WRITTEN, NO KEY, NO ACCOUNT',
+    code: REST,
+  },
+  {
+    shipped: true,
+    note: 'LIVE · STREAMABLE HTTP AT /mcp',
+    code: MCP,
+  },
 ];
 
 export interface Revision {

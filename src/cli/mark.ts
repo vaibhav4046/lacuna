@@ -33,7 +33,7 @@ interface Arc {
  * Angles run clockwise on screen because SVG's y axis points down, which is
  * why each arc goes from a smaller number to a larger one.
  */
-const ARCS: readonly Arc[] = [
+export const ARCS: readonly Arc[] = [
   { cx: 12, cy: 11, r: 8.4, from: -90, to: 90 },
   { cx: 12, cy: 13.4, r: 6, from: 90, to: 270 },
   { cx: 12, cy: 11.1, r: 3.7, from: -90, to: 90 },
@@ -49,7 +49,7 @@ const BODY = '·';
 const HEAD = '●';
 const BLANK = ' ';
 
-interface Point {
+export interface Point {
   readonly x: number;
   readonly y: number;
 }
@@ -79,7 +79,7 @@ function samplePoints(turns: number): readonly Point[] {
 }
 
 /** The head of the spiral, which is where the amber point sits. */
-const HEAD_POINT: Point = { x: 12, y: 2.6 };
+export const HEAD_POINT: Point = { x: 12, y: 2.6 };
 
 interface Grid {
   readonly cells: readonly (readonly string[])[];

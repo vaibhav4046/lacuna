@@ -16,6 +16,7 @@ import { renderProfile } from './human-report.js';
 import { runProfile } from './profile.js';
 import { runQuestion } from './question.js';
 import { planFromStore, renderReading, renderUnread } from './sentence.js';
+import { runShell } from './shell.js';
 import { runStatus } from './status.js';
 
 /**
@@ -128,6 +129,15 @@ async function dispatch(
     const result = runBench(ROOT);
     streams.out(json ? render(benchPayload(result)) : block(renderBench(result, palette)));
     return EXIT_OK;
+  }
+
+  if (command === 'shell') {
+    return await runShell({
+      env,
+      palette,
+      timeoutMs,
+      out: (text) => streams.out(text),
+    });
   }
 
   if (command === 'read') {

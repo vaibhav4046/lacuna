@@ -14,7 +14,7 @@ import { CliConfigError, UsageError } from './exit.js';
  * flag is how a typo becomes an answer to a question nobody asked.
  */
 
-export const COMMANDS = ['doctor', 'status', 'profile', 'ask', 'read', 'explain', 'timeline', 'bench'] as const;
+export const COMMANDS = ['doctor', 'status', 'profile', 'shell', 'ask', 'read', 'explain', 'timeline', 'bench'] as const;
 
 export type Command = (typeof COMMANDS)[number];
 

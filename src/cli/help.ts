@@ -18,6 +18,7 @@ usage
 commands
   doctor                              check the node, the config and this machine
   status                              show what this CLI is pointed at and what is in it
+  shell                               an interactive prompt, with the mark
   read "<question>"                   ask in a sentence, with the evidence
   ask <subject> <predicate>           answer the question, with the evidence
   explain <subject> <predicate>       the same answer, plus how it was resolved
@@ -49,6 +50,24 @@ exit codes
 An abstention is not a failure. "No answer" with a reason code exits 0.`;
 
 const PER_COMMAND: Record<Command, string> = {
+  shell: `lacuna shell - ask several things without paying for the first one twice
+
+usage
+  lacuna shell
+
+Opens a prompt. Type questions the way you would say them; the store connection
+and the name list are kept between them, so the first answer takes about a
+second and the rest are immediate.
+
+  lacuna ❯ who is the runbook owner for billing-gate?
+  lacuna ❯ when does Lowbank launch?
+
+Commands inside it start with a colon: :subjects, :store, :clear, :help, :quit.
+Ctrl+D leaves as well.
+
+Every line goes through the same parser and the same resolver as the web
+product and the MCP server, so this cannot answer differently from them.`,
+
   read: `lacuna read - ask in the words you would use
 
 usage

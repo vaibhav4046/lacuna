@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 
+import { CLAUDE_MARK, HYDRADB_MARK, MCP_MARK, OPENAI_MARK, markUri } from './brand';
+
 /**
  * The design's icon set, ported from ICOS() in Lacuna Product.dc.html.
  *
@@ -9,8 +11,15 @@ import type { CSSProperties } from 'react';
  * on the instance; a module constant is what that memoisation becomes when the
  * class goes away, so the cache is the binding.
  *
- * The claude entry is a model provider the product connects to, the same as
- * codex or gitlab. It is product content and it stays.
+ * Three of these were invented rather than ported. HydraDB was three lines and
+ * four circles, Claude was an eight-point starburst, and codex was a hexagon.
+ * None was the mark the company uses, and showing a partner a logo this project
+ * made up is an untruth on the way to a truth. They now come from `./brand`,
+ * which records the source and the licence for each one, and `mcp` is added
+ * because the protocol has a real mark too.
+ *
+ * The remaining entries are either generic UI shapes, which are ours to draw,
+ * or vendor marks ported from the design's own asset set.
  */
 
 const w = (s: string): string =>
@@ -25,13 +34,15 @@ const ICONS: Record<string, string> = {
   gitlab: w('<path fill="#E24329" d="M12 21.4 8.28 10.2h7.44z"/><path fill="#FC6D26" d="M12 21.4 2.7 14.5a.9.9 0 0 1-.32-1L3.62 10.2h4.66zM12 21.4l9.3-6.9a.9.9 0 0 0 .32-1L20.38 10.2h-4.66z"/><path fill="#FCA326" d="M3.62 10.2 5.16 5.06a.45.45 0 0 1 .86 0l1.54 5.14zM20.38 10.2 18.84 5.06a.45.45 0 0 0-.86 0l-1.54 5.14z"/>'),
   jira: w('<path fill="#2684FF" d="M11.53 2 4.93 8.6a2 2 0 0 0 0 2.83l6.6 6.6 1.42-1.41-6.19-6.19 6.19-6.02z"/><path fill="#2684FF" opacity="0.55" d="M12.47 5.97 18.66 12.16a2 2 0 0 1 0 2.83L12.47 21.18l-1.42-1.41 6.19-6.19-6.19-6.2z"/>'),
   confluence: w('<path fill="#2684FF" d="M2.9 17.6c2.7-4.4 6-5.1 10.6-2.9l5.4 2.5-1.8 3.7-5.3-2.4c-3-1.4-4.5-1-6.1 1.7z"/><path fill="#2684FF" opacity="0.55" d="M21.1 6.4c-2.7 4.4-6 5.1-10.6 2.9L5.1 6.8 6.9 3.1l5.3 2.4c3 1.4 4.5 1 6.1-1.7z"/>'),
-  hydra: w('<path stroke="#15846E" stroke-width="1.5" fill="none" d="M12 17.2 5.4 7.6M12 17.2V5.2M12 17.2l6.6-9.6"/><circle cx="12" cy="17.2" r="2.5" fill="#15846E"/><circle cx="5.4" cy="7.6" r="2" fill="#15846E"/><circle cx="12" cy="5.2" r="2" fill="#15846E"/><circle cx="18.6" cy="7.6" r="2" fill="#15846E"/>'),
+  hydra: markUri(HYDRADB_MARK),
   files: w('<path fill="none" stroke="#9A9A9A" stroke-width="1.5" d="M6 3.5h7.5L18 8v12.5H6z"/><path fill="none" stroke="#9A9A9A" stroke-width="1.5" d="M13.5 3.5V8H18"/>'),
   api: w('<circle cx="12" cy="12" r="3" fill="none" stroke="#9A9A9A" stroke-width="1.5"/><path stroke="#9A9A9A" stroke-width="1.5" d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/>'),
-  claude: w('<path stroke="#D97757" stroke-width="1.9" stroke-linecap="round" d="M12 3.6v4M12 16.4v4M3.6 12h4M16.4 12h4M6.1 6.1l2.8 2.8M15.1 15.1l2.8 2.8M17.9 6.1l-2.8 2.8M8.9 15.1l-2.8 2.8"/>'),
-  codex: w('<path fill="none" stroke="#FFFFFF" stroke-width="1.6" d="M12 3.2 19.6 7.6v8.8L12 20.8 4.4 16.4V7.6z"/><path fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity="0.55" d="M12 7.5 15.9 9.75v4.5L12 16.5 8.1 14.25v-4.5z" transform="rotate(30 12 12)"/>'),
+  claude: markUri(CLAUDE_MARK),
+  codex: markUri(OPENAI_MARK),
   chip: w('<rect x="7" y="7" width="10" height="10" rx="1.5" fill="none" stroke="#BDBDBD" stroke-width="1.5"/><rect x="10.2" y="10.2" width="3.6" height="3.6" fill="#8052FF"/><path stroke="#BDBDBD" stroke-width="1.5" d="M9.5 7V3.8M14.5 7V3.8M9.5 20.2V17M14.5 20.2V17M7 9.5H3.8M7 14.5H3.8M20.2 9.5H17M20.2 14.5H17"/>'),
   cloud: w('<path fill="none" stroke="#9A9A9A" stroke-width="1.6" d="M6.5 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 16.6 8.9 4.3 4.3 0 0 1 17.5 18z"/>'),
+  mcp: markUri(MCP_MARK),
+  openai: markUri(OPENAI_MARK),
   orb: w('<circle cx="12" cy="12" r="5.2" fill="none" stroke="#FFB829" stroke-width="1.6"/><circle cx="12" cy="12" r="1.6" fill="#FFB829"/><path fill="none" stroke="#FFB829" stroke-width="1.2" opacity="0.5" d="M3 12a9 9 0 0 0 18 0"/>')
 };
 

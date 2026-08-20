@@ -1,4 +1,5 @@
 import { MONO } from '../design/mark';
+import { GOOGLE_G, markUri } from '../design/brand';
 
 /**
  * The Google button, and the sentence a failed round trip leaves behind.
@@ -47,11 +48,14 @@ export function GoogleButton({ label }: { label: string }) {
         }}
         className="hv-edge35"
       >
-        {/* No Google mark. There is no licensed asset for one here, and
-            docs/ICON_AUDIT.md already records four vendor logos in this product
-            that were redrawn rather than licensed. Adding a fifth, for the
-            vendor with the strictest brand rules, to save a reader one glance
-            is not a trade worth making. The word is unambiguous. */}
+        {/*
+          The official Google "G", in its official four colours and official
+          geometry. Google publishes this mark for exactly this button and the
+          branding guidelines require it: a Sign in with Google button that
+          shows only words is not compliant, and one showing a redrawn or
+          recoloured G is worse. It is never tinted to match this product.
+        */}
+        <img src={markUri(GOOGLE_G)} alt="" width={18} height={18} aria-hidden="true" />
         {label}
       </a>
     </>

@@ -80,3 +80,24 @@ around.
 ## Lacuna's license
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+## Vendor marks shown in the product
+
+Every logo this product displays, where it came from, and under what terms.
+Three of these were previously drawn by hand and were not the marks the
+companies use; those are recorded here as replaced rather than quietly
+corrected.
+
+| Mark | Source | Terms | Status |
+|---|---|---|---|
+| HydraDB | Official HydraDB logo, orange tile with the white stepped glyph, in `web/src/design/brand.ts` | Vendor mark, shown unmodified and uncoloured | Replaced an invented three-line glyph |
+| Google | Official Google "G", four official colours, official geometry | Google publishes it for the Sign in with Google button and the branding guidelines require it | Added; the button previously showed no mark at all |
+| Claude | Bootstrap Icons v1.13 | MIT | Replaced an invented eight-point starburst |
+| OpenAI | Bootstrap Icons v1.13 | MIT | Replaced an invented hexagon under the key `codex` |
+| Model Context Protocol | `modelcontextprotocol/docs` | MIT | Added |
+| GitHub, GitLab, Slack, Jira, Confluence, Linear, Notion | Ported from the design system's own asset set | Vendor marks in vendor colours | Unchanged |
+
+Rules this list holds to. A vendor mark is never recoloured to match this
+product's palette, never flattened to one tone, and never redrawn. Where a
+company publishes no redistributable asset, the answer is its name set in type
+rather than a drawing that resembles a logo.

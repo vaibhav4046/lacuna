@@ -108,7 +108,11 @@ export function proofLayout(input: readonly GraphNode[], inputEdges: readonly Gr
   const width = 1_330;
   const placed: PlacedGraphNode[] = [];
   for (const [layer, peers] of [...byLayer.entries()].sort(([a], [b]) => a - b)) {
-    const top = 68 + (rows - peers.length) * 43;
+    // Start every provenance layer at the same readable baseline. Centering a
+    // sparse source or entity column against a dense claim column pushed the
+    // first source below the viewport, so the screen labelled SOURCE showed
+    // an empty column until the user scrolled thousands of pixels.
+    const top = 68;
     peers.forEach((node, row) => placed.push({
       ...node,
       x: 38 + layer * 216,

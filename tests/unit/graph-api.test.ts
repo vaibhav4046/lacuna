@@ -360,6 +360,7 @@ describe('deterministic graph layouts', () => {
   it('keeps proof layers deterministic for cycles, duplicate edges and orphan references', () => {
     const nodes: GraphNode[] = [
       { ...node(1), kind: 'evidence' },
+      { ...node(4), kind: 'evidence' },
       node(2),
       { ...node(3), kind: 'entity' },
     ];
@@ -374,6 +375,11 @@ describe('deterministic graph layouts', () => {
     const shuffled = proofLayout([...nodes].reverse(), [...edges].reverse());
     expect(layout).toEqual(shuffled);
     expect(layout.edges).toHaveLength(3);
-    expect(layout.nodes.map((row) => row.layer)).toEqual([1, 2, 3]);
+    expect(layout.nodes.map((row) => row.layer)).toEqual([1, 1, 2, 3]);
+    const firstYByLayer = new Map<number, number>();
+    for (const placed of layout.nodes) {
+      if (!firstYByLayer.has(placed.layer)) firstYByLayer.set(placed.layer, placed.y);
+    }
+    expect([...firstYByLayer.values()]).toEqual([68, 68, 68]);
   });
 });

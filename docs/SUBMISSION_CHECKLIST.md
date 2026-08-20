@@ -12,15 +12,15 @@ intent alone.
 - [x] public repository prepared
 - [x] graph, table, artifacts, agents, schedules, MCP and CLI documented
 - [x] named limitations are visible
-- [ ] final clean commit pushed and production deployment pinned
+- [x] final clean acceptance commit pushed and production deployment pinned
 
 ## Three-minute video
 
-- [ ] duration below 180 seconds
-- [ ] problem covered
-- [ ] product covered
-- [ ] working demo covered
-- [ ] HydraDB architecture and role covered
+- [x] duration below 180 seconds
+- [x] problem covered
+- [x] product covered
+- [x] working demo covered
+- [x] HydraDB architecture and role covered
 - [ ] captions embedded and sidecar checked
 - [ ] final frames manually approved before render
 - [ ] uploaded to YouTube as viewable unlisted video

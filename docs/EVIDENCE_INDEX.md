@@ -21,6 +21,7 @@
 | exact proof DAG | production capture, visually inspected | `artifacts/screens/v8/proof-dag-final.png` |
 | V8 video proof-beat preview | graph, agents and voice frames | `video/hyperframes/snapshots-v8/contact-sheet.jpg` |
 | HyperFrames composition | 18 scenes, 175.2 seconds; checks passed | `video/hyperframes/meta.json` and `video/hyperframes/snapshots/` |
+| clean acceptance deployment | READY; web smoke 9/9 and demo smoke 30/30 | deployment `dpl_GUni4wA2yEoRMv5z8rTLPqHqtgfw` |
 
 Cross-client proof, Supademo publication, final MP4 and YouTube rows are appended
 only when their action-time confirmation gates complete.

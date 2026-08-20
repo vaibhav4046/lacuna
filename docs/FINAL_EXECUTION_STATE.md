@@ -7,8 +7,9 @@ Measured 2026-08-20. This file is the current state; dated V7 audits are history
 - Repository: `vaibhav4046/lacuna`
 - Production: <https://lacuna-five.vercel.app>
 - V8 product commit: `d1f41e32c5707cfd872f4c2fbe4ea7182ad8788d`
-- V8 production deployment: `dpl_DUjMkGBk3E9f9snF8mET5Q4WKKeV`
-- Immutable URL: <https://lacuna-csu3pt3yg-vaibhav4046s-projects.vercel.app>
+- V8 acceptance-media commit and deployment source: `9aeb4cd`
+- V8 production deployment: `dpl_GUni4wA2yEoRMv5z8rTLPqHqtgfw`
+- Immutable URL: <https://lacuna-blnqeytdv-vaibhav4046s-projects.vercel.app>
 - HydraDB: managed production source, with the self-hosted contract pinned in
   `SOURCE_LOG.md`
 
@@ -44,6 +45,8 @@ With the current environment the honest production result is
 | production web build | passed; lazy route chunks; entry 281.92 kB / 92.65 kB gzip |
 | npm audit | zero known vulnerabilities at the recorded run |
 | public production health | HTTP 200 |
+| production web smoke | 9/9 passed against the acceptance deployment |
+| production demo smoke | 30/30 passed against the acceptance deployment |
 | graph API | 453 nodes, 682 edges; overview and proof |
 | agent API | 2 agents, 1 completed run, 8 lifecycle events |
 | schedule API | 1 daily schedule |

@@ -1,161 +1,114 @@
-/**
- * The voice interface as a finite machine, written down before any audio runs.
- *
- * A voice surface fails in more ways than it succeeds. It can be denied the
- * microphone, throttled, cut off mid sentence, handed a provider that is down,
- * or asked to work with no network at all. Most products draw the happy path
- * and let the rest emerge as bugs. This file names all fourteen situations,
- * says which events move between them, and refuses to invent any it cannot
- * reach, so the page that renders them cannot show a state the machine does
- * not have.
- *
- * Nothing here touches audio. It is a pure function over a state and an event,
- * which is what makes the whole set testable without a microphone in the room,
- * and what lets the server render any state from a URL. See DECISIONS.md D-055
- * for why this route ships no client script and how the states are reached
- * instead.
- */
-
 import type { CapabilityState } from '../model/capability.js';
 
-/** Every situation the voice surface can be in. */
+/**
+ * The complete voice lifecycle. These are product states, not animation cues.
+ * LISTENING is valid only while a microphone track is live. SPEAKING is valid
+ * only between the media element's playing and pause/end events.
+ */
 export const VOICE_STATES = [
-  'ready',
-  'listening',
-  'partial_transcript',
-  'final_transcript',
-  'retrieving',
-  'reasoning',
-  'generating_voice',
-  'speaking',
-  'interrupted',
-  'permission_denied',
-  'rate_limited',
-  'provider_unavailable',
-  'offline',
-  'text_only',
+  'READY',
+  'REQUESTING_PERMISSION',
+  'LISTENING',
+  'PARTIAL_TRANSCRIPT',
+  'COMMITTED',
+  'CHECKING_CONTEXT',
+  'ANSWERED',
+  'ABSTAINED',
+  'CONTRADICTED',
+  'SPEAKING',
+  'INTERRUPTED',
+  'RATE_LIMITED',
+  'PERMISSION_DENIED',
+  'PROVIDER_UNAVAILABLE',
+  'ERROR',
 ] as const;
 
 export type VoiceState = (typeof VOICE_STATES)[number];
 
-/** Everything that can move the machine. */
 export const VOICE_EVENTS = [
-  'hold',
-  'transcribing',
+  'request_permission',
+  'typed_commit',
+  'permission_granted',
+  'partial',
   'commit',
-  'send',
-  'retrieved',
-  'grounded',
-  'synthesised',
-  'finish',
+  'check_context',
+  'answer',
+  'abstain',
+  'contradict',
+  'playback_started',
+  'playback_finished',
   'interrupt',
   'deny',
   'throttle',
-  'providerFail',
-  'disconnect',
-  'reconnect',
-  'useText',
+  'provider_fail',
+  'fail',
+  'retry',
   'reset',
 ] as const;
 
 export type VoiceEvent = (typeof VOICE_EVENTS)[number];
-
 type Edges = Partial<Readonly<Record<VoiceEvent, VoiceState>>>;
 
-/**
- * Two edges that exist everywhere.
- *
- * Losing the network and giving up on speech are not things that happen only
- * at convenient moments, so they are merged into every state rather than
- * written out fourteen times and forgotten once.
- */
-const ANYWHERE: Edges = {
-  disconnect: 'offline',
-  useText: 'text_only',
-};
-
-function edges(own: Edges): Edges {
-  return Object.freeze({ ...ANYWHERE, ...own });
-}
-
-/**
- * The whole transition table.
- *
- * An event missing from a state is not an error and not a crash: the machine
- * stays where it is. A voice surface receives events it did not ask for all
- * the time, and the correct response to most of them is to do nothing.
- */
 const TRANSITIONS: Readonly<Record<VoiceState, Edges>> = Object.freeze({
-  ready: edges({ hold: 'listening', deny: 'permission_denied', throttle: 'rate_limited' }),
-  listening: edges({
-    transcribing: 'partial_transcript',
-    commit: 'final_transcript',
-    deny: 'permission_denied',
-    throttle: 'rate_limited',
-    reset: 'ready',
-  }),
-  partial_transcript: edges({
-    transcribing: 'partial_transcript',
-    commit: 'final_transcript',
-    deny: 'permission_denied',
-    reset: 'ready',
-  }),
-  final_transcript: edges({ send: 'retrieving', reset: 'ready' }),
-  retrieving: edges({ retrieved: 'reasoning', reset: 'ready' }),
-  reasoning: edges({ grounded: 'generating_voice', reset: 'ready' }),
-  generating_voice: edges({
-    synthesised: 'speaking',
-    providerFail: 'provider_unavailable',
-    interrupt: 'interrupted',
-  }),
-  speaking: edges({ finish: 'ready', interrupt: 'interrupted' }),
-  interrupted: edges({ hold: 'listening', reset: 'ready' }),
-  permission_denied: edges({ hold: 'listening', reset: 'ready' }),
-  rate_limited: edges({ reset: 'ready' }),
-  provider_unavailable: edges({ reset: 'ready' }),
-  offline: edges({ reconnect: 'ready' }),
-  text_only: edges({ reset: 'ready' }),
+  READY: { request_permission: 'REQUESTING_PERMISSION', typed_commit: 'COMMITTED', fail: 'ERROR' },
+  REQUESTING_PERMISSION: {
+    permission_granted: 'LISTENING', deny: 'PERMISSION_DENIED', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', fail: 'ERROR',
+  },
+  LISTENING: {
+    partial: 'PARTIAL_TRANSCRIPT', commit: 'COMMITTED', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', fail: 'ERROR',
+  },
+  PARTIAL_TRANSCRIPT: {
+    partial: 'PARTIAL_TRANSCRIPT', commit: 'COMMITTED', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', fail: 'ERROR',
+  },
+  COMMITTED: { check_context: 'CHECKING_CONTEXT', interrupt: 'INTERRUPTED', fail: 'ERROR' },
+  CHECKING_CONTEXT: {
+    answer: 'ANSWERED', abstain: 'ABSTAINED', contradict: 'CONTRADICTED',
+    throttle: 'RATE_LIMITED', provider_fail: 'PROVIDER_UNAVAILABLE',
+    interrupt: 'INTERRUPTED', fail: 'ERROR',
+  },
+  ANSWERED: {
+    playback_started: 'SPEAKING', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+  },
+  ABSTAINED: {
+    playback_started: 'SPEAKING', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+  },
+  CONTRADICTED: {
+    playback_started: 'SPEAKING', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+  },
+  SPEAKING: {
+    playback_finished: 'READY', interrupt: 'INTERRUPTED', throttle: 'RATE_LIMITED',
+    provider_fail: 'PROVIDER_UNAVAILABLE', fail: 'ERROR',
+  },
+  INTERRUPTED: { request_permission: 'REQUESTING_PERMISSION', retry: 'READY', reset: 'READY' },
+  RATE_LIMITED: { retry: 'READY', reset: 'READY' },
+  PERMISSION_DENIED: { retry: 'READY', reset: 'READY' },
+  PROVIDER_UNAVAILABLE: { retry: 'READY', reset: 'READY' },
+  ERROR: { retry: 'READY', reset: 'READY' },
 });
 
-/**
- * Apply an event. Returns the same state when the event does not apply.
- */
 export function advance(from: VoiceState, event: VoiceEvent): VoiceState {
   return TRANSITIONS[from][event] ?? from;
 }
 
-/** The events that actually do something from here, in declaration order. */
 export function acceptedFrom(state: VoiceState): readonly VoiceEvent[] {
-  const table = TRANSITIONS[state];
   return VOICE_EVENTS.filter((event) => {
-    const next = table[event];
+    const next = TRANSITIONS[state][event];
     return next !== undefined && next !== state;
   });
 }
 
-/** Narrow an untrusted string to a state, or nothing. */
 export function readState(value: string | null | undefined): VoiceState | null {
   if (value === null || value === undefined) return null;
-  const found = VOICE_STATES.find((state) => state === value);
-  return found ?? null;
+  return VOICE_STATES.find((state) => state === value) ?? null;
 }
 
-/**
- * The four stages a spoken question would pass through.
- *
- * Two of them are this product and are exercised by the test suite. Two of
- * them are audio and are not installed on the machine that renders this. The
- * rail prints that difference rather than a timing, because a timing for a
- * stage that never ran is the exact number a reader would most want to trust
- * and least be able to.
- */
-export const PIPELINE_STAGES = [
-  'STT',
-  'HydraDB',
-  'Resolver',
-  'TTS',
-] as const;
-
+export const PIPELINE_STAGES = ['STT', 'HydraDB', 'Resolver', 'TTS'] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 export interface StageFacts {
@@ -167,241 +120,140 @@ export interface StageFacts {
 export const STAGE_FACTS: readonly StageFacts[] = Object.freeze([
   {
     stage: 'STT',
-    does: 'Turns captured audio into a transcript.',
-    capability: 'NOT_STARTED',
+    does: 'Streams live microphone PCM to ElevenLabs Scribe with a server-issued single-use token.',
+    capability: 'VERIFIED',
   },
   {
     stage: 'HydraDB',
-    does: 'Reads the temporal graph over HTTP and returns the claims and the '
-      + 'edges between them.',
+    does: 'Reads the temporal graph through the existing question planner.',
     capability: 'VERIFIED',
   },
   {
     stage: 'Resolver',
-    does: 'Decides the verdict from which edges exist. No model reads the '
-      + 'stored text, so this stage is deterministic.',
+    does: 'Returns the same answer, abstention, contradiction and evidence as typed questions.',
     capability: 'VERIFIED',
   },
   {
     stage: 'TTS',
-    does: 'Turns the answer into audio.',
-    capability: 'NOT_STARTED',
+    does: 'Streams only the spoken answer through the server to real browser playback.',
+    capability: 'VERIFIED',
   },
 ]);
 
-/** Which stage a state is sitting at, or nothing when it is not in the run. */
 const AT_STAGE: Readonly<Record<VoiceState, PipelineStage | null>> = Object.freeze({
-  ready: null,
-  listening: 'STT',
-  partial_transcript: 'STT',
-  final_transcript: 'STT',
-  retrieving: 'HydraDB',
-  reasoning: 'Resolver',
-  generating_voice: 'TTS',
-  speaking: 'TTS',
-  interrupted: null,
-  permission_denied: null,
-  rate_limited: null,
-  provider_unavailable: 'TTS',
-  offline: null,
-  text_only: null,
+  READY: null,
+  REQUESTING_PERMISSION: 'STT',
+  LISTENING: 'STT',
+  PARTIAL_TRANSCRIPT: 'STT',
+  COMMITTED: null,
+  CHECKING_CONTEXT: 'HydraDB',
+  ANSWERED: 'Resolver',
+  ABSTAINED: 'Resolver',
+  CONTRADICTED: 'Resolver',
+  SPEAKING: 'TTS',
+  INTERRUPTED: null,
+  RATE_LIMITED: null,
+  PERMISSION_DENIED: null,
+  PROVIDER_UNAVAILABLE: null,
+  ERROR: null,
 });
 
 export function stageOf(state: VoiceState): PipelineStage | null {
   return AT_STAGE[state];
 }
 
-/** How the transcript stands in a given state. */
 export type TranscriptStanding = 'Idle' | 'Capturing' | 'Partial' | 'Committed' | 'Unavailable';
+export type AudioSignal = 'microphone' | 'playback' | null;
 
 export interface StateFacts {
-  /** Short name, used on the state list. */
   readonly label: string;
-  /** What the status line says. */
   readonly status: string;
-  /** One sentence of what is true here. */
   readonly detail: string;
-  /** Whether the surface is drawing energy from a live source. */
-  readonly active: boolean;
-  /** Whether this state is a failure rather than a step. */
   readonly failed: boolean;
-  /** How much of the sphere is drawn: full, faded, or outline only. */
   readonly weight: 'full' | 'faded' | 'outline';
-  /** Whether the sphere edge is dashed, which marks anything provisional. */
   readonly provisional: boolean;
   readonly transcript: TranscriptStanding;
+  /** The only source that may move the orb while this state is genuinely active. */
+  readonly signal: AudioSignal;
 }
 
-/**
- * What is true in each state.
- *
- * The wording follows the imported design at design/reference, with one class
- * of change: every invented number is gone. The design says audio stops within
- * 120 ms and that voice resumes in 24 seconds. Neither was measured here, so
- * neither is printed here.
- */
 export const STATE_FACTS: Readonly<Record<VoiceState, StateFacts>> = Object.freeze({
-  ready: {
-    label: 'Ready',
-    status: 'Ready',
-    detail: 'Nothing is captured yet. Voice would read the same graph as the '
-      + 'question form, through the same resolver.',
-    active: false,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Idle',
+  READY: {
+    label: 'Ready', status: 'Ready', failed: false, weight: 'full', provisional: false,
+    transcript: 'Idle', signal: null,
+    detail: 'No microphone track, provider session, query or audio playback is active.',
   },
-  listening: {
-    label: 'Listening',
-    status: 'Listening',
-    detail: 'Audio is being captured and has not become words yet. The boundary '
-      + 'would move with microphone level.',
-    active: true,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Capturing',
+  REQUESTING_PERMISSION: {
+    label: 'Permission', status: 'Requesting microphone permission', failed: false,
+    weight: 'outline', provisional: true, transcript: 'Unavailable', signal: null,
+    detail: 'The browser permission prompt is open. Listening has not started.',
   },
-  partial_transcript: {
-    label: 'Partial',
-    status: 'Uncommitted transcript',
-    detail: 'Words have arrived and can still change. The dashed edge marks '
-      + 'speech that has not been confirmed.',
-    active: true,
-    failed: false,
-    weight: 'full',
-    provisional: true,
-    transcript: 'Partial',
+  LISTENING: {
+    label: 'Listening', status: 'Listening', failed: false, weight: 'full', provisional: false,
+    transcript: 'Capturing', signal: 'microphone',
+    detail: 'A live microphone track is supplying PCM to the realtime transcript session.',
   },
-  final_transcript: {
-    label: 'Final',
-    status: 'Transcript committed',
-    detail: 'The utterance is complete. What goes to the graph is now fixed and '
-      + 'is shown in full before it is sent.',
-    active: false,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Committed',
+  PARTIAL_TRANSCRIPT: {
+    label: 'Partial', status: 'Uncommitted transcript', failed: false, weight: 'full',
+    provisional: true, transcript: 'Partial', signal: 'microphone',
+    detail: 'Scribe returned words that may still change. They have not been queried or written.',
   },
-  retrieving: {
-    label: 'Retrieving',
-    status: 'Retrieving memory',
-    detail: 'The transcript has become a subject and a predicate, and the graph '
-      + 'is being read. This is the same read the question form makes.',
-    active: true,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Committed',
+  COMMITTED: {
+    label: 'Committed', status: 'Transcript committed', failed: false, weight: 'full',
+    provisional: false, transcript: 'Committed', signal: null,
+    detail: 'Scribe committed the utterance. The microphone and transcript session are closed.',
   },
-  reasoning: {
-    label: 'Resolving',
-    status: 'Resolving the verdict',
-    detail: 'The claims are in hand and the verdict is being decided from the '
-      + 'edges between them. No model is consulted.',
-    active: true,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Committed',
+  CHECKING_CONTEXT: {
+    label: 'Checking', status: 'Checking context', failed: false, weight: 'full',
+    provisional: false, transcript: 'Committed', signal: null,
+    detail: 'The committed words are going through the same planner and context kernel as typed input.',
   },
-  generating_voice: {
-    label: 'Generating',
-    status: 'Preparing speech',
-    detail: 'The answer exists as text and is being turned into audio. The '
-      + 'answer does not change during this stage.',
-    active: true,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Committed',
+  ANSWERED: {
+    label: 'Answered', status: 'Answered', failed: false, weight: 'full', provisional: false,
+    transcript: 'Committed', signal: null,
+    detail: 'The context kernel returned a supported answer and its evidence. Playback has not started.',
   },
-  speaking: {
-    label: 'Speaking',
-    status: 'Speaking',
-    detail: 'Audio is playing. The evidence for each sentence is on screen '
-      + 'while that sentence is spoken.',
-    active: true,
-    failed: false,
-    weight: 'full',
-    provisional: false,
-    transcript: 'Committed',
+  ABSTAINED: {
+    label: 'Abstained', status: 'No evidence', failed: false, weight: 'outline', provisional: false,
+    transcript: 'Committed', signal: null,
+    detail: 'The context kernel refused to answer because the workspace did not support one.',
   },
-  interrupted: {
-    label: 'Interrupted',
-    status: 'Interrupted',
-    detail: 'Playback was stopped on purpose. The transcript and the evidence '
-      + 'stay on screen, because the answer was still true.',
-    active: false,
-    failed: false,
-    weight: 'faded',
-    provisional: false,
-    transcript: 'Committed',
+  CONTRADICTED: {
+    label: 'Contradicted', status: 'Contradicted', failed: false, weight: 'faded', provisional: false,
+    transcript: 'Committed', signal: null,
+    detail: 'The context kernel found live claims that disagree and preserved their evidence.',
   },
-  permission_denied: {
-    label: 'Mic blocked',
-    status: 'Microphone blocked',
-    detail: 'The browser refused microphone access. Nothing is captured and '
-      + 'nothing is guessed. The question form is unaffected.',
-    active: false,
-    failed: true,
-    weight: 'outline',
-    provisional: false,
-    transcript: 'Unavailable',
+  SPEAKING: {
+    label: 'Speaking', status: 'Speaking', failed: false, weight: 'full', provisional: false,
+    transcript: 'Committed', signal: 'playback',
+    detail: 'Real audio playback is active. Its analyser is the only signal moving the orb.',
   },
-  rate_limited: {
-    label: 'Rate limited',
-    status: 'Rate limited',
-    detail: 'Too many requests from this address. The wait is whatever the '
-      + 'server says it is, and the question form is unaffected.',
-    active: false,
-    failed: true,
-    weight: 'faded',
-    provisional: false,
-    transcript: 'Unavailable',
+  INTERRUPTED: {
+    label: 'Interrupted', status: 'Interrupted', failed: false, weight: 'faded', provisional: false,
+    transcript: 'Committed', signal: null,
+    detail: 'Capture, query or playback was cancelled. Partial speech was not sent to the context kernel.',
   },
-  provider_unavailable: {
-    label: 'Provider down',
-    status: 'Speech provider unavailable',
-    detail: 'Speech synthesis failed. No audio is produced and none is '
-      + 'simulated. The answer is still readable as text.',
-    active: false,
-    failed: true,
-    weight: 'outline',
-    provisional: false,
-    transcript: 'Committed',
+  RATE_LIMITED: {
+    label: 'Rate limited', status: 'Rate limited', failed: true, weight: 'faded', provisional: false,
+    transcript: 'Unavailable', signal: null,
+    detail: 'The server or speech provider refused more work. No simulated fallback is playing.',
   },
-  offline: {
-    label: 'Offline',
-    status: 'Offline',
-    detail: 'The graph cannot be reached. An answer needs a read, so no answer '
-      + 'is offered rather than one from memory.',
-    active: false,
-    failed: true,
-    weight: 'outline',
-    provisional: false,
-    transcript: 'Unavailable',
+  PERMISSION_DENIED: {
+    label: 'Mic blocked', status: 'Microphone blocked', failed: true, weight: 'outline',
+    provisional: false, transcript: 'Unavailable', signal: null,
+    detail: 'The browser denied microphone access. Typed questions remain available.',
   },
-  text_only: {
-    label: 'Text only',
-    status: 'Text only',
-    detail: 'Voice is set aside and the question form does the whole job. This '
-      + 'is the state this build actually runs in.',
-    active: false,
-    failed: false,
-    weight: 'outline',
-    provisional: true,
-    transcript: 'Idle',
+  PROVIDER_UNAVAILABLE: {
+    label: 'Provider down', status: 'Speech provider unavailable', failed: true,
+    weight: 'outline', provisional: false, transcript: 'Unavailable', signal: null,
+    detail: 'The speech boundary failed or returned an invalid response. Provider details are hidden.',
+  },
+  ERROR: {
+    label: 'Error', status: 'Voice did not complete', failed: true, weight: 'outline',
+    provisional: false, transcript: 'Unavailable', signal: null,
+    detail: 'A local or context request failed. Typed questions remain available.',
   },
 });
 
-/**
- * The state this deployment is really in.
- *
- * Named once, here, so the page does not have to decide it and cannot drift
- * from what the stage table says. Two of the four stages are not installed, so
- * the surface cannot be in any state that needs them.
- */
-export const RUNNING_STATE: VoiceState = 'text_only';
+/** The only honest default before a person starts a real capture. */
+export const RUNNING_STATE: VoiceState = 'READY';

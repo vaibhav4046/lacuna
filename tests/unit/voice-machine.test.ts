@@ -1,239 +1,123 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  acceptedFrom,
-  advance,
-  readState,
-  RUNNING_STATE,
-  stageOf,
-  STAGE_FACTS,
-  STATE_FACTS,
-  VOICE_EVENTS,
-  VOICE_STATES,
-  type VoiceEvent,
-  type VoiceState,
+  acceptedFrom, advance, readState, RUNNING_STATE, stageOf, STAGE_FACTS,
+  STATE_FACTS, VOICE_EVENTS, VOICE_STATES, type VoiceEvent, type VoiceState,
 } from '../../src/voice/states.js';
+import {
+  advanceVoice, WEB_VOICE_EVENTS, WEB_VOICE_STATES,
+} from '../../web/src/voice/states.js';
 
-/**
- * The voice machine, which is the whole voice implementation.
- *
- * There is no audio here and no microphone anywhere in this environment, so
- * what can be tested is exactly what was written down: which situations exist,
- * which events move between them, and that every one of them can be reached
- * from a cold start. A machine nobody can walk into is a diagram, and a
- * diagram is the thing this file exists to stop the voice page from being.
- */
-
-/** Every state reachable from a starting point, by breadth first search. */
 function reachableFrom(start: VoiceState): ReadonlySet<VoiceState> {
   const seen = new Set<VoiceState>([start]);
   const queue: VoiceState[] = [start];
-
   while (queue.length > 0) {
-    const here = queue.shift()!;
+    const state = queue.shift()!;
     for (const event of VOICE_EVENTS) {
-      const next = advance(here, event);
-      if (!seen.has(next)) {
-        seen.add(next);
-        queue.push(next);
-      }
+      const next = advance(state, event);
+      if (!seen.has(next)) { seen.add(next); queue.push(next); }
     }
   }
-
   return seen;
 }
 
-describe('the state set', () => {
-  it('names fourteen situations and names each of them once', () => {
-    expect(VOICE_STATES).toHaveLength(14);
-    expect(new Set(VOICE_STATES).size).toBe(VOICE_STATES.length);
+describe('voice states', () => {
+  it('is exactly the required fifteen-state product lifecycle', () => {
+    expect(VOICE_STATES).toEqual([
+      'READY', 'REQUESTING_PERMISSION', 'LISTENING', 'PARTIAL_TRANSCRIPT',
+      'COMMITTED', 'CHECKING_CONTEXT', 'ANSWERED', 'ABSTAINED', 'CONTRADICTED',
+      'SPEAKING', 'INTERRUPTED', 'RATE_LIMITED', 'PERMISSION_DENIED',
+      'PROVIDER_UNAVAILABLE', 'ERROR',
+    ]);
+    expect(new Set(VOICE_STATES).size).toBe(15);
   });
 
-  it('says what is true in every one of them', () => {
-    // A state with no facts would render as a blank page rather than fail, so
-    // the check is here rather than left to the renderer to survive.
+  it('defaults to static READY', () => {
+    expect(RUNNING_STATE).toBe('READY');
+    expect(STATE_FACTS[RUNNING_STATE].signal).toBeNull();
+  });
+
+  it('permits audio signal only in microphone and playback states', () => {
+    const signalled = VOICE_STATES.filter((state) => STATE_FACTS[state].signal !== null);
+    expect(signalled).toEqual(['LISTENING', 'PARTIAL_TRANSCRIPT', 'SPEAKING']);
+    expect(STATE_FACTS.LISTENING.signal).toBe('microphone');
+    expect(STATE_FACTS.PARTIAL_TRANSCRIPT.signal).toBe('microphone');
+    expect(STATE_FACTS.SPEAKING.signal).toBe('playback');
+  });
+
+  it('keeps the browser lifecycle copy identical without importing the server source tree', () => {
+    expect(WEB_VOICE_STATES).toEqual(VOICE_STATES);
+    expect(WEB_VOICE_EVENTS).toEqual(VOICE_EVENTS);
     for (const state of VOICE_STATES) {
-      const facts = STATE_FACTS[state];
-      expect(facts.label.length).toBeGreaterThan(0);
-      expect(facts.status.length).toBeGreaterThan(0);
-      expect(facts.detail.length).toBeGreaterThan(0);
+      for (const event of VOICE_EVENTS) expect(advanceVoice(state, event)).toBe(advance(state, event));
     }
   });
 
-  it('gives every state a distinct label, because the labels are the links', () => {
-    const labels = VOICE_STATES.map((state) => STATE_FACTS[state].label);
-
-    expect(new Set(labels).size).toBe(labels.length);
-  });
-
-  it('runs in a state that needs neither of the missing stages', () => {
-    // The build claims to be in one state. That claim is only honest if the
-    // state it names does not sit at a stage this machine cannot perform.
-    expect(VOICE_STATES).toContain(RUNNING_STATE);
-    expect(stageOf(RUNNING_STATE)).toBeNull();
+  it('has facts and a stage decision for every state', () => {
+    for (const state of VOICE_STATES) {
+      expect(STATE_FACTS[state].detail.length).toBeGreaterThan(0);
+      expect(stageOf(state) === null || STAGE_FACTS.some((stage) => stage.stage === stageOf(state))).toBe(true);
+    }
   });
 });
 
-describe('advance', () => {
-  it('stays put on an event the state does not accept', () => {
-    // Not an error and not a crash. A voice surface is handed events it did not
-    // ask for constantly, and doing nothing is the correct answer to most.
-    expect(advance('ready', 'finish')).toBe('ready');
-    expect(advance('offline', 'commit')).toBe('offline');
-    expect(advance('rate_limited', 'hold')).toBe('rate_limited');
-  });
-
-  it('never leaves the state set, whatever it is given', () => {
-    for (const state of VOICE_STATES) {
-      for (const event of VOICE_EVENTS) {
-        expect(VOICE_STATES).toContain(advance(state, event));
-      }
-    }
-  });
-
-  it('is the same answer every time it is asked', () => {
-    for (const state of VOICE_STATES) {
-      for (const event of VOICE_EVENTS) {
-        expect(advance(state, event)).toBe(advance(state, event));
-      }
-    }
-  });
-
-  it('walks the whole happy path', () => {
-    const path: readonly VoiceEvent[] = [
-      'hold',
-      'transcribing',
-      'commit',
-      'send',
-      'retrieved',
-      'grounded',
-      'synthesised',
-      'finish',
+describe('voice transitions', () => {
+  it('walks answer, abstention and contradiction through one committed query path', () => {
+    const prefix: readonly VoiceEvent[] = [
+      'request_permission', 'permission_granted', 'partial', 'commit', 'check_context',
     ];
-    const landed = path.reduce<VoiceState>((state, event) => advance(state, event), 'ready');
-
-    expect(landed).toBe('ready');
+    const atContext = prefix.reduce<VoiceState>((state, event) => advance(state, event), 'READY');
+    expect(atContext).toBe('CHECKING_CONTEXT');
+    expect(advance(atContext, 'answer')).toBe('ANSWERED');
+    expect(advance(atContext, 'abstain')).toBe('ABSTAINED');
+    expect(advance(atContext, 'contradict')).toBe('CONTRADICTED');
   });
-});
 
-describe('the edges that exist everywhere', () => {
-  it('lets the network go at any moment', () => {
-    for (const state of VOICE_STATES) {
-      expect(advance(state, 'disconnect')).toBe('offline');
+  it('enters SPEAKING only on playback_started and exits on real playback completion', () => {
+    expect(advance('ANSWERED', 'playback_started')).toBe('SPEAKING');
+    expect(advance('ANSWERED', 'check_context')).toBe('ANSWERED');
+    expect(advance('SPEAKING', 'playback_finished')).toBe('READY');
+  });
+
+  it('maps permission, rate, provider, interruption and local failures', () => {
+    expect(advance('REQUESTING_PERMISSION', 'deny')).toBe('PERMISSION_DENIED');
+    expect(advance('LISTENING', 'throttle')).toBe('RATE_LIMITED');
+    expect(advance('PARTIAL_TRANSCRIPT', 'provider_fail')).toBe('PROVIDER_UNAVAILABLE');
+    expect(advance('CHECKING_CONTEXT', 'interrupt')).toBe('INTERRUPTED');
+    expect(advance('CHECKING_CONTEXT', 'fail')).toBe('ERROR');
+  });
+
+  it('supports typed fallback without permission or listening states', () => {
+    expect(advance('READY', 'typed_commit')).toBe('COMMITTED');
+    expect(advance('COMMITTED', 'check_context')).toBe('CHECKING_CONTEXT');
+  });
+
+  it('reaches every state and every terminal state can retry', () => {
+    expect([...reachableFrom('READY')].sort()).toEqual([...VOICE_STATES].sort());
+    for (const state of ['INTERRUPTED', 'RATE_LIMITED', 'PERMISSION_DENIED', 'PROVIDER_UNAVAILABLE', 'ERROR'] as const) {
+      expect(advance(state, 'retry')).toBe('READY');
     }
   });
 
-  it('lets anyone give up on speech at any moment', () => {
-    // This is the escape hatch the whole product depends on: the question form
-    // works whatever the microphone is doing, so every state has a door to it.
-    for (const state of VOICE_STATES) {
-      expect(advance(state, 'useText')).toBe('text_only');
-    }
-  });
-});
-
-describe('reachability', () => {
-  it('can reach every state from a cold start', () => {
-    const reached = reachableFrom('ready');
-
-    expect([...reached].sort()).toEqual([...VOICE_STATES].sort());
-  });
-
-  it('can get back to ready from every state', () => {
-    // A dead end would be a state a reader could enter and never leave, which
-    // on a page made of links is a page with a hole in it.
-    for (const state of VOICE_STATES) {
-      expect(reachableFrom(state).has('ready')).toBe(true);
-    }
-  });
-});
-
-describe('acceptedFrom', () => {
-  it('lists only events that move the machine somewhere else', () => {
-    for (const state of VOICE_STATES) {
-      for (const event of acceptedFrom(state)) {
-        expect(advance(state, event)).not.toBe(state);
-      }
-    }
-  });
-
-  it('lists every event that moves the machine somewhere else', () => {
+  it('ignores stale or invalid events and lists every moving edge', () => {
+    expect(advance('READY', 'playback_started')).toBe('READY');
     for (const state of VOICE_STATES) {
       const moving = VOICE_EVENTS.filter((event) => advance(state, event) !== state);
-
-      expect([...acceptedFrom(state)]).toEqual([...moving]);
-    }
-  });
-
-  it('drops the self edge in a state that already is where the event leads', () => {
-    // Offline accepts disconnect and text_only accepts useText, since those two
-    // edges are on every state. Printing them as ways out would be a lie about
-    // where they go.
-    expect(acceptedFrom('offline')).not.toContain('disconnect');
-    expect(acceptedFrom('text_only')).not.toContain('useText');
-  });
-
-  it('leaves no state without a way out', () => {
-    for (const state of VOICE_STATES) {
-      expect(acceptedFrom(state).length).toBeGreaterThan(0);
+      expect(acceptedFrom(state)).toEqual(moving);
     }
   });
 });
 
-describe('readState', () => {
-  it('accepts exactly the states that exist', () => {
-    for (const state of VOICE_STATES) {
-      expect(readState(state)).toBe(state);
-    }
-  });
-
-  it('refuses anything else, including the shapes a query string arrives in', () => {
-    // This is the narrowing that keeps the query string away from the renderer.
-    // Whatever arrives is one of fourteen keys or it is nothing at all.
-    for (const junk of ['', ' ready', 'READY', 'ready ', '__proto__', 'constructor',
-      'toString', '0', 'listening;drop', '<script>']) {
-      expect(readState(junk)).toBeNull();
-    }
-
+describe('voice state input and pipeline', () => {
+  it('accepts only exact state values', () => {
+    for (const state of VOICE_STATES) expect(readState(state)).toBe(state);
+    for (const value of ['', 'ready', ' READY', '__proto__', '<script>']) expect(readState(value)).toBeNull();
     expect(readState(null)).toBeNull();
-    expect(readState(undefined)).toBeNull();
-  });
-});
-
-describe('the pipeline', () => {
-  it('marks the two stages this machine cannot perform', () => {
-    const missing = STAGE_FACTS
-      .filter((facts) => facts.capability !== 'VERIFIED')
-      .map((facts) => facts.stage);
-
-    expect(missing).toEqual(['STT', 'TTS']);
   });
 
-  it('marks the two that run as verified, which the rest of the suite covers', () => {
-    const running = STAGE_FACTS
-      .filter((facts) => facts.capability === 'VERIFIED')
-      .map((facts) => facts.stage);
-
-    expect(running).toEqual(['HydraDB', 'Resolver']);
-  });
-
-  it('puts every state at a stage that exists, or at none', () => {
-    const stages = STAGE_FACTS.map((facts) => facts.stage);
-
-    for (const state of VOICE_STATES) {
-      const at = stageOf(state);
-      if (at !== null) expect(stages).toContain(at);
-    }
-  });
-
-  it('sits every failure outside the two stages that work', () => {
-    // A failure parked on HydraDB or the resolver would be claiming this
-    // product broke, when every failure the design describes is audio or
-    // network. The page says as much, so the table has to agree.
-    for (const state of VOICE_STATES) {
-      if (!STATE_FACTS[state].failed) continue;
-      expect(stageOf(state)).not.toBe('HydraDB');
-      expect(stageOf(state)).not.toBe('Resolver');
-    }
+  it('marks all four implemented boundaries verified', () => {
+    expect(STAGE_FACTS.map((stage) => [stage.stage, stage.capability])).toEqual([
+      ['STT', 'VERIFIED'], ['HydraDB', 'VERIFIED'], ['Resolver', 'VERIFIED'], ['TTS', 'VERIFIED'],
+    ]);
   });
 });

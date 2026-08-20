@@ -7,9 +7,9 @@
 
 | V8 gate | Current evidence |
 | --- | --- |
-| unit | 1,344 of 1,344; 79 files; no skips |
+| unit | 1,345 of 1,345; 79 files; no skips |
 | TypeScript | root and web typechecks exit 0 |
-| production build | 104 modules; entry 282.09 kB / 92.64 kB gzip |
+| production build | 104 modules; entry 282.06 kB / 92.63 kB gzip |
 | dependency audit | zero known npm vulnerabilities |
 | public graph | 453 nodes, 682 edges; signed cursor pages; overview + exact proof modes |
 | agent runtime | 2 persisted roles; one real production run completed through 8 lifecycle events |
@@ -27,9 +27,12 @@ The V8 acceptance details and limitation language are in
 `docs/FINAL_CAPABILITY_MATRIX.md`. A pending video or human-only cross-client
 send is never silently converted into a pass.
 
-The exact final narration voice is **Vaibhav Lalwani Professional**. Selection
-is recorded, but no provider voice id or accepted audio session exists. There
-is no approved final MP4, Supademo walkthrough or YouTube link.
+The final-candidate narration uses the verified ElevenLabs **Vaibhav Lalwani
+Professional** clone, voice id `GAeq3X4y41cIseBkBfsS`, with Eleven Multilingual
+v2. The rendered 179-second MP4 is one second under the three-minute limit and
+passed HyperFrames artifact validation. This is film narration, not a
+production STT/TTS/interruption proof. Owner approval, Supademo and YouTube
+remain open.
 
 Every gate below was run in this session, in this order, and the output pasted
 is the output it produced. A gate with no evidence line is not a gate.

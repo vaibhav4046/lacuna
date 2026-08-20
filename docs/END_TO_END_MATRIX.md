@@ -125,8 +125,9 @@ Named here rather than left for a reader to notice.
 - **No private MCP issuance proof.** The candidate listener fails closed and
   the capability store persists only digests, but the authenticated issue/use/
   revoke path is not yet wired and deployed.
-- **No ChatGPT/Claude, Supademo or final-film evidence.** None may be inferred
-  from the web/CLI/MCP continuity artifact or from an older video preview.
+- **No ChatGPT/Claude or Supademo evidence.** Neither may be inferred from the
+  web/CLI/MCP continuity artifact. A metadata-verified local judges-master video
+  candidate exists separately; it is not owner-approved or published.
 - **[artifacts/deployment/production.json](../artifacts/deployment/production.json)
   is a record of 2026-08-18 and one of its `honestLimits` lines is now stale.**
   It says the answer engine still reads the self-hosted node. The deployment now

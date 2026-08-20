@@ -1,9 +1,12 @@
 {
   "provider": "ElevenLabs",
   "selectedVoice": "Vaibhav Lalwani Professional",
-  "voiceId": null,
+  "voiceId": "GAeq3X4y41cIseBkBfsS",
   "model": "eleven_multilingual_v2",
-  "status": "selected_not_provider_verified",
-  "previewAudio": null,
-  "note": "Do not render or publish narration until the selected clone has a verified provider voice ID and the production audio acceptance gate passes. No substitute voice is approved."
+  "outputFormat": "mp3_44100_128",
+  "status": "generated_and_wired",
+  "durationSeconds": 177.3975,
+  "audio": "assets/narration-vaibhav/lacuna-v8-vaibhav.mp3",
+  "sha256": "FF7472F1C136C7C4FAE8C72F09F90D6D74EA503366D6CDD3F2F398F6604A263A",
+  "productVoiceRoundTrip": "acceptance_pending_server_key"
 }

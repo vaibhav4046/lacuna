@@ -7,10 +7,10 @@ historical V7 release. Detailed claim boundaries live in
 
 ## Candidate verified locally
 
-- 79 unit test files and 1,344 tests passed with no skips.
+- 79 unit test files and 1,345 tests passed with no skips.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 104 modules. The entry is 282.09 kB,
-  92.64 kB gzip.
+- The production web bundle builds from 104 modules. The entry is 282.06 kB,
+  92.63 kB gzip.
 - Copy lint scans 57 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
@@ -43,15 +43,17 @@ the last accepted V8 deployment, not every uncommitted candidate change above.
 After deployment, rerun web/demo/auth/graph/agent/schedule/MCP browser gates and
 verify OAuth cache headers from the live origin.
 
-The exact final narration/transition voice is selected as **Vaibhav Lalwani
-Professional**. No ElevenLabs voice id or provider-enabled STT/TTS/interruption
-session is installed or accepted in production, so no final audio claim is
-made. The local George recording is timing-only and must not ship as the final
-voice.
+The final-candidate narration uses the verified ElevenLabs **Vaibhav Lalwani
+Professional** clone, voice id `GAeq3X4y41cIseBkBfsS`, with Eleven Multilingual
+v2. The 177.3975-second source MP3 is stored under
+`video/hyperframes/assets/narration-vaibhav/`. This proves the film narration,
+not the product's live voice route. No provider-enabled STT/TTS/interruption
+session is installed or accepted in production.
 
-There is no approved final three-minute MP4, Supademo walkthrough, YouTube link,
-ChatGPT custom-app proof, Claude MCP proof, Spotify connector, or packaged
-Lacuna SDK. Nothing has been submitted or uploaded.
+A metadata-verified 179-second final-candidate MP4 exists at
+`video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4`. Owner approval,
+Supademo, YouTube, ChatGPT custom-app proof, Claude MCP proof, Spotify, and the
+packaged Lacuna SDK remain open. Nothing has been submitted or uploaded.
 
 ## Remaining engineering limits
 

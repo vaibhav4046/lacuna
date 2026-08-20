@@ -19,14 +19,17 @@ intent alone.
 
 ## Three-minute video
 
-- [ ] final edit duration below 180 seconds
-- [ ] final edit covers the problem
-- [ ] final edit covers the product
-- [ ] final edit shows a working production demo
-- [ ] final edit explains HydraDB's actual role
-- [ ] Vaibhav Lalwani professional clone selected and licensed for this use
-- [ ] captions embedded and sidecar checked
-- [ ] final frames manually approved before render
+- [x] final edit duration below 180 seconds
+- [x] final edit covers the problem
+- [x] final edit covers the product
+- [x] final edit shows the production demo and recorded product artifacts
+- [x] final edit explains HydraDB's actual role
+- [x] Vaibhav Lalwani Professional clone rendered as the narration
+- [ ] owner confirms clone-use authorization for publication
+- [x] sentence captions embedded in the render
+- [x] matching sentence-level SRT is contiguous and ends at 00:02:57,398
+- [ ] complete caption read-through approved by the owner
+- [ ] complete rendered film manually approved by the owner
 - [ ] uploaded to YouTube as viewable unlisted video
 - [ ] YouTube URL opened from a signed-out/private window
 

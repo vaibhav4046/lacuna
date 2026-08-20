@@ -1,21 +1,21 @@
-Your agent remembers the meeting, the pull request, and the runbook—as if all three were still true.
+Agents do not fail only because they forget. They fail when yesterday's truth is remembered as if it were still true.
 
-A README says Redis. Chat proposes Postgres. A pull request implements it. Ordinary retrieval hands the model every sentence and hopes. Long-running agents need current truth, retained history, visible disagreement, and the discipline to stop when evidence is missing.
+One source says Redis. A proposal says Postgres. The pull request implements Postgres. Retrieval returns every sentence. Lacuna keeps the sources, marks what changed, exposes conflict, and refuses to turn missing evidence into a confident answer.
 
-Lacuna is a provenance-first context operating system on HydraDB. It turns conversations into time-aware claims and relationships, resolves what stands now, and sends a governed Context Pack to the next model, tool, or agent.
+We built Lacuna, a provenance-first memory layer on HydraDB. Conversations become evidence, claims, entities, and relationships. Lacuna resolves what stands now, then compiles the context the next agent needs.
 
-Here is the deployed product. Ask a normal question. Lacuna answers plainly, explains what changed, cites the exact sentence, and opens its artifact. Ask for something never stated and it refuses—with a reason instead of a plausible guess.
+Here is the deployed product. I ask, "Who is the runbook owner for billing-gate?" Lacuna says the sources disagree, keeps both claims at equal weight, and attaches a contradiction trace. Ask for Foxglove's connection-pool size. Nothing states one, so Lacuna returns never stated, instead of guessing.
 
-Nothing is hidden behind chat. Memory stays readable as a table. The graph has an overview, a proof path, and one row per visible edge—four hundred fifty three nodes and six hundred eighty two relationships.
+The answer stays inspectable. A table keeps every memory readable. On the accepted public build, the overview measured four hundred fifty-three nodes and six hundred eighty-two edges. The proof view follows one exact source-to-evidence-to-claim-to-entity path.
 
-Lacuna recommends bounded agents from workspace evidence. A Researcher builds a Context Pack; a Reviewer checks it. Steps, tool calls, artifacts, retries, cancellation, and final state persist. The daily Context Health schedule runs with stable local idempotency; distributed exactly-once dispatch still requires HydraDB compare-and-set.
+Memory becomes bounded work. Lacuna includes two built-in, no-write roles: Researcher and Reviewer. A production run persisted eight events, tool calls, handoff, artifacts, and its final verdict. A daily schedule persists. Cross-instance exactly-once dispatch is not claimed.
 
-Voice is another client, not another brain. The fifteen-state route, interruption, and typed fallback are implemented, and provider keys never enter the browser. This build shows the provider gate honestly: Vaibhav Lalwani Professional is selected, but production speech stays disabled until that exact clone is bound and verified.
+One resolved context reaches web, C L I, and M C P. The parity sweep sends all sixty-four questions through the C L I and both M C P transports, then compares every field. They match. The H T T P A P I is live. A packaged S D K is not shipped.
 
-HydraDB holds seventy two conversations as evidence and eighty six entity records as claims, preserving relationships and history. Lacuna keeps sources separate from conclusions, traverses multi-hop answers, isolates workspaces, and delivers the same resolved context everywhere.
+The voice surface models fifteen explicit states, including listening, interruption, and typed fallback. This narration uses the verified Vaibhav Lalwani professional clone. The product's live voice round-trip remains separately gated until its server key is configured.
 
-Watch one question run through the website, command line, and M C P client. These are real commands. The remote M C P endpoint and H T T P A P I reach the same store and return the same evidence. A packaged Lacuna S D K is not shipped in this build.
+HydraDB is the retrieval substrate, not a results bucket. A correction becomes a supersession edge. Provenance is the path from session to message to evidence span to claim. Disagreement is structural. Multi-hop answers traverse a bridge entity. No claim means absence, not a low similarity score.
 
-On our labelled generated evaluation, Lacuna answers sixty four of sixty four and correctly abstains thirty two times. The strongest flat baseline reaches sixty three using about eighteen hundred context tokens. Lacuna uses about eighteen. Self-hosted and HydraDB Cloud match field for field.
+On the labelled generated evaluation, Lacuna answers sixty-four of sixty-four with zero unsupported answers using about eighteen context tokens. The strongest tuned baseline reaches sixty-three using about eighteen hundred. Self-hosted and HydraDB Cloud matched field by field.
 
-Coding agents, voice assistants, support bots, and personal workflows can share one inspectable memory across sessions. Next: any application, from a music assistant to an enterprise agent mesh. The agent can change. Lacuna stays.
+Models can change. Agents can change. The memory stays current, inspectable, and portable. Lacuna: memory that knows what changed.

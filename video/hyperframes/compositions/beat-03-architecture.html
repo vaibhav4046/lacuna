@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <title>Lacuna — Beat 03 — Architecture on HydraDB</title>
+    <title>Lacuna — Beat 03 — Evidence to Context Pack</title>
   </head>
   <body>
     <template>
@@ -41,286 +41,205 @@
           inset: 0;
           background: #000000;
         }
-        .b03-grid {
+        .b03-plate {
           position: absolute;
           inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px);
-          background-size: 72px 72px;
-        }
-        .b03-kicker {
-          position: absolute;
-          left: 64px;
-          top: 52px;
-          color: #8052ff;
-          font: 500 11px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.24em;
-        }
-        .b03-title {
-          position: absolute;
-          left: 64px;
-          top: 80px;
-          color: #ffffff;
-          font-size: 48px;
-          font-weight: 300;
-          letter-spacing: -0.035em;
-        }
-        .b03-capture-stage {
-          position: absolute;
-          left: 64px;
-          top: 170px;
-          width: 690px;
-          height: 388px;
           overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.18);
-          background: #030303;
-          will-change: transform, opacity;
+          will-change: clip-path, opacity;
+        }
+        .b03-evidence { opacity: 0; }
+        .b03-proof { opacity: 0; }
+        .b03-camera-outer,
+        .b03-camera-inner {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          transform-origin: 50% 50%;
+          will-change: transform;
         }
         .b03-capture {
+          position: absolute;
+          inset: 0;
           display: block;
-          width: 690px;
-          height: 388px;
+          width: 1920px;
+          height: 1080px;
           object-fit: cover;
         }
-        .b03-capture-meta {
+        .b03-aperture {
           position: absolute;
-          left: 64px;
-          top: 580px;
-          width: 690px;
-          display: flex;
-          justify-content: space-between;
-          color: #8d8d8d;
-          font: 500 9px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.18em;
-        }
-        .b03-capture-meta strong { color: #ffb829; font-weight: 500; }
-        .b03-flow {
-          position: absolute;
-          left: 808px;
-          top: 152px;
-          width: 1048px;
-          height: 810px;
-          border-top: 1px solid rgba(255,255,255,0.12);
-          border-bottom: 1px solid rgba(128,82,255,0.56);
-        }
-        .b03-flow-label {
-          position: absolute;
-          color: #8d8d8d;
-          font: 500 9px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.2em;
-        }
-        .b03-flow-label-inputs { left: 0; top: 18px; }
-        .b03-flow-label-core { left: 334px; top: 232px; }
-        .b03-flow-label-store { left: 334px; top: 526px; }
-        .b03-flow-label-output { right: 0; top: 232px; }
-        .b03-inputs {
-          position: absolute;
-          left: 0;
-          top: 58px;
-          width: 1048px;
-          display: flex;
-          justify-content: space-between;
-          gap: 8px;
-        }
-        .b03-chip,
-        .b03-output-chip {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 40px;
-          padding: 0 13px;
-          border: 1px solid rgba(255,255,255,0.18);
-          background: #050505;
-          color: #c9c9c9;
-          font: 500 10px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.12em;
-          white-space: nowrap;
-          opacity: 0;
-          will-change: transform, opacity;
-        }
-        .b03-core {
-          position: absolute;
-          left: 244px;
-          top: 272px;
-          width: 560px;
-          height: 182px;
+          left: 622.5px;
+          top: 202.5px;
+          width: 675px;
+          height: 675px;
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1px;
-          padding: 1px;
-          border: 1px solid rgba(128,82,255,0.74);
-          background: rgba(128,82,255,0.3);
+          place-items: center;
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+        }
+        .b03-aperture::before,
+        .b03-aperture::after {
+          position: absolute;
+          border-radius: 50%;
+          content: "";
+        }
+        .b03-aperture::before {
+          inset: -70px;
+          border: 1px dashed rgba(255, 255, 255, 0.12);
+        }
+        .b03-aperture::after {
+          inset: -24px;
+          border: 1px solid rgba(128, 82, 255, 0.16);
+        }
+        .b03-aperture svg {
+          position: relative;
+          z-index: 1;
+          display: block;
+          width: 100%;
+          height: 100%;
+          filter: drop-shadow(0 0 30px rgba(128, 82, 255, 0.2));
+        }
+        .b03-substrate-label {
+          position: absolute;
+          left: 250px;
+          bottom: 54px;
+          color: #b9aed8;
+          font: 500 10px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.22em;
           opacity: 0;
           will-change: transform, opacity;
         }
-        .b03-core-node {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 14px;
-          background: #070707;
-          color: #ffffff;
-          font: 500 12px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.14em;
-        }
-        .b03-core-node span { color: #7e7e7e; font-size: 9px; letter-spacing: 0.16em; }
-        .b03-store {
+        .b03-connector {
           position: absolute;
-          left: 244px;
-          top: 566px;
-          width: 560px;
-          height: 142px;
-          padding: 30px 32px;
-          border: 1px solid rgba(255,184,41,0.5);
-          background: #060606;
-          opacity: 0;
-          will-change: transform, opacity;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+          pointer-events: none;
         }
-        .b03-store-name {
-          color: #ffffff;
-          font-size: 28px;
-          font-weight: 400;
-          letter-spacing: -0.02em;
-        }
-        .b03-store-detail {
-          margin-top: 13px;
-          color: #aaa6a0;
-          font: 400 10px/1.5 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.12em;
-        }
-        .b03-store-fill {
-          position: absolute;
-          left: 32px;
-          right: 32px;
-          bottom: 18px;
-          height: 2px;
-          background: #ffb829;
-          transform-origin: 0 50%;
-          will-change: transform;
+        .b03-connector path {
+          fill: none;
+          stroke: #8052ff;
+          stroke-width: 2;
         }
         .b03-pack {
           position: absolute;
-          right: 0;
-          top: 272px;
-          width: 184px;
-          height: 182px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 0 22px;
-          border: 1px solid rgba(128,82,255,0.85);
-          background: #08060d;
-          transform-origin: 100% 50%;
+          right: 82px;
+          top: 166px;
+          width: 660px;
+          height: 748px;
+          padding: 38px 42px 34px;
+          border-top: 1px solid rgba(255, 255, 255, 0.2);
+          border-right: 1px solid rgba(128, 82, 255, 0.7);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          background: #050505;
           opacity: 0;
           will-change: transform, opacity;
         }
-        .b03-pack strong {
+        .b03-pack-kicker {
+          color: #a789ff;
+          font: 500 10px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.23em;
+        }
+        .b03-pack-question {
+          margin-top: 30px;
+          color: #8d8d8d;
+          font: 500 10px/1.6 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.14em;
+        }
+        .b03-pack-answer {
+          margin-top: 11px;
           color: #ffffff;
-          font: 500 14px/1.3 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.12em;
-        }
-        .b03-pack span {
-          margin-top: 13px;
-          color: #a497c8;
-          font: 400 9px/1.5 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.11em;
-        }
-        .b03-output-rail {
-          position: absolute;
-          right: 0;
-          top: 486px;
-          width: 184px;
-          display: grid;
-          gap: 10px;
-        }
-        .b03-output-chip { height: 36px; }
-        .b03-beams {
-          position: absolute;
-          inset: 0;
-          width: 1048px;
-          height: 810px;
-          overflow: visible;
-          pointer-events: none;
-        }
-        .b03-beam {
-          fill: none;
-          stroke: rgba(128,82,255,0.8);
-          stroke-width: 1.5;
-        }
-        .b03-beam-store { stroke: rgba(255,184,41,0.72); }
-        .b03-caption {
-          position: absolute;
-          left: 64px;
-          bottom: 84px;
-          width: 690px;
-          color: #bdbdbd;
-          font-size: 24px;
+          font-size: 66px;
           font-weight: 300;
-          line-height: 1.42;
-          opacity: 0;
+          line-height: 1;
+          letter-spacing: -0.045em;
         }
-        .b03-caption strong { color: #ffffff; font-weight: 400; }
+        .b03-pack-rows {
+          margin-top: 38px;
+          border-top: 1px solid rgba(255, 255, 255, 0.14);
+        }
+        .b03-pack-row {
+          display: grid;
+          grid-template-columns: 142px 1fr;
+          gap: 22px;
+          align-items: start;
+          padding: 18px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        .b03-pack-row span {
+          color: #7f7f7f;
+          font: 500 9px/1.5 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.16em;
+        }
+        .b03-pack-row strong {
+          color: #d6d6d6;
+          font-size: 16px;
+          font-weight: 400;
+          line-height: 1.42;
+        }
+        .b03-pack-row:first-child strong { color: #a789ff; }
+        .b03-pack-foot {
+          position: absolute;
+          left: 42px;
+          right: 42px;
+          bottom: 28px;
+          color: #7f7f7f;
+          font: 500 9px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.15em;
+        }
       </style>
 
-      <div data-hf-id="hf-169c" id="root" data-composition-id="beat-03-architecture" data-start="0" data-width="1920" data-height="1080" data-duration="16" data-fps="30">
-        <section data-hf-id="hf-awt4" id="b03-scene" class="clip b03-scene" data-start="0" data-duration="16" data-track-index="1">
-          <div data-hf-id="hf-akgn" class="b03-ground"></div>
-          <div data-hf-id="hf-d2ha" class="b03-grid"></div>
-          <div data-hf-id="hf-60ep" id="b03-kicker" class="b03-kicker">LACUNA · CONTEXT RUNTIME ON HYDRADB</div>
-          <h2 data-hf-id="hf-ngv2" id="b03-title" class="b03-title">One durable memory. A smaller, inspectable context pack.</h2>
+      <div data-hf-id="hf-b03-root" id="root" data-composition-id="beat-03-architecture" data-start="0" data-width="1920" data-height="1080" data-duration="16" data-fps="30">
+        <section data-hf-id="hf-b03-scene" id="b03-scene" class="clip b03-scene" data-start="0" data-duration="16" data-track-index="1">
+          <div data-hf-id="hf-b03-ground" class="b03-ground"></div>
 
-          <div data-hf-id="hf-cmfc" id="b03-capture-stage" class="b03-capture-stage">
-            <img data-hf-id="hf-8rtg" id="b03-capture" class="b03-capture" src="capture-final/screenshots/scroll-012.png" alt="Captured Lacuna memory journey">
-          </div>
-          <div data-hf-id="hf-vpl2" class="b03-capture-meta"><span data-hf-id="hf-86jp">EXACT PRODUCTION CAPTURE</span><strong data-hf-id="hf-gyzd">MEMORY JOURNEY</strong></div>
-          <p data-hf-id="hf-uqu9" id="b03-caption" class="b03-caption"><strong data-hf-id="hf-m3l6">HydraDB persists the evidence, claims and relationships.</strong> Lacuna applies standing, scope and budget before anything reaches a model, tool or agent.</p>
-
-          <div data-hf-id="hf-z3qa" id="b03-flow" class="b03-flow">
-            <span data-hf-id="hf-sidk" class="b03-flow-label b03-flow-label-inputs">INPUTS</span>
-            <span data-hf-id="hf-ofkk" class="b03-flow-label b03-flow-label-core">LACUNA CORE</span>
-            <span data-hf-id="hf-st6p" class="b03-flow-label b03-flow-label-store">PERSISTENT STATE</span>
-            <span data-hf-id="hf-3b5z" class="b03-flow-label b03-flow-label-output">ROUTED OUTPUT</span>
-
-            <div data-hf-id="hf-mm5p" class="b03-inputs">
-              <span data-hf-id="hf-irk0" id="b03-input-transcript" class="b03-chip">TRANSCRIPT</span>
-              <span data-hf-id="hf-qphw" id="b03-input-corpus" class="b03-chip">CORPUS</span>
-              <span data-hf-id="hf-2bjw" id="b03-input-ingest" class="b03-chip">INGEST</span>
-              <span data-hf-id="hf-1ztw" id="b03-input-mcp" class="b03-chip">MCP</span>
-              <span data-hf-id="hf-b80s" id="b03-input-cli" class="b03-chip">CLI</span>
-              <span data-hf-id="hf-1yic" id="b03-input-api" class="b03-chip">API</span>
-              <span data-hf-id="hf-fivs" id="b03-input-agent" class="b03-chip">AGENT OUTCOME</span>
+          <div data-hf-id="hf-b03-evidence" id="b03-evidence" class="b03-plate b03-evidence">
+            <div data-hf-id="hf-b03-evidence-outer" id="b03-evidence-outer" class="b03-camera-outer" data-layout-allow-overflow>
+              <div data-hf-id="hf-b03-evidence-inner" id="b03-evidence-inner" class="b03-camera-inner">
+                <img data-hf-id="hf-b03-evidence-img" class="b03-capture" src="assets/screens/live-extract-1920x1080.png" alt="Real Lacuna evidence extraction capture">
+              </div>
             </div>
+          </div>
 
-            <svg data-hf-id="hf-i42z" class="b03-beams" viewBox="0 0 1048 810" aria-hidden="true">
-              <path data-hf-id="hf-vjwd" id="b03-beam-in" class="b03-beam" d="M 40 98 C 168 184, 320 190, 524 272 M 178 98 C 282 178, 368 194, 524 272 M 330 98 C 388 168, 424 204, 524 272 M 472 98 L 524 272 M 610 98 C 594 170, 570 210, 524 272 M 750 98 C 692 182, 638 214, 524 272 M 1008 98 C 866 176, 724 214, 524 272" />
-              <path data-hf-id="hf-w7e9" id="b03-beam-store" class="b03-beam b03-beam-store" d="M 524 454 L 524 566" />
-              <path data-hf-id="hf-kg12" id="b03-beam-out" class="b03-beam" d="M 804 363 C 862 363, 888 363, 912 363 M 956 454 L 956 486" />
+          <div data-hf-id="hf-b03-proof" id="b03-proof" class="b03-plate b03-proof">
+            <div data-hf-id="hf-b03-proof-outer" id="b03-proof-outer" class="b03-camera-outer" data-layout-allow-overflow>
+              <div data-hf-id="hf-b03-proof-inner" id="b03-proof-inner" class="b03-camera-inner">
+                <img data-hf-id="hf-b03-proof-img" class="b03-capture" src="assets/screens/live-proof-graph-v8-1920x1080.png" alt="Real Lacuna source to evidence to claim to entity proof graph">
+              </div>
+            </div>
+          </div>
+
+          <div data-hf-id="hf-b03-aperture" id="b03-aperture" class="b03-aperture" aria-hidden="true">
+            <svg data-hf-id="hf-b03-mark-svg" viewBox="0 0 24 24">
+              <g data-hf-id="hf-b03-mark-group" transform="translate(-1.2 1.475)">
+                <path data-hf-id="hf-b03-mark-aura" d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8" fill="none" stroke="#8052FF" stroke-opacity="0.42" stroke-width="3.8" stroke-linecap="round"></path>
+                <path data-hf-id="hf-b03-mark-path" d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8" fill="none" stroke="#FFFFFF" stroke-width="1.65" stroke-linecap="round"></path>
+                <circle data-hf-id="hf-b03-dot-outer" cx="12" cy="2.6" r="2.25" fill="#080808" stroke="#FFB829" stroke-width="1.25"></circle>
+                <circle data-hf-id="hf-b03-dot-inner" cx="12" cy="2.6" r="0.85" fill="#FFB829"></circle>
+              </g>
             </svg>
-
-            <div data-hf-id="hf-0io6" id="b03-core" class="b03-core">
-              <div data-hf-id="hf-jsb2" class="b03-core-node">POLICY<span data-hf-id="hf-t6vv">SCOPE · BUDGET</span></div>
-              <div data-hf-id="hf-wceh" class="b03-core-node">COMPILER<span data-hf-id="hf-lqxd">STANDING · EVIDENCE</span></div>
-              <div data-hf-id="hf-zecx" class="b03-core-node">ROUTER<span data-hf-id="hf-2128">CLIENT · TASK</span></div>
-            </div>
-
-            <div data-hf-id="hf-5uvs" id="b03-store" class="b03-store">
-              <div data-hf-id="hf-wnbo" class="b03-store-name">HydraDB persistent graph</div>
-              <div data-hf-id="hf-9oae" class="b03-store-detail">EVIDENCE · CLAIMS · RELATIONSHIPS · ARTIFACTS</div>
-              <div data-hf-id="hf-pp6e" id="b03-store-fill" class="b03-store-fill"></div>
-            </div>
-
-            <div data-hf-id="hf-7p4m" id="b03-pack" class="b03-pack">
-              <strong data-hf-id="hf-uua2">CONTEXT PACK</strong>
-              <span data-hf-id="hf-wng3">ANSWER · EVIDENCE · HISTORY · CONFLICT</span>
-            </div>
-            <div data-hf-id="hf-zenm" class="b03-output-rail">
-              <span data-hf-id="hf-0o2t" id="b03-output-model" class="b03-output-chip">MODEL</span>
-              <span data-hf-id="hf-0i7l" id="b03-output-tool" class="b03-output-chip">TOOL</span>
-              <span data-hf-id="hf-9iu9" id="b03-output-agent" class="b03-output-chip">AGENT</span>
-            </div>
           </div>
+
+          <div data-hf-id="hf-b03-substrate" id="b03-substrate" class="b03-substrate-label">HYDRADB · PERSISTENT GRAPH STATE</div>
+
+          <svg data-hf-id="hf-b03-connector" class="b03-connector" viewBox="0 0 1920 1080" aria-hidden="true">
+            <path data-hf-id="hf-b03-pack-line" id="b03-pack-line" d="M 1030 540 C 1120 540, 1182 540, 1242 540"></path>
+          </svg>
+
+          <aside data-hf-id="hf-b03-pack" id="b03-pack" class="b03-pack">
+            <div data-hf-id="hf-b03-pack-kicker" class="b03-pack-kicker">LACUNA · COMPACT CONTEXT PACK</div>
+            <div data-hf-id="hf-b03-pack-question" class="b03-pack-question">BELLWETHER · BETA PARTNER</div>
+            <div data-hf-id="hf-b03-pack-answer" class="b03-pack-answer">Halverd</div>
+            <div data-hf-id="hf-b03-pack-rows" class="b03-pack-rows">
+              <div data-hf-id="hf-b03-row-standing" id="b03-row-standing" class="b03-pack-row"><span data-hf-id="hf-b03-standing-label">STANDING</span><strong data-hf-id="hf-b03-standing-value">CURRENT</strong></div>
+              <div data-hf-id="hf-b03-row-evidence" id="b03-row-evidence" class="b03-pack-row"><span data-hf-id="hf-b03-evidence-label">EVIDENCE</span><strong data-hf-id="hf-b03-evidence-value">Data planning call · 20 Apr</strong></div>
+              <div data-hf-id="hf-b03-row-history" id="b03-row-history" class="b03-pack-row"><span data-hf-id="hf-b03-history-label">HISTORY</span><strong data-hf-id="hf-b03-history-value">Stonecrop → Millbrace → Halverd</strong></div>
+              <div data-hf-id="hf-b03-row-open" id="b03-row-open" class="b03-pack-row"><span data-hf-id="hf-b03-open-label">OPEN</span><strong data-hf-id="hf-b03-open-value">Missing evidence stays missing</strong></div>
+            </div>
+            <div data-hf-id="hf-b03-pack-foot" class="b03-pack-foot">ANSWER · EVIDENCE · HISTORY · CONFLICT</div>
+          </aside>
         </section>
       </div>
 
@@ -328,45 +247,44 @@
         (() => {
           const id = "beat-03-architecture";
           const tl = gsap.timeline({ paused: true });
-          ["b03-beam-in", "b03-beam-store", "b03-beam-out"].forEach((pathId) => {
-            const path = document.getElementById(pathId);
-            const length = path.getTotalLength();
-            path.style.strokeDasharray = String(length);
-            path.style.strokeDashoffset = String(length);
+          const packLine = document.getElementById("b03-pack-line");
+          const packLineLength = packLine.getTotalLength();
+          packLine.style.strokeDasharray = String(packLineLength);
+          packLine.style.strokeDashoffset = String(packLineLength);
+
+          tl.addLabel("evidence-open", 0);
+          tl.fromTo("#b03-evidence", { opacity: 1, clipPath: "circle(0% at 50% 50%)" }, { opacity: 1, clipPath: "circle(76% at 50% 50%)", duration: 1.45, ease: "power3.inOut" }, "evidence-open");
+          tl.fromTo("#b03-evidence-outer", { scale: 1.08 }, { scale: 1, duration: 1.45, ease: "power3.inOut" }, "evidence-open");
+          tl.to("#b03-aperture", { x: -925, y: -506, scale: 0.03, duration: 1.35, ease: "power3.inOut" }, 0.08);
+          tl.to("#b03-aperture", { opacity: 0, duration: 0.22, ease: "power1.in" }, 1.24);
+
+          tl.addLabel("evidence-focus", 1.52);
+          tl.to("#b03-evidence-outer", { scale: 1.18, duration: 2.45, ease: "power2.inOut" }, "evidence-focus");
+          tl.to("#b03-evidence-inner", { x: -140, y: -220, duration: 2.45, ease: "power2.inOut" }, "evidence-focus");
+
+          tl.addLabel("proof-wipe", 4.18);
+          tl.fromTo("#b03-proof", { opacity: 1, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0% 0 0)", duration: 1.42, ease: "power3.inOut", immediateRender: false }, "proof-wipe");
+          tl.to("#b03-evidence", { opacity: 0, x: -120, duration: 0.58, ease: "power2.in" }, 4.72);
+          tl.fromTo("#b03-substrate", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.48, ease: "power3.out" }, 5.12);
+
+          tl.addLabel("graph-focus", 5.72);
+          tl.to("#b03-proof-outer", { scale: 1.28, duration: 1.72, ease: "power3.inOut" }, "graph-focus");
+          tl.to("#b03-proof-inner", { x: 90, y: -110, duration: 1.72, ease: "power3.inOut" }, "graph-focus");
+          tl.addLabel("walk-to-pack", 7.62);
+          tl.to("#b03-proof-inner", { x: -50, y: 40, duration: 2.15, ease: "power2.inOut" }, "walk-to-pack");
+
+          tl.addLabel("compile-pack", 10.28);
+          tl.to("#b03-proof-outer", { x: -280, scale: 1.06, duration: 1.18, ease: "power3.inOut" }, "compile-pack");
+          tl.to("#b03-proof-inner", { x: 0, y: 0, duration: 1.18, ease: "power3.inOut" }, "compile-pack");
+          tl.to("#b03-substrate", { opacity: 0, y: -12, duration: 0.34, ease: "power1.in" }, "compile-pack");
+          tl.to("#b03-pack-line", { strokeDashoffset: 0, duration: 0.72, ease: "none" }, 10.62);
+          tl.fromTo("#b03-pack", { opacity: 0, x: 92 }, { opacity: 1, x: 0, duration: 0.78, ease: "power3.out", immediateRender: false }, 10.94);
+
+          ["#b03-row-standing", "#b03-row-evidence", "#b03-row-history", "#b03-row-open"].forEach((selector, index) => {
+            const at = 11.7 + index * 0.26;
+            tl.fromTo(selector, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.48, ease: "power3.out", immediateRender: false }, at);
           });
-
-          tl.fromTo("#b03-kicker", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.08);
-          tl.fromTo("#b03-title", { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.7, ease: "power4.out" }, 0.18);
-          tl.fromTo("#b03-capture-stage", { opacity: 0, x: -74, scale: 0.97 }, { opacity: 1, x: 0, scale: 1, duration: 0.9, ease: "power3.out" }, 0.42);
-          tl.fromTo("#b03-caption", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.62, ease: "power3.out" }, 1.15);
-
-          const inputs = [
-            "#b03-input-transcript", "#b03-input-corpus", "#b03-input-ingest", "#b03-input-mcp",
-            "#b03-input-cli", "#b03-input-api", "#b03-input-agent"
-          ];
-          inputs.forEach((selector, index) => {
-            const at = 1.45 + index * 0.09;
-            tl.fromTo(selector, { opacity: 0, y: -34, scale: 0.94 }, {
-              opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "power3.out", immediateRender: false
-            }, at);
-          });
-
-          tl.to("#b03-beam-in", { strokeDashoffset: 0, duration: 2.35, ease: "none" }, 2.2);
-          tl.fromTo("#b03-core", { opacity: 0, y: 38, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.78, ease: "power4.out" }, 3.15);
-          tl.to("#b03-beam-store", { strokeDashoffset: 0, duration: 0.72, ease: "power2.out" }, 5.0);
-          tl.fromTo("#b03-store", { opacity: 0, y: 38 }, { opacity: 1, y: 0, duration: 0.72, ease: "power3.out" }, 5.34);
-          tl.fromTo("#b03-store-fill", { scaleX: 0 }, { scaleX: 1, duration: 1.55, ease: "power2.out" }, 5.72);
-
-          tl.to("#b03-beam-out", { strokeDashoffset: 0, duration: 0.78, ease: "power2.out" }, 7.42);
-          tl.fromTo("#b03-pack", { opacity: 0, x: -84, scale: 0.88 }, { opacity: 1, x: 0, scale: 1, duration: 0.72, ease: "power4.out" }, 7.68);
-          ["#b03-output-model", "#b03-output-tool", "#b03-output-agent"].forEach((selector, index) => {
-            const at = 9.05 + index * 0.18;
-            tl.fromTo(selector, { opacity: 0, x: 48 }, { opacity: 1, x: 0, duration: 0.46, ease: "power3.out", immediateRender: false }, at);
-          });
-
-          tl.addLabel("compact", 11.35);
-          tl.to("#b03-pack", { scaleX: 0.76, x: 22, duration: 0.62, ease: "power3.inOut" }, "compact");
-          tl.to("#b03-capture-stage", { scale: 1.025, x: 10, duration: 1.35, ease: "power2.inOut" }, 12.15);
+          tl.to("#b03-pack", { scale: 1.018, duration: 1.45, ease: "sine.inOut" }, 14.1);
 
           window.__timelines = window.__timelines || {};
           window.__timelines[id] = tl;

@@ -132,11 +132,12 @@ https://github.com/vaibhav4046/lacuna
 PENDING OWNER UPLOAD. No YouTube URL exists yet.
 ```
 
-The repository contains an older draft MP4, a 175.2-second checked preview and a
-draft SRT. The owner rejected the preview's visual direction, so it is not the
-submission master. The final film must use fresh production captures, the
-selected Vaibhav Lalwani professional clone, a reviewed preview and a final
-claim check. Videos longer than three minutes are not acceptable.
+The local workspace now contains a metadata-verified 179-second final candidate
+at `video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4`. It uses the
+verified Vaibhav Lalwani Professional clone, burned-in sentence captions, and a
+matching sentence-level SRT. The file is one second under the three-minute
+ceiling, but it is not owner-approved or published. The owner must review the
+complete file before uploading it.
 
 ## Claims deliberately excluded
 
@@ -149,7 +150,7 @@ claim check. Videos longer than three minutes are not acceptable.
   interruption are accepted.
 - ChatGPT or Claude continuity. The existing continuity artifact covers Lacuna
   web, CLI and MCP only.
-- Supademo, final MP4 and YouTube until those artifacts exist.
+- Supademo, an owner-approved submission master and YouTube until each exists.
 - Spotify, Slack, Notion, Gmail, Linear or any other native connector.
 - Arbitrary user-created agents. The proved runtime has two built-in roles and
   one bounded production run.

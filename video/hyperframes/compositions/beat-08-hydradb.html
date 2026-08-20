@@ -1,112 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
-  <title>Lacuna · HydraDB durable graph</title>
-  <style>
-    @font-face{font-family:"Space Grotesk";src:url("assets/fonts/space-grotesk-latin.woff2") format("woff2");font-weight:300 700;font-display:block}
-    @font-face{font-family:"JetBrains Mono";src:url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");font-weight:400 500;font-display:block}
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:1920px;height:1080px;overflow:hidden;background:#000;color:#fff}
-    body{font-family:"Space Grotesk",sans-serif}
-    #beat-08-hydradb{position:relative;width:1920px;height:1080px;overflow:hidden}
-    .fill{position:absolute;inset:0;background:#000}
-    .scene{position:absolute;inset:0;overflow:hidden}
-    .header{position:absolute;left:72px;right:72px;top:42px;height:62px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.12)}
-    .kicker,.meta,.label,.proof{font-family:"JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.18em}
-    .kicker{font-size:15px;color:#8052ff}
-    .meta{font-size:12px;color:#9a9a9a;text-align:right;line-height:1.7}
-    .meta span{display:block}
-    .planes{position:absolute;left:72px;right:72px;top:132px;height:718px;perspective:1500px}
-    .plane{position:absolute;overflow:hidden;background:#030303;border:1px solid rgba(255,255,255,.16)}
-    .plane.evidence{left:0;top:0;width:1040px;height:620px;z-index:2}
-    .plane.claims{right:0;top:98px;width:1040px;height:620px;z-index:1}
-    .screen{position:absolute;width:1200px;height:675px;max-width:none;object-fit:cover;object-position:center;will-change:transform}
-    .evidence .screen{left:-84px;top:-8px}
-    .claims .screen{right:-84px;top:-18px}
-    .plate{position:absolute;left:22px;top:20px;min-width:300px;padding:14px 17px;background:#000;border-left:2px solid #8052ff}
-    .plate .label{font-size:12px;color:#9a9a9a}
-    .plate strong{display:block;margin-top:7px;font-size:26px;font-weight:400;letter-spacing:-.02em}
-    .plate strong span{color:#8052ff}
-    .proof-rail{position:absolute;left:72px;right:72px;bottom:54px;height:150px;display:grid;grid-template-columns:1.15fr .85fr .85fr .95fr;border-top:1px solid rgba(128,82,255,.64);border-bottom:1px solid rgba(255,255,255,.12);background:#030303}
-    .proof-cell{padding:25px 26px;border-right:1px solid rgba(255,255,255,.1)}
-    .proof-cell:last-child{border-right:0}
-    .proof{font-size:11px;color:#9a9a9a}
-    .value{margin-top:13px;font-size:28px;font-weight:300;line-height:1.15;color:#fff}
-    .value.violet{color:#8052ff}
-    .path-layer{position:absolute;inset:0;pointer-events:none}
-    .relation{fill:none;stroke:#8052ff;stroke-width:2;stroke-dasharray:12 10}
-    .scope{position:absolute;right:62px;top:118px;width:1060px;height:640px;border:1px solid rgba(128,82,255,.76);pointer-events:none}
-    .scope:before,.scope:after{content:"";position:absolute;width:54px;height:2px;background:#8052ff;right:-1px}
-    .scope:before{top:-1px}.scope:after{bottom:-1px}
-    .scope-label{position:absolute;right:16px;top:-30px;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.2em;color:#8052ff}
-    .source{position:absolute;right:72px;bottom:26px;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;color:#757575}
-  </style>
-</head>
-<body>
-  <div data-hf-id="hf-ft73" id="beat-08-hydradb" data-composition-id="beat-08-hydradb" data-start="0" data-width="1920" data-height="1080" data-duration="17" data-fps="30">
-    <div data-hf-id="hf-4qej" class="fill"></div>
-    <section data-hf-id="hf-e6su" id="b08-scene" class="clip scene" data-start="0" data-duration="17" data-track-index="1">
-      <header data-hf-id="hf-hr6f" class="header">
-        <div data-hf-id="hf-yeow">
-          <p data-hf-id="hf-f96h" class="kicker">08 · HydraDB is the durable graph</p>
-        </div>
-        <p data-hf-id="hf-lqeg" class="meta"><span data-hf-id="hf-ym1k">HYDRADB CLOUD</span><span data-hf-id="hf-tg5d">DATABASE LACUNA · COLLECTION BACKEND</span></p>
-      </header>
-      <div data-hf-id="hf-brk1" class="planes">
-        <div data-hf-id="hf-m8hr" id="b08-evidence" class="plane evidence">
-          <img data-hf-id="hf-fhuk" id="b08-evidence-screen" class="screen" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-top-1920x1080.png" alt="Deployed Lacuna HydraDB relation view">
-          <div data-hf-id="hf-xqml" id="b08-evidence-plate" class="plate">
-            <p data-hf-id="hf-cu4r" class="label">Evidence layer</p>
-            <strong data-hf-id="hf-4ax0"><span data-hf-id="hf-28t3" id="b08-sessions">72</span> session records</strong>
+  <head>
+    <meta charset="UTF-8">
+    <title>Lacuna — Beat 08 — HydraDB provenance</title>
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Space Grotesk";
+          src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+          font-weight: 300 700;
+          font-display: block;
+        }
+        @font-face {
+          font-family: "JetBrains Mono";
+          src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+          font-weight: 400 500;
+          font-display: block;
+        }
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: #000000;
+          color: #ffffff;
+          font-family: "Space Grotesk", Arial, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        .b08-scene,
+        .b08-stage,
+        .b08-camera {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        .b08-stage { background: #000000; }
+        .b08-stage-walk { opacity: 0; }
+        .b08-screen {
+          display: block;
+          width: 1920px;
+          height: 1080px;
+          object-fit: cover;
+          transform-origin: 58% 43%;
+          will-change: transform;
+        }
+        .b08-stage-walk .b08-screen { transform-origin: 61% 46%; }
+        .b08-film-label {
+          position: absolute;
+          z-index: 4;
+          top: 26px;
+          left: 246px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          color: #ffffff;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 12px;
+          font-weight: 500;
+          letter-spacing: 0.19em;
+          text-transform: uppercase;
+        }
+        .b08-film-label::before {
+          content: "";
+          display: block;
+          width: 44px;
+          height: 2px;
+          background: #8052ff;
+        }
+        .b08-proof-order {
+          position: absolute;
+          z-index: 4;
+          top: 27px;
+          right: 44px;
+          color: #a7a2ad;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 11px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+        .b08-proof-order strong { color: #8052ff; font-weight: 500; }
+        .b08-focus-line {
+          position: absolute;
+          z-index: 5;
+          left: 456px;
+          right: 242px;
+          top: 183px;
+          height: 2px;
+          background: #8052ff;
+          transform-origin: left center;
+        }
+        .b08-walk-caption {
+          position: absolute;
+          z-index: 5;
+          left: 458px;
+          bottom: 38px;
+          display: flex;
+          align-items: baseline;
+          gap: 22px;
+          color: #ffffff;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 12px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+        .b08-walk-caption strong { color: #8052ff; font-weight: 500; }
+        .b08-handoff {
+          position: absolute;
+          z-index: 8;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+          height: 2px;
+          background: #8052ff;
+          transform-origin: left center;
+        }
+      </style>
+
+      <div id="root" data-hf-id="hf-b08-root" data-composition-id="beat-08-hydradb" data-start="0" data-width="1920" data-height="1080" data-duration="17" data-fps="30">
+        <section data-hf-id="hf-ebez" id="b08-scene" class="clip b08-scene" data-start="0" data-duration="17" data-track-index="1">
+          <div data-hf-id="hf-4g7o" id="b08-proof-stage" class="b08-stage b08-stage-proof" data-layout-allow-overflow="">
+            <div data-hf-id="hf-whuo" id="b08-proof-camera" class="b08-camera" data-layout-allow-overflow="true">
+              <img data-hf-id="hf-1nr5" class="b08-screen" src="assets/screens/live-proof-graph-v8-1920x1080.png" alt="Deployed Lacuna proof graph showing source, evidence, claim, entity, and exact provenance">
+            </div>
           </div>
-        </div>
-        <div data-hf-id="hf-x2kb" id="b08-claims" class="plane claims">
-          <img data-hf-id="hf-2ozc" id="b08-claims-screen" class="screen" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-1920x1080.png" alt="Deployed Lacuna HydraDB graph walk">
-          <div data-hf-id="hf-jo3d" id="b08-claims-plate" class="plate">
-            <p data-hf-id="hf-obyp" class="label">Claim index</p>
-            <strong data-hf-id="hf-so7p"><span data-hf-id="hf-r87i" id="b08-entities">86</span> entities · <span data-hf-id="hf-yt40" id="b08-claims-count">174</span> claims</strong>
+
+          <div data-hf-id="hf-yyxx" id="b08-walk-stage" class="b08-stage b08-stage-walk">
+            <div data-hf-id="hf-6mf3" id="b08-walk-camera" class="b08-camera" data-layout-allow-overflow="true">
+              <img data-hf-id="hf-yzdw" class="b08-screen" src="assets/screens/live-hydradb-1920x1080.png" alt="Deployed Lacuna HydraDB walk retaining standing, replaced, disputed, and not-a-claim relations">
+            </div>
+            <p data-hf-id="hf-vtq1" id="b08-walk-caption" class="b08-walk-caption"><strong data-hf-id="hf-j4et">Same graph · one subject</strong><span data-hf-id="hf-bgk6">standing + replaced edges remain readable</span></p>
           </div>
-        </div>
-        <svg data-hf-id="hf-llpr" class="path-layer" width="1776" height="718" viewBox="0 0 1776 718" aria-hidden="true">
-          <path data-hf-id="hf-e46r" id="b08-relation-a" class="relation" d="M 710 296 C 900 160 1030 516 1255 366" />
-          <path data-hf-id="hf-13ge" id="b08-relation-b" class="relation" d="M 572 498 C 820 610 1010 244 1432 250" />
-        </svg>
-        <div data-hf-id="hf-8rvk" id="b08-scope" class="scope" data-layout-ignore="true"><span data-hf-id="hf-fpjz" class="scope-label">WORKSPACE SCOPE</span></div>
+
+          <p data-hf-id="hf-r559" class="b08-film-label">08 · HydraDB · exact provenance</p>
+          <p data-hf-id="hf-5cn1" class="b08-proof-order"><strong data-hf-id="hf-78c7">source</strong> → evidence → claim → entity</p>
+          <div data-hf-id="hf-14bn" id="b08-focus-line" class="b08-focus-line" data-layout-ignore="true"></div>
+          <div data-hf-id="hf-k2an" id="b08-handoff" class="b08-handoff" data-layout-ignore="true"></div>
+        </section>
       </div>
-      <div data-hf-id="hf-btvz" class="proof-rail">
-        <div data-hf-id="hf-vojq" id="b08-proof-a" class="proof-cell"><p data-hf-id="hf-y0z4" class="proof">Cloud ingest</p><p data-hf-id="hf-efqh" class="value">159 written · 159 accepted</p></div>
-        <div data-hf-id="hf-rqfp" id="b08-proof-b" class="proof-cell"><p data-hf-id="hf-0zfd" class="proof">Index</p><p data-hf-id="hf-n579" class="value violet">159 indexed</p></div>
-        <div data-hf-id="hf-qyrw" id="b08-proof-c" class="proof-cell"><p data-hf-id="hf-hgvd" class="proof">Refused</p><p data-hf-id="hf-a954" class="value">0 records</p></div>
-        <div data-hf-id="hf-eg9f" id="b08-proof-d" class="proof-cell"><p data-hf-id="hf-3c8d" class="proof">Read-back</p><p data-hf-id="hf-2ir4" class="value">sample + index match</p></div>
-      </div>
-      <p data-hf-id="hf-1o7n" class="source">SOURCE · artifacts/hydra/cloud-ingest.json</p>
-    </section>
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    const b08 = gsap.timeline({paused:true});
-    b08.addLabel("split",0)
-      .fromTo("#b08-evidence",{x:-170,rotationY:7,opacity:0},{x:0,rotationY:0,opacity:1,duration:1.25,ease:"power3.out"},0.1)
-      .fromTo("#b08-claims",{x:180,rotationY:-7,opacity:0},{x:0,rotationY:0,opacity:1,duration:1.25,ease:"power3.out"},0.65)
-      .fromTo("#b08-evidence-screen",{x:-12,y:0,scale:1.025},{x:7,y:-6,scale:1.045,duration:16.2,ease:"none"},0)
-      .fromTo("#b08-claims-screen",{x:10,y:-4,scale:1.035},{x:-10,y:3,scale:1.055,duration:16.2,ease:"none"},0.2)
-      .fromTo("#b08-evidence-plate",{x:-28,opacity:0},{x:0,opacity:1,duration:.65,ease:"power3.out"},1.5)
-      .fromTo("#b08-claims-plate",{x:28,opacity:0},{x:0,opacity:1,duration:.65,ease:"power3.out"},2.05)
-      .fromTo("#b08-sessions",{innerText:0},{innerText:72,snap:{innerText:1},duration:1.1,ease:"power2.out"},1.55)
-      .fromTo("#b08-entities",{innerText:0},{innerText:86,snap:{innerText:1},duration:1.1,ease:"power2.out"},2.1)
-      .fromTo("#b08-claims-count",{innerText:0},{innerText:174,snap:{innerText:1},duration:1.2,ease:"power2.out"},2.25)
-      .fromTo("#b08-relation-a",{strokeDashoffset:480,opacity:0},{strokeDashoffset:0,opacity:1,duration:2.2,ease:"power2.inOut"},3.1)
-      .fromTo("#b08-relation-b",{strokeDashoffset:560,opacity:0},{strokeDashoffset:0,opacity:1,duration:2.4,ease:"power2.inOut"},4.05)
-      .fromTo("#b08-proof-a",{y:24,opacity:0},{y:0,opacity:1,duration:.55,ease:"power3.out"},6.35)
-      .fromTo("#b08-proof-b",{y:24,opacity:0},{y:0,opacity:1,duration:.55,ease:"power3.out"},6.8)
-      .fromTo("#b08-proof-c",{y:24,opacity:0},{y:0,opacity:1,duration:.55,ease:"power3.out"},7.25)
-      .fromTo("#b08-proof-d",{y:24,opacity:0},{y:0,opacity:1,duration:.55,ease:"power3.out"},7.7)
-      .fromTo("#b08-scope",{scale:.94,opacity:0},{scale:1,opacity:1,duration:.9,ease:"power3.out"},9.25)
-      .to("#b08-scope",{borderColor:"rgba(128,82,255,.95)",duration:1.4,ease:"power1.inOut",repeat:3,yoyo:true},10.2)
-      .to("#b08-relation-a, #b08-relation-b",{strokeDashoffset:-42,duration:4.7,ease:"none"},12.1);
-    window.__timelines["beat-08-hydradb"] = b08;
-  </script>
-</body>
+
+      <script>
+        (() => {
+          const id = "beat-08-hydradb";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.addLabel("provenance", 0);
+          tl.fromTo("#b08-proof-camera", { scale: 1, x: 0, y: 0 }, {
+            scale: 1.12, x: -56, y: 24, duration: 6.8, ease: "power1.inOut"
+          }, 0.15);
+          tl.fromTo("#b08-focus-line", { scaleX: 0, opacity: 0 }, {
+            scaleX: 1, opacity: 1, duration: 1.1, ease: "power3.out"
+          }, 0.3);
+          tl.to("#b08-focus-line", { y: 610, duration: 5.9, ease: "power1.inOut" }, 1.2);
+
+          tl.addLabel("graph-walk", 7.15);
+          tl.to("#b08-proof-stage", { y: -1080, duration: 0.65, ease: "power3.inOut" }, "graph-walk");
+          tl.fromTo("#b08-walk-stage", { y: 1080, opacity: 1 }, {
+            y: 0, opacity: 1, duration: 0.65, ease: "power3.inOut", immediateRender: false
+          }, "graph-walk");
+          tl.fromTo("#b08-walk-camera", { scale: 1, x: 0, y: 0 }, {
+            scale: 1.17, x: -88, y: -46, duration: 8.9, ease: "power1.inOut", immediateRender: false
+          }, 7.82);
+          tl.fromTo("#b08-walk-caption", { x: -24, opacity: 0 }, {
+            x: 0, opacity: 1, duration: 0.62, ease: "power3.out", immediateRender: false
+          }, 8.0);
+
+          tl.addLabel("handoff", 15.55);
+          tl.fromTo("#b08-handoff", { scaleX: 0, opacity: 1 }, {
+            scaleX: 1, opacity: 1, duration: 1.25, ease: "power3.inOut", immediateRender: false
+          }, "handoff");
+
+          window.__timelines = window.__timelines || {};
+          window.__timelines[id] = tl;
+        })();
+      </script>
+    </template>
+  </body>
 </html>

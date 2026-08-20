@@ -79,8 +79,14 @@ cannot atomically enforce a unique email; existing password sign-in remains.
 
 The continuity artifact proves agreement among Lacuna's deployed web endpoint,
 its CLI, and its MCP process. It is not evidence that ChatGPT or Claude has
-connected. No ChatGPT/Claude cross-client result, Supademo walkthrough, accepted
-final MP4, YouTube upload, Spotify sync, or other native connector is claimed.
+connected. A metadata-verified 179-second final-candidate MP4 exists locally
+with the Vaibhav Lalwani Professional narration and burned-in sentence captions.
+It is not owner-approved or published. No ChatGPT/Claude cross-client result,
+Supademo walkthrough, YouTube upload, Spotify sync, or other native connector is
+claimed.
+
+The final-candidate visual audit is preserved as
+[three contact sheets and eight key frames](artifacts/video/judges-master/).
 
 **Thirty seconds, no account.** Open
 [lacuna-five.vercel.app](https://lacuna-five.vercel.app) and ask it something in

@@ -1,32 +1,42 @@
 {
-  "file": "video/hyperframes/renders/lacuna-demo-master.mp4",
-  "sha256": "da9434324b1e325788dec483031a92306cf5f5c4cb7ada06eda7da13304ed996",
-  "bytes": 44728039,
-  "seconds": 173.5,
+  "file": "video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4",
+  "sha256": "c941fda5f1d40856fbcb1c2d18816c6e4c917924740b78b80351d940e5bdfd28",
+  "bytes": 126468170,
+  "seconds": 179.0,
   "video": {
     "codec": "h264",
     "width": 1920,
     "height": 1080,
-    "fps": "30/1"
+    "fps": 30
   },
   "audio": {
-    "codec": "aac",
-    "channels": 2,
-    "sampleRate": "48000",
-    "targetLufs": -16,
-    "truePeakDb": -1.5
+    "present": true,
+    "source": "video/hyperframes/assets/narration-vaibhav/lacuna-v8-vaibhav.mp3"
   },
-  "captions": "mov_text track plus video/hyperframes/renders/lacuna-demo.srt",
-  "capturedFrom": "https://lacuna-five.vercel.app",
+  "captions": {
+    "mode": "burned_in_sentence_timing",
+    "source": "video/hyperframes/compositions/captions.html",
+    "sidecar": "video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.srt"
+  },
   "narration": {
     "provider": "ElevenLabs",
-    "voice": "George",
-    "model": "eleven_multilingual_v2"
+    "voice": "Vaibhav Lalwani Professional",
+    "voiceId": "GAeq3X4y41cIseBkBfsS",
+    "model": "eleven_multilingual_v2",
+    "sourceSeconds": 177.3975,
+    "sourceSha256": "FF7472F1C136C7C4FAE8C72F09F90D6D74EA503366D6CDD3F2F398F6604A263A"
   },
   "ceilingSeconds": 180,
-  "scenes": 15,
-  "includes": [
-    "live product captures",
-    "the recorded npm run continuity transcript"
-  ]
+  "scenes": 11,
+  "reviewFrames": [
+    "artifacts/video/judges-master/contact-sheet-1.jpg",
+    "artifacts/video/judges-master/contact-sheet-2.jpg",
+    "artifacts/video/judges-master/contact-sheet-3.jpg"
+  ],
+  "renderStatus": "validated_final_candidate",
+  "repositoryTracking": "ignored_generated_output",
+  "ownerApproval": false,
+  "published": false,
+  "verifiedOn": "2026-08-20",
+  "verification": "HyperFrames artifact validation, full ffmpeg H.264/AAC decode, audio-tail check through 177.3975 seconds, and local SHA-256"
 }

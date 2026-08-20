@@ -61,10 +61,10 @@ deployment and an external-client issue/use/revoke probe remain.
 
 | Gate | Result |
 | --- | --- |
-| unit suite, current candidate | 79 files, 1,344 tests, all passed |
+| unit suite, current candidate | 79 files, 1,345 tests, all passed |
 | root TypeScript | passed |
 | web TypeScript | passed |
-| production web build | passed; 104 modules; entry 282.09 kB / 92.64 kB gzip |
+| production web build | passed; 104 modules; entry 282.06 kB / 92.63 kB gzip |
 | npm audit | zero known vulnerabilities at the recorded run |
 | public production health | HTTP 200 |
 | production web smoke | 9/9 passed against the acceptance deployment |
@@ -77,11 +77,12 @@ deployment and an external-client issue/use/revoke probe remain.
 | normal-motion route matrix | 198/198: 22 routes × 9 viewports, clean |
 | reduced-motion route matrix | 198/198: 22 routes × 9 viewports, clean |
 | graph, proof, agents and voice axe | 0 WCAG A/AA violations |
-| video composition preview | 18 scenes, 175.2 seconds; runtime/layout/motion clean and 16/16 contrast samples AA; user rejected its visual quality and it is not the final film |
+| final-candidate video | 11 scenes, 179.0 seconds, 1920x1080 at 30 fps, audio present; one second under the three-minute limit; HyperFrames artifact validation passed; owner approval pending |
 
-The repository contains an older draft MP4, a 175.2-second composition preview,
-and an SRT. There is no accepted final master, no Supademo walkthrough, and no
-YouTube link. ChatGPT and Claude have not been run against Lacuna. The existing
+The repository contains a metadata-verified 179-second final candidate with the
+verified Vaibhav Lalwani Professional narration and burned-in sentence captions.
+There is no owner-approved submission master, Supademo walkthrough, or YouTube
+link. ChatGPT and Claude have not been run against Lacuna. The existing
 continuity artifact covers Lacuna web, CLI and MCP, not those products.
 
 ## Named limitations

@@ -3,301 +3,35 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1920, height=1080">
-    <title>Lacuna — memory that knows what changed</title>
+    <title>Lacuna V8 · Three-minute pitch and demo</title>
     <script src="node_modules/gsap/dist/gsap.min.js"></script>
     <style>
-      @font-face {
-        font-family: 'Space Grotesk';
-        src: url('assets/fonts/space-grotesk-latin.woff2') format('woff2');
-        font-weight: 300 700;
-        font-display: block;
-      }
-      @font-face {
-        font-family: 'JetBrains Mono';
-        src: url('assets/fonts/jetbrains-mono-latin.woff2') format('woff2');
-        font-weight: 400 500;
-        font-display: block;
-      }
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000000; }
-      body { font-family: 'Space Grotesk', system-ui, sans-serif; color: #FFFFFF; }
-      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
-      .ground { position: absolute; inset: 0; background: #000000; }
-      .scene { position: absolute; inset: 0; overflow: hidden; }
-      .stack { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 30px; padding: 0 150px; }
-      .stack.center { align-items: center; text-align: center; }
-      .stack.left { align-items: flex-start; }
-      .hero { font-size: 104px; font-weight: 300; line-height: 1.08; letter-spacing: -0.03em; }
-      .hero span { display: block; }
-      .big { font-size: 76px; font-weight: 300; letter-spacing: -0.02em; }
-      .line { font-size: 34px; font-weight: 300; color: #BDBDBD; }
-      .url { font-family: 'JetBrains Mono', monospace; font-size: 34px; color: #8052FF; letter-spacing: 0.02em; }
-      .kicker { font-family: 'JetBrains Mono', monospace; font-size: 17px; letter-spacing: 0.24em; color: #757575; }
-      .kicker.violet { color: #8052FF; }
-      .mark { display: block; width: 112px; height: 112px; background: center / contain no-repeat url('assets/favicon.svg'); }
-      .sources { list-style: none; display: flex; flex-direction: column; gap: 22px; width: 100%; max-width: 1300px; }
-      .sources li { display: flex; align-items: baseline; gap: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
-      .src { font-size: 34px; color: #BDBDBD; width: 300px; }
-      .val { font-size: 40px; font-weight: 300; flex: 1; }
-      .tag { font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 0.2em; color: #8C8C8C; }
-      .tag.amber { color: #FFB829; }
-      .pipe { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
-      .node { font-family: 'JetBrains Mono', monospace; font-size: 21px; letter-spacing: 0.16em; color: #BDBDBD; border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 18px 26px; }
-      .node.violet { color: #FFFFFF; border-color: #8052FF; }
-      .arrow { color: #757575; font-size: 30px; }
-      .terminal { font-family: 'JetBrains Mono', monospace; font-size: 21px; line-height: 1.85; color: #BDBDBD; border-left: 2px solid rgba(128,82,255,0.5); padding-left: 28px; }
-      /* The whitespace belongs on the line, not the block: pre on the container renders the template's own newlines as blank lines. */
-      .tline { white-space: pre; min-height: 1.2em; }
-      .tline.ok { color: #FFFFFF; }
-      .tline.win { color: #8052FF; font-size: 27px; padding-top: 16px; }
-      .bench { border-collapse: collapse; width: 100%; max-width: 1250px; }
-      .bench td { font-size: 40px; font-weight: 300; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #BDBDBD; }
-      .bench .num { font-family: 'JetBrains Mono', monospace; font-size: 34px; text-align: right; width: 300px; color: #FFFFFF; }
-      .bench .num.dim { color: #8C8C8C; }
-      .bench .win td { color: #FFFFFF; border-bottom-color: #8052FF; }
-      .bench .win .num { color: #8052FF; }
-      .pan { position: absolute; top: 0; left: 0; width: 2880px; height: 3516px; }
-      .full { position: absolute; top: 0; left: 0; width: 2880px; height: 1620px; }
-      .band { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; background: #000000; border-top: 1px solid rgba(128,82,255,0.5); }
-      .caption { position: absolute; left: 120px; bottom: 74px; display: flex; flex-direction: column; gap: 16px; max-width: 1100px; }
-      .caption .note { font-size: 40px; font-weight: 300; color: #FFFFFF; line-height: 1.2; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      .clip { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      .overlay { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; pointer-events: none; }
     </style>
   </head>
   <body>
-    <div data-hf-id="hf-jns6" id="root" data-composition-id="lacuna" data-start="0" data-width="1920" data-height="1080" data-duration="175.2" data-fps="30">
-      <div data-hf-id="hf-ygft" class="ground"></div>
-      <section data-hf-id="hf-aibf" id="s01" class="clip scene open" data-start="0.8" data-duration="5.38" data-track-index="1">
-        <div data-hf-id="hf-6z2j" class="stack center">
-          <div data-hf-id="hf-8htp" id="s01-mark" class="mark" aria-hidden="true"></div>
-          <h1 data-hf-id="hf-jgwl" id="s01-h" class="hero"><span data-hf-id="hf-hjy3">Memory that knows</span><span data-hf-id="hf-r7lv">what changed.</span></h1>
-          <p data-hf-id="hf-e3ot" id="s01-k" class="kicker">CONTEXT FOR LONG RUNNING AGENTS</p>
-        </div>
-      </section>
-      <section data-hf-id="hf-cq3o" id="s02" class="clip scene problem" data-start="6.18" data-duration="15.04" data-track-index="1">
-        <div data-hf-id="hf-rt4z" class="stack left">
-          <p data-hf-id="hf-puur" class="kicker">ONE QUESTION, FOUR ANSWERS STILL IN MEMORY</p>
-          <ul data-hf-id="hf-h48a" class="sources">
-            <li data-hf-id="hf-w6ma" id="s02-a"><span data-hf-id="hf-ym83" class="src">README</span><span data-hf-id="hf-z5rl" class="val">Redis</span><span data-hf-id="hf-m04o" class="tag">STALE</span></li>
-            <li data-hf-id="hf-s8i9" id="s02-b"><span data-hf-id="hf-bfzx" class="src">Slack thread</span><span data-hf-id="hf-o4ie" class="val">Postgres?</span><span data-hf-id="hf-z1bl" class="tag">PROPOSAL</span></li>
-            <li data-hf-id="hf-rgug" id="s02-c"><span data-hf-id="hf-1c3v" class="src">Pull request</span><span data-hf-id="hf-7dm5" class="val">Postgres</span><span data-hf-id="hf-d5iq" class="tag amber">IMPLEMENTED</span></li>
-            <li data-hf-id="hf-niqf" id="s02-d"><span data-hf-id="hf-39g3" class="src">Runbook</span><span data-hf-id="hf-ouap" class="val">Postgres</span><span data-hf-id="hf-1f1n" class="tag amber">CONFIRMED</span></li>
-          </ul>
-          <p data-hf-id="hf-jzgg" id="s02-q" class="line">Where does session state live now?</p>
-        </div>
-      </section>
-      <section data-hf-id="hf-xesp" id="s03" class="clip scene project" data-start="21.22" data-duration="11.79" data-track-index="1">
-        <div data-hf-id="hf-18lf" class="stack left">
-          <p data-hf-id="hf-9n36" class="kicker">LACUNA · BUILT ON HYDRADB</p>
-          <div data-hf-id="hf-a338" class="pipe">
-            <span data-hf-id="hf-rjq1" id="s03-1" class="node">CONVERSATIONS</span>
-            <span data-hf-id="hf-nm13" id="s03-2" class="arrow">→</span>
-            <span data-hf-id="hf-bo5w" id="s03-3" class="node">CLAIMS · TIME · SOURCE</span>
-            <span data-hf-id="hf-8ckh" id="s03-4" class="arrow">→</span>
-            <span data-hf-id="hf-41ne" id="s03-5" class="node violet">ANSWER · EVIDENCE</span>
-          </div>
-          <p data-hf-id="hf-ti5c" id="s03-l" class="line">Answers come from the claims, not from the text.</p>
-        </div>
-      </section>
-      <section data-hf-id="hf-ts9h" id="s14" class="clip scene shot" data-start="33.01" data-duration="10.77" data-track-index="1">
-        <img data-hf-id="hf-atne" id="s14-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-extract-1920x1080.png" alt="">
-        <div data-hf-id="hf-a71x" class="band"></div>
-        <div data-hf-id="hf-h5tr" id="s14-cap" class="caption">
-          <span data-hf-id="hf-32sx" class="kicker violet">PROSE INTO CLAIMS</span>
-          <span data-hf-id="hf-0wae" class="note">A proposal and a forged instruction, filed where no answer reads them</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-b4pt" id="s04" class="clip scene judge" data-start="43.78" data-duration="9.14" data-track-index="1">
-        <img data-hf-id="hf-jlfq" id="s04-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="">
-        <div data-hf-id="hf-dvmx" class="band"></div>
-        <div data-hf-id="hf-o6jo" id="s04-cap" class="caption">
-          <span data-hf-id="hf-ifhp" class="kicker violet">CURRENT STATE</span>
-          <span data-hf-id="hf-8ykd" class="note">Answered, and the sources it rests on.</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-hzmq" id="s05" class="clip scene judge" data-start="52.92" data-duration="10.07" data-track-index="1">
-        <img data-hf-id="hf-jl1t" id="s05-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="">
-        <div data-hf-id="hf-f2k0" class="band"></div>
-        <div data-hf-id="hf-abkt" id="s05-cap" class="caption">
-          <span data-hf-id="hf-8ekx" class="kicker violet">REVISED</span>
-          <span data-hf-id="hf-ba1f" class="note">The replaced value stays readable as history.</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-kiyx" id="s06" class="clip scene judge" data-start="62.99" data-duration="9.61" data-track-index="1">
-        <img data-hf-id="hf-jk6s" id="s06-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="">
-        <div data-hf-id="hf-eo8z" class="band"></div>
-        <div data-hf-id="hf-ryl2" id="s06-cap" class="caption">
-          <span data-hf-id="hf-yth9" class="kicker violet">SOURCES DISAGREE</span>
-          <span data-hf-id="hf-zha9" class="note">Both kept. Neither picked.</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-n4rw" id="s07" class="clip scene judge" data-start="72.6" data-duration="7.66" data-track-index="1">
-        <img data-hf-id="hf-g21z" id="s07-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="">
-        <div data-hf-id="hf-copu" class="band"></div>
-        <div data-hf-id="hf-24dr" id="s07-cap" class="caption">
-          <span data-hf-id="hf-cymx" class="kicker violet">NO EVIDENCE</span>
-          <span data-hf-id="hf-loyv" class="note">A value nobody ever stated.</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-8wx0" id="s08" class="clip scene judge" data-start="80.26" data-duration="8.87" data-track-index="1">
-        <img data-hf-id="hf-p3pm" id="s08-img" class="pan" data-layout-allow-overflow="true" src="assets/screens/live-judge-fullpage.png" alt="">
-        <div data-hf-id="hf-caet" class="band"></div>
-        <div data-hf-id="hf-otjc" id="s08-cap" class="caption">
-          <span data-hf-id="hf-pz7d" class="kicker violet">TWO HOPS</span>
-          <span data-hf-id="hf-u4tf" class="note">The answer is on a second entity.</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-qwyl" id="s09" class="clip scene continuity" data-start="89.13" data-duration="16.2" data-track-index="1">
-        <div data-hf-id="hf-0uae" class="stack left">
-          <p data-hf-id="hf-g30m" class="kicker">npm run continuity · artifacts/continuity/one-context.json</p>
-          <div data-hf-id="hf-1ms0" class="terminal">
-            <div data-hf-id="hf-xoh7" id="s09-l0" class="tline">  web    https://lacuna-five.vercel.app</div>
-            <div data-hf-id="hf-a559" id="s09-l1" class="tline">  cli    this machine, LACUNA_PROFILE=cloud</div>
-            <div data-hf-id="hf-hbo7" id="s09-l2" class="tline">  mcp    subprocess over stdio, LACUNA_PROFILE=cloud</div>
-            <div data-hf-id="hf-bnvp" id="s09-l3" class="tline">  store  HydraDB Cloud, database lacuna, collection backend</div>
-            <div data-hf-id="hf-ux4j" id="s09-l4" class="tline">lacuna 0.1.0 on stdio, namespace lacuna, graph backend</div>
-            <div data-hf-id="hf-ajh9" id="s09-l5" class="tline ok">ok    q-stable-01           ANSWERED    25 July 2026              1 cited</div>
-            <div data-hf-id="hf-rnqc" id="s09-l6" class="tline ok">ok    q-revised-01          ANSWERED    Halverd                   1 cited</div>
-            <div data-hf-id="hf-eec4" id="s09-l7" class="tline ok">ok    q-retracted-01        NO_EVIDENCE retracted                 2 cited</div>
-            <div data-hf-id="hf-stum" id="s09-l8" class="tline ok">ok    q-contradicted-01     CONFLICT    contradicted              2 cited</div>
-            <div data-hf-id="hf-q3n9" id="s09-l9" class="tline ok">ok    q-multi_hop-01        ANSWERED    Farah Haddad              2 cited</div>
-            <div data-hf-id="hf-dew4" id="s09-l10" class="tline ok">ok    q-out_of_scope-01     NO_EVIDENCE out_of_scope              0 cited</div>
-            <div data-hf-id="hf-qgfh" id="s09-l11" class="tline win">ONE_CONTEXT_IDENTICAL: true</div>
-          </div>
-        </div>
-      </section>
-      <section data-hf-id="hf-16gp" id="s16" class="clip scene shot" data-start="105.33" data-duration="4.6" data-track-index="1">
-        <img data-hf-id="hf-0mrg" id="s16-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-graph-v8-1920x1080.png" alt="">
-        <div data-hf-id="hf-dhbw" class="band"></div>
-        <div data-hf-id="hf-8sx9" id="s16-cap" class="caption">
-          <span data-hf-id="hf-k1wb" class="kicker violet">453 NODES · 682 EDGES</span>
-          <span data-hf-id="hf-4zxr" class="note">Interactive overview · exact proof DAG · the same field as a readable table</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-a7y2" id="s17" class="clip scene shot" data-start="109.93" data-duration="4.6" data-track-index="1">
-        <img data-hf-id="hf-suyj" id="s17-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-agents-v8-1920x1080.png" alt="">
-        <div data-hf-id="hf-d30v" class="band"></div>
-        <div data-hf-id="hf-hgc4" id="s17-cap" class="caption">
-          <span data-hf-id="hf-s2hk" class="kicker violet">GOVERNED AGENT RUNTIME</span>
-          <span data-hf-id="hf-sn0f" class="note">Researcher → Reviewer · eight persisted events · no authoritative writeback</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-06bn" id="s18" class="clip scene shot" data-start="114.53" data-duration="4.6" data-track-index="1">
-        <img data-hf-id="hf-1z2g" id="s18-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-voice-v8-1920x1080.png" alt="">
-        <div data-hf-id="hf-b3hq" class="band"></div>
-        <div data-hf-id="hf-m1er" id="s18-cap" class="caption">
-          <span data-hf-id="hf-upey" class="kicker violet">ROUTE READY · PROVIDER NOT CONFIGURED</span>
-          <span data-hf-id="hf-57o3" class="note">Vaibhav Lalwani Professional selected · exact provider STT and TTS still awaiting verification</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-w6qu" id="s10" class="clip scene shot" data-start="119.13" data-duration="12.58" data-track-index="1">
-        <img data-hf-id="hf-556d" id="s10-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-top-1920x1080.png" alt="">
-        <div data-hf-id="hf-ap6p" class="band"></div>
-        <div data-hf-id="hf-udzv" id="s10-cap" class="caption">
-          <span data-hf-id="hf-4d2a" class="kicker violet">HYDRADB CLOUD</span>
-          <span data-hf-id="hf-jeme" class="note">72 conversations as evidence · 86 entity records as claims</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-6ywt" id="s15" class="clip scene shot" data-start="131.71" data-duration="12.58" data-track-index="1">
-        <img data-hf-id="hf-3pq6" id="s15-img" class="full" data-layout-allow-overflow="true" src="assets/screens/live-hydradb-1920x1080.png" alt="">
-        <div data-hf-id="hf-18gr" class="band"></div>
-        <div data-hf-id="hf-6vza" id="s15-cap" class="caption">
-          <span data-hf-id="hf-zow5" class="kicker violet">THE STORE'S OWN GRAPH</span>
-          <span data-hf-id="hf-sfgk" class="note">21 edges reached · 10 of them sentences saying nothing happened</span>
-        </div>
-      </section>
-      <section data-hf-id="hf-d1fw" id="s11" class="clip scene bench" data-start="144.29" data-duration="13.88" data-track-index="1">
-        <div data-hf-id="hf-0fzd" class="stack left">
-          <p data-hf-id="hf-hzfe" class="kicker">64 GOLD QUESTIONS · FIVE RETRIEVAL BASELINES · artifacts/bench/results.json</p>
-          <table data-hf-id="hf-5lxn" class="bench">
-            <tr data-hf-id="hf-b5cl" id="s11-r1"><td data-hf-id="hf-8dju">recency</td><td data-hf-id="hf-afrl" class="num">46</td><td data-hf-id="hf-09th" class="num dim">1029 tokens</td></tr>
-            <tr data-hf-id="hf-f3gm" id="s11-r2"><td data-hf-id="hf-uwsi">vector</td><td data-hf-id="hf-au2m" class="num">47</td><td data-hf-id="hf-q8mv" class="num dim">1311 tokens</td></tr>
-            <tr data-hf-id="hf-j1kn" id="s11-r3"><td data-hf-id="hf-0muf">lexical</td><td data-hf-id="hf-ctlr" class="num">48</td><td data-hf-id="hf-t4wf" class="num dim">516 tokens</td></tr>
-            <tr data-hf-id="hf-mzoo" id="s11-r4"><td data-hf-id="hf-hn1f">hybrid</td><td data-hf-id="hf-nb6n" class="num">48</td><td data-hf-id="hf-9k09" class="num dim">529 tokens</td></tr>
-            <tr data-hf-id="hf-nrch" id="s11-r5"><td data-hf-id="hf-ev5b">hybrid + 2 hop</td><td data-hf-id="hf-9ar0" class="num">63</td><td data-hf-id="hf-uo19" class="num dim">1843 tokens</td></tr>
-            <tr data-hf-id="hf-mgnz" id="s11-r6" class="win"><td data-hf-id="hf-gizv">Lacuna</td><td data-hf-id="hf-9p21" class="num">64</td><td data-hf-id="hf-jqog" class="num">18 tokens</td></tr>
-          </table>
-        </div>
-      </section>
-      <section data-hf-id="hf-hzyk" id="s12" class="clip scene parity" data-start="158.17" data-duration="8.77" data-track-index="1">
-        <div data-hf-id="hf-cup7" class="stack center">
-          <p data-hf-id="hf-ud0w" class="kicker">SELF HOSTED NODE VERSUS HYDRADB CLOUD</p>
-          <h2 data-hf-id="hf-mqe3" id="s12-h" class="big">ALL_IDENTICAL: true</h2>
-          <p data-hf-id="hf-a5u3" id="s12-l" class="line">64 questions, compared field by field. artifacts/hydra/cloud-parity.json</p>
-        </div>
-      </section>
-      <section data-hf-id="hf-1wfh" id="s13" class="clip scene close" data-start="166.94" data-duration="7.66" data-track-index="1">
-        <div data-hf-id="hf-cge6" class="stack center">
-          <div data-hf-id="hf-7jhm" id="s13-mark" class="mark" aria-hidden="true"></div>
-          <h2 data-hf-id="hf-2f0b" id="s13-h" class="big">One context. Any agent.</h2>
-          <p data-hf-id="hf-u42a" id="s13-u" class="url">lacuna-five.vercel.app/judge</p>
-          <p data-hf-id="hf-971v" id="s13-r" class="kicker">github.com/vaibhav4046/lacuna</p>
-        </div>
-      </section>
-    </div>
+    <main data-hf-id="hf-vwq8" id="root" data-composition-id="lacuna-v8-film" data-start="0" data-width="1920" data-height="1080" data-duration="179" data-fps="30">
+      <div data-hf-id="hf-ug5v" id="host-beat-01" class="clip" data-composition-id="beat-01-aperture" data-composition-src="compositions/beat-01-aperture.html" data-start="0" data-duration="9" data-track-index="1"></div>
+      <div data-hf-id="hf-i2a1" id="host-beat-02" class="clip" data-composition-id="beat-02-problem" data-composition-src="compositions/beat-02-problem.html" data-start="9" data-duration="18" data-track-index="1"></div>
+      <div data-hf-id="hf-t1le" id="host-beat-03" class="clip" data-composition-id="beat-03-architecture" data-composition-src="compositions/beat-03-architecture.html" data-start="27" data-duration="16" data-track-index="1"></div>
+      <div data-hf-id="hf-3bzw" id="host-beat-04" class="clip" data-composition-id="beat-04-demo" data-composition-src="compositions/beat-04-demo.html" data-start="43" data-duration="19" data-track-index="1"></div>
+      <div data-hf-id="hf-5eov" id="host-beat-05" class="clip" data-composition-id="beat-05-graph" data-composition-src="compositions/beat-05-graph.html" data-start="62" data-duration="18" data-track-index="1"></div>
+      <div data-hf-id="hf-z98l" id="host-beat-06" class="clip" data-composition-id="beat-06-agents" data-composition-src="compositions/beat-06-agents.html" data-start="80" data-duration="19" data-track-index="1"></div>
+      <div data-hf-id="hf-bo62" id="host-beat-09" class="clip" data-composition-id="beat-09-everywhere" data-composition-src="compositions/beat-09-everywhere.html" data-start="99" data-duration="20" data-track-index="1"></div>
+      <div data-hf-id="hf-8xi8" id="host-beat-07" class="clip" data-composition-id="beat-07-voice" data-composition-src="compositions/beat-07-voice.html" data-start="119" data-duration="12" data-track-index="1"></div>
+      <div data-hf-id="hf-0f6k" id="host-beat-08" class="clip" data-composition-id="beat-08-hydradb" data-composition-src="compositions/beat-08-hydradb.html" data-start="131" data-duration="17" data-track-index="1"></div>
+      <div data-hf-id="hf-ltpl" id="host-beat-10" class="clip" data-composition-id="beat-10-proof" data-composition-src="compositions/beat-10-proof.html" data-start="148" data-duration="19" data-track-index="1"></div>
+      <div data-hf-id="hf-sr3t" id="host-beat-11" class="clip" data-composition-id="beat-11-close" data-composition-src="compositions/beat-11-close.html" data-start="167" data-duration="12" data-track-index="1"></div>
+      <audio data-hf-id="hf-00m9" id="narration-vaibhav" src="assets/narration-vaibhav/lacuna-v8-vaibhav.mp3" data-start="0" data-duration="177.3975" data-track-index="2"></audio>
+      <div data-hf-id="hf-z8u9" id="host-captions" class="overlay" data-composition-id="lacuna-captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="179" data-track-index="3"></div>
+    </main>
     <script>
       window.__timelines = window.__timelines || {};
-      const tl = gsap.timeline({ paused: true });
-  tl.fromTo("#s01-mark", { scale: 0.7, rotation: -18, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 1.1, ease: "power3.out" }, 0.9);
-  tl.fromTo("#s01-h", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: "power3.out" }, 1.3);
-  tl.fromTo("#s01-k", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 2.2);
-  tl.fromTo("#s02-a", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 6.779999999999999);
-  tl.fromTo("#s02-b", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 8.28);
-  tl.fromTo("#s02-c", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 9.78);
-  tl.fromTo("#s02-d", { x: -34, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 11.28);
-  tl.fromTo("#s02-q", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 13.58);
-  tl.fromTo("#s03-1", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 21.919999999999998);
-  tl.fromTo("#s03-2", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 22.619999999999997);
-  tl.fromTo("#s03-3", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 23.319999999999997);
-  tl.fromTo("#s03-4", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 24.019999999999996);
-  tl.fromTo("#s03-5", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 24.72);
-  tl.fromTo("#s03-l", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 26.419999999999998);
-  tl.fromTo("#s14-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 10.77, ease: "none" }, 33.01);
-  tl.fromTo("#s14-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 33.309999999999995);
-  tl.fromTo("#s04-img", { x: -560, y: -492 }, { x: -560, y: -462, duration: 9.14, ease: "none" }, 43.78);
-  tl.fromTo("#s04-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 44.08);
-  tl.fromTo("#s05-img", { x: -560, y: -932 }, { x: -560, y: -902, duration: 10.07, ease: "none" }, 52.92);
-  tl.fromTo("#s05-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 53.22);
-  tl.fromTo("#s06-img", { x: -560, y: -1352 }, { x: -560, y: -1322, duration: 9.61, ease: "none" }, 62.99);
-  tl.fromTo("#s06-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 63.29);
-  tl.fromTo("#s07-img", { x: -560, y: -2252 }, { x: -560, y: -2222, duration: 7.66, ease: "none" }, 72.6);
-  tl.fromTo("#s07-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 72.89999999999999);
-  tl.fromTo("#s08-img", { x: -560, y: -2652 }, { x: -560, y: -2622, duration: 8.87, ease: "none" }, 80.26);
-  tl.fromTo("#s08-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 80.56);
-  tl.fromTo("#s09-l0", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 89.73);
-tl.fromTo("#s09-l1", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 90.35);
-tl.fromTo("#s09-l2", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 90.97);
-tl.fromTo("#s09-l3", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 91.59);
-tl.fromTo("#s09-l4", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 92.21);
-tl.fromTo("#s09-l5", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 92.83);
-tl.fromTo("#s09-l6", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 93.45);
-tl.fromTo("#s09-l7", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 94.07);
-tl.fromTo("#s09-l8", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 94.69);
-tl.fromTo("#s09-l9", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 95.31);
-tl.fromTo("#s09-l10", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 95.93);
-tl.fromTo("#s09-l11", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "none" }, 96.55);
-  tl.fromTo("#s16-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 4.6, ease: "none" }, 105.33);
-  tl.fromTo("#s16-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 105.63);
-  tl.fromTo("#s17-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 4.6, ease: "none" }, 109.93);
-  tl.fromTo("#s17-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 110.23);
-  tl.fromTo("#s18-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 4.6, ease: "none" }, 114.53);
-  tl.fromTo("#s18-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 114.83);
-  tl.fromTo("#s10-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 12.58, ease: "none" }, 119.13);
-  tl.fromTo("#s10-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 119.42999999999999);
-  tl.fromTo("#s15-img", { x: -637, y: -60 }, { x: -663, y: -74, duration: 12.58, ease: "none" }, 131.71);
-  tl.fromTo("#s15-cap", { x: -26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 132.01000000000002);
-  tl.fromTo("#s11-r1", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 145.19);
-  tl.fromTo("#s11-r2", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 146.54);
-  tl.fromTo("#s11-r3", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 147.89);
-  tl.fromTo("#s11-r4", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 149.24);
-  tl.fromTo("#s11-r5", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 150.59);
-  tl.fromTo("#s11-r6", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 151.94);
-  tl.fromTo("#s12-h", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 158.57);
-  tl.fromTo("#s12-l", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 160.36999999999998);
-  tl.fromTo("#s13-mark", { scale: 0.8, rotation: -18, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 1, ease: "power3.out" }, 167.04);
-  tl.fromTo("#s13-h", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 167.54);
-  tl.fromTo("#s13-u", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 168.54);
-  tl.fromTo("#s13-r", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 169.34);
-      window.__timelines["lacuna"] = tl;
+      window.__timelines["lacuna-v8-film"] = gsap.timeline({ paused: true });
     </script>
   </body>
 </html>

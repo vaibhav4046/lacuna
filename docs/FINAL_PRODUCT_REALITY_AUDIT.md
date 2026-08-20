@@ -52,8 +52,9 @@ The limitations are narrower and explicit:
   not publish a Lacuna SDK, and neither surface exposes agent lifecycle
   commands.
 - The existing continuity proof is web + CLI + MCP. ChatGPT and Claude have not
-  been connected. Supademo is not assembled, and the current film is an
-  unapproved preview, not a final master.
+  been connected. Supademo is not assembled. A metadata-verified 179-second
+  judges-master candidate now exists locally, but owner approval and publication
+  remain open.
 
 Current details: `docs/FINAL_EXECUTION_STATE.md`,
 `docs/FINAL_CAPABILITY_MATRIX.md`, and `docs/SCREENSHOT_EVIDENCE_PLAN.md`.

@@ -2,13 +2,13 @@
 
 ## Last accepted production evidence: 2026-08-20
 
-These rows describe the committed acceptance build, not the later uncommitted
-OAuth, MCP, scheduler, agent-recommendation, landing, or video changes. A result
-does not transfer to the candidate until the named gate is rerun.
+These rows describe the current release candidate. Every acceptance result
+listed here was rerun against this candidate; historical results remain in the
+legacy ledger below and do not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, current candidate | 79 files, 1,344 tests passed | terminal run in the V8 execution session |
+| full unit gate, current candidate | 79 files, 1,345 tests passed | terminal run in the V8 execution session |
 | root and web typecheck | both exit 0 | terminal run in the V8 execution session |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
 | real public agent run | completed, 8 lifecycle events | production Work and Agents screens |
@@ -24,7 +24,8 @@ does not transfer to the candidate until the named gate is rerun.
 | reduced-motion production routes | 198/198 clean, 22 routes × 9 viewports | `artifacts/route-audit/routes-reduced-motion.json` |
 | exact proof DAG | production capture, visually inspected | `artifacts/screens/v8/proof-dag-final.png` |
 | older video proof-beat preview | graph, agents and voice frames; not final | `video/hyperframes/snapshots-v8/contact-sheet.jpg` |
-| older HyperFrames composition | 18 scenes, 175.2 seconds; checks passed; visual direction rejected by the owner | `video/hyperframes/meta.json` and `video/hyperframes/snapshots/` |
+| superseded HyperFrames composition | 18-scene visual direction rejected by the owner; retained only in git history | historical commits, not current release evidence |
+| final-candidate visual audit | 3 contact sheets and 8 key frames, inspected after the judges-master render | `artifacts/video/judges-master/` |
 | current production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
 
 ## Candidate acceptance gaps
@@ -34,17 +35,17 @@ does not transfer to the candidate until the named gate is rerun.
 | Google sign-in is secure | provider/subject binding, JWKS/RS256, PKCE, nonce, `no-store` redirects and negative HTTP account-merge tests | production deployment and fresh-identity browser pass |
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
-| voice works end to end | state machine and fixture-tested provider routes | ElevenLabs credentials, selected voice id, microphone/STT/TTS/interruption production session |
+| voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |
 | memory recommends agents | deterministic read-only integration, reasons/evidence/budgets and passing full unit gate | production API/UI capture and schedule-creation proof |
 | ChatGPT / Claude continuity | none; existing continuity is Lacuna web + CLI + MCP | named-client connection and same-workspace evidence capture |
 | Supademo | no published walkthrough | assemble from final production captures and verify the public link |
-| final video | an older draft MP4, SRT and 175.2-second preview | final production recapture, preview approval, render, metadata/claim review |
+| final video | metadata-verified 179-second candidate, exact narration source, burned-in sentence captions and matching SRT; see `artifacts/video/final-metadata.json` | owner full-length approval, YouTube upload and signed-out playback check |
 | YouTube | no URL | owner upload and signed-out playback check |
 
 The screenshot inventory and exact recapture requirements are in
 [SCREENSHOT_EVIDENCE_PLAN.md](SCREENSHOT_EVIDENCE_PLAN.md). Rows for cross-client
-proof, Supademo, final MP4, and YouTube are added here only after the evidence
-exists.
+proof, Supademo, owner-approved master, and YouTube are added here only after
+the evidence exists.
 
 ## Legacy evidence ledger
 

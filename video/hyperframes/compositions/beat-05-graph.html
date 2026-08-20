@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1920, height=1080">
-    <title>Lacuna — readable memory, navigable graph</title>
+    <title>Lacuna — overview to proof to row</title>
     <style>
       @font-face {
         font-family: "JetBrains Mono";
@@ -15,121 +15,154 @@
       html, body { width: 1920px; height: 1080px; margin: 0; overflow: hidden; background: #000; }
       #b05-root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
       .b05-fill { position: absolute; inset: 0; overflow: hidden; background: #000; }
-      .b05-shot { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-      #b05-memory { width: 1920px; height: 3681.3333px; }
-      #b05-graph, #b05-proof { width: 1920px; height: 1080px; opacity: 0; }
-      .b05-edge {
+      .b05-shot {
         position: absolute;
-        inset: 0;
-        pointer-events: none;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        transform-origin: 0 0;
+        will-change: transform, opacity;
       }
-      .b05-rail {
+      #b05-proof { opacity: 0; }
+      .b05-frame { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.08); pointer-events: none; }
+      .b05-nav {
         position: absolute;
-        left: 58px;
-        top: 50px;
+        left: 438px;
+        right: 58px;
+        top: 40px;
+        height: 56px;
         display: grid;
-        grid-template-columns: auto auto auto;
-        gap: 10px;
-        padding: 10px;
-        border: 1px solid rgba(255,255,255,0.16);
+        grid-template-columns: 1fr 1fr 1fr;
+        border: 1px solid rgba(255,255,255,0.15);
         background: #030303;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 13px;
+        font: 500 12px/1 "JetBrains Mono", monospace;
         letter-spacing: 0.15em;
       }
       .b05-step {
-        padding: 11px 14px;
-        border: 1px solid rgba(255,255,255,0.10);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
         color: #9a9a9a;
-        opacity: 0.48;
+        opacity: 0.38;
+        border-right: 1px solid rgba(255,255,255,0.09);
       }
-      .b05-step strong { color: #fff; font-weight: 500; }
-      .b05-corner {
+      .b05-step:last-child { border-right: 0; }
+      .b05-step strong { color: #8053ff; font-weight: 500; }
+      .b05-progress {
         position: absolute;
-        right: 58px;
-        bottom: 48px;
-        color: #bdbdbd;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 13px;
-        letter-spacing: 0.16em;
-        padding: 12px 15px;
-        border-right: 1px solid #8052ff;
-        border-bottom: 1px solid #8052ff;
-        background: #030303;
+        left: 0;
+        bottom: -1px;
+        width: 100%;
+        height: 2px;
+        background: #8053ff;
+        transform-origin: left center;
       }
-      .b05-corner span { color: #8052ff; }
+      .b05-focus {
+        position: absolute;
+        border: 1px solid #8053ff;
+        opacity: 0;
+        pointer-events: none;
+      }
+      #b05-overview-focus { left: 500px; top: 206px; width: 886px; height: 574px; }
+      #b05-proof-focus { left: 410px; top: 126px; width: 996px; height: 856px; }
+      #b05-row-focus { left: 650px; top: 334px; width: 648px; height: 104px; }
+      .b05-readout {
+        position: absolute;
+        left: 650px;
+        top: 454px;
+        padding: 10px 12px;
+        border-left: 2px solid #8053ff;
+        background: #030303;
+        color: #fff;
+        font: 500 12px/1 "JetBrains Mono", monospace;
+        letter-spacing: 0.15em;
+        opacity: 0;
+      }
     </style>
   </head>
   <body>
-    <div data-hf-id="hf-dti3" id="b05-root" data-composition-id="beat-05-graph" data-start="0" data-width="1920" data-height="1080" data-duration="18" data-fps="30">
-      <section data-hf-id="hf-wu79" id="b05-scene" class="clip b05-fill" data-start="0" data-duration="18" data-track-index="1">
-        <img data-hf-id="hf-lzy2" id="b05-memory" class="b05-shot" src="assets/screens/live-memory-fullpage.png" alt="Captured Lacuna memory inventory with readable claim, scope, source, observed date, and standing rows">
-        <img data-hf-id="hf-m2fa" id="b05-graph" class="b05-shot" src="assets/screens/live-graph-v8-1920x1080.png" alt="Captured Lacuna memory-field graph showing 453 total records, filters, navigation controls, and a readable list">
-        <img data-hf-id="hf-pfqs" id="b05-proof" class="b05-shot" src="assets/screens/live-proof-graph-v8-1920x1080.png" alt="Captured Lacuna proof graph showing source, evidence, claim, entity, and context-pack columns">
-        <div data-hf-id="hf-ea0f" class="b05-edge"></div>
-        <div data-hf-id="hf-uehk" class="b05-rail">
-          <span data-hf-id="hf-cvmw" id="b05-step-table" class="b05-step"><strong data-hf-id="hf-c73h">01</strong> READABLE INVENTORY</span>
-          <span data-hf-id="hf-hnoz" id="b05-step-field" class="b05-step"><strong data-hf-id="hf-de0k">02</strong> MEMORY FIELD</span>
-          <span data-hf-id="hf-liok" id="b05-step-proof" class="b05-step"><strong data-hf-id="hf-czpj">03</strong> PROOF GRAPH</span>
+    <div data-hf-id="b05-root" id="b05-root" data-composition-id="beat-05-graph" data-start="0" data-width="1920" data-height="1080" data-duration="18" data-fps="30">
+      <section data-hf-id="b05-scene" id="b05-scene" class="clip b05-fill" data-start="0" data-duration="18" data-track-index="1">
+        <img data-hf-id="b05-graph" id="b05-graph" class="b05-shot" src="assets/screens/live-graph-v8-1920x1080.png" alt="Captured Lacuna memory field overview with 453 total records and readable navigation list">
+        <img data-hf-id="b05-proof" id="b05-proof" class="b05-shot" src="assets/screens/live-proof-graph-v8-1920x1080.png" alt="Captured Lacuna proof graph with source, evidence, claim, entity columns and readable selected-proof rows">
+        <div data-hf-id="b05-overview-focus" id="b05-overview-focus" class="b05-focus"></div>
+        <div data-hf-id="b05-proof-focus" id="b05-proof-focus" class="b05-focus"></div>
+        <div data-hf-id="b05-row-focus" id="b05-row-focus" class="b05-focus"></div>
+        <div data-hf-id="b05-readout" id="b05-readout" class="b05-readout">SOURCE + DATE STAY BESIDE THE PROOF</div>
+        <div data-hf-id="b05-frame" class="b05-frame"></div>
+        <div data-hf-id="b05-nav" class="b05-nav" data-layout-allow-caption-zone="">
+          <span data-hf-id="b05-step-overview" id="b05-step-overview" class="b05-step"><strong data-hf-id="hf-c73h">01</strong> 453-RECORD OVERVIEW</span>
+          <span data-hf-id="b05-step-proof" id="b05-step-proof" class="b05-step"><strong data-hf-id="hf-de0k">02</strong> SOURCE → CLAIM → ENTITY</span>
+          <span data-hf-id="b05-step-row" id="b05-step-row" class="b05-step"><strong data-hf-id="hf-czpj">03</strong> READABLE PROOF ROW</span>
+          <span data-hf-id="b05-progress" id="b05-progress" class="b05-progress"></span>
         </div>
-        <div data-hf-id="hf-c3qg" class="b05-corner" data-layout-allow-caption-zone=""><span data-hf-id="hf-5dyn">CAPTURED UI</span> · PIXELS UNCHANGED</div>
       </section>
     </div>
     <script>
       window.__timelines = window.__timelines || {};
-      const b05 = gsap.timeline({ paused: true });
+      const b05 = gsap.timeline({ paused: true, defaults: { ease: "power3.inOut" } });
 
-      b05.addLabel("inventory", 0);
-      b05.to("#b05-step-table", { opacity: 1, duration: 0.2 }, 0);
+      b05.addLabel("overview", 0);
+      b05.fromTo("#b05-step-overview", { opacity: 0.38 }, { opacity: 1, duration: 0.25 }, 0);
       b05.fromTo(
-        "#b05-memory",
+        "#b05-graph",
         { x: 0, y: 0, scale: 1 },
-        { x: 0, y: -2380, scale: 1, duration: 5.15, ease: "power1.inOut" },
+        { x: 22, y: -24, scale: 1.08, duration: 3.35 },
         0.45,
       );
-
-      b05.addLabel("field", 5.6);
-      b05.to("#b05-step-table", { opacity: 0.48, duration: 0.2 }, 5.6);
-      b05.to("#b05-step-field", { opacity: 1, duration: 0.2 }, 5.6);
-      b05.to("#b05-memory", { opacity: 0, duration: 0.3 }, 5.6);
       b05.fromTo(
-        "#b05-graph",
-        { opacity: 0, x: -20, y: -10, scale: 1.02 },
-        { opacity: 1, x: -20, y: -10, scale: 1.02, duration: 0.3, ease: "none" },
-        5.6,
+        "#b05-overview-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.32, ease: "power3.out" },
+        2.55,
       );
-      b05.to(
-        "#b05-graph",
-        { x: -1427, y: 380, scale: 1.55, duration: 2.15, ease: "power3.inOut" },
-        6.25,
-      );
-      b05.to(
-        "#b05-graph",
-        { x: -115, y: -73, scale: 1.07, duration: 2.05, ease: "power3.inOut" },
-        8.95,
-      );
+      b05.to("#b05-progress", { scaleX: 0.34, duration: 4.3, ease: "none" }, 0);
 
-      b05.addLabel("proof", 11.35);
-      b05.to("#b05-step-field", { opacity: 0.48, duration: 0.2 }, 11.35);
-      b05.to("#b05-step-proof", { opacity: 1, duration: 0.2 }, 11.35);
-      b05.to("#b05-graph", { opacity: 0, duration: 0.32 }, 11.35);
+      b05.addLabel("proof", 5.15);
+      b05.to("#b05-overview-focus", { opacity: 0, duration: 0.22 }, 5.15);
+      b05.to("#b05-step-overview", { opacity: 0.38, duration: 0.18 }, 5.15);
+      b05.to("#b05-step-proof", { opacity: 1, duration: 0.18 }, 5.15);
+      b05.to("#b05-graph", { opacity: 0, x: -80, duration: 0.42, ease: "power3.in" }, 5.15);
       b05.fromTo(
         "#b05-proof",
-        { opacity: 0, x: -19, y: -11, scale: 1.02 },
-        { opacity: 1, x: -19, y: -11, scale: 1.02, duration: 0.32, ease: "none" },
-        11.35,
+        { opacity: 0, x: 58, y: 0, scale: 1 },
+        { opacity: 1, x: -100, y: -150, scale: 1.17, duration: 1.65, ease: "power3.out" },
+        5.15,
       );
+      b05.fromTo(
+        "#b05-proof-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.34, ease: "power3.out" },
+        6.65,
+      );
+      b05.to("#b05-progress", { scaleX: 0.68, duration: 1.65, ease: "power3.out" }, 5.15);
+      b05.to("#b05-proof", { x: -118, y: -168, scale: 1.185, duration: 2.8, ease: "sine.inOut" }, 7.2);
+
+      b05.addLabel("row", 10.65);
+      b05.to("#b05-proof-focus", { opacity: 0, duration: 0.22 }, 10.65);
+      b05.to("#b05-step-proof", { opacity: 0.38, duration: 0.18 }, 10.65);
+      b05.to("#b05-step-row", { opacity: 1, duration: 0.18 }, 10.65);
       b05.to(
         "#b05-proof",
-        { x: -61, y: -241, scale: 1.18, duration: 2.2, ease: "power3.inOut" },
-        12.05,
+        { x: -1330, y: -260, scale: 1.55, duration: 2.15, ease: "power3.inOut" },
+        10.65,
       );
-      b05.to(
-        "#b05-proof",
-        { x: -1012, y: -175, scale: 1.34, duration: 1.8, ease: "power3.inOut" },
-        15.15,
+      b05.to("#b05-progress", { scaleX: 1, duration: 2.15, ease: "power3.inOut" }, 10.65);
+      b05.fromTo(
+        "#b05-row-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.34, ease: "power3.out" },
+        12.55,
       );
+      b05.fromTo(
+        "#b05-readout",
+        { x: -18, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.42, ease: "power3.out" },
+        12.82,
+      );
+      b05.to("#b05-proof", { x: -1344, y: -270, scale: 1.56, duration: 4.2, ease: "sine.inOut" }, 13.25);
 
       window.__timelines["beat-05-graph"] = b05;
     </script>

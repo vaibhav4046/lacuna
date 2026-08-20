@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <title>Lacuna — Beat 02 — Four Memories, One Decision</title>
+    <title>Lacuna — Beat 02 — Current, History, Conflict</title>
   </head>
   <body>
     <template>
@@ -41,209 +41,188 @@
           inset: 0;
           background: #000000;
         }
-        .b02-grid {
+        .b02-camera-outer,
+        .b02-camera-inner {
           position: absolute;
           inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-          background-size: 96px 96px;
+          width: 100%;
+          height: 100%;
+          transform-origin: 50% 50%;
+          will-change: transform;
         }
-        .b02-kicker {
+        .b02-artifact {
           position: absolute;
-          left: 82px;
-          top: 62px;
-          color: #8052ff;
+          left: 80px;
+          top: 130px;
+          width: 860px;
+          height: 820px;
+          overflow: hidden;
+          background: #000000;
+        }
+        .b02-plate {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          will-change: transform, opacity, clip-path;
+        }
+        .b02-plate img {
+          position: absolute;
+          display: block;
+          width: 1920px;
+          height: 1080px;
+          max-width: none;
+          object-fit: none;
+          will-change: transform;
+        }
+        .b02-current { opacity: 1; }
+        .b02-current img { left: -195px; top: -564px; }
+        .b02-history,
+        .b02-conflict { opacity: 0; }
+        .b02-history img { left: -195px; top: -100px; }
+        .b02-conflict img { left: -430px; top: -150px; }
+        .b02-aperture {
+          position: absolute;
+          left: 399px;
+          top: 319px;
+          width: 222px;
+          height: 222px;
+          display: grid;
+          place-items: center;
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+        }
+        .b02-aperture::before,
+        .b02-aperture::after {
+          position: absolute;
+          border-radius: 50%;
+          content: "";
+        }
+        .b02-aperture::before {
+          inset: -46px;
+          border: 1px dashed rgba(255, 255, 255, 0.12);
+        }
+        .b02-aperture::after {
+          inset: -14px;
+          border: 1px solid rgba(128, 82, 255, 0.16);
+        }
+        .b02-aperture svg {
+          position: relative;
+          z-index: 1;
+          display: block;
+          width: 100%;
+          height: 100%;
+          filter: drop-shadow(0 0 26px rgba(128, 82, 255, 0.2));
+        }
+        .b02-copy {
+          position: absolute;
+          left: 1048px;
+          top: 230px;
+          width: 720px;
+          will-change: transform, opacity;
+        }
+        .b02-copy-history,
+        .b02-copy-conflict { opacity: 0; }
+        .b02-eyebrow {
+          color: #a789ff;
           font: 500 12px/1 "JetBrains Mono", Consolas, monospace;
           letter-spacing: 0.24em;
         }
         .b02-title {
-          position: absolute;
-          left: 82px;
-          top: 96px;
-          width: 786px;
+          margin: 24px 0 0;
+          max-width: 680px;
           color: #ffffff;
-          font-size: 48px;
+          font-size: 78px;
           font-weight: 300;
-          line-height: 1.02;
-          letter-spacing: -0.035em;
+          line-height: 0.98;
+          letter-spacing: -0.045em;
+          text-wrap: balance;
         }
-        .b02-records {
-          position: absolute;
-          left: 82px;
-          top: 232px;
-          width: 786px;
-          height: 600px;
-          transform-style: preserve-3d;
-          will-change: transform;
+        .b02-body {
+          margin: 30px 0 0;
+          max-width: 580px;
+          color: #9a9a9a;
+          font-size: 20px;
+          line-height: 1.58;
         }
-        .b02-record {
-          position: absolute;
-          left: 0;
-          width: 786px;
-          height: 112px;
-          display: grid;
-          grid-template-columns: 118px 1fr 144px;
-          align-items: center;
-          column-gap: 18px;
-          padding: 0 22px;
-          border: 1px solid rgba(255,255,255,0.14);
-          border-left: 2px solid rgba(255,255,255,0.2);
-          background: #070707;
-          will-change: transform, opacity;
-          opacity: 0;
-        }
-        .b02-record[data-current="true"] {
-          border-color: rgba(128,82,255,0.82);
-          border-left-color: #8052ff;
-        }
-        .b02-date,
-        .b02-source,
-        .b02-standing {
-          font-family: "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.15em;
-        }
-        .b02-date { color: #7f7f7f; font-size: 11px; }
-        .b02-source { margin-top: 8px; color: #bdbdbd; font-size: 11px; letter-spacing: 0.08em; }
-        .b02-value { color: #ffffff; font-size: 27px; font-weight: 400; letter-spacing: -0.02em; }
-        .b02-value small { display: block; margin-top: 6px; color: #939393; font-size: 13px; font-weight: 400; letter-spacing: 0; }
-        .b02-standing { justify-self: end; color: #9b9b9b; font-size: 10px; text-align: right; }
-        .b02-standing.violet { color: #a789ff; }
-        .b02-standing.amber { color: #ffb829; }
-        .b02-timeline {
-          position: absolute;
-          left: 82px;
-          top: 850px;
-          width: 786px;
-          height: 72px;
-        }
-        .b02-timeline svg { width: 786px; height: 72px; overflow: visible; }
-        .b02-rail {
-          fill: none;
-          stroke: rgba(128,82,255,0.9);
-          stroke-width: 2;
-        }
-        .b02-tick { fill: #8052ff; }
-        .b02-rail-label {
-          position: absolute;
-          top: 46px;
-          color: #808080;
-          font: 500 9px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.16em;
-        }
-        .b02-rail-label-a { left: 0; }
-        .b02-rail-label-b { right: 0; color: #bcaaff; }
-        .b02-capture-stage {
-          position: absolute;
-          right: 72px;
-          top: 146px;
-          width: 900px;
-          height: 506px;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.18);
-          background: #030303;
-          will-change: transform;
-        }
-        .b02-capture {
-          display: block;
-          width: 900px;
-          height: 506px;
-          object-fit: cover;
-        }
-        .b02-capture-label {
-          position: absolute;
-          right: 72px;
-          top: 116px;
-          color: #8d8d8d;
-          font: 500 10px/1 "JetBrains Mono", Consolas, monospace;
-          letter-spacing: 0.22em;
-        }
-        .b02-window {
-          position: absolute;
-          right: 72px;
-          bottom: 96px;
-          width: 900px;
-          min-height: 226px;
-          padding: 30px 34px;
-          border-top: 1px solid rgba(255,255,255,0.16);
-          border-bottom: 1px solid rgba(128,82,255,0.72);
-          background: #050505;
-          opacity: 0;
-          will-change: transform, opacity;
-        }
-        .b02-window-label {
-          color: #8b8b8b;
+        .b02-action {
+          display: inline-block;
+          margin-top: 34px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+          color: #ffffff;
           font: 500 10px/1 "JetBrains Mono", Consolas, monospace;
           letter-spacing: 0.2em;
         }
-        .b02-window-value {
-          margin-top: 20px;
-          color: #ffffff;
-          font-size: 36px;
-          font-weight: 300;
-          letter-spacing: -0.025em;
+        .b02-progress {
+          position: absolute;
+          left: 1048px;
+          bottom: 124px;
+          width: 640px;
+          display: grid;
+          grid-template-columns: repeat(8, 1fr);
+          gap: 8px;
         }
-        .b02-window-value strong { color: #8052ff; font-weight: 400; }
-        .b02-window-note {
-          margin-top: 14px;
-          color: #a3a3a3;
-          font-size: 17px;
-          line-height: 1.5;
+        .b02-progress span {
+          height: 2px;
+          background: rgba(255, 255, 255, 0.16);
         }
+        .b02-progress span:first-child { background: #8052ff; }
       </style>
 
-      <div data-hf-id="hf-3gft" id="root" data-composition-id="beat-02-problem" data-start="0" data-width="1920" data-height="1080" data-duration="18" data-fps="30">
-        <section data-hf-id="hf-a7ie" id="b02-scene" class="clip b02-scene" data-start="0" data-duration="18" data-track-index="1">
-          <div data-hf-id="hf-3qco" class="b02-ground"></div>
-          <div data-hf-id="hf-4nmh" class="b02-grid"></div>
-          <div data-hf-id="hf-bg6k" id="b02-kicker" class="b02-kicker">FOUR RECORDS · ALL IN MEMORY</div>
-          <h2 data-hf-id="hf-bc0i" id="b02-title" class="b02-title">Retrieval keeps every sentence. Decision-making needs standing.</h2>
+      <div data-hf-id="hf-b02-root" id="root" data-composition-id="beat-02-problem" data-start="0" data-width="1920" data-height="1080" data-duration="18" data-fps="30">
+        <section data-hf-id="hf-b02-scene" id="b02-scene" class="clip b02-scene" data-start="0" data-duration="18" data-track-index="1">
+          <div data-hf-id="hf-b02-ground" class="b02-ground"></div>
+          <div data-hf-id="hf-b02-camera-outer" id="b02-camera-outer" class="b02-camera-outer" data-layout-allow-overflow>
+            <div data-hf-id="hf-b02-camera-inner" id="b02-camera-inner" class="b02-camera-inner">
+              <div data-hf-id="hf-b02-artifact" class="b02-artifact">
+                <div data-hf-id="hf-b02-current" id="b02-current" class="b02-plate b02-current">
+                  <img data-hf-id="hf-b02-current-img" id="b02-current-img" src="capture-final/screenshots/scroll-017.png" alt="Exact Lacuna Current journey capture" data-layout-allow-overflow>
+                </div>
+                <div data-hf-id="hf-b02-history" id="b02-history" class="b02-plate b02-history">
+                  <img data-hf-id="hf-b02-history-img" id="b02-history-img" src="capture-final/screenshots/scroll-023.png" alt="Exact Lacuna History journey capture" data-layout-allow-overflow>
+                </div>
+                <div data-hf-id="hf-b02-conflict" id="b02-conflict" class="b02-plate b02-conflict">
+                  <img data-hf-id="hf-b02-conflict-img" id="b02-conflict-img" src="assets/screens/live-timeline-1920x1080.png" alt="Real Lacuna conflict and timeline capture" data-layout-allow-overflow>
+                </div>
+              </div>
 
-          <div data-hf-id="hf-wv60" id="b02-records" class="b02-records">
-            <article data-hf-id="hf-aoky" id="b02-record-a" class="b02-record" style="top:0px">
-              <div data-hf-id="hf-yeow"><div data-hf-id="hf-q6h3" class="b02-date">12 JAN</div><div data-hf-id="hf-od8o" class="b02-source">README · GITHUB</div></div>
-              <div data-hf-id="hf-zs3z" class="b02-value">Redis<small data-hf-id="hf-vsle">Session state lives here.</small></div>
-              <div data-hf-id="hf-pm2x" class="b02-standing">HISTORICAL</div>
-            </article>
-            <article data-hf-id="hf-a1zn" id="b02-record-b" class="b02-record" style="top:132px">
-              <div data-hf-id="hf-y7yw"><div data-hf-id="hf-nhf0" class="b02-date">08 FEB</div><div data-hf-id="hf-ytxq" class="b02-source">SLACK THREAD</div></div>
-              <div data-hf-id="hf-mt5y" class="b02-value">Move to Postgres?<small data-hf-id="hf-ovs7">A proposal, never current state.</small></div>
-              <div data-hf-id="hf-icn2" class="b02-standing amber">PROPOSAL</div>
-            </article>
-            <article data-hf-id="hf-r1bw" id="b02-record-c" class="b02-record" style="top:264px">
-              <div data-hf-id="hf-x11t"><div data-hf-id="hf-y4qm" class="b02-date">05 MAR</div><div data-hf-id="hf-qz2o" class="b02-source">PULL REQUEST</div></div>
-              <div data-hf-id="hf-pw1v" class="b02-value">Postgres<small data-hf-id="hf-zr5v">PR #184 implements the migration.</small></div>
-              <div data-hf-id="hf-wg7y" class="b02-standing violet">IMPLEMENTED</div>
-            </article>
-            <article data-hf-id="hf-j9h2" id="b02-record-d" class="b02-record" data-current="true" style="top:396px">
-              <div data-hf-id="hf-xfcu"><div data-hf-id="hf-gew2" class="b02-date">05 MAR</div><div data-hf-id="hf-5i56" class="b02-source">RUNBOOK</div></div>
-              <div data-hf-id="hf-go3n" class="b02-value">Postgres<small data-hf-id="hf-wl0e">The runbook confirms current state.</small></div>
-              <div data-hf-id="hf-dron" class="b02-standing violet">CURRENT</div>
-            </article>
+              <div data-hf-id="hf-b02-aperture" id="b02-aperture" class="b02-aperture" aria-hidden="true">
+                <svg data-hf-id="hf-b02-mark-svg" viewBox="0 0 24 24">
+                  <g data-hf-id="hf-b02-mark-group" transform="translate(-1.2 1.475)">
+                    <path data-hf-id="hf-b02-mark-aura" d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8" fill="none" stroke="#8052FF" stroke-opacity="0.42" stroke-width="3.8" stroke-linecap="round"></path>
+                    <path data-hf-id="hf-b02-mark-path" d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8" fill="none" stroke="#FFFFFF" stroke-width="1.65" stroke-linecap="round"></path>
+                    <circle data-hf-id="hf-b02-dot-outer" cx="12" cy="2.6" r="2.25" fill="#080808" stroke="#FFB829" stroke-width="1.25"></circle>
+                    <circle data-hf-id="hf-b02-dot-inner" cx="12" cy="2.6" r="0.85" fill="#FFB829"></circle>
+                  </g>
+                </svg>
+              </div>
+
+              <article data-hf-id="hf-b02-copy-current" id="b02-copy-current" class="b02-copy b02-copy-current">
+                <div data-hf-id="hf-b02-eyebrow-current" class="b02-eyebrow">01 · CURRENT</div>
+                <h2 data-hf-id="hf-b02-title-current" class="b02-title">Find what is true now.</h2>
+                <p data-hf-id="hf-b02-body-current" class="b02-body">Lacuna resolves the standing claim while the quote, source and observation time stay attached.</p>
+                <span data-hf-id="hf-b02-action-current" class="b02-action">OPEN THE ANSWER ↗</span>
+              </article>
+
+              <article data-hf-id="hf-b02-copy-history" id="b02-copy-history" class="b02-copy b02-copy-history">
+                <div data-hf-id="hf-b02-eyebrow-history" class="b02-eyebrow">02 · HISTORY</div>
+                <h2 data-hf-id="hf-b02-title-history" class="b02-title">Keep the old fact without letting it win.</h2>
+                <p data-hf-id="hf-b02-body-history" class="b02-body">A correction changes the current answer while the earlier claim remains available for audits and handoffs.</p>
+                <span data-hf-id="hf-b02-action-history" class="b02-action">INSPECT THE TIMELINE ↗</span>
+              </article>
+
+              <article data-hf-id="hf-b02-copy-conflict" id="b02-copy-conflict" class="b02-copy b02-copy-conflict">
+                <div data-hf-id="hf-b02-eyebrow-conflict" class="b02-eyebrow">03 · CONFLICT</div>
+                <h2 data-hf-id="hf-b02-title-conflict" class="b02-title">Refuse to invent consensus.</h2>
+                <p data-hf-id="hf-b02-body-conflict" class="b02-body">Rasmus Berg and Priya Raman remain equally visible because neither source resolves the other.</p>
+                <span data-hf-id="hf-b02-action-conflict" class="b02-action">NO ANSWER · CONTRADICTED</span>
+              </article>
+
+              <div data-hf-id="hf-b02-progress" class="b02-progress" aria-hidden="true">
+                <span data-hf-id="hf-b02-progress-1"></span><span data-hf-id="hf-b02-progress-2" id="b02-progress-2"></span><span data-hf-id="hf-b02-progress-3" id="b02-progress-3"></span><span data-hf-id="hf-b02-progress-4"></span><span data-hf-id="hf-b02-progress-5"></span><span data-hf-id="hf-b02-progress-6"></span><span data-hf-id="hf-b02-progress-7"></span><span data-hf-id="hf-b02-progress-8"></span>
+              </div>
+            </div>
           </div>
-
-          <div data-hf-id="hf-1v3j" id="b02-timeline" class="b02-timeline" aria-hidden="true">
-            <svg data-hf-id="hf-xitj" viewBox="0 0 786 72">
-              <path data-hf-id="hf-ie4b" id="b02-rail" class="b02-rail" d="M 4 18 L 782 18" />
-              <circle data-hf-id="hf-en78" class="b02-tick" cx="4" cy="18" r="4" />
-              <circle data-hf-id="hf-og7g" class="b02-tick" cx="260" cy="18" r="4" />
-              <circle data-hf-id="hf-h26p" class="b02-tick" cx="522" cy="18" r="4" />
-              <circle data-hf-id="hf-9a64" class="b02-tick" cx="782" cy="18" r="5" />
-            </svg>
-            <span data-hf-id="hf-4nxl" class="b02-rail-label b02-rail-label-a">HISTORY RETAINED</span>
-            <span data-hf-id="hf-zoex" class="b02-rail-label b02-rail-label-b">CURRENT RESOLVED</span>
-          </div>
-
-          <div data-hf-id="hf-8tzw" class="b02-capture-label">EXACT PRODUCTION CAPTURE · TEMPORAL MEMORY</div>
-          <div data-hf-id="hf-risi" id="b02-capture-stage" class="b02-capture-stage">
-            <img data-hf-id="hf-7h7r" id="b02-capture" class="b02-capture" src="capture-final/screenshots/scroll-023.png" alt="Captured Lacuna temporal memory section">
-          </div>
-
-          <aside data-hf-id="hf-5ogp" id="b02-window" class="b02-window">
-            <div data-hf-id="hf-lg0m" class="b02-window-label">CONTEXT WINDOW · RESOLVED, NOT FLATTENED</div>
-            <div data-hf-id="hf-oyuw" class="b02-window-value">Current: <strong data-hf-id="hf-cpjp">Postgres</strong></div>
-            <div data-hf-id="hf-4474" class="b02-window-note">The Redis record stays historical. The proposal stays a proposal. The implemented and confirmed state stands.</div>
-          </aside>
         </section>
       </div>
 
@@ -251,34 +230,38 @@
         (() => {
           const id = "beat-02-problem";
           const tl = gsap.timeline({ paused: true });
-          const rail = document.getElementById("b02-rail");
-          const railLength = rail.getTotalLength();
-          rail.style.strokeDasharray = String(railLength);
-          rail.style.strokeDashoffset = String(railLength);
 
-          tl.fromTo("#b02-kicker", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.48, ease: "power3.out" }, 0.08);
-          tl.fromTo("#b02-title", { opacity: 0, y: 42 }, { opacity: 1, y: 0, duration: 0.74, ease: "power4.out" }, 0.2);
-          tl.fromTo("#b02-capture-stage", { opacity: 0, x: 84 }, { opacity: 1, x: 0, duration: 0.86, ease: "power3.out" }, 0.52);
+          tl.addLabel("arrive-through-aperture", 0);
+          tl.fromTo("#b02-camera-outer", { scale: 3.2 }, { scale: 1, duration: 1.45, ease: "power3.inOut" }, "arrive-through-aperture");
+          tl.fromTo("#b02-camera-inner", { x: 450, y: 110 }, { x: 0, y: 0, duration: 1.45, ease: "power3.inOut" }, "arrive-through-aperture");
+          tl.fromTo("#b02-aperture", { scale: 1 }, { scale: 0.793, duration: 1.45, ease: "power3.inOut" }, "arrive-through-aperture");
+          tl.fromTo("#b02-copy-current", { opacity: 0, y: 54 }, { opacity: 1, y: 0, duration: 0.72, ease: "power3.out" }, 0.72);
+          tl.to("#b02-current-img", { y: -18, duration: 3.2, ease: "sine.inOut" }, 1.52);
 
-          ["#b02-record-a", "#b02-record-b", "#b02-record-c", "#b02-record-d"].forEach((selector, index) => {
-            const at = 1.15 + index * 0.46;
-            tl.set(selector, { opacity: 1 }, at);
-            tl.fromTo(selector, { x: -92, y: 48, rotationX: -14 }, {
-              x: 0, y: 0, rotationX: 0, duration: 0.62, ease: "power4.out", immediateRender: false
-            }, at);
-          });
+          tl.addLabel("history-scroll", 5.0);
+          tl.fromTo("#b02-history", { opacity: 1, clipPath: "inset(100% 0 0 0)" }, { opacity: 1, clipPath: "inset(0% 0 0 0)", duration: 1.35, ease: "power3.inOut", immediateRender: false }, "history-scroll");
+          tl.fromTo("#b02-history-img", { y: 76 }, { y: 0, duration: 1.35, ease: "power3.inOut", immediateRender: false }, "history-scroll");
+          tl.to("#b02-current", { opacity: 0, y: -64, duration: 0.62, ease: "power2.in" }, 5.5);
+          tl.to("#b02-copy-current", { opacity: 0, y: -82, duration: 0.48, ease: "power2.in" }, "history-scroll");
+          tl.fromTo("#b02-copy-history", { opacity: 0, y: 78 }, { opacity: 1, y: 0, duration: 0.74, ease: "power3.out", immediateRender: false }, 5.52);
+          tl.to("#b02-aperture", { rotation: 34, duration: 1.35, ease: "power3.inOut" }, "history-scroll");
+          tl.to("#b02-progress-2", { backgroundColor: "#8052ff", duration: 0.32, ease: "power1.out" }, 5.9);
+          tl.to("#b02-history-img", { y: -16, duration: 3.15, ease: "sine.inOut" }, 6.48);
 
-          tl.to("#b02-rail", { strokeDashoffset: 0, duration: 2.25, ease: "none" }, 3.05);
-          tl.addLabel("compress", 8.3);
-          tl.to("#b02-records", { x: -26, y: -28, scale: 0.94, duration: 0.24, ease: "power3.in" }, "compress");
-          tl.to("#b02-records", { x: -178, y: -86, scale: 0.86, duration: 0.22, ease: "none" }, 8.55);
-          tl.to("#b02-records", { x: -224, y: -108, scale: 0.84, duration: 0.72, ease: "power4.out" }, 8.78);
-          tl.fromTo("#b02-window", { opacity: 0, y: 42 }, { opacity: 1, y: 0, duration: 0.72, ease: "power3.out" }, 8.55);
+          tl.addLabel("conflict-scroll", 10.35);
+          tl.fromTo("#b02-conflict", { opacity: 1, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0% 0 0)", duration: 1.42, ease: "power3.inOut", immediateRender: false }, "conflict-scroll");
+          tl.fromTo("#b02-conflict-img", { x: 92 }, { x: 0, duration: 1.42, ease: "power3.inOut", immediateRender: false }, "conflict-scroll");
+          tl.to("#b02-history", { opacity: 0, y: -58, duration: 0.62, ease: "power2.in" }, 10.9);
+          tl.to("#b02-copy-history", { opacity: 0, y: -82, duration: 0.48, ease: "power2.in" }, "conflict-scroll");
+          tl.fromTo("#b02-copy-conflict", { opacity: 0, y: 78 }, { opacity: 1, y: 0, duration: 0.74, ease: "power3.out", immediateRender: false }, 10.9);
+          tl.to("#b02-aperture", { x: -330, y: -250, scale: 0.45, rotation: 68, duration: 1.42, ease: "power3.inOut" }, "conflict-scroll");
+          tl.to("#b02-progress-3", { backgroundColor: "#8052ff", duration: 0.32, ease: "power1.out" }, 11.25);
+          tl.to("#b02-conflict-img", { x: -24, duration: 3.45, ease: "sine.inOut" }, 11.92);
 
-          tl.addLabel("resolve-current", 12.65);
-          tl.to(["#b02-record-a", "#b02-record-b", "#b02-record-c"], { opacity: 0.42, duration: 0.38, ease: "power1.out" }, "resolve-current");
-          tl.to("#b02-record-d", { x: 118, y: -12, scale: 1.08, backgroundColor: "#0a0812", duration: 0.72, ease: "power4.out" }, "resolve-current");
-          tl.to("#b02-capture-stage", { scale: 1.035, x: -14, duration: 1.25, ease: "power2.inOut" }, 13.0);
+          tl.addLabel("handoff-to-graph", 16.15);
+          tl.to("#b02-camera-outer", { scale: 4.5, duration: 1.85, ease: "power3.inOut" }, "handoff-to-graph");
+          tl.to("#b02-camera-inner", { x: 780, y: 360, duration: 1.85, ease: "power3.inOut" }, "handoff-to-graph");
+          tl.to("#b02-aperture", { scale: 0.68, rotation: 92, duration: 1.85, ease: "power3.inOut" }, "handoff-to-graph");
 
           window.__timelines = window.__timelines || {};
           window.__timelines[id] = tl;

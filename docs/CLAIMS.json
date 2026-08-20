@@ -367,7 +367,7 @@
         "tests/unit/voice-browser.test.ts"
       ],
       "reproduce": "npm test",
-      "caveat": "The Vaibhav Lalwani professional clone has been selected for the final narration, but no provider voice id or production audio proof is committed."
+      "caveat": "The verified Vaibhav Lalwani Professional clone, voice id GAeq3X4y41cIseBkBfsS, was used for the separate film narration. That recorded audio is not a product TTS session and does not change this production capability state."
     },
     {
       "id": "metered-voice-fallback",
@@ -493,17 +493,35 @@
     },
     {
       "id": "submission-media",
-      "claim": "An older draft MP4, a 175.2-second composition preview and a draft SRT exist. There is no accepted final master, Supademo walkthrough or YouTube URL.",
+      "claim": "A metadata-verified 179-second final-candidate MP4 exists with the Vaibhav Lalwani Professional narration and burned-in sentence captions. Owner approval, Supademo and YouTube remain open.",
       "capability": "PARTIAL",
       "data": "RECORDED",
+      "measured": {
+        "file": "video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4",
+        "seconds": 179.0,
+        "width": 1920,
+        "height": 1080,
+        "fps": 30,
+        "bytes": 126468170,
+        "sha256": "c941fda5f1d40856fbcb1c2d18816c6e4c917924740b78b80351d940e5bdfd28",
+        "has_audio": true,
+        "narration_seconds": 177.3975,
+        "narration_sha256": "FF7472F1C136C7C4FAE8C72F09F90D6D74EA503366D6CDD3F2F398F6604A263A"
+      },
       "evidence": [
+        "artifacts/video/final-metadata.json",
         "video/hyperframes/meta.json",
-        "video/hyperframes/renders/lacuna-demo.srt",
+        "video/hyperframes/narration.json",
+        "video/hyperframes/assets/narration-vaibhav/lacuna-v8-vaibhav.mp3",
+        "video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.srt",
+        "artifacts/video/judges-master/contact-sheet-1.jpg",
+        "artifacts/video/judges-master/contact-sheet-2.jpg",
+        "artifacts/video/judges-master/contact-sheet-3.jpg",
         "docs/VIDEO_SCRIPT.md",
-        "docs/SCREENSHOT_EVIDENCE_PLAN.md"
+        "docs/VIDEO_CLAIM_MAP.md"
       ],
-      "reproduce": "Inspect video/hyperframes/renders and video/hyperframes/meta.json",
-      "caveat": "The owner rejected the preview's visual direction. Final production recapture, selected-voice narration, preview approval, render and upload remain undone."
+      "reproduce": "Inspect artifacts/video/final-metadata.json and run Get-FileHash -Algorithm SHA256 video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4",
+      "caveat": "The artifact is a rendered local candidate. The owner has not approved or published it. The burned-in captions use deterministic sentence timing and the matching SRT ends at 00:02:57,398."
     },
     {
       "id": "mcp-server",

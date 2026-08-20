@@ -10,19 +10,19 @@ Everything the form asks for, with the state of each item.
 | Deployed | https://lacuna-five.vercel.app | live, no account needed, ask it a question on the landing |
 | Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six computed on load, plus one the reader types |
 | Whole product, read only | https://lacuna-five.vercel.app/explore/dash | public seeded workspace |
-| Video | no accepted final master | older draft and 175.2-second preview exist; final recapture and approval pending |
-| Captions | `video/hyperframes/renders/lacuna-demo.srt` | draft sidecar; must be regenerated for the final edit |
+| Video | `video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4` | 179.0 seconds, one second under the limit, 1920x1080, 30 fps, audio present, metadata verified; owner approval pending |
+| Captions | burned in plus `video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.srt` | deterministic sentence timing; 45 contiguous SRT cues ending at 00:02:57,398 |
 | Supademo | no public walkthrough | not assembled |
 | YouTube | no URL | owner will upload after final approval |
 
 ## What is left, and why it is left
 
-**Finishing the video.** The repository has an older draft MP4 and a checked
-175.2-second composition preview. The owner rejected that visual direction, so
-neither is the submission master. The final film needs fresh production
-captures, the selected voice, a reviewed preview, a render under three minutes,
-and a claim check before the owner uploads it. No
-`artifacts/video/final-metadata.json` or accepted master exists yet.
+**Approving and publishing the video.** A rebuilt 179-second candidate exists
+with the verified Vaibhav Lalwani Professional narration, burned-in captions,
+and a current claim map. Its container metadata and SHA-256 are recorded in
+`artifacts/video/final-metadata.json`. The owner still needs to watch and approve
+the complete file, upload it to YouTube, and verify the unlisted link while
+signed out.
 
 **Security acceptance.** Google sign-in and private MCP are not submission
 claims until the new identity/capability wiring is integrated, rebuilt,

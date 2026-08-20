@@ -14,12 +14,22 @@ import { CliConfigError, UsageError } from './exit.js';
  * flag is how a typo becomes an answer to a question nobody asked.
  */
 
-export const COMMANDS = ['doctor', 'status', 'profile', 'ask', 'explain', 'timeline', 'bench'] as const;
+export const COMMANDS = ['doctor', 'status', 'profile', 'ask', 'read', 'explain', 'timeline', 'bench'] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
 /** The three commands that take a subject and a predicate. */
 export const QUESTION_COMMANDS: readonly Command[] = ['ask', 'explain', 'timeline'];
+
+/**
+ * The one command that takes a sentence instead.
+ *
+ * A separate command rather than a second arity for `ask`, because the two
+ * arities would be ambiguous in exactly the case that matters: a one-word
+ * question and a subject with a missing predicate look identical, and guessing
+ * between them would turn a usage error into a wrong answer.
+ */
+export const SENTENCE_COMMANDS: readonly Command[] = ['read'];
 
 /** Environment variable read when --timeout is absent. */
 export const TIMEOUT_ENV = 'LACUNA_TIMEOUT_MS';
@@ -45,6 +55,10 @@ function isCommand(value: string): value is Command {
 
 function takesQuestion(command: Command): boolean {
   return QUESTION_COMMANDS.includes(command);
+}
+
+function takesSentence(command: Command): boolean {
+  return SENTENCE_COMMANDS.includes(command);
 }
 
 export function parseArgs(argv: readonly string[]): Parsed {
@@ -125,6 +139,27 @@ export function parseArgs(argv: readonly string[]): Parsed {
   }
 
   const timeoutMs = timeoutText === null ? null : parseTimeout(timeoutText);
+
+  if (takesSentence(head)) {
+    const sentence = positionals[1];
+    if (sentence === undefined || sentence.trim() === '') {
+      throw new UsageError(`${head} needs a question in quotes, for example `
+        + `"lacuna ${head} \"who owns billing-gate?\""`);
+    }
+    if (positionals.length > 2) {
+      // Almost always an unquoted sentence, which would otherwise read as one
+      // word and refuse for a reason that has nothing to do with the mistake.
+      throw new UsageError(`${head} takes one quoted question, got ${positionals.length - 1} arguments. `
+        + 'Wrap the whole question in quotes.');
+    }
+    if (via !== null) {
+      throw new UsageError('--via applies to ask, explain and timeline only');
+    }
+    return {
+      kind: 'run',
+      invocation: { command: head, subject: sentence, predicate: null, via: null, json, timeoutMs },
+    };
+  }
 
   if (!takesQuestion(head)) {
     if (positionals.length > 1) {

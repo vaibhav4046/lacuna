@@ -15,6 +15,7 @@ import { profilePayload } from './json.js';
 import { renderProfile } from './human-report.js';
 import { runProfile } from './profile.js';
 import { runQuestion } from './question.js';
+import { planFromStore, renderReading, renderUnread } from './sentence.js';
 import { runStatus } from './status.js';
 
 /**
@@ -129,7 +130,62 @@ async function dispatch(
     return EXIT_OK;
   }
 
+  if (command === 'read') {
+    return await sentence(invocation, env, timeoutMs, palette, streams);
+  }
+
   return question(command, invocation, env, timeoutMs, palette, streams);
+}
+
+/**
+ * A question in the words somebody typed, resolved the same way as `ask`.
+ *
+ * The parser runs against this store's own names and against the predicates the
+ * matched subject records, so a refusal here means the workspace does not hold
+ * that name or that property rather than that this file had not thought of a
+ * word. What it prints first is the reading, because a parser in front of a
+ * resolver can produce a correct and fully evidenced answer to a question
+ * nobody asked, and the reading is where that is catchable.
+ */
+async function sentence(
+  invocation: Invocation,
+  env: Record<string, string | undefined>,
+  timeoutMs: number,
+  palette: Palette,
+  streams: Streams,
+): Promise<number> {
+  const text = invocation.subject;
+  if (text === null) throw new Error('read reached dispatch without a question');
+
+  const plan = await planFromStore(env, text, timeoutMs);
+  if (plan.kind === 'unread') {
+    if (invocation.json) {
+      streams.out(render({ read: null, unread: plan.reason, holds: plan.holds, records: plan.records, answer: null }));
+    } else {
+      streams.err(block(renderUnread(plan, palette)));
+    }
+    // Not a usage error: the command line was fine and the workspace simply
+    // does not hold what was asked for. Exit 0 for the same reason an
+    // abstention does.
+    return EXIT_OK;
+  }
+
+  if (!invocation.json) {
+    streams.out(block(renderReading(plan, palette)));
+  }
+  const answer = await runQuestion(env, { subject: plan.subject, predicate: plan.predicate, via: plan.via }, timeoutMs);
+  streams.out(
+    invocation.json
+      ? render({
+        read: { subject: plan.subject, predicate: plan.predicate, via: plan.via, fromWords: plan.fromWords },
+        unread: null,
+        holds: [],
+        records: plan.records,
+        answer: questionPayload('ask', answer),
+      })
+      : block(renderAsk(answer, palette)),
+  );
+  return EXIT_OK;
 }
 
 const HUMAN_QUESTION_RENDERERS = {

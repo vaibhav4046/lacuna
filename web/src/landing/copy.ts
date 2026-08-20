@@ -9,7 +9,7 @@
  * The answers about the product's own surfaces are not frozen, because they
  * were written before those surfaces existed and had gone stale in the
  * direction that costs the most: the CLI answer said the implementation came
- * next when six commands had shipped, and the MCP answer was an instruction to
+ * next when the commands had shipped, and the MCP answer was an instruction to
  * whoever built it rather than an answer to whoever was reading it. Anything
  * here that describes what exists gets corrected when what exists changes.
  */
@@ -29,7 +29,7 @@ export const FAQ: readonly (readonly [string, string])[] = [
   ['Why HydraDB?', 'HydraDB gives Lacuna a persistent graph-first context substrate for memory, knowledge, relationships, history and retrieval.'],
   ['Does Lacuna work with MCP?', 'Yes. The server is live at /mcp over streamable HTTP, and stdio locally. Five read-only tools: ask in a sentence, ask by subject and predicate, explain a decision, read a revision history, and check which node answered.'],
   ['Does Lacuna have an SDK?', 'There is no published package. The HTTP API is real and callable without a key, and so is MCP; the Developers screen prints the exact commands and says which of the three is not shipped.'],
-  ['Does Lacuna have a CLI?', 'Yes, with six commands: doctor, status, ask, explain, timeline and bench. It reads the same store the web product reads, which is what the three-surface gate checks.'],
+  ['Does Lacuna have a CLI?', 'Yes, with seven commands: doctor, status, read, ask, explain, timeline and bench. "lacuna read" takes the question as a sentence, the same way the web product does. It reads the same store the web product reads, which is what the three-surface gate checks.'],
   ['Does Lacuna expose chain of thought?', 'No. Lacuna shows evidence, retrieval and system traces, not hidden model reasoning.']
 ];
 

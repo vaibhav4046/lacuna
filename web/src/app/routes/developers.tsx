@@ -144,8 +144,8 @@ export function Sdk() {
   );
 }
 
-/** The six commands the shipped CLI really has. */
-const CLI_COMMANDS = 'lacuna doctor · status · ask · explain · timeline · bench';
+/** The seven commands the shipped CLI really has. */
+const CLI_COMMANDS = 'lacuna doctor · status · read · ask · explain · timeline · bench';
 
 export function Cli() {
   const health = useHealth();

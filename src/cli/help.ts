@@ -18,6 +18,7 @@ usage
 commands
   doctor                              check the node, the config and this machine
   status                              show what this CLI is pointed at and what is in it
+  read "<question>"                   ask in a sentence, with the evidence
   ask <subject> <predicate>           answer the question, with the evidence
   explain <subject> <predicate>       the same answer, plus how it was resolved
   timeline <subject> <predicate>      every claim on the pair, oldest first
@@ -48,6 +49,25 @@ exit codes
 An abstention is not a failure. "No answer" with a reason code exits 0.`;
 
 const PER_COMMAND: Record<Command, string> = {
+  read: `lacuna read - ask in the words you would use
+
+usage
+  lacuna read "<question>" [--json]
+
+Reads the question into a subject and a predicate against the names this
+workspace holds, then answers it through the same resolver as "lacuna ask".
+Prints the reading first, so a misread is visible rather than silent.
+
+  lacuna read "who is the runbook owner for billing-gate?"
+  lacuna read "when does Lowbank launch?"
+
+Quote the whole question. Unquoted, the shell splits it into arguments and the
+command refuses for a reason that has nothing to do with the mistake.
+
+A question naming something this workspace does not hold is reported as such,
+with the names it does hold. That is not an error and exits 0, for the same
+reason an abstention does.`,
+
   profile: `lacuna profile - which context store this machine reads
 
 usage

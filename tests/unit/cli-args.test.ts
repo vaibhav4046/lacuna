@@ -44,7 +44,9 @@ describe('parseArgs, commands', () => {
     for (const command of COMMANDS) {
       const argv = ['ask', 'explain', 'timeline'].includes(command)
         ? [command, 'Bellwether', 'beta_partner']
-        : [command];
+        : command === 'read'
+          ? [command, 'who owns Bellwether?']
+          : [command];
       expect(invocation(...argv).command).toBe(command);
     }
   });
@@ -197,5 +199,44 @@ describe('resolveTimeoutMs', () => {
   it('treats a malformed environment value as a configuration error', () => {
     expect(() => resolveTimeoutMs(null, { [TIMEOUT_ENV]: 'later' })).toThrow(CliConfigError);
     expect(() => resolveTimeoutMs(null, { [TIMEOUT_ENV]: '-1' })).toThrow(CliConfigError);
+  });
+});
+
+/**
+ * A sentence is its own command, not a second arity for `ask`.
+ *
+ * The two arities would collide in exactly the case that matters. `lacuna ask
+ * Bellwether` is a subject with a forgotten predicate, and it is also a
+ * perfectly well formed one-word question, and a parser that guessed between
+ * them would turn a usage error into a wrong answer. So `read` is separate and
+ * takes one quoted argument.
+ */
+describe('parseArgs, read', () => {
+  it('takes the question as one argument', () => {
+    const parsed = invocation('read', 'who owns billing-gate?');
+    expect(parsed.command).toBe('read');
+    expect(parsed.subject).toBe('who owns billing-gate?');
+    expect(parsed.predicate).toBeNull();
+  });
+
+  it('refuses an unquoted question by naming the actual mistake', () => {
+    // The shell split it. Reporting "needs a subject and a predicate" here
+    // would send somebody looking in entirely the wrong place.
+    expect(() => run('read', 'who', 'owns', 'billing-gate')).toThrow(/one quoted question/);
+  });
+
+  it('refuses an empty question', () => {
+    expect(() => run('read')).toThrow(/needs a question in quotes/);
+    expect(() => run('read', '   ')).toThrow(/needs a question in quotes/);
+  });
+
+  it('refuses --via, which belongs to the commands that name their own terms', () => {
+    expect(() => run('read', 'who owns billing-gate?', '--via', 'vendor')).toThrow(/--via applies to/);
+  });
+
+  it('carries --json and --timeout like every other command', () => {
+    const parsed = invocation('read', 'who owns billing-gate?', '--json', '--timeout', '5000');
+    expect(parsed.json).toBe(true);
+    expect(parsed.timeoutMs).toBe(5_000);
   });
 });

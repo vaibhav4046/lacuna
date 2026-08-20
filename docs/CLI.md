@@ -89,6 +89,48 @@ counts were answered at.
   Entity        86
 ```
 
+### `lacuna read "<question>"`
+
+The question in the words you would use. It reads the sentence into a subject
+and a predicate against the names this workspace actually holds, then resolves
+it exactly as `lacuna ask` would.
+
+The reading is printed first, above the answer. A parser in front of a resolver
+can produce the one failure nothing else here can, which is a correct and fully
+evidenced answer to a question nobody asked, and the reading is the only place
+that is catchable.
+
+```
+$ lacuna read "who is the runbook owner for billing-gate?"
+
+read as  billing-gate runbook_owner
+         from your words "runbook owner"
+Q  billing-gate runbook_owner
+A  No answer (contradicted)
+   No answer given, because the sessions disagree and nothing resolves the disagreement.
+
+   Cited from
+     Growth operations check-in, 2025-01-18, user
+       "The runbook for billing-gate is maintained by Rasmus Berg."
+     Payments vendor review, 2025-01-22, user
+       "The runbook for billing-gate is maintained by Priya Raman."
+
+   1 query, 199.4ms
+```
+
+Quote the whole question. Unquoted, the shell splits it into arguments and the
+command says so rather than refusing for an unrelated reason.
+
+A question naming something this workspace does not hold is reported as that,
+with the names it does hold, and exits 0. So is one naming something it holds
+that records nothing of what was asked, with the properties it does record.
+Neither is an error: the command line was fine and the workspace simply does not
+have it, which is the same reason an abstention exits 0.
+
+`--via` does not apply here. A sentence naming two things this workspace holds
+is read as the multi-hop question it is, with the first as the subject and the
+second as the hop.
+
 ### `lacuna ask <subject> <predicate>`
 
 The answer, the quote it rests on, the session that quote came from, and what

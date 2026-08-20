@@ -5,12 +5,14 @@ import {
   MAX_GRAPH_NODES,
   MAX_GRAPH_PAGE_SIZE,
   graphFromInventory,
+  graphFromSource,
   graphPage,
   type GraphDataset,
   type GraphEdge,
   type GraphNode,
 } from '../../src/api/graph.js';
 import type { Inventory } from '../../src/report/inventory.js';
+import type { HydraSource } from '../../src/hydra/source.js';
 import { overviewLayout, proofLayout } from '../../web/src/graph/layout.js';
 
 const KEY = 'unit-test-only-graph-cursor-key';
@@ -266,6 +268,64 @@ describe('inventory graph', () => {
       expect.objectContaining({ relation: 'contradicts' }),
       expect.objectContaining({ relation: 'mentions' }),
       expect.objectContaining({ relation: 'depends_on', rejected: true, rejectionReason: 'historical' }),
+    ]));
+  });
+});
+
+describe('scoped HydraSource graph', () => {
+  it('reads exact evidence, mentions and supersession through the canonical source seam', async () => {
+    const claims = [
+      { id: 1, predicate: 'depends_on', objectText: 'Borealis', polarity: 'positive' as const, validFrom: '2026-08-18T00:00:00.000Z', txTime: '2026-08-18T00:00:00.000Z', supersededBy: [2] },
+      { id: 2, predicate: 'depends_on', objectText: 'Cirrus', polarity: 'positive' as const, validFrom: '2026-08-19T00:00:00.000Z', txTime: '2026-08-19T00:00:00.000Z', supersededBy: [] },
+    ];
+    const source: HydraSource = {
+      kind: 'cloud',
+      subjects: async () => ({ value: ['Atlas', 'Borealis', 'Cirrus'], traces: [] }),
+      entity: async () => ({ value: null, traces: [] }),
+      subject: async (name) => ({
+        value: name === 'Atlas'
+          ? {
+            name,
+            id: 10,
+            kind: 'service',
+            claims,
+            mentions: [
+              { claimId: 1, predicate: 'depends_on', entityId: 20, entityName: 'Borealis' },
+              { claimId: 2, predicate: 'depends_on', entityId: 30, entityName: 'Cirrus' },
+            ],
+          }
+          : { name, id: name === 'Borealis' ? 20 : 30, kind: 'service', claims: [], mentions: [] },
+        traces: [],
+      }),
+      evidence: async (claimId) => ({
+        value: [{
+          claimId,
+          spanId: claimId + 100,
+          quote: claimId === 1 ? 'Atlas depended on Borealis.' : 'Atlas now depends on Cirrus.',
+          start: 0,
+          end: 30,
+          messageId: claimId + 200,
+          role: 'user',
+          ts: claimId === 1 ? '2026-08-18T00:00:00.000Z' : '2026-08-19T00:00:00.000Z',
+          sessionId: claimId + 300,
+          sessionTitle: claimId === 1 ? 'Original decision' : 'Correction',
+        }],
+        traces: [],
+      }),
+      dependents: async () => ({ value: [], traces: [] }),
+    };
+
+    const result = page(await graphFromSource(WORKSPACE, source, 1_000));
+    expect(result.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'evidence', label: 'Atlas depended on Borealis.', sourceRef: 'Original decision' }),
+      expect.objectContaining({ kind: 'claim', state: 'historical' }),
+      expect.objectContaining({ kind: 'context_pack', label: 'Context Pack' }),
+    ]));
+    expect(result.edges).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relation: 'supports', sourceRef: 'Original decision' }),
+      expect.objectContaining({ relation: 'supersedes' }),
+      expect.objectContaining({ relation: 'mentions', rejected: true, rejectionReason: 'historical' }),
+      expect.objectContaining({ relation: 'depends_on', rejected: false }),
     ]));
   });
 });

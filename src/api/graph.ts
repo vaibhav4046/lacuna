@@ -1,6 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import type { ImpactResult } from './impact.js';
+import type { HydraSource } from '../hydra/source.js';
+import type { ClaimRecord, EvidenceRecord, SubjectView } from '../retrieval/types.js';
 import type { ClaimRow, Inventory } from '../report/inventory.js';
 
 /**
@@ -18,6 +20,7 @@ export const MAX_GRAPH_NODES = 2_000;
 export const MAX_GRAPH_EDGES = 4_000;
 export const MAX_GRAPH_EDGES_PER_PAGE = 800;
 export const MAX_GRAPH_LABEL_CHARS = 320;
+export const MAX_GRAPH_SOURCE_SUBJECTS = 200;
 
 export type GraphMode = 'overview' | 'proof';
 export type GraphNodeKind = 'source' | 'evidence' | 'claim' | 'entity' | 'context_pack' | 'agent' | 'client';
@@ -113,12 +116,13 @@ export type GraphApiErrorCode =
   | 'INVALID_CURSOR'
   | 'INVALID_LIMIT'
   | 'OVERSIZE_LIMIT'
-  | 'INVALID_CURSOR_KEY';
+  | 'INVALID_CURSOR_KEY'
+  | 'SOURCE_UNAVAILABLE';
 
 export class GraphApiError extends Error {
   constructor(
     readonly code: GraphApiErrorCode,
-    readonly status: 400 | 403 | 422 | 500,
+    readonly status: 400 | 403 | 422 | 500 | 503,
   ) {
     super(code);
     this.name = 'GraphApiError';
@@ -336,6 +340,246 @@ export function graphFromInventory(
       relation: 'connects',
       label: 'included in pack',
       date: claim.observed || null,
+      sourceRef: null,
+      rejected: false,
+      rejectionReason: null,
+    });
+  }
+  return { workspaceId, scope, nodes, edges };
+}
+
+interface LoadedSubject {
+  readonly view: SubjectView;
+  readonly evidence: ReadonlyMap<number, readonly EvidenceRecord[]>;
+}
+
+function liveState(claim: ClaimRecord, peers: readonly ClaimRecord[], hasEvidence: boolean): GraphNodeState {
+  if (!hasEvidence) return 'missing';
+  if (claim.supersededBy.length > 0) return 'historical';
+  if (claim.polarity === 'negative') return 'withdrawn';
+  const live = peers.filter((peer) => peer.predicate === claim.predicate
+    && peer.supersededBy.length === 0 && peer.polarity === 'positive');
+  return new Set(live.map((peer) => peer.objectText)).size > 1 ? 'conflicted' : 'current';
+}
+
+function sourceNode(record: EvidenceRecord): GraphNode {
+  return {
+    id: nodeId('source', `${record.sessionId}`),
+    kind: 'source',
+    label: graphText(record.sessionTitle),
+    state: 'neutral',
+    date: record.ts || null,
+    sourceRef: null,
+    detail: `Session ${record.sessionId}`,
+  };
+}
+
+/**
+ * Read a complete bounded graph through the canonical HydraSource seam.
+ *
+ * This is the authenticated-workspace provider: it enumerates only the source
+ * instance the caller already scoped, and it asks that same source for every
+ * evidence span. It never falls back to the public inventory.
+ */
+export async function graphFromSource(
+  workspaceId: string,
+  source: HydraSource,
+  timeoutMs: number,
+  scope: GraphDataset['scope'] = 'workspace',
+): Promise<GraphDataset> {
+  if (source.subjects === undefined) {
+    throw new GraphApiError('SOURCE_UNAVAILABLE', 503);
+  }
+  const { value: names } = await source.subjects(timeoutMs);
+  const loaded: LoadedSubject[] = [];
+  let claimCount = 0;
+  for (const name of names.slice(0, MAX_GRAPH_SOURCE_SUBJECTS)) {
+    if (claimCount >= MAX_GRAPH_NODES) break;
+    const { value: view } = await source.subject(name, timeoutMs);
+    const evidence = new Map<number, readonly EvidenceRecord[]>();
+    const claims = view.claims.slice(0, MAX_GRAPH_NODES - claimCount);
+    const claimIds = new Set(claims.map((claim) => claim.id));
+    for (const claim of claims) {
+      evidence.set(claim.id, (await source.evidence(claim.id, timeoutMs)).value);
+      claimCount += 1;
+    }
+    loaded.push({
+      view: { ...view, claims, mentions: view.mentions.filter((mention) => claimIds.has(mention.claimId)) },
+      evidence,
+    });
+  }
+
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  const knownEntities = new Map<number, string>();
+  for (const subject of loaded) {
+    if (subject.view.id !== null) knownEntities.set(subject.view.id, subject.view.name);
+    for (const mention of subject.view.mentions) knownEntities.set(mention.entityId, mention.entityName);
+  }
+  for (const [entityId, name] of knownEntities) {
+    nodes.push({
+      id: nodeId('entity', `${entityId}`),
+      kind: 'entity',
+      label: graphText(name),
+      state: 'neutral',
+      date: null,
+      sourceRef: null,
+      detail: 'Claim family',
+    });
+  }
+
+  for (const subject of loaded) {
+    const subjectId = subject.view.id === null ? null : nodeId('entity', `${subject.view.id}`);
+    for (const claim of subject.view.claims) {
+      const evidence = subject.evidence.get(claim.id) ?? [];
+      const first = evidence[0] ?? null;
+      const claimId = nodeId('claim', `${claim.id}`);
+      const state = liveState(claim, subject.view.claims, evidence.length > 0);
+      nodes.push({
+        id: claimId,
+        kind: 'claim',
+        label: graphText(`${subject.view.name} · ${claim.predicate.replace(/_/gu, ' ')} · ${claim.objectText || '[withdrawn]'}`),
+        state,
+        date: claim.validFrom || null,
+        sourceRef: first === null ? null : graphText(first.sessionTitle),
+        detail: claim.polarity === 'negative' ? 'Negative claim' : graphText(claim.predicate),
+      });
+      if (subjectId !== null) {
+        edges.push({
+          id: edgeId('about', claimId, subjectId),
+          from: claimId,
+          to: subjectId,
+          relation: 'about',
+          label: graphText(claim.predicate),
+          date: claim.validFrom || null,
+          sourceRef: first === null ? null : graphText(first.sessionTitle),
+          rejected: false,
+          rejectionReason: null,
+        });
+      }
+      for (const record of evidence) {
+        const sourceId = nodeId('source', `${record.sessionId}`);
+        const evidenceId = nodeId('evidence', `${record.claimId}:${record.spanId}:${record.messageId}`);
+        nodes.push(sourceNode(record), {
+          id: evidenceId,
+          kind: 'evidence',
+          label: graphText(record.quote),
+          state,
+          date: record.ts || claim.validFrom || null,
+          sourceRef: graphText(record.sessionTitle),
+          detail: `Message ${record.messageId} · ${record.role}`,
+        });
+        edges.push({
+          id: edgeId('contains', sourceId, evidenceId),
+          from: sourceId,
+          to: evidenceId,
+          relation: 'contains',
+          label: null,
+          date: record.ts || null,
+          sourceRef: graphText(record.sessionTitle),
+          rejected: false,
+          rejectionReason: null,
+        }, {
+          id: edgeId('supports', evidenceId, claimId),
+          from: evidenceId,
+          to: claimId,
+          relation: 'supports',
+          label: 'evidence → claim',
+          date: record.ts || claim.validFrom || null,
+          sourceRef: graphText(record.sessionTitle),
+          rejected: false,
+          rejectionReason: null,
+        });
+      }
+      for (const newer of claim.supersededBy) {
+        const from = nodeId('claim', `${newer}`);
+        edges.push({
+          id: edgeId('supersedes', from, claimId),
+          from,
+          to: claimId,
+          relation: 'supersedes',
+          label: 'replaces',
+          date: claim.validFrom || null,
+          sourceRef: first === null ? null : graphText(first.sessionTitle),
+          rejected: false,
+          rejectionReason: null,
+        });
+      }
+    }
+
+    const contradictions = subject.view.claims.filter((claim) => claim.supersededBy.length === 0 && claim.polarity === 'positive');
+    contradictions.forEach((left, index) => {
+      for (const right of contradictions.slice(index + 1)) {
+        if (left.predicate !== right.predicate || left.objectText === right.objectText) continue;
+        const from = nodeId('claim', `${Math.min(left.id, right.id)}`);
+        const to = nodeId('claim', `${Math.max(left.id, right.id)}`);
+        edges.push({
+          id: edgeId('contradicts', from, to),
+          from,
+          to,
+          relation: 'contradicts',
+          label: 'disagrees',
+          date: left.validFrom.localeCompare(right.validFrom) >= 0 ? left.validFrom : right.validFrom,
+          sourceRef: null,
+          rejected: false,
+          rejectionReason: null,
+        });
+      }
+    });
+
+    for (const mention of subject.view.mentions) {
+      const claim = subject.view.claims.find((row) => row.id === mention.claimId);
+      if (claim === undefined) continue;
+      const claimId = nodeId('claim', `${mention.claimId}`);
+      const targetId = nodeId('entity', `${mention.entityId}`);
+      const rejected = claim.supersededBy.length > 0 || claim.polarity === 'negative';
+      edges.push({
+        id: edgeId('mentions', claimId, targetId),
+        from: claimId,
+        to: targetId,
+        relation: 'mentions',
+        label: graphText(mention.predicate.replace(/_/gu, ' ')),
+        date: claim.validFrom || null,
+        sourceRef: null,
+        rejected,
+        rejectionReason: claim.supersededBy.length > 0 ? 'historical' : claim.polarity === 'negative' ? 'stale' : null,
+      });
+      if (subject.view.id !== null && DEPENDENCY.test(claim.predicate)) {
+        const from = nodeId('entity', `${subject.view.id}`);
+        edges.push({
+          id: edgeId('depends_on', from, targetId, `${claim.id}`),
+          from,
+          to: targetId,
+          relation: 'depends_on',
+          label: graphText(claim.predicate.replace(/_/gu, ' ')),
+          date: claim.validFrom || null,
+          sourceRef: null,
+          rejected,
+          rejectionReason: claim.supersededBy.length > 0 ? 'historical' : claim.polarity === 'negative' ? 'stale' : null,
+        });
+      }
+    }
+  }
+
+  const pack = nodeId('context_pack', workspaceId);
+  nodes.push({
+    id: pack,
+    kind: 'context_pack',
+    label: 'Context Pack',
+    state: 'neutral',
+    date: null,
+    sourceRef: null,
+    detail: `${loaded.length} subjects · ${claimCount} claims`,
+  });
+  for (const entityId of knownEntities.keys()) {
+    const from = nodeId('entity', `${entityId}`);
+    edges.push({
+      id: edgeId('connects', from, pack),
+      from,
+      to: pack,
+      relation: 'connects',
+      label: 'included in pack',
+      date: null,
       sourceRef: null,
       rejected: false,
       rejectionReason: null,

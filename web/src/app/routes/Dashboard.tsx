@@ -47,11 +47,33 @@ export function Dashboard() {
   const changes = useScoped<readonly Change[]>('changes');
   const conflicts = useScoped<readonly Conflict[]>('conflicts');
   const connections = useScoped<readonly Connection[]>('connections');
-  const runs = useScoped<readonly unknown[]>('runs');
   const counts = useScoped<HealthCounts>('health');
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingBottom: '4px' }}>
+        {([
+          ['ADD CONTEXT', `${prefix}/memory`],
+          ['ASK LACUNA', `${prefix}/ask`],
+          ['CONNECT MCP', `${prefix}/mcp`],
+          ['OPEN CLI', `${prefix}/cli`],
+        ] as const).map(([label, to]) => (
+          <button
+            key={label}
+            className="hv-text"
+            onClick={() => go(to)}
+            style={{
+              background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '9px 14px',
+              fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em',
+              border: `1px solid ${label === 'ADD CONTEXT' ? 'rgba(128,82,255,0.55)' : 'rgba(255,255,255,0.14)'}`,
+              color: label === 'ADD CONTEXT' ? '#FFFFFF' : '#9A9A9A',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <button className="hv-edge30" onClick={() => go(`${prefix}/ask`)} style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px', background: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
         <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
         <span style={{ fontFamily: MONO, fontSize: '13px', color: '#7A7A7A' }}>Ask Lacuna anything in this workspace…</span>
@@ -95,11 +117,6 @@ export function Dashboard() {
                 </span>
               </div>
             ))}
-          </Panel>
-
-          <span style={headLater}>RECENT RUNS</span>
-          <Panel loaded={runs} stage="RETRIEVING" empty={{ headline: 'No runs yet.', detail: 'Work appears when an agent executes a task.' }}>
-            {() => null}
           </Panel>
 
           <button className="hv-surface3" onClick={() => go(`${prefix}/health`)} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'baseline', padding: '13px 2px', borderTop: '1px solid rgba(255,255,255,0.12)', background: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', cursor: 'pointer', textAlign: 'left' }}>

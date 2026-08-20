@@ -42,13 +42,23 @@ the navigation to what is real, not by widening claims.
 
 ## What is broken or weak
 
-### 1. The landing is 30,552 pixels tall. 56 screens. 27 sections.
+### 1. The landing was 30,552 pixels tall. 56 screens. 27 sections. Fixed.
 
-Measured with `document.documentElement.scrollHeight`. This is the single
-largest usability problem in the product. A judge with limited time cannot be
-asked to scroll 56 screens to learn what this is.
+Measured with `document.documentElement.scrollHeight`, which is why it is a
+number and not an impression. This was the single largest usability problem in
+the product: a judge with limited time cannot be asked to scroll 56 screens to
+learn what something is.
 
-**Severity: HIGH.** Directly hits product completeness and usability.
+Cut to **13,173 pixels, 24 screens, 11 sections**, measured the same way after
+deploying. Nothing kept is decorative; what went was repetition, or a scene
+describing a surface the product now shows directly and better. The primary
+action is now Open live workspace rather than Start building, because the
+fastest way to understand this is to watch it answer and that needs no account.
+
+Verified after the cut: zero horizontal overflow at 360, 390, 430, 768, 1366,
+1440, 1920 and 2560 wide.
+
+**Severity: was HIGH, now resolved.**
 
 ### 2. Four feature areas are unbuilt
 

@@ -6,8 +6,9 @@ Measured 2026-08-20. This file is the current state; dated V7 audits are history
 
 - Repository: `vaibhav4046/lacuna`
 - Production: <https://lacuna-five.vercel.app>
-- V8 product commit: recorded here after the final clean push
-- V8 production deployment: recorded here after the final clean deployment
+- V8 product commit: `d1f41e32c5707cfd872f4c2fbe4ea7182ad8788d`
+- V8 production deployment: the stable alias above resolves to the latest
+  `READY` production deployment; the immutable deployment id remains in Vercel
 - HydraDB: managed production source, with the self-hosted contract pinned in
   `SOURCE_LOG.md`
 

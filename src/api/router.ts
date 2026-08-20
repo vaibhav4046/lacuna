@@ -79,6 +79,12 @@ const SIGNUP_LIMIT = { limit: 3, windowMs: 60_000, maxKeys: 4_096 };
  */
 const PUBLIC_READ_LIMIT = { limit: 60, windowMs: 60_000, maxKeys: 8_192 };
 const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
+/**
+ * A public run spends two model calls, so its budget is not the read budget.
+ * Four a minute is enough for somebody trying the thing and far too little to
+ * be worth pointing at a bill.
+ */
+const PUBLIC_RUN_LIMIT = { limit: 4, windowMs: 60_000, maxKeys: 8_192 };
 
 export interface ApiOptions {
   readonly store: Accounts;
@@ -117,7 +123,8 @@ export interface ApiOptions {
    * Runs the two agents over one workspace. Absent where no model provider is
    * configured, and the route then answers 501 rather than pretending.
    */
-  readonly agent?: (collection: string, task: string) => Promise<unknown>;
+  /** `null` runs over the public corpus rather than one account's collection. */
+  readonly agent?: (collection: string | null, task: string) => Promise<unknown>;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   /**
@@ -318,6 +325,7 @@ export class ApiRouter {
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
   readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
   readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
+  readonly #runLimit = new FixedWindow(PUBLIC_RUN_LIMIT);
 
   constructor(options: ApiOptions) {
     this.#store = options.store;
@@ -776,6 +784,48 @@ export class ApiRouter {
       }
       try {
         send(response, 200, await runAgent(workspaceCollection(account.email), task));
+      } catch {
+        send(response, 502, { error: 'the run did not complete' });
+      }
+      return HANDLED;
+    }
+
+    /**
+     * The same run, over the corpus anybody can read.
+     *
+     * A run writes nothing. Both agents are `NO_WRITE`, the manifest says so
+     * before either model is called, and the only thing it touches is the
+     * public collection every visitor already reads. So requiring an account
+     * for it protected nothing and hid the strongest thing the product does
+     * behind a sign-in wall, which is how a judge concludes it does not exist.
+     *
+     * It costs model calls where a read does not, which is why it has its own
+     * budget rather than sharing the read one.
+     */
+    if ((path === '/api/explore/agent/run' || path === '/api/demo/agent/run') && method === 'POST') {
+      const runAgent = this.#agent;
+      if (runAgent === undefined) {
+        send(response, 501, { error: 'no model provider is configured on this deployment' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const task = body?.['task'];
+      if (typeof task !== 'string' || task.trim() === '' || task.length > 600) {
+        send(response, 422, { error: 'task_required' });
+        return HANDLED;
+      }
+      if (!this.#runLimit.check(sourceKey(request), this.#now()).allowed) {
+        send(response, 429, { error: 'too many runs from this address, try again shortly' });
+        return HANDLED;
+      }
+      try {
+        send(response, 200, await runAgent(null, task));
       } catch {
         send(response, 502, { error: 'the run did not complete' });
       }

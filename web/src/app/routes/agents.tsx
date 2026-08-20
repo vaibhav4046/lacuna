@@ -72,11 +72,20 @@ export function Agents() {
     setProblem(null);
     setRun(null);
     try {
-      const response = await fetch('/api/workspace/agent/run', {
+      /**
+       * A run writes nothing, so the public corpus can have one too. Reading
+       * the public collection needs no session and therefore no CSRF token;
+       * a run over somebody's own workspace needs both.
+       */
+      const response = await fetch(demo ? '/api/explore/agent/run' : '/api/workspace/agent/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+        headers: { 'Content-Type': 'application/json', ...(demo ? {} : csrfHeaders()) },
         body: JSON.stringify({ task }),
       });
+      if (response.status === 429) {
+        setProblem('Too many runs from this address in the last minute. A run spends two model calls, so the public budget is small. Try again shortly.');
+        return;
+      }
       if (response.status === 401) {
         setProblem('Sign in first. A run reads the workspace you ingested into.');
         return;
@@ -106,14 +115,12 @@ export function Agents() {
       </div>
 
       {demo ? (
-        <div style={{ border: '1px solid rgba(255,255,255,0.14)', borderRadius: '9px', padding: '16px 18px' }}>
-          <span style={{ fontSize: '14px', color: '#9A9A9A' }}>
-            A run reads a workspace you ingested into, so it needs an account. The public workspace
-            is read only.
-          </span>
+        <div style={{ ...note, color: '#9A9A9A' }}>
+          RUNNING OVER THE PUBLIC CORPUS · NO ACCOUNT NEEDED · WRITES NOTHING
         </div>
-      ) : (
-        <>
+      ) : null}
+
+      <>
           <textarea
             value={task}
             onChange={(event) => setTask(event.target.value)}
@@ -143,8 +150,7 @@ export function Agents() {
               <span style={{ fontSize: '13px', color: '#FFB829', maxWidth: '62ch' }}>{problem}</span>
             )}
           </div>
-        </>
-      )}
+      </>
 
       {run === null ? null : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '20px' }}>

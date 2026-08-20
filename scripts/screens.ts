@@ -243,14 +243,15 @@ const LIVE_SHOTS: readonly Shot[] = [
   { file: 'live-judge-fullpage.png', url: '/judge', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 22_000 },
   { file: 'live-judge-1920x1080.png', url: '/judge', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 22_000 },
   { file: 'live-judge-375x812.png', url: '/judge', width: 375, height: 812, prefers: 'dark', whole: false, settleMs: 22_000 },
-  { file: 'live-dashboard-1920x1080.png', url: '/demo/dash', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-memory-fullpage.png', url: '/demo/memory', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 4_000 },
-  { file: 'live-timeline-1920x1080.png', url: '/demo/timeline', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-graph-1920x1080.png', url: '/demo/graph', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-health-1920x1080.png', url: '/demo/health', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-evaluations-1920x1080.png', url: '/demo/evals', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-hydradb-1920x1080.png', url: '/demo/hydra', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
-  { file: 'live-ask-1920x1080.png', url: '/demo/ask', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-dashboard-1920x1080.png', url: '/explore/dash', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-memory-fullpage.png', url: '/explore/memory', width: 1_440, height: 1_000, prefers: 'dark', whole: true, settleMs: 4_000 },
+  { file: 'live-timeline-1920x1080.png', url: '/explore/timeline', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-graph-1920x1080.png', url: '/explore/graph', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-health-1920x1080.png', url: '/explore/health', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-evaluations-1920x1080.png', url: '/explore/evals', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-hydradb-1920x1080.png', url: '/explore/hydra', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-ask-1920x1080.png', url: '/explore/ask', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
+  { file: 'live-agents-1920x1080.png', url: '/explore/agents', width: 1_920, height: 1_080, prefers: 'dark', whole: false, settleMs: 4_000 },
 ];
 
 /** `--live` captures the deployed application; the default captures the recorded site. */

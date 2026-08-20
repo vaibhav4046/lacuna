@@ -170,12 +170,14 @@ const api = new ApiRouter({
     // One agent run over that workspace, when a real model provider answers.
     // Absent otherwise, so the route says 501 rather than inventing a run.
     ...(groq === undefined ? {} : {
-      agent: (collection: string, task: string) => runAgents({
-        source: new CloudSource(cloud.withCollection(collection)),
+      // `null` is the public corpus: the same run, over the collection every
+      // visitor already reads. It writes nothing either way.
+      agent: (collection: string | null, task: string) => runAgents({
+        source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),
         provider: groq,
         model: AGENT_MODEL,
-        workspace: collection,
-        collection,
+        workspace: collection ?? 'public',
+        collection: collection ?? 'public',
         task,
         knownSubjects: SUBJECT_NAMES,
         predicates: [...AGENT_PREDICATES],

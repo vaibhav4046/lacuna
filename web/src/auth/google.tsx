@@ -43,10 +43,11 @@ export function GoogleButton({ label }: { label: string }) {
         href="/api/auth/google/start"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-          padding: '13px 18px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.18)',
-          color: '#FFFFFF', fontSize: '15px', textDecoration: 'none',
+          minHeight: '40px', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '20px',
+          border: '1px solid #8E918F', background: '#131314', color: '#E3E3E3',
+          fontFamily: "'Google Sans', Roboto, Arial, sans-serif", fontSize: '14px', fontWeight: 500,
+          lineHeight: '20px', textDecoration: 'none',
         }}
-        className="hv-edge35"
       >
         {/*
           The official Google "G", in its official four colours and official

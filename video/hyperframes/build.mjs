@@ -33,7 +33,7 @@ const CONTINUITY = readFileSync(`${ROOT}assets/continuity.txt`, 'utf8')
   .filter((line) => line !== '' && !line.startsWith('One store, three clients'));
 
 /** Space after each line, so a scene lands rather than being cut off. */
-const BREATH = 1.4;
+const BREATH = 0.6;
 /** A held first frame, so the film does not start mid-word. */
 const LEAD_IN = 0.8;
 
@@ -72,6 +72,9 @@ const scenes = [
   { id: 's07', kind: 'judge', caption: 'NO EVIDENCE', note: 'A value nobody ever stated.' },
   { id: 's08', kind: 'judge', caption: 'TWO HOPS', note: 'The answer is on a second entity.' },
   { id: 's09', kind: 'continuity' },
+  { id: 's16', kind: 'shot', file: 'live-graph-v8-1920x1080.png', caption: '453 NODES · 682 EDGES', note: 'Interactive overview · exact proof DAG · the same field as a readable table', silentSeconds: 4 },
+  { id: 's17', kind: 'shot', file: 'live-agents-v8-1920x1080.png', caption: 'GOVERNED AGENT RUNTIME', note: 'Researcher → Reviewer · eight persisted events · no authoritative writeback', silentSeconds: 4 },
+  { id: 's18', kind: 'shot', file: 'live-voice-v8-1920x1080.png', caption: 'VOICE, WITHOUT PRETENCE', note: '15 states · server-only provider keys · interruption · typed fallback', silentSeconds: 4 },
   { id: 's10', kind: 'shot', file: 'live-hydradb-top-1920x1080.png', caption: 'HYDRADB CLOUD', note: '72 conversations as evidence · 86 entity records as claims' },
   { id: 's15', kind: 'shot', file: 'live-hydradb-1920x1080.png', caption: "THE STORE'S OWN GRAPH", note: '21 edges reached · 10 of them sentences saying nothing happened' },
   { id: 's11', kind: 'bench' },
@@ -81,7 +84,9 @@ const scenes = [
 
 let at = LEAD_IN;
 const timed = scenes.map((scene) => {
-  const duration = seconds[scene.id] + BREATH;
+  const contentSeconds = seconds[scene.id] ?? scene.silentSeconds;
+  if (contentSeconds === undefined) throw new Error(`scene ${scene.id} has neither narration nor a silent duration`);
+  const duration = contentSeconds + BREATH;
   const placed = { ...scene, start: Math.round(at * 100) / 100, duration: Math.round(duration * 100) / 100 };
   at += duration;
   return placed;
@@ -185,7 +190,10 @@ ${CONTINUITY.map((line, index) => `            <div id="${scene.id}-l${index}" c
 const clips = timed.map((scene) => `      <section id="${scene.id}" class="clip scene ${scene.kind}" data-start="${scene.start}" data-duration="${scene.duration}" data-track-index="1">${body(scene)}
       </section>`).join('\n');
 
-const audio = timed.map((scene) => `      <audio id="${scene.id}-vo" src="assets/narration/${scene.id}.mp3" data-start="${scene.start}" data-duration="${seconds[scene.id]}" data-track-index="2"></audio>`).join('\n');
+const audio = timed
+  .filter((scene) => seconds[scene.id] !== undefined)
+  .map((scene) => `      <audio id="${scene.id}-vo" src="assets/narration/${scene.id}.mp3" data-start="${scene.start}" data-duration="${seconds[scene.id]}" data-track-index="2"></audio>`)
+  .join('\n');
 
 /** One entrance per scene, written as data so the timeline stays readable. */
 const moves = timed.map((scene) => {

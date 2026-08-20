@@ -174,7 +174,7 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
             State shapes the field: current claims stay near the opening, history moves outward, conflicts split, and missing evidence leaves the centre open. Position is for navigation. It is not proof of topology.
           </p>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#706A80', textAlign: 'right' }}>
+        <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#918B9F', textAlign: 'right' }}>
           {shown.length} VISIBLE · {graph.nodes.length} LOADED · {graph.page.totalNodes} TOTAL
           {graph.page.truncated ? <><br />SERVER CAP APPLIED</> : null}
         </div>
@@ -196,7 +196,7 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
 
       <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch', flexWrap: 'wrap' }}>
         <div style={{ flex: '2 1 620px', minWidth: 0, border: '1px solid rgba(255,255,255,0.10)', borderRadius: '12px', background: 'radial-gradient(circle at 50% 47%, rgba(128,82,255,0.055), rgba(7,7,11,0.82) 62%)', overflow: 'hidden', position: 'relative' }}>
-          <div aria-label="Pan and zoom" style={{ position: 'absolute', zIndex: 2, top: '10px', right: '10px', display: 'grid', gridTemplateColumns: 'repeat(3, 30px)', gap: '4px' }}>
+          <div role="group" aria-label="Pan and zoom" style={{ position: 'absolute', zIndex: 2, top: '10px', right: '10px', display: 'grid', gridTemplateColumns: 'repeat(3, 30px)', gap: '4px' }}>
             <span></span><button aria-label="Pan up" onClick={() => setCamera((it) => ({ ...it, y: it.y - 36 / it.zoom }))} style={cameraButton}>↑</button><span></span>
             <button aria-label="Pan left" onClick={() => setCamera((it) => ({ ...it, x: it.x - 36 / it.zoom }))} style={cameraButton}>←</button>
             <button aria-label="Reset view" onClick={() => setCamera({ x: 0, y: 0, zoom: 1 })} style={cameraButton}>•</button>
@@ -208,7 +208,7 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
           {shown.length === 0 ? (
             <div style={{ minHeight: '420px', display: 'grid', placeItems: 'center', color: '#817B8E', fontSize: '14px', padding: '30px', textAlign: 'center' }}>No nodes match this search and state. Clear the search or choose another state.</div>
           ) : (
-            <svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="img" aria-label="Navigational memory field grouped by state" style={{ width: '100%', minHeight: '440px', display: 'block', touchAction: 'none' }}>
+            <svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="group" aria-label="Navigational memory field grouped by state" style={{ width: '100%', minHeight: '440px', display: 'block', touchAction: 'none' }}>
               <circle cx="500" cy="310" r="49" fill="none" stroke="rgba(213,208,232,0.32)" strokeWidth="1" strokeDasharray="5 7" />
               <path d="M520 267 A48 48 0 0 1 548 310" fill="none" stroke="#09090D" strokeWidth="9" />
               <text x="500" y="306" textAnchor="middle" fill="#8D8798" fontFamily="JetBrains Mono, monospace" fontSize="9" letterSpacing="1.8">OPEN</text>
@@ -261,7 +261,7 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
                 }} style={{ width: '100%', display: 'grid', gridTemplateColumns: '8px minmax(0,1fr) auto', gap: '9px', alignItems: 'center', textAlign: 'left', background: selected === node.id ? 'rgba(138,100,255,0.11)' : 'transparent', border: '1px solid transparent', borderRadius: '6px', color: '#B9B5C1', padding: '7px', cursor: 'pointer' }}>
                   <span aria-hidden="true" style={{ width: '7px', height: '7px', borderRadius: node.state === 'conflicted' ? 0 : '50%', border: `1px solid ${STATE_COLOUR[node.state]}`, background: node.state === 'current' ? STATE_COLOUR[node.state] : 'transparent' }} />
                   <span style={{ fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.label}</span>
-                  <span style={{ fontFamily: MONO, fontSize: '8px', color: '#696574' }}>{node.kind.toUpperCase()}</span>
+                  <span style={{ fontFamily: MONO, fontSize: '8px', color: '#918B9F' }}>{node.kind.toUpperCase()}</span>
                 </button>
               </li>
             ))}
@@ -272,7 +272,7 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
           {moreFailed ? <span role="status" style={{ color: '#FFB829', fontFamily: MONO, fontSize: '9px', lineHeight: 1.5 }}>THE NEXT PAGE DID NOT LOAD. TRY AGAIN.</span> : null}
         </aside>
       </div>
-      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '9px', letterSpacing: '0.12em', color: '#696574' }}>
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '9px', letterSpacing: '0.12em', color: '#918B9F' }}>
         {OVERVIEW_STATES.filter((value): value is GraphNodeState => value !== 'all').map((value) => <span key={value} style={{ color: STATE_COLOUR[value] }}>{STATE_LABEL[value].toUpperCase()}</span>)}
       </div>
     </section>

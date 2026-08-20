@@ -63,7 +63,12 @@ async function cli(
   args: readonly string[],
   overrides: Record<string, string> = {},
 ): Promise<Result> {
-  const env = { ...process.env, ...BASE_ENV, ...overrides };
+  // This suite deliberately forces colour so it can prove that a pipe still
+  // suppresses escape bytes. Some hosts set NO_COLOR for their own terminal;
+  // passing both variables makes Node print a warning before Lacuna starts and
+  // turns a host preference into stderr from the process under test.
+  const { NO_COLOR: _hostNoColor, ...hostEnv } = process.env;
+  const env = { ...hostEnv, ...BASE_ENV, ...overrides };
   try {
     const { stdout, stderr } = await run(process.execPath, [BIN, ...args], {
       env,

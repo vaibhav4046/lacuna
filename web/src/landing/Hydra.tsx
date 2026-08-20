@@ -9,7 +9,7 @@ export function Hydra() {
   return (
     <section id="hydra" data-scene="hydra" style={{ position: 'relative', height: '165vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 'max(12%, 96px)', left: 'clamp(20px, 8vw, 130px)' }}>
+        <div data-reveal style={{ position: 'absolute', top: 'max(12%, 96px)', left: 'clamp(20px, 8vw, 130px)' }}>
           <h2 style={{ fontSize: 'clamp(40px, 4.6vw, 78px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>The graph<br />underneath Lacuna.</h2>
           <p style={{ fontSize: '17px', lineHeight: 1.75, color: '#9A9A9A', margin: '16px 0 0', maxWidth: '44ch' }}>HydraDB keeps memory, knowledge, relationships and history. Lacuna controls how that context reaches the next agent.</p>
         </div>

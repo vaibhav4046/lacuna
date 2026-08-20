@@ -1,5 +1,43 @@
 # Product reality audit
 
+> **V8 superseding audit — 2026-08-20.** The original audit below is retained
+> because it is useful change history, but its statements that Work, Tools,
+> Scheduler and Voice were absent are no longer current.
+
+## V8 verdict
+
+The product now has a complete governed runtime around the temporal resolver:
+interactive overview and proof graphs, persisted Researcher/Reviewer runs,
+durable daily schedules, a real voice boundary, and route-level lazy loading.
+The production public workspace returned 453 nodes and 682 edges in both graph
+modes. A real production agent run completed with eight persisted lifecycle
+events and its exact Context Pack, reviewer result, tool record and timing.
+
+The landing and product views were inspected from production, not inferred
+from source. The desktop and mobile landing have no horizontal overflow; the
+landing axe WCAG A/AA run has zero violations. A later proof-graph audit found
+low-contrast metadata and an SVG nested-interaction defect. Those are fixed in
+V8 and must be re-probed on the final clean deployment before this audit is
+closed.
+
+The limitations are narrower and explicit:
+
+- Production has no ElevenLabs credentials. The real route therefore returns
+  `503 speech_unavailable` after CSRF and Origin validation instead of
+  pretending to listen.
+- Vercel Hobby cron is daily and imprecise within the selected hour. The UI
+  advertises only the supported daily cadence.
+- Spotify, Slack, Notion, Gmail and similar names are interoperability examples,
+  not connected integrations. ChatGPT, Claude, the CLI and MCP are claimed only
+  where a real endpoint or external-client proof exists.
+- A cross-instance HydraDB schedule upsert cannot provide database-level CAS
+  with the current managed API. The dispatcher is idempotent and leased, the
+  local file adapter serializes atomically, and this hosted limitation remains
+  named rather than hidden.
+
+Current details: `docs/FINAL_EXECUTION_STATE.md` and
+`docs/FINAL_CAPABILITY_MATRIX.md`.
+
 Opened in a real browser against production, not read out of the source. Every
 line below is something that was observed, with the observation next to it.
 

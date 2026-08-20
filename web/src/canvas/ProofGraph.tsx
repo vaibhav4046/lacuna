@@ -109,7 +109,7 @@ export function ProofGraph({ graph, prefix, loadingMore, moreFailed, onLoadMore 
             Read left to right from source and quoted evidence to claim and entity. Supersession, contradiction, dependency and impact edges remain explicit. Dashed amber edges were reached and rejected; they were not used as proof.
           </p>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: '#706A80', textAlign: 'right' }}>
+        <div style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: '#918B9F', textAlign: 'right' }}>
           DETERMINISTIC LAYERS · NO PHYSICS<br />{layout.nodes.length} NODES · {layout.edges.length} EDGES VISIBLE
         </div>
       </div>
@@ -138,19 +138,19 @@ export function ProofGraph({ graph, prefix, loadingMore, moreFailed, onLoadMore 
       ) : (
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'stretch' }}>
           <div style={{ flex: '2 1 650px', minWidth: 0, position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '10px', background: 'linear-gradient(90deg, rgba(138,100,255,0.025), rgba(7,7,11,0.92) 28%, rgba(7,7,11,0.92))' }}>
-            <div aria-label="Pan and zoom proof graph" style={{ position: 'absolute', zIndex: 2, top: '9px', right: '9px', display: 'flex', gap: '4px' }}>
+            <div role="group" aria-label="Pan and zoom proof graph" style={{ position: 'absolute', zIndex: 2, top: '9px', right: '9px', display: 'flex', gap: '4px' }}>
               <button aria-label="Pan proof graph left" onClick={() => setCamera((it) => ({ ...it, x: it.x - 80 / it.zoom }))} style={cameraButton}>←</button>
               <button aria-label="Pan proof graph right" onClick={() => setCamera((it) => ({ ...it, x: it.x + 80 / it.zoom }))} style={cameraButton}>→</button>
               <button aria-label="Zoom proof graph out" onClick={() => setCamera((it) => ({ ...it, zoom: Math.max(0.65, Number((it.zoom - 0.15).toFixed(2))) }))} style={cameraButton}>−</button>
               <button aria-label="Reset proof graph view" onClick={() => setCamera({ x: 0, y: 0, zoom: 1 })} style={cameraButton}>•</button>
               <button aria-label="Zoom proof graph in" onClick={() => setCamera((it) => ({ ...it, zoom: Math.min(2.2, Number((it.zoom + 0.15).toFixed(2))) }))} style={cameraButton}>+</button>
             </div>
-            <svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="img" aria-label="Layered evidence provenance graph" style={{ width: '100%', minHeight: '460px', display: 'block' }}>
+            <svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="group" aria-label="Layered evidence provenance graph" style={{ width: '100%', minHeight: '460px', display: 'block' }}>
               <defs>
                 <marker id="proof-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#777181" /></marker>
                 <marker id="proof-rejected" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#FFB829" /></marker>
               </defs>
-              {LAYER_LABEL.map((label, layer) => <text key={label} x={38 + layer * 216} y="27" fill="#686372" fontFamily="JetBrains Mono, monospace" fontSize="9" letterSpacing="1.8">{label}</text>)}
+              {LAYER_LABEL.map((label, layer) => <text key={label} x={38 + layer * 216} y="27" fill="#918B9F" fontFamily="JetBrains Mono, monospace" fontSize="9" letterSpacing="1.8">{label}</text>)}
               {layout.edges.map((edge, index) => {
                 const from = positions.get(edge.from);
                 const to = positions.get(edge.to);
@@ -178,7 +178,7 @@ export function ProofGraph({ graph, prefix, loadingMore, moreFailed, onLoadMore 
                     <circle cx="12" cy="13" r="3" fill={node.state === 'historical' || node.state === 'missing' ? '#0C0C12' : STATE_COLOUR[node.state]} stroke={STATE_COLOUR[node.state]} />
                     <text x="21" y="16" fill="#777181" fontFamily="JetBrains Mono, monospace" fontSize="7.5" letterSpacing="1.1">{node.kind.toUpperCase()}</text>
                     <text x="11" y="34" fill={node.state === 'historical' ? '#898491' : '#E2DFE7'} fontFamily="Space Grotesk, sans-serif" fontSize="10.5">{node.label.slice(0, 27)}</text>
-                    <text x="11" y="48" fill="#686372" fontFamily="JetBrains Mono, monospace" fontSize="7.5">{node.date === null ? STATE_LABEL[node.state].toUpperCase() : node.date.slice(0, 10)}</text>
+                    <text x="11" y="48" fill="#918B9F" fontFamily="JetBrains Mono, monospace" fontSize="7.5">{node.date === null ? STATE_LABEL[node.state].toUpperCase() : node.date.slice(0, 10)}</text>
                   </g>
                 );
               })}
@@ -191,13 +191,13 @@ export function ProofGraph({ graph, prefix, loadingMore, moreFailed, onLoadMore 
                 <>
                   <div style={{ fontFamily: MONO, fontSize: '9px', color: edgeColour(activeEdge), letterSpacing: '0.14em' }}>{activeEdge.relation.replace(/_/gu, ' ').toUpperCase()}{activeEdge.rejected ? ' · REJECTED' : ' · USED'}</div>
                   <div style={{ color: '#C7C3CE', fontSize: '12.5px', lineHeight: 1.55, marginTop: '7px', overflowWrap: 'anywhere' }}>{activeEdge.label ?? activeEdge.relation.replace(/_/gu, ' ')}</div>
-                  <div style={{ color: '#706A80', fontFamily: MONO, fontSize: '9px', lineHeight: 1.6, marginTop: '7px' }}>{activeEdge.rejectionReason?.replace(/_/gu, ' ').toUpperCase() ?? 'ACCEPTED PATH'} · {activeEdge.date ?? 'DATE NOT RECORDED'}</div>
+                  <div style={{ color: '#918B9F', fontFamily: MONO, fontSize: '9px', lineHeight: 1.6, marginTop: '7px' }}>{activeEdge.rejectionReason?.replace(/_/gu, ' ').toUpperCase() ?? 'ACCEPTED PATH'} · {activeEdge.date ?? 'DATE NOT RECORDED'}</div>
                 </>
               ) : selectedNode !== null ? (
                 <>
                   <div style={{ fontFamily: MONO, fontSize: '9px', color: STATE_COLOUR[selectedNode.state], letterSpacing: '0.14em' }}>{selectedNode.kind.toUpperCase()} · {STATE_LABEL[selectedNode.state].toUpperCase()}</div>
                   <div style={{ color: '#FFFFFF', fontSize: '13.5px', lineHeight: 1.5, marginTop: '7px', overflowWrap: 'anywhere' }}>{selectedNode.label}</div>
-                  <div style={{ color: '#706A80', fontFamily: MONO, fontSize: '9px', lineHeight: 1.6, marginTop: '7px' }}>{selectedNode.date ?? 'DATE NOT RECORDED'}{selectedNode.sourceRef === null ? '' : ` · ${selectedNode.sourceRef}`}</div>
+                  <div style={{ color: '#918B9F', fontFamily: MONO, fontSize: '9px', lineHeight: 1.6, marginTop: '7px' }}>{selectedNode.date ?? 'DATE NOT RECORDED'}{selectedNode.sourceRef === null ? '' : ` · ${selectedNode.sourceRef}`}</div>
                 </>
               ) : (
                 <p style={{ margin: 0, color: '#817B8E', fontSize: '13px', lineHeight: 1.6 }}>Choose a node or focus an edge. Source and date stay beside the selected proof.</p>

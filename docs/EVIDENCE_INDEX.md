@@ -1,5 +1,25 @@
 # Evidence index
 
+## V8 release-candidate evidence — 2026-08-20
+
+| Evidence | Result | Location |
+| --- | --- | --- |
+| full unit gate | 70 files, 1,300 tests passed | terminal run in the V8 execution session |
+| root and web typecheck | both exit 0 | terminal run in the V8 execution session |
+| public graph census | 453 nodes, 682 edges | production overview and proof API probes |
+| real public agent run | completed, 8 lifecycle events | production Work and Agents screens |
+| landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
+| landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
+| graph overview | 140 loaded of 453 | `artifacts/screens/v8/memory-field.png` |
+| persisted agent definitions | 2 roles with last run | `artifacts/screens/v8/agents-live.png` |
+| persisted Work record | Context Pack summary and full lifecycle | `artifacts/screens/v8/work-live.png` |
+| voice idle state | guarded runtime visible | `artifacts/screens/v8/voice-idle.png` |
+| dashboard runtime | live run and next schedule | `artifacts/screens/v8/dashboard-runtime.png` |
+| live user-workspace memory | 9 sources, 21 claims, 34 records | `artifacts/continuity/v8-workspace-memory.json` |
+
+The final deployment, route audit, cross-client proof, Supademo and media rows
+are appended only when their acceptance gates complete.
+
 Every number this project states in public, and the file it came out of.
 
 [docs/CLAIMS.json](CLAIMS.json) is the ledger of what Lacuna can do. This is the

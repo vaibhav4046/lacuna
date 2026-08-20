@@ -78,6 +78,7 @@ export class MemoryFieldEngine {
     this._vis = {}; this._scenes = null; this._hn = null; this._hot = null;
     this._rk = null; this._q = null; this._sc = null; this._shield = null;
     this._shieldT = 0; this._prime = false; this._lastTick = 0; this._loopErr = 0;
+    this._seed = 0x4c414355;
   }
   HEALTH = [
     { l: 'Historical', n: 214, col: '#6E6E6E' },
@@ -123,24 +124,31 @@ export class MemoryFieldEngine {
     if (ps.view !== this.state.view) { this._scenes = null; this._q = null; this._rk = null; }
     if (ps.view !== this.state.view || ps.route !== this.state.route || ps.healthSel !== this.state.healthSel) { this.drawHealth(); this.drawVoice(); }
   }
+  random() {
+    this._seed = (Math.imul(this._seed, 1664525) + 1013904223) >>> 0;
+    return this._seed / 4294967296;
+  }
   initParticles() {
     const W = innerWidth;
     const d = this.props.density || 'auto';
     let n = d === 'high' ? 1900 : d === 'balanced' ? 1200 : d === 'low' ? 650 : (W < 760 ? 520 : W < 1200 ? 1050 : 1500);
     this.P = [];
+    // A fixed viewport produces a fixed field. That makes screenshots and the
+    // launch film repeatable while preserving the same distribution and motion.
+    this._seed = (0x4c414355 ^ W ^ n) >>> 0;
     const grey = ['#EDEDED', '#B9B9B9', '#8A8A8A', '#7A7A7A'];
     for (let i = 0; i < n; i++) {
-      const cr = Math.random();
+      const cr = this.random();
       let col, amber = false;
-      if (cr < 0.90) col = grey[(Math.random() * 4) | 0];
+      if (cr < 0.90) col = grey[(this.random() * 4) | 0];
       else if (cr < 0.955) col = '#8052FF';
       else if (cr < 0.99) { col = '#FFB829'; amber = true; }
       else col = '#15846E';
-      const ph = Math.random() * 6.283;
+      const ph = this.random() * 6.283;
       this.P.push({
-        x: Math.random() * W, y: Math.random() * innerHeight, tx: 0, ty: 0, ta: 0, ca: 0, tsz: 1,
-        k: (Math.random() * 21) | 0, col, amber, z: 0.35 + Math.random() * 0.65, s: 0.7 + Math.random() * 1.6,
-        r1: Math.random(), r2: Math.random(), r3: Math.random(), r4: Math.random(), ph,
+        x: this.random() * W, y: this.random() * innerHeight, tx: 0, ty: 0, ta: 0, ca: 0, tsz: 1,
+        k: (this.random() * 21) | 0, col, amber, z: 0.35 + this.random() * 0.65, s: 0.7 + this.random() * 1.6,
+        r1: this.random(), r2: this.random(), r3: this.random(), r4: this.random(), ph,
         lc: Math.cos(ph), ls: Math.sin(ph)
       });
     }

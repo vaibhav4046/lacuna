@@ -23,7 +23,7 @@ import { RouteBody } from './RouteBody';
  * when the selection does.
  */
 
-const groupHead = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.24em', color: '#4A4A4A', padding: '0 10px 5px' } as const;
+const groupHead = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.24em', color: '#858585', padding: '0 10px 5px' } as const;
 const navLabel = { fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em' } as const;
 const footLabel = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.22em', color: '#7A7A7A' } as const;
 

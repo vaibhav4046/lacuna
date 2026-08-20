@@ -102,7 +102,6 @@ export function Ask() {
   const [result, setResult] = useState<Envelope | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [evOpen, setEvOpen] = useState(true);
-  const [voiceOn, setVoiceOn] = useState(false);
   const [sentence, setSentence] = useState('');
   const [reading, setReading] = useState<Reading | null>(null);
   const [unread, setUnread] = useState<Unread | null>(null);
@@ -268,7 +267,7 @@ export function Ask() {
           style={{ flex: 1, minWidth: '120px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
         />
         <button className="hv-violet" onClick={() => void runTyped()} style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '7px 12px' }}>ASK</button>
-        <button className="hv-edge35" onClick={() => setVoiceOn(!voiceOn)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
+        <button className="hv-edge35" onClick={() => go(`${prefix}/voice`)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
         <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#7A7A7A' }}>MODE · FAST</span>
       </div>
 
@@ -280,20 +279,6 @@ export function Ask() {
           <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A' }}>NO SUGGESTIONS · THIS WORKSPACE HOLDS NO CLAIMS YET</span>
         ) : null}
       </div>
-
-      {voiceOn ? (
-        <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          {/*
-            No pulsing dot and no LISTENING. Nothing has opened a microphone,
-            there is no MediaStreamTrack, and animating a live indicator over
-            that is the product claiming a state it cannot prove. The panel says
-            what is actually true instead.
-          */}
-          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#7A7A7A' }}></span>
-          <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.2em', color: '#BDBDBD' }}>VOICE NOT CONFIGURED</span>
-          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#7A7A7A' }}>NO MICROPHONE IS OPEN · TEXT IS STILL AVAILABLE</span>
-        </div>
-      ) : null}
 
       {stage !== null ? (
         <div style={{ padding: '22px 4px' }}>

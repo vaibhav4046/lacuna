@@ -84,7 +84,7 @@ function RunDetail({ run, agentName, demo, onChange }: {
           <span style={head}>CONTEXT PACK</span>
           <span style={{ color: '#BDBDBD' }}>{run.pack === null ? 'NOT COMPILED' : `${run.pack.id} · ${run.pack.claims.length} claims · ${run.pack.estimatedTokens} estimated tokens`}</span>
           <span style={head}>TOOLS</span>
-          <span style={{ color: '#BDBDBD' }}>{run.toolEvents.length === 0 ? 'NONE CALLED' : run.toolEvents.map((event) => `${event.tool} · ${event.status} · ${event.calls} calls · ${event.ms ?? '—'}ms`).join('; ')}</span>
+          <span style={{ color: '#BDBDBD' }}>{run.toolEvents.length === 0 ? 'NONE CALLED' : run.toolEvents.map((event) => `${event.tool} · ${event.status} · ${event.calls} calls · ${event.ms === null || event.ms === undefined ? 'TIME NOT MEASURED' : `${event.ms}ms`}`).join('; ')}</span>
           <span style={head}>HANDOFF</span>
           <span style={{ color: '#BDBDBD' }}>{run.handoff === null ? 'NONE' : `${run.handoff.from} → ${run.handoff.to} · ${run.handoff.supportedFacts.length} supported facts · pack ${run.handoff.packId}`}</span>
           <span style={head}>EVIDENCE</span>

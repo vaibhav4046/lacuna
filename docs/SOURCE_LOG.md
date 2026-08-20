@@ -174,3 +174,22 @@ Nothing is listed here before it has been downloaded and inspected.
 | LongMemEval | pending | pending | pending |
 | LongMemEval-V2 | pending | pending | pending |
 | BEAM | pending | pending | pending |
+
+## V8 current-provider audit
+
+Read on 2026-08-20. These sources describe provider behavior that may change
+independently of this repository. The resulting release boundary is summarised
+in [CURRENT_EXTERNAL_CONTRACTS.md](CURRENT_EXTERNAL_CONTRACTS.md).
+
+| Provider or standard | Official source | What it settled |
+|---|---|---|
+| Hack Hydra | https://hackhydra.hydradb.com/?utm_source=luma#submit | Deadline, public repository, three-minute video, required video content, Track 03 scope |
+| HydraDB MCP | https://github.com/hydra-db/hydradb-mcp | Managed ingestion, graph-enriched context, relation and path surface |
+| MCP | https://modelcontextprotocol.io/specification/2025-06-18/basic/transports | Streamable HTTP, single endpoint, POST and GET, optional SSE, stdio purity |
+| ChatGPT | https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt | Pro read/fetch boundary, full write availability, remote MCP requirement |
+| Anthropic | https://docs.anthropic.com/en/docs/mcp | MCP surfaces in Claude products |
+| ElevenLabs STT | https://elevenlabs.io/docs/eleven-api/guides/how-to/speech-to-text/realtime/client-side-streaming | `scribe_v2_realtime`, browser single-use token, 15-minute expiry, partial and committed transcripts |
+| ElevenLabs TTS | https://elevenlabs.io/docs/eleven-api/guides/how-to/websockets/realtime-tts | Realtime streaming endpoint and model boundary |
+| Vercel cron | https://vercel.com/docs/cron-jobs/usage-and-pricing | Current Hobby count, daily interval, hourly precision |
+| Vercel cron operations | https://vercel.com/docs/cron-jobs/manage-cron-jobs | No automatic retry and rollback behavior |
+| Google Identity | https://developers.google.com/identity/branding-guidelines | Approved sign-in text, colour, padding, and logo use |

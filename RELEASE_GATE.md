@@ -1,5 +1,28 @@
 # Release gate
 
+> **V8 current gate — 2026-08-20.** The material below this block is the dated
+> V7 evidence record and remains for audit history. It does not describe the
+> current product boundary. V8 is pinned by the final clean commit and
+> deployment recorded in `docs/FINAL_EXECUTION_STATE.md`.
+
+| V8 gate | Current evidence |
+| --- | --- |
+| unit | 1,300 of 1,300; 70 files; no skips |
+| TypeScript | root and web typechecks exit 0 |
+| production build | split production bundle; entry 281.92 kB / 92.65 kB gzip |
+| dependency audit | zero known npm vulnerabilities |
+| public graph | 453 nodes, 682 edges; signed cursor pages; overview + exact proof modes |
+| agent runtime | 2 persisted roles; one real production run completed through 8 lifecycle events |
+| scheduler | one durable daily schedule; bearer-protected fixed-workspace dispatcher |
+| voice | 15-state runtime and guarded streaming boundary shipped; production provider credentials absent, so honest 503 fallback |
+| landing accessibility | WCAG A/AA automated audit: 0 violations |
+| production responsiveness | no horizontal overflow at 390 and 1440 on landing; graph verified at 1440; final route matrix artifact is indexed in `docs/EVIDENCE_INDEX.md` |
+| secrets | provider keys remain server-side; client bundle contains no ElevenLabs or Hydra credential |
+
+The V8 acceptance details and limitation language are in
+`docs/FINAL_CAPABILITY_MATRIX.md`. A pending video or human-only cross-client
+send is never silently converted into a pass.
+
 Every gate below was run in this session, in this order, and the output pasted
 is the output it produced. A gate with no evidence line is not a gate.
 

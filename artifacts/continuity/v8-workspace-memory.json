@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-08-20T11:26:13Z",
+  "source": {
+    "state": "live",
+    "store": "HydraDB Cloud",
+    "database": "lacuna",
+    "collection": "lacuna-ws-a8620c89713b2ee4c609b6e614d75343"
+  },
+  "ingest": {
+    "sources": 9,
+    "turns": 9,
+    "claims_extracted": 21,
+    "records_stored": 34,
+    "subjects": [
+      "Atlas Relay",
+      "Kepler Gateway",
+      "Hydra Control"
+    ]
+  },
+  "checks": [
+    {
+      "subject": "Atlas Relay",
+      "predicate": "owner",
+      "status": "answered",
+      "answer": "Jonas",
+      "superseded_claims": [4288446578556782],
+      "current_claim": 2303555507159459,
+      "history": ["Mira", "Jonas"],
+      "timing_ms": 97.7,
+      "evidence_source": "V8 continuity 03"
+    },
+    {
+      "subject": "Atlas Relay",
+      "predicate": "pool_size",
+      "status": "abstained",
+      "reason": "contradicted",
+      "answer": null,
+      "current_conflicting_values": ["12", "18", "24"],
+      "timing_ms": 179.4,
+      "evidence_sources": [
+        "V8 continuity 02",
+        "V8 continuity 05",
+        "V8 continuity 06"
+      ]
+    },
+    {
+      "subject": "Kepler Gateway",
+      "predicate": "region",
+      "status": "answered",
+      "answer": "eu-central-1",
+      "superseded_claims": [1686009286452180],
+      "current_claim": 3151066444394288,
+      "history": ["us-east-1", "eu-central-1"],
+      "timing_ms": 191.6,
+      "evidence_source": "V8 continuity 09"
+    }
+  ],
+  "interpretation": "The same workspace accepted a multi-source history, preserved corrections, retained unresolved contradictions, and returned evidence-bearing live reads. This is an API-level continuity proof. Client-level ChatGPT and Claude proof is recorded separately."
+}

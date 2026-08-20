@@ -11,7 +11,7 @@ export function Temporal() {
   return (
     <section data-scene="temporal" style={{ position: 'relative', height: '160vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', padding: '0 clamp(20px, 4.4vw, 72px)', boxSizing: 'border-box' }}>
-        <div style={{ maxWidth: '540px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+        <div data-reveal style={{ maxWidth: '540px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#9A9A9A' }}>Temporal resolution</span>
           <h2 style={{ fontSize: 'clamp(40px, 4.4vw, 74px)', fontWeight: 400, lineHeight: 1.0, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>Old facts stay.<br />Current facts win.</h2>
           <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid rgba(255,255,255,0.10)', marginTop: '10px' }}>

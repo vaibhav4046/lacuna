@@ -123,6 +123,37 @@ describe('the demo workspace without a session', () => {
     expect(body.available).toBe(false);
     expect(body.relations).toEqual([]);
   });
+
+  it('serves the full public graph through bounded opaque pages', async () => {
+    const first = await fetch(`${base}/api/explore/graph?mode=proof&limit=17`);
+    const page = (await first.json()) as {
+      schema: string;
+      mode: string;
+      scope: string;
+      nodes: readonly unknown[];
+      page: { limit: number; totalNodes: number; nextCursor: string | null };
+    };
+
+    expect(first.status).toBe(200);
+    expect(page).toMatchObject({ schema: 'lacuna.graph.v1', mode: 'proof', scope: 'public' });
+    expect(page.nodes).toHaveLength(17);
+    expect(page.page.limit).toBe(17);
+    expect(page.page.totalNodes).toBeGreaterThan(17);
+    expect(page.page.nextCursor).toEqual(expect.any(String));
+    expect(page.page.nextCursor).not.toContain('acme');
+
+    const second = await fetch(`${base}/api/explore/graph?mode=proof&limit=17&cursor=${encodeURIComponent(page.page.nextCursor ?? '')}`);
+    expect(second.status).toBe(200);
+    const secondPage = (await second.json()) as { nodes: readonly { id: string }[] };
+    expect(secondPage.nodes).toHaveLength(17);
+  });
+
+  it('rejects unbounded or malformed graph query controls', async () => {
+    expect((await fetch(`${base}/api/explore/graph?mode=decorative`)).status).toBe(422);
+    expect((await fetch(`${base}/api/explore/graph?limit=0`)).status).toBe(422);
+    expect((await fetch(`${base}/api/explore/graph?limit=201`)).status).toBe(422);
+    expect((await fetch(`${base}/api/explore/graph?cursor=forged.cursor`)).status).toBe(400);
+  });
 });
 
 interface ExpansionReply {

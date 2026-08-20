@@ -36,7 +36,7 @@ export function Settings() {
     ['Signed in as', scope.demo ? 'nobody, this is the public read only workspace' : account?.email ?? '—'],
     ['HydraDB', hydraState(health).toLowerCase()],
     ['Models', model.toLowerCase()],
-    ['Voice', 'not configured'],
+    ['Voice', 'checked when opened'],
     ['API keys', 'not implemented'],
     ['Appearance', 'dark'],
     ['Accessibility', 'reduced motion follows system'],

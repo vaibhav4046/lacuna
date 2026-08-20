@@ -34,6 +34,11 @@ import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
 import { ingestSource } from '../src/api/ingest.js';
 import { runAgents } from '../src/agent/run.js';
+import { builtInAgents } from '../src/agent/registry.js';
+import { CloudAgentRuntimeStore, FileAgentRuntimeStore } from '../src/agent/store.js';
+import { CloudScheduleStore, FileScheduleStore } from '../src/scheduler/store.js';
+import { dailyContextHealthSchedule } from '../src/scheduler/dispatcher.js';
+import { ElevenLabsVoiceProvider, VoiceBoundary, elevenLabsVoiceConfig } from '../src/api/voice.js';
 import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 
@@ -156,11 +161,26 @@ async function cloudHealth(): Promise<unknown> {
 const SITE_ORIGIN = process.env['LACUNA_SITE_ORIGIN'] ?? 'https://lacuna-five.vercel.app';
 const googleClientId = process.env['GOOGLE_CLIENT_ID'];
 const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
+const graphCursorKey = process.env['LACUNA_GRAPH_CURSOR_KEY'] ?? process.env['HYDRA_TOKEN'];
+const voiceConfig = elevenLabsVoiceConfig(process.env);
+const voice = new VoiceBoundary(voiceConfig === null ? null : new ElevenLabsVoiceProvider(voiceConfig));
+const runtimeRoot = process.env['LACUNA_RUNTIME_DIR'] ?? '/tmp/lacuna-runtime';
+const agentRuntime = cloud === null
+  ? new FileAgentRuntimeStore(runtimeRoot)
+  : new CloudAgentRuntimeStore(cloud);
+const scheduleRuntime = cloud === null
+  ? new FileScheduleStore(runtimeRoot)
+  : new CloudScheduleStore(cloud);
 
 const api = new ApiRouter({
   store,
   secure: true,
   health: cloudHealth,
+  voice,
+  siteOrigin: SITE_ORIGIN,
+  // Stable across serverless instances. The value never enters a graph
+  // response; it only authenticates opaque pagination cursors.
+  ...(graphCursorKey === undefined ? {} : { graphCursorKey }),
   inventory: buildDemo().inventory,
   // artifacts/** ships with the function, so the measured run the repository
   // holds is the one the screen shows.
@@ -184,7 +204,7 @@ const api = new ApiRouter({
     ...(groq === undefined ? {} : {
       // `null` is the public corpus: the same run, over the collection every
       // visitor already reads. It writes nothing either way.
-      agent: (collection: string | null, task: string) => runAgents({
+      agent: (collection: string | null, task: string, run = {}) => runAgents({
         source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),
         provider: groq,
         model: AGENT_MODEL,
@@ -193,7 +213,25 @@ const api = new ApiRouter({
         task,
         knownSubjects: SUBJECT_NAMES,
         predicates: [...AGENT_PREDICATES],
+        store: agentRuntime,
+        ...(run.idempotencyKey === undefined ? {} : { idempotencyKey: run.idempotencyKey }),
+        ...(run.kind === undefined ? {} : { kind: run.kind }),
+        ...(run.attempt === undefined ? {} : { attempt: run.attempt }),
+        ...(run.retryOf === undefined ? {} : { retryOf: run.retryOf }),
       }),
+      agentStore: agentRuntime,
+      scheduleStore: scheduleRuntime,
+      prepareAgents: async (workspace: string): Promise<void> => {
+        await agentRuntime.putAgents(
+          workspace,
+          builtInAgents(workspace, groq.name, AGENT_MODEL, new Date().toISOString()),
+        );
+      },
+      prepareSchedule: async (workspace: string): Promise<void> => {
+        await scheduleRuntime.putSchedule(dailyContextHealthSchedule(workspace, '06:00', 'UTC', Date.now()));
+      },
+      ...(process.env['CRON_SECRET'] === undefined ? {} : { cronSecret: process.env['CRON_SECRET'] }),
+      cronWorkspaces: ['public'],
     }),
   }),
   // The store's own relation graph, read from the service. Kept small: this is

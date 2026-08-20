@@ -36,7 +36,7 @@ const MEASURED: readonly { readonly value: string; readonly label: string; reado
 export function Evals() {
   return (
     <section id="evals" data-scene="quiet" style={{ position: 'relative', padding: '14vh clamp(20px, 4.4vw, 72px)' }}>
-      <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      <div data-reveal style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
         <h2 style={{ fontSize: 'clamp(38px, 4.4vw, 74px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>
           Measure the context.<br />Then make the claim.
         </h2>

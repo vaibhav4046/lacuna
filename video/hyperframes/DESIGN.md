@@ -2,9 +2,9 @@
 
 ## What it is
 
-131 seconds, 1920×1080, 30 fps, H.264 with AAC narration and a caption track.
-The hackathon's ceiling is three minutes; this comes in under two and a quarter
-because there is nothing else to say.
+About 175 seconds, 1920×1080, 30 fps, H.264 with AAC narration and a caption
+track. The hackathon's ceiling is three minutes; the composition is measured
+from its clips and remains below that ceiling without speeding the narration.
 
 ## The rule the film follows
 
@@ -28,6 +28,9 @@ because it is on the page.
 | s03 project | 12.6s | Conversations → claims → answer |
 | s04–s08 | 49.4s | One pan down the live `/judge` page, five outcomes |
 | s09 hydradb | 13.3s | The deployed HydraDB screen, four checks passing |
+| s16 graph | 4.6s | V8 interactive overview and readable graph inventory |
+| s17 agents | 4.6s | Persisted Researcher → Reviewer runtime |
+| s18 voice | 4.6s | Guarded voice route and honest provider boundary |
 | s10 benchmark | 14.9s | Five baselines and this product, from the artifact |
 | s11 parity | 9.5s | Node versus cloud, identical |
 | s12 close | 8.1s | One context. Any agent. The two links. |
@@ -36,6 +39,10 @@ The five demo scenes are one continuous pan rather than five cuts, because
 cutting between five crops of one screenshot would be five cuts pretending to
 be five screens. Panning is what a reader does, and it keeps the rows above and
 below in frame, which is the point: the outcomes differ.
+
+The three V8 additions are deliberately silent. They are brief visual proof
+beats between spoken sections, so the verified narration remains intact and a
+new marketing sentence is not smuggled in without a recorded voice clip.
 
 ## Palette and type
 

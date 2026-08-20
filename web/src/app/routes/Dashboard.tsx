@@ -6,6 +6,7 @@ import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { dotFor } from '../../design/connectors';
 import { Panel } from '../state';
+import type { AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
 
 /**
  * The dashboard.
@@ -50,6 +51,8 @@ export function Dashboard() {
   const conflicts = useScoped<readonly Conflict[]>('conflicts');
   const connections = useScoped<readonly Connection[]>('connections');
   const counts = useScoped<HealthCounts>('health');
+  const runs = useScoped<readonly AgentRunRecord[]>('runs');
+  const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -57,6 +60,8 @@ export function Dashboard() {
         {([
           ['ADD CONTEXT', `${prefix}/memory`],
           ['ASK LACUNA', `${prefix}/ask`],
+          ['RUN AGENT', `${prefix}/agents`],
+          ['TALK TO LACUNA', `${prefix}/voice`],
           ['CONNECT MCP', `${prefix}/mcp`],
           ['OPEN CLI', `${prefix}/cli`],
         ] as const).map(([label, to]) => (
@@ -147,6 +152,32 @@ export function Dashboard() {
           </button>
         </div>
       </div>
+
+      <section style={{ borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: '40px' }}>
+        <div>
+          <span style={head}>RECENT AGENT RUNS</span>
+          <Panel loaded={runs} stage="LOADING RUNS" empty={{ headline: 'Run your first agent.', detail: 'Researcher and Reviewer lifecycle records appear here after a governed run.' }}>
+            {(rows) => rows.slice(0, 3).map((run) => (
+              <button key={run.id} className="hv-surface3" onClick={() => go(`${prefix}/work`)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: '16px', padding: '13px 2px', border: 0, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                <span style={{ fontSize: '14px', color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{run.task}</span>
+                <span style={{ ...rowMeta, color: run.status === 'COMPLETED' ? '#B79BFF' : run.status === 'FAILED' || run.status === 'CANCELLED' ? '#FFB829' : '#BDBDBD' }}>{run.status}</span>
+              </button>
+            ))}
+          </Panel>
+        </div>
+        <div>
+          <span style={head}>NEXT SCHEDULED RUN</span>
+          <Panel loaded={schedules} stage="LOADING SCHEDULE" empty={{ headline: 'No schedule configured.', detail: 'The daily Context Health schedule is created when this runtime becomes available.' }}>
+            {(rows) => rows.slice(0, 1).map((schedule) => (
+              <button key={schedule.id} className="hv-surface3" onClick={() => go(`${prefix}/work`)} style={{ width: '100%', display: 'grid', gap: '7px', padding: '13px 2px', border: 0, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{schedule.name}</span>
+                <span style={rowMeta}>DAILY · {schedule.localTime} {schedule.timezone} · {new Date(schedule.nextEligibleAt).toLocaleString()}</span>
+                <span style={rowMeta}>LAST RUN · {schedule.lastRunAt === null ? 'NEVER' : new Date(schedule.lastRunAt).toLocaleString()} · RETRY {schedule.retry.state}</span>
+              </button>
+            ))}
+          </Panel>
+        </div>
+      </section>
     </div>
   );
 }

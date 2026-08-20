@@ -22,6 +22,39 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
+## V8 product
+
+The current product is wider than the original resolver without weakening its
+rules:
+
+- **Ask** turns a plain-English question into a bounded subject and predicate,
+  answers only from standing evidence, and returns the interpretation, proof,
+  timeline and abstention reason as inspectable artifacts.
+- **Memory and Graph** expose the same live HydraDB-backed workspace as a
+  searchable table, a state-shaped overview field, and a deterministic
+  provenance DAG. The public workspace currently contains 453 graph nodes and
+  682 edges, paged with server-signed cursors.
+- **Agents and Work** persist a governed Researcher → Reviewer run. A completed
+  production run records eight lifecycle events from `CREATED` to `COMPLETED`,
+  the exact context pack, reviewer verdict, tool use, latency, and no
+  authoritative writeback.
+- **Schedules** persist one daily context-health task. Vercel invokes a single
+  bearer-protected dispatcher; workspace identifiers come from server-side
+  enumeration, never the request body.
+- **Voice** implements the complete browser state machine, raw PCM realtime
+  Scribe transport, committed-transcript query, streamed server-side TTS,
+  interruption and text fallback. Production deliberately returns
+  `speech_unavailable` until `ELEVENLABS_API_KEY` and
+  `ELEVENLABS_VOICE_ID` are supplied as server-only environment variables.
+- **Everywhere** is the same contract over the browser, CLI, stdio MCP, and
+  remote Streamable HTTP MCP. A workspace is addressed by its own scoped MCP
+  URL; no client chooses a workspace through an untrusted query or body.
+
+The quickest judge path is [the live public workspace](https://lacuna-five.vercel.app/explore).
+The exact V8 capability boundary is in
+[docs/FINAL_CAPABILITY_MATRIX.md](docs/FINAL_CAPABILITY_MATRIX.md), and the
+current evidence is indexed in [docs/EVIDENCE_INDEX.md](docs/EVIDENCE_INDEX.md).
+
 **Thirty seconds, no account.** Open
 [lacuna-five.vercel.app](https://lacuna-five.vercel.app) and ask it something in
 a sentence. `what does token-forge depend on?` answers from evidence.
@@ -250,9 +283,11 @@ render their own markup rather than the projection.
 
 ## Status
 
-Work in progress. This repository is being built live during the hackathon
-window (August 12-20, 2026). See [STATE.md](STATE.md) for what actually works
-right now, and [PLAN.md](PLAN.md) for what is next.
+V8 is release-candidate software. The live deployment, current gates, shipped
+capabilities and named limitations are recorded in
+[docs/FINAL_EXECUTION_STATE.md](docs/FINAL_EXECUTION_STATE.md). Historical
+audits remain in the repository as dated evidence; that file and
+[RELEASE_GATE.md](RELEASE_GATE.md) are the current release truth.
 
 Nothing in this README describes a feature that does not exist. If a claim here
 is not backed by a command you can run, it is a bug in the README.

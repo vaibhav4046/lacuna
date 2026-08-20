@@ -23,19 +23,13 @@ export const DEFAULT_ROUTE: RouteKey = 'dash';
 /**
  * The sidebar, which lists what this product does rather than what it might.
  *
- * Work, Tools and Voice are not here: their endpoints return an empty array or
- * the feature is not configured, and a screen that opens onto nothing makes a
- * working product look half built. Agents came back when a run became real,
- * which is the rule this list holds to in both directions.
- *
- * The routes still resolve, so an existing link or a bookmark still lands
- * somewhere rather than on a 404. They are simply not offered, which is what
- * shipping means.
+ * Runtime routes appear because each now reads a real server contract. Empty
+ * states remain useful: they lead to the first run instead of simulating one.
  */
 export const NAV_GROUPS = [
   { h: 'OVERVIEW', items: [['DASHBOARD', 'dash'], ['ASK', 'ask']] },
   { h: 'CONTEXT', items: [['MEMORY', 'memory'], ['TIMELINE', 'timeline'], ['GRAPH', 'graph'], ['HEALTH', 'health']] },
-  { h: 'RUNTIME', items: [['AGENTS', 'agents'], ['MODELS', 'models']] },
+  { h: 'RUNTIME', items: [['WORK', 'work'], ['AGENTS', 'agents'], ['TOOLS', 'tools'], ['VOICE', 'voice'], ['MODELS', 'models']] },
   { h: 'DEVELOPERS', items: [['MCP', 'mcp'], ['SDK · API', 'sdk'], ['CLI', 'cli'], ['CONNECTORS', 'conn']] },
   { h: 'PROOF', items: [['EVALUATIONS', 'evals'], ['HYDRADB', 'hydra']] },
   { h: 'SYSTEM', items: [['SETTINGS', 'settings']] }

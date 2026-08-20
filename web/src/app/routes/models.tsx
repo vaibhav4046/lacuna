@@ -3,10 +3,9 @@ import { useScoped } from '../../api/scope';
 import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { Empty, Failed, Stage } from '../state';
-import { VoiceOrb } from '../../canvas/VoiceOrb';
 
 /**
- * The MODELS group: Models and Voice.
+ * The model provider inventory.
  *
  * Neither screen names a connected provider unless something checked. The
  * design writes a latency column and the design's own line under it says the
@@ -80,23 +79,6 @@ export function Models() {
         THE PROBE IS ONE ROUND TRIP TO THE PROVIDER&rsquo;S CATALOGUE, SO IT IS THE SAME FOR EVERY MODEL THAT PROVIDER SERVES<br />
         NO PER-MODEL LATENCY HAS BEEN MEASURED, SO NONE IS SHOWN
       </span>
-    </div>
-  );
-}
-
-/**
- * Voice.
- *
- * The microphone is requested only when someone asks for it. Until then the
- * orb is static and the row says NOT CONFIGURED, which is true: nothing is
- * listening and no provider is wired. With the microphone live, every moving
- * part of the orb is driven by real audio, and the level and pitch readouts
- * show measured values or an em dash.
- */
-export function Voice() {
-  return (
-    <div style={{ maxWidth: '1020px', margin: '0 auto', display: 'flex', gap: 'clamp(24px, 4vw, 56px)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      <VoiceOrb />
     </div>
   );
 }

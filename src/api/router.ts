@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { once } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { hashPassword, MAX_PASSWORD_CHARS, MIN_PASSWORD_CHARS, verifyPassword } from '../auth/password.js';
@@ -28,6 +29,28 @@ import type { HydraSource } from '../hydra/source.js';
 import type { ClaimState, Inventory } from '../report/inventory.js';
 import type { EvalRow } from '../report/evaluations.js';
 import { headerModel, modelRows } from '../provider/registry.js';
+import { GraphApiError, graphFromInventory, graphFromSource, graphPage } from './graph.js';
+import type { AgentRun } from '../agent/types.js';
+import { builtInAgentId, agentPageRecords } from '../agent/registry.js';
+import { registeredAgentTools } from '../agent/tools.js';
+import {
+  AgentInputRejected,
+  cancelAgentRun,
+} from '../agent/run.js';
+import {
+  InvalidRunTransition,
+  RunConflict,
+  WorkspaceAccessDenied,
+  type AgentRuntimeStore,
+} from '../agent/store.js';
+import type { DailySchedule } from '../scheduler/types.js';
+import type { ScheduleStore } from '../scheduler/store.js';
+import {
+  ScheduleAuthorizationFailed,
+  dispatchDueDaily,
+  runScheduleNow,
+} from '../scheduler/dispatcher.js';
+import type { VoiceBoundary, VoiceBoundaryResult } from './voice.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -135,7 +158,32 @@ export interface ApiOptions {
    * configured, and the route then answers 501 rather than pretending.
    */
   /** `null` runs over the public corpus rather than one account's collection. */
-  readonly agent?: (collection: string | null, task: string) => Promise<unknown>;
+  readonly agent?: (
+    collection: string | null,
+    task: string,
+    run?: {
+      readonly idempotencyKey?: string;
+      readonly kind?: 'TASK' | 'CONTEXT_HEALTH';
+      readonly attempt?: number;
+      readonly retryOf?: string | null;
+    },
+  ) => Promise<AgentRun>;
+  /** Operational run records, scoped by the server-derived collection id. */
+  readonly agentStore?: AgentRuntimeStore;
+  /** Seeds real built-in definitions before a workspace runtime read. */
+  readonly prepareAgents?: (workspace: string) => Promise<void>;
+  /** Daily schedule records and dispatch leases. */
+  readonly scheduleStore?: ScheduleStore;
+  /** Creates the one supported daily schedule idempotently. */
+  readonly prepareSchedule?: (workspace: string) => Promise<void>;
+  /** Server-only Vercel cron bearer. */
+  readonly cronSecret?: string;
+  /** Explicit dispatcher scopes. Never taken from a cron request. */
+  readonly cronWorkspaces?: readonly string[];
+  /** ElevenLabs boundary. Permanent credentials remain inside it. */
+  readonly voice?: VoiceBoundary;
+  /** Canonical trusted origin used for the voice Origin check. */
+  readonly siteOrigin?: string;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   /**
@@ -178,6 +226,8 @@ export interface ApiOptions {
    * and every test works without ever touching Google.
    */
   readonly google?: GoogleConfig;
+  /** Stable server-only key used to sign opaque graph pagination cursors. */
+  readonly graphCursorKey?: string;
   readonly now?: () => number;
 }
 
@@ -198,6 +248,54 @@ function send(response: ServerResponse, status: number, body: unknown, cookies: 
   if (cookies.length > 0) headers['Set-Cookie'] = [...cookies];
   response.writeHead(status, headers);
   response.end(text);
+}
+
+/** Stream provider audio without copying provider headers or buffering bytes. */
+async function sendVoiceResult(
+  response: ServerResponse,
+  result: VoiceBoundaryResult,
+  control: AbortController,
+): Promise<void> {
+  if (result.kind === 'json') {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, private',
+      'X-Content-Type-Options': 'nosniff',
+      ...(result.retryAfterSeconds === undefined ? {} : { 'Retry-After': String(result.retryAfterSeconds) }),
+    };
+    response.writeHead(result.status, headers);
+    response.end(JSON.stringify(result.body));
+    return;
+  }
+
+  const body = result.response.body;
+  if (body === null) {
+    send(response, 503, { error: 'speech_unavailable' });
+    return;
+  }
+  response.writeHead(200, {
+    'Content-Type': result.contentType,
+    'Cache-Control': 'no-store, private',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  const reader = body.getReader();
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done || control.signal.aborted) break;
+      if (!response.write(Buffer.from(chunk.value))) {
+        await Promise.race([once(response, 'drain'), once(response, 'close')]);
+      }
+    }
+    if (!response.writableEnded) response.end();
+  } finally {
+    if (control.signal.aborted) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+
+function firstHeader(value: string | readonly string[] | undefined): string | undefined {
+  return typeof value === 'string' ? value : value?.[0];
 }
 
 /**
@@ -343,6 +441,14 @@ export class ApiRouter {
   readonly #source: ((collection?: string) => HydraSource) | undefined;
   readonly #ingest: ApiOptions['ingest'];
   readonly #agent: ApiOptions['agent'];
+  readonly #agentStore: AgentRuntimeStore | undefined;
+  readonly #prepareAgents: ApiOptions['prepareAgents'];
+  readonly #scheduleStore: ScheduleStore | undefined;
+  readonly #prepareSchedule: ApiOptions['prepareSchedule'];
+  readonly #cronSecret: string | undefined;
+  readonly #cronWorkspaces: readonly string[];
+  readonly #voice: VoiceBoundary | undefined;
+  readonly #siteOrigin: string | undefined;
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #continuity: Readonly<Record<string, unknown>> | undefined;
@@ -350,6 +456,7 @@ export class ApiRouter {
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
+  readonly #graphCursorKey: string;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
@@ -365,6 +472,14 @@ export class ApiRouter {
     this.#source = options.source;
     this.#ingest = options.ingest;
     this.#agent = options.agent;
+    this.#agentStore = options.agentStore;
+    this.#prepareAgents = options.prepareAgents;
+    this.#scheduleStore = options.scheduleStore;
+    this.#prepareSchedule = options.prepareSchedule;
+    this.#cronSecret = options.cronSecret;
+    this.#cronWorkspaces = options.cronWorkspaces ?? ['public'];
+    this.#voice = options.voice;
+    this.#siteOrigin = options.siteOrigin;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#continuity = options.continuity;
@@ -372,6 +487,10 @@ export class ApiRouter {
     this.#relations = options.relations;
     this.#expansion = options.expansion;
     this.#google = options.google;
+    // A process-local key keeps development and tests safe by default. Hosted
+    // deployments inject a stable secret so a cursor survives another
+    // serverless instance without ever exposing the secret in the envelope.
+    this.#graphCursorKey = options.graphCursorKey ?? randomBytes(32).toString('hex');
     this.#now = options.now ?? (() => Date.now());
   }
 
@@ -443,11 +562,52 @@ export class ApiRouter {
     }
   }
 
+  async #prepareRuntime(workspace: string): Promise<void> {
+    await this.#prepareAgents?.(workspace);
+    await this.#prepareSchedule?.(workspace);
+  }
+
+  async #runScheduled(schedule: DailySchedule, idempotencyKey: string): Promise<AgentRun> {
+    const run = this.#agent;
+    if (run === undefined) throw new Error('agent provider unavailable');
+    return run(schedule.workspace, schedule.task, {
+      idempotencyKey,
+      kind: schedule.runKind,
+    });
+  }
+
   async handle(request: IncomingMessage, response: ServerResponse, path: string): Promise<Handled> {
     if (!path.startsWith('/api/')) return NOT_HANDLED;
 
     const cookies = parseCookies(request.headers.cookie);
     const method = request.method ?? 'GET';
+
+    if (path === '/api/cron/agents/daily' && method === 'GET') {
+      const schedules = this.#scheduleStore;
+      if (schedules === undefined || this.#agent === undefined) {
+        send(response, 503, { error: 'runtime_unavailable' });
+        return HANDLED;
+      }
+      try {
+        const dispatched = [];
+        for (const workspace of this.#cronWorkspaces) {
+          await this.#prepareRuntime(workspace);
+          dispatched.push(...await dispatchDueDaily({
+            store: schedules,
+            workspace,
+            authorization: firstHeader(request.headers.authorization),
+            cronSecret: this.#cronSecret,
+            run: (schedule, key) => this.#runScheduled(schedule, key),
+          }));
+        }
+        send(response, 200, dispatched);
+      } catch (error) {
+        send(response, error instanceof ScheduleAuthorizationFailed ? 401 : 503, {
+          error: error instanceof ScheduleAuthorizationFailed ? 'authorization' : 'dispatch_unavailable',
+        });
+      }
+      return HANDLED;
+    }
 
     if (path === '/api/session' && method === 'GET') {
       const token = cookies[SESSION_COOKIE];
@@ -621,6 +781,69 @@ export class ApiRouter {
       }
       if (part === 'model') {
         send(response, 200, { label: headerModel(await modelRows(process.env)) });
+        return HANDLED;
+      }
+
+      if (part === 'graph') {
+        if (!this.#readLimit.check(sourceKey(request), this.#now()).allowed) {
+          send(response, 429, { error: 'too many graph reads from this address, try again shortly' });
+          return HANDLED;
+        }
+        if (inventory === undefined) {
+          send(response, 503, { error: 'SOURCE_UNAVAILABLE' });
+          return HANDLED;
+        }
+        const query = new URL(request.url ?? path, 'http://lacuna.invalid').searchParams;
+        const modeValue = query.get('mode');
+        if (modeValue !== null && modeValue !== 'overview' && modeValue !== 'proof') {
+          send(response, 422, { error: 'INVALID_MODE' });
+          return HANDLED;
+        }
+        const limitValue = query.get('limit');
+        if (limitValue !== null && !/^[1-9]\d*$/u.test(limitValue)) {
+          send(response, 422, { error: 'INVALID_LIMIT' });
+          return HANDLED;
+        }
+        try {
+          const graph = graphFromInventory(DEMO_WORKSPACE, inventory, 'public');
+          send(response, 200, graphPage(graph, {
+            authenticatedWorkspaceId: DEMO_WORKSPACE,
+            requestedWorkspaceId: DEMO_WORKSPACE,
+            mode: modeValue ?? 'overview',
+            ...(limitValue === null ? {} : { limit: Number(limitValue) }),
+            cursor: query.get('cursor'),
+            cursorKey: this.#graphCursorKey,
+          }));
+        } catch (error) {
+          send(response, error instanceof GraphApiError ? error.status : 500, {
+            error: error instanceof GraphApiError ? error.code : 'GRAPH_FAILED',
+          });
+        }
+        return HANDLED;
+      }
+
+      if (part === 'agents' || part === 'runs' || part === 'tools' || part === 'schedules') {
+        const runtime = this.#agentStore;
+        const schedules = this.#scheduleStore;
+        if (runtime === undefined || schedules === undefined || this.#agent === undefined) {
+          send(response, 503, { error: 'runtime_unavailable' });
+          return HANDLED;
+        }
+        try {
+          const workspace = 'public';
+          await this.#prepareRuntime(workspace);
+          const runs = await runtime.listRuns(workspace);
+          const body = part === 'agents'
+            ? agentPageRecords(await runtime.listAgents(workspace), runs)
+            : part === 'runs'
+              ? runs
+              : part === 'tools'
+                ? registeredAgentTools(runs)
+                : await schedules.listSchedules(workspace);
+          send(response, 200, body);
+        } catch {
+          send(response, 503, { error: 'runtime_unavailable' });
+        }
         return HANDLED;
       }
 
@@ -798,8 +1021,80 @@ export class ApiRouter {
     }
 
     if (path.startsWith('/api/workspace/') && method === 'GET') {
-      const view = await this.#viewFor(cookies);
       const part = path.slice('/api/workspace/'.length);
+
+      if (part === 'graph') {
+        const account = await this.#accountFor(cookies);
+        if (account === null) {
+          send(response, 401, { error: 'session' });
+          return HANDLED;
+        }
+        const openSource = this.#source;
+        if (openSource === undefined) {
+          send(response, 503, { error: 'SOURCE_UNAVAILABLE' });
+          return HANDLED;
+        }
+        const query = new URL(request.url ?? path, 'http://lacuna.invalid').searchParams;
+        const modeValue = query.get('mode');
+        if (modeValue !== null && modeValue !== 'overview' && modeValue !== 'proof') {
+          send(response, 422, { error: 'INVALID_MODE' });
+          return HANDLED;
+        }
+        const limitValue = query.get('limit');
+        if (limitValue !== null && !/^[1-9]\d*$/u.test(limitValue)) {
+          send(response, 422, { error: 'INVALID_LIMIT' });
+          return HANDLED;
+        }
+        const collection = workspaceCollection(account.email);
+        try {
+          const graph = await graphFromSource(collection, openSource(collection), ASK_TIMEOUT_MS, 'workspace');
+          send(response, 200, graphPage(graph, {
+            authenticatedWorkspaceId: collection,
+            requestedWorkspaceId: collection,
+            mode: modeValue ?? 'overview',
+            ...(limitValue === null ? {} : { limit: Number(limitValue) }),
+            cursor: query.get('cursor'),
+            cursorKey: this.#graphCursorKey,
+          }));
+        } catch (error) {
+          send(response, error instanceof GraphApiError ? error.status : 503, {
+            error: error instanceof GraphApiError ? error.code : 'SOURCE_UNAVAILABLE',
+          });
+        }
+        return HANDLED;
+      }
+
+      if (part === 'agents' || part === 'runs' || part === 'tools' || part === 'schedules') {
+        const account = await this.#accountFor(cookies);
+        if (account === null) {
+          send(response, 401, { error: 'session' });
+          return HANDLED;
+        }
+        const runtime = this.#agentStore;
+        const schedules = this.#scheduleStore;
+        if (runtime === undefined || schedules === undefined || this.#agent === undefined) {
+          send(response, 503, { error: 'runtime_unavailable' });
+          return HANDLED;
+        }
+        const workspace = workspaceCollection(account.email);
+        try {
+          await this.#prepareRuntime(workspace);
+          const runs = await runtime.listRuns(workspace);
+          const body = part === 'agents'
+            ? agentPageRecords(await runtime.listAgents(workspace), runs)
+            : part === 'runs'
+              ? runs
+              : part === 'tools'
+                ? registeredAgentTools(runs)
+                : await schedules.listSchedules(workspace);
+          send(response, 200, body);
+        } catch {
+          send(response, 503, { error: 'runtime_unavailable' });
+        }
+        return HANDLED;
+      }
+
+      const view = await this.#viewFor(cookies);
 
       // Probed rather than listed: these two ask the endpoints and report what
       // answered, so they run before the static branches below.
@@ -876,6 +1171,94 @@ export class ApiRouter {
      * corpus, so a transcript somebody pasted five minutes ago is askable in
      * their own words without anybody having told the parser its vocabulary.
      */
+    if ((path === '/api/workspace/voice/token' || path === '/api/workspace/voice/speech') && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const voice = this.#voice;
+      const expectedOrigin = this.#siteOrigin;
+      if (voice === undefined || expectedOrigin === undefined) {
+        send(response, 503, { error: 'speech_unavailable' });
+        return HANDLED;
+      }
+      let body: unknown = null;
+      if (path.endsWith('/speech')) {
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+          return HANDLED;
+        }
+      }
+      const workspace = workspaceCollection(account.email);
+      const control = new AbortController();
+      const abort = () => control.abort();
+      request.once('aborted', abort);
+      response.once('close', abort);
+      const access = {
+        origin: firstHeader(request.headers.origin),
+        expectedOrigin,
+        scope: 'private' as const,
+        workspace,
+        sessionWorkspace: workspace,
+        sourceKey: sourceKey(request),
+      };
+      const result = path.endsWith('/token')
+        ? await voice.token(access, control.signal)
+        : await voice.speech(access, body, control.signal);
+      await sendVoiceResult(response, result, control);
+      request.removeListener('aborted', abort);
+      response.removeListener('close', abort);
+      return HANDLED;
+    }
+
+    if ((path === '/api/explore/voice/token' || path === '/api/explore/voice/speech') && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const voice = this.#voice;
+      const expectedOrigin = this.#siteOrigin;
+      if (voice === undefined || expectedOrigin === undefined) {
+        send(response, 503, { error: 'speech_unavailable' });
+        return HANDLED;
+      }
+      let body: unknown = null;
+      if (path.endsWith('/speech')) {
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+          return HANDLED;
+        }
+      }
+      const control = new AbortController();
+      const abort = () => control.abort();
+      request.once('aborted', abort);
+      response.once('close', abort);
+      const access = {
+        origin: firstHeader(request.headers.origin),
+        expectedOrigin,
+        scope: 'public' as const,
+        workspace: 'public',
+        sessionWorkspace: null,
+        sourceKey: sourceKey(request),
+      };
+      const result = path.endsWith('/token')
+        ? await voice.token(access, control.signal)
+        : await voice.speech(access, body, control.signal);
+      await sendVoiceResult(response, result, control);
+      request.removeListener('aborted', abort);
+      response.removeListener('close', abort);
+      return HANDLED;
+    }
+
     if (path === '/api/workspace/query' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
@@ -940,10 +1323,131 @@ export class ApiRouter {
         send(response, 422, { error: 'task_required' });
         return HANDLED;
       }
+      const workspace = workspaceCollection(account.email);
+      const requestedAgent = body?.['agentId'];
+      if (requestedAgent !== undefined && requestedAgent !== builtInAgentId(workspace, 'RESEARCHER')) {
+        send(response, 403, { error: 'agent_scope' });
+        return HANDLED;
+      }
       try {
-        send(response, 200, await runAgent(workspaceCollection(account.email), task));
+        await this.#prepareRuntime(workspace);
+        send(response, 200, await runAgent(workspace, task, {
+          idempotencyKey: `web:${randomBytes(16).toString('hex')}`,
+        }));
+      } catch (error) {
+        send(response, error instanceof AgentInputRejected ? 422 : 502, {
+          error: error instanceof AgentInputRejected ? 'task_rejected' : 'the run did not complete',
+        });
+      }
+      return HANDLED;
+    }
+
+    const runMutation = /^\/api\/workspace\/agent\/runs\/([^/]+)\/(cancel|retry)$/u.exec(path);
+    if (runMutation !== null && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const runtime = this.#agentStore;
+      const runAgent = this.#agent;
+      if (runtime === undefined || runAgent === undefined) {
+        send(response, 503, { error: 'runtime_unavailable' });
+        return HANDLED;
+      }
+      let runId: string;
+      try {
+        runId = decodeURIComponent(runMutation[1] ?? '');
       } catch {
-        send(response, 502, { error: 'the run did not complete' });
+        send(response, 400, { error: 'run_id' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      try {
+        await this.#prepareRuntime(workspace);
+        const current = await runtime.getRun(workspace, runId);
+        if (current === null) {
+          send(response, 404, { error: 'run' });
+          return HANDLED;
+        }
+        if (runMutation[2] === 'cancel') {
+          send(response, 200, await cancelAgentRun(runtime, workspace, runId, this.#now));
+        } else {
+          if (current.status !== 'FAILED' && current.status !== 'CANCELLED') {
+            send(response, 409, { error: 'run_transition' });
+            return HANDLED;
+          }
+          send(response, 200, await runAgent(workspace, current.task, {
+            idempotencyKey: `retry:${current.id}`,
+            kind: current.kind,
+            attempt: current.attempt + 1,
+            retryOf: current.id,
+          }));
+        }
+      } catch (error) {
+        const status = error instanceof WorkspaceAccessDenied
+          ? 403
+          : error instanceof InvalidRunTransition || error instanceof RunConflict
+            ? 409
+            : error instanceof AgentInputRejected
+              ? 422
+              : 503;
+        send(response, status, { error: status === 403 ? 'scope' : status === 409 ? 'run_transition' : 'runtime_unavailable' });
+      }
+      return HANDLED;
+    }
+
+    const scheduleMutation = /^\/api\/workspace\/schedules\/([^/]+)\/run$/u.exec(path);
+    if (scheduleMutation !== null && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const schedules = this.#scheduleStore;
+      if (schedules === undefined || this.#agent === undefined) {
+        send(response, 503, { error: 'runtime_unavailable' });
+        return HANDLED;
+      }
+      let scheduleId: string;
+      try {
+        scheduleId = decodeURIComponent(scheduleMutation[1] ?? '');
+      } catch {
+        send(response, 400, { error: 'schedule_id' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const requestId = body?.['requestId'];
+      if (typeof requestId !== 'string') {
+        send(response, 422, { error: 'request_id' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      try {
+        await this.#prepareRuntime(workspace);
+        send(response, 200, await runScheduleNow({
+          store: schedules,
+          workspace,
+          scheduleId,
+          requestId,
+          run: (schedule, key) => this.#runScheduled(schedule, key),
+        }));
+      } catch {
+        send(response, 409, { error: 'schedule_run' });
       }
       return HANDLED;
     }
@@ -982,10 +1486,20 @@ export class ApiRouter {
         send(response, 429, { error: 'too many runs from this address, try again shortly' });
         return HANDLED;
       }
+      const requestedAgent = body?.['agentId'];
+      if (requestedAgent !== undefined && requestedAgent !== builtInAgentId('public', 'RESEARCHER')) {
+        send(response, 403, { error: 'agent_scope' });
+        return HANDLED;
+      }
       try {
-        send(response, 200, await runAgent(null, task));
-      } catch {
-        send(response, 502, { error: 'the run did not complete' });
+        await this.#prepareRuntime('public');
+        send(response, 200, await runAgent(null, task, {
+          idempotencyKey: `public:${randomBytes(16).toString('hex')}`,
+        }));
+      } catch (error) {
+        send(response, error instanceof AgentInputRejected ? 422 : 502, {
+          error: error instanceof AgentInputRejected ? 'task_rejected' : 'the run did not complete',
+        });
       }
       return HANDLED;
     }

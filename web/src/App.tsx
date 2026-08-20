@@ -1,17 +1,19 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { MemoryField } from './canvas/MemoryField';
 import { SessionProvider } from './api/session';
 import { RequireSession } from './app/RequireSession';
-import Landing from './landing/Landing';
-import SignIn from './auth/SignIn';
-import SignUp from './auth/SignUp';
-import Forgot from './auth/Forgot';
-import Onboarding from './onboarding/Onboarding';
-import Shell from './app/Shell';
-import { Judge } from './pages/Judge';
-import NotFound from './pages/NotFound';
-import { LegacyDemo } from './pages/LegacyDemo';
 import { ScopeProvider } from './api/scope';
+
+const Landing = lazy(() => import('./landing/Landing'));
+const SignIn = lazy(() => import('./auth/SignIn'));
+const SignUp = lazy(() => import('./auth/SignUp'));
+const Forgot = lazy(() => import('./auth/Forgot'));
+const Onboarding = lazy(() => import('./onboarding/Onboarding'));
+const Shell = lazy(() => import('./app/Shell'));
+const Judge = lazy(() => import('./pages/Judge').then((module) => ({ default: module.Judge })));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const LegacyDemo = lazy(() => import('./pages/LegacyDemo').then((module) => ({ default: module.LegacyDemo })));
 
 /**
  * The canvas mounts once, above the router, the way it sits above every view
@@ -22,7 +24,8 @@ export default function App() {
   return (
     <SessionProvider>
       <MemoryField />
-      <Routes>
+      <Suspense fallback={<div role="status" style={{ minHeight: '100vh', background: '#000000' }} />}>
+        <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/judge" element={<Judge />} />
         <Route path="/signin" element={<SignIn />} />
@@ -46,7 +49,8 @@ export default function App() {
           fact that the link they followed is broken.
         */}
         <Route path="*" element={<NotFound />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </SessionProvider>
   );
 }

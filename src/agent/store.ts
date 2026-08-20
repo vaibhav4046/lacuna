@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { HydraCloud } from '../hydra/cloud.js';
 import { workspaceFingerprint } from './registry.js';
 import {
   TERMINAL_RUN_STATUSES,
@@ -218,6 +219,163 @@ export class FileAgentRuntimeStore implements AgentRuntimeStore {
       const index = state.runs.findIndex((candidate) => candidate.id === run.id);
       const current = state.runs[index];
       if (index === -1 || current === undefined) throw new RunConflict('run does not exist');
+      if (current.status !== expected) throw new RunConflict(`expected ${expected}, found ${current.status}`);
+      if (!sameRunIdentity(current, run)) throw new RunConflict('run identity cannot change');
+      if (current.status !== run.status && !canTransition(current.status, run.status)) {
+        throw new InvalidRunTransition(`${current.status} cannot transition to ${run.status}`);
+      }
+      if (current.status === run.status && TERMINAL_RUN_STATUSES.has(current.status)) {
+        throw new InvalidRunTransition(`terminal run ${current.status} is immutable`);
+      }
+      const runs = [...state.runs];
+      runs[index] = run;
+      await this.#write({ ...state, runs });
+      return run;
+    });
+  }
+
+  async getRun(workspace: string, id: string): Promise<AgentRun | null> {
+    assertScopedId(workspace, id, 'run');
+    return this.#locked(workspace, async () => (await this.#read(workspace)).runs.find((run) => run.id === id) ?? null);
+  }
+
+  async listRuns(workspace: string): Promise<readonly AgentRun[]> {
+    return this.#locked(workspace, async () => [...(await this.#read(workspace)).runs]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+}
+
+/**
+ * Hosted persistence through HydraDB Cloud's exact-id application records.
+ *
+ * One workspace is one opaque record in a collection that is never queried as
+ * user context. The record holds operational state only. A module-local lock
+ * serialises requests handled by the same instance; HydraDB upsert supplies
+ * durability across cold starts. The service does not expose compare-and-swap,
+ * so cross-instance writes remain a documented limitation and scheduler
+ * dispatch still uses its own lease/idempotency record.
+ */
+export class CloudAgentRuntimeStore implements AgentRuntimeStore {
+  readonly #cloud: HydraCloud;
+  readonly #collection: string;
+  readonly #locks = new Map<string, Promise<void>>();
+  readonly #state = new Map<string, WorkspaceState>();
+
+  constructor(cloud: HydraCloud, collection = 'lacuna-agent-runtime') {
+    this.#cloud = cloud;
+    this.#collection = collection;
+  }
+
+  async #locked<T>(workspace: string, action: () => Promise<T>): Promise<T> {
+    validateWorkspace(workspace);
+    const key = workspaceFingerprint(workspace);
+    const previous = this.#locks.get(key) ?? Promise.resolve();
+    let release = (): void => undefined;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    this.#locks.set(key, current);
+    await previous;
+    try {
+      return await action();
+    } finally {
+      release();
+      if (this.#locks.get(key) === current) this.#locks.delete(key);
+    }
+  }
+
+  #id(workspace: string): string {
+    return `lacuna:agent-runtime:${workspaceFingerprint(workspace)}`;
+  }
+
+  async #read(workspace: string): Promise<WorkspaceState> {
+    const cached = this.#state.get(workspace);
+    if (cached !== undefined) return cached;
+    const source = await this.#cloud.inspect(this.#id(workspace), 10_000, this.#collection);
+    if (source === null) return { version: 1, workspace, agents: [], runs: [], idempotency: {} };
+    try {
+      const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
+      const text = envelope.content?.text;
+      if (typeof text !== 'string' || text === '') throw new RuntimeStoreError('runtime state is unreadable');
+      const state = parseState(text, workspace);
+      this.#state.set(workspace, state);
+      return state;
+    } catch (error) {
+      if (error instanceof RuntimeStoreError) throw error;
+      throw new RuntimeStoreError('runtime state is unreadable');
+    }
+  }
+
+  async #write(state: WorkspaceState): Promise<void> {
+    const results = await this.#cloud.ingestApp([{
+      id: this.#id(state.workspace),
+      title: 'Lacuna agent runtime',
+      type: 'custom',
+      timestamp: new Date().toISOString(),
+      text: JSON.stringify(state),
+      metadata: { lacuna_record: 'agent_runtime', workspace: workspaceFingerprint(state.workspace) },
+    }], this.#collection);
+    if (results.length === 0 || results.some((result) => result.error !== null && result.error !== '')) {
+      throw new RuntimeStoreError('runtime state write was refused');
+    }
+    this.#state.set(state.workspace, state);
+  }
+
+  async putAgents(workspace: string, agents: readonly PersistedAgent[]): Promise<readonly PersistedAgent[]> {
+    return this.#locked(workspace, async () => {
+      const state = await this.#read(workspace);
+      const byId = new Map(state.agents.map((agent) => [agent.id, agent]));
+      let changed = false;
+      for (const agent of agents) {
+        assertAgent(agent, workspace);
+        if (!byId.has(agent.id)) {
+          byId.set(agent.id, agent);
+          changed = true;
+        }
+      }
+      const stored = [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+      if (changed) await this.#write({ ...state, agents: stored });
+      return stored;
+    });
+  }
+
+  async listAgents(workspace: string): Promise<readonly PersistedAgent[]> {
+    return this.#locked(workspace, async () => (await this.#read(workspace)).agents);
+  }
+
+  async getAgent(workspace: string, id: string): Promise<PersistedAgent | null> {
+    assertScopedId(workspace, id, 'agent');
+    return this.#locked(workspace, async () => (await this.#read(workspace)).agents.find((agent) => agent.id === id) ?? null);
+  }
+
+  async createRun(run: AgentRun, idempotencyKey?: string): Promise<{ readonly run: AgentRun; readonly created: boolean }> {
+    assertRun(run, run.workspace);
+    if (run.status !== 'CREATED') throw new InvalidRunTransition('a new run must start CREATED');
+    return this.#locked(run.workspace, async () => {
+      const state = await this.#read(run.workspace);
+      const key = idempotencyKey === undefined ? null : idempotencyHash(idempotencyKey);
+      const priorId = key === null ? undefined : state.idempotency[key];
+      if (priorId !== undefined) {
+        const prior = state.runs.find((candidate) => candidate.id === priorId);
+        if (prior === undefined) throw new RuntimeStoreError('idempotency index is corrupt');
+        return { run: prior, created: false };
+      }
+      if (state.runs.some((candidate) => candidate.id === run.id)) throw new RunConflict('run id already exists');
+      if (!state.agents.some((agent) => agent.id === run.agentId)
+        || !state.agents.some((agent) => agent.id === run.reviewerAgentId)) {
+        throw new RuntimeStoreError('run agent is not registered in this workspace');
+      }
+      const idempotency = key === null ? state.idempotency : { ...state.idempotency, [key]: run.id };
+      await this.#write({ ...state, runs: [...state.runs, run], idempotency });
+      return { run, created: true };
+    });
+  }
+
+  async writeRun(run: AgentRun, expected: RunStatus): Promise<AgentRun> {
+    assertRun(run, run.workspace);
+    return this.#locked(run.workspace, async () => {
+      const state = await this.#read(run.workspace);
+      const index = state.runs.findIndex((candidate) => candidate.id === run.id);
+      const current = state.runs[index];
+      if (current === undefined) throw new RunConflict('run does not exist');
       if (current.status !== expected) throw new RunConflict(`expected ${expected}, found ${current.status}`);
       if (!sameRunIdentity(current, run)) throw new RunConflict('run identity cannot change');
       if (current.status !== run.status && !canTransition(current.status, run.status)) {

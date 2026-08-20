@@ -209,6 +209,7 @@
  * ------------------------------------------------------------------ */
 
 html, body { margin:0; padding:0; background:#000000; color:#ffffff; }
+html { scroll-behavior:smooth; }
 body { font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
 a { color:#BDBDBD; text-decoration:none; transition:color 160ms ease; }
 a:hover { color:#FFFFFF; }
@@ -224,6 +225,26 @@ input { font-family:inherit; }
 input::placeholder { color:#5E5E5E; }
 @keyframes lpulse { 0%, 100% { opacity:0.3; } 50% { opacity:1; } }
 @keyframes heroIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+/* Section copy enters once, at the point where it becomes useful. Canvas motion
+   keeps carrying the argument behind it; the text never replays when a reader
+   scrolls back. Landing.tsx sets the final state with IntersectionObserver. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(22px) scale(0.992);
+  filter: blur(6px);
+  transition:
+    opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 840ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 720ms ease;
+  will-change: opacity, transform, filter;
+}
+[data-reveal][data-revealed='true'] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  will-change: auto;
+}
 /* The header swaps its navigation at 940px. Above it the five links sit in the
    bar and there is no Menu. Below it they move into the disclosure sheet, and
    Live demo and Sign in go with them so one filled action is left in the bar.

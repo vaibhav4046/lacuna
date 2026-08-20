@@ -2,6 +2,7 @@ import { Header } from './Header';
 import { Hero } from './Hero';
 import { Temporal } from './Temporal';
 import { Try } from './Try';
+import { Product } from './Product';
 import { Contra } from './Contra';
 import { Void } from './Void';
 import { Arch } from './Arch';
@@ -14,7 +15,7 @@ import { Final } from './Final';
 import { Footer } from './Footer';
 
 /**
- * Eight scenes and a footer, cut down from twenty-seven.
+ * The shortest complete product argument, cut down from twenty-seven scenes.
  *
  * The long version was 30,552 pixels: fifty-six screens of scrolling before a
  * reader reached the end, with the same claim made in five different ways. A
@@ -30,7 +31,8 @@ import { Footer } from './Footer';
  * What went is repetition rather than content. Every removed scene restated
  * something one of these already says, or described a surface the product now
  * shows directly and better: the connector catalogue, the SDK, the funnel, the
- * organisation view, the voice scene for a feature that is not configured.
+ * organisation view, and the earlier placeholder voice scene now superseded
+ * by the live governed voice route.
  * Those components still exist and can be reinstated; they are simply not the
  * shortest path to understanding the product.
  *
@@ -38,11 +40,30 @@ import { Footer } from './Footer';
  * section owns the viewport, so the constellation still follows the argument.
  */
 export default function Landing() {
+  useEffect(() => {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reduced || typeof IntersectionObserver === 'undefined') {
+      nodes.forEach((node) => { node.dataset.revealed = 'true'; });
+      return undefined;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        (entry.target as HTMLElement).dataset.revealed = 'true';
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div style={{ position: 'relative', zIndex: 1 }}>
       <Header />
       <Hero />
       <Try />
+      <Product />
       <Temporal />
       <Contra />
       <Void />
@@ -57,3 +78,4 @@ export default function Landing() {
     </div>
   );
 }
+import { useEffect } from 'react';

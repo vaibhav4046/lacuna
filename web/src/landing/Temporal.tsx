@@ -9,7 +9,7 @@ export function Temporal() {
   const [hover, setHover] = useState(-1);
 
   return (
-    <section data-scene="temporal" style={{ position: 'relative', height: '210vh' }}>
+    <section data-scene="temporal" style={{ position: 'relative', height: '160vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', padding: '0 clamp(20px, 4.4vw, 72px)', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: '540px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#9A9A9A' }}>Temporal resolution</span>

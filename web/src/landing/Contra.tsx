@@ -4,7 +4,7 @@ import { MONO } from '../design/mark';
 export function Contra() {
   const go = useNavigate();
   return (
-    <section data-scene="contra" style={{ position: 'relative', height: '190vh' }}>
+    <section data-scene="contra" style={{ position: 'relative', height: '150vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 'max(13%, 96px)', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', textAlign: 'center', padding: '0 20px' }}>
           <h2 style={{ fontSize: 'clamp(40px, 4.6vw, 78px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>When the sources disagree,<br />keep both.</h2>

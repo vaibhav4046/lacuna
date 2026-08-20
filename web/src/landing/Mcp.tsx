@@ -2,7 +2,7 @@ import { MONO } from '../design/mark';
 
 export function Mcp() {
   return (
-    <section id="mcp" data-scene="mcp" style={{ position: 'relative', height: '170vh' }}>
+    <section id="mcp" data-scene="mcp" style={{ position: 'relative', height: '145vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 'max(13%, 96px)', left: 0, right: 0, textAlign: 'center', padding: '0 20px' }}>
           <h2 style={{ fontSize: 'clamp(34px, 4vw, 66px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>Bring Lacuna into the tools you already use.</h2>

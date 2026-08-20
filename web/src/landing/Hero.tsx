@@ -4,7 +4,7 @@ import { MONO } from '../design/mark';
 export function Hero() {
   const go = useNavigate();
   return (
-    <section id="top" data-scene="hero" style={{ position: 'relative', height: '160vh' }}>
+    <section id="top" data-scene="hero" style={{ position: 'relative', height: '140vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', padding: '84px clamp(20px, 4.4vw, 72px) 0', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: '660px', display: 'flex', flexDirection: 'column', gap: 'clamp(18px, 2.2vh, 28px)' }}>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#9A9A9A', animation: 'heroIn 0.6s ease 0.05s both' }}>Context for long-running agents</span>

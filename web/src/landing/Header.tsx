@@ -26,17 +26,17 @@ const textButton = { background: 'none', border: 'none', cursor: 'pointer', colo
 export function Header() {
   const go = useNavigate();
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', padding: '16px clamp(20px, 3.4vw, 44px)', background: 'linear-gradient(180deg, rgba(0,0,0,0.8), rgba(0,0,0,0))', pointerEvents: 'none' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', padding: '16px clamp(20px, 3.4vw, 44px)', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
         <Mark size={21} />
         <span style={{ fontSize: '15px', fontWeight: 500, letterSpacing: '0.01em', color: '#FFFFFF' }}>Lacuna</span>
       </div>
       <div data-navlinks="1" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(18px, 2.3vw, 32px)', pointerEvents: 'auto' }}>
-        <a href="#product" style={link}>Product</a>
+        <a href="#try" style={link}>Ask it</a>
         <a href="#how" style={link}>How it works</a>
-        <a href="#dev" style={link}>Developers</a>
+        <a href="#mcp" style={link}>Developers</a>
         <a href="#evals" style={link}>Benchmarks</a>
-        <a href="#faq" style={link}>FAQ</a>
+        <a href="#hydra" style={link}>HydraDB</a>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
         <button data-navwide="1" className="hv-text" onClick={() => go('/judge')} style={textButton}>See it answer</button>
@@ -45,11 +45,11 @@ export function Header() {
         <details data-navmenu="1" style={{ position: 'relative' }}>
           <summary aria-label="Menu" style={{ listStyle: 'none', cursor: 'pointer', color: '#BDBDBD', fontFamily: MONO, fontSize: '10.5px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '15px 10px' }}>Menu</summary>
           <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', minWidth: '186px', display: 'flex', flexDirection: 'column', padding: '10px 16px 14px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px' }}>
-            <a href="#product" style={sheetLink}>Product</a>
+            <a href="#try" style={sheetLink}>Ask it</a>
             <a href="#how" style={sheetLink}>How it works</a>
-            <a href="#dev" style={sheetLink}>Developers</a>
+            <a href="#mcp" style={sheetLink}>Developers</a>
             <a href="#evals" style={sheetLink}>Benchmarks</a>
-            <a href="#faq" style={sheetLink}>FAQ</a>
+            <a href="#hydra" style={sheetLink}>HydraDB</a>
             <span style={{ height: '1px', background: 'rgba(255,255,255,0.12)', margin: '8px 0' }} />
             <button className="hv-text" onClick={() => go('/judge')} style={{ ...textButton, textAlign: 'left', padding: '13px 4px' }}>See it answer</button>
             <button className="hv-text" onClick={() => go('/signin')} style={{ ...textButton, textAlign: 'left', padding: '13px 4px' }}>Sign in</button>

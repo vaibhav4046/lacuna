@@ -7,7 +7,7 @@ const list = { fontFamily: MONO, fontSize: '11px', lineHeight: 2, letterSpacing:
 
 export function Hydra() {
   return (
-    <section id="hydra" data-scene="hydra" style={{ position: 'relative', height: '200vh' }}>
+    <section id="hydra" data-scene="hydra" style={{ position: 'relative', height: '165vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 'max(12%, 96px)', left: 'clamp(20px, 8vw, 130px)' }}>
           <h2 style={{ fontSize: 'clamp(40px, 4.6vw, 78px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>The graph<br />underneath Lacuna.</h2>

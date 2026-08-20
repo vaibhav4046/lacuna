@@ -68,7 +68,7 @@ export function Try() {
   const answer = reply?.answer ?? null;
 
   return (
-    <section data-scene="try" style={{ position: 'relative', padding: '18vh 20px 16vh' }}>
+    <section id="try" data-scene="try" style={{ position: 'relative', padding: '18vh 20px 16vh' }}>
       <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <h2 style={{ fontSize: 'clamp(32px, 3.6vw, 56px)', fontWeight: 400, lineHeight: 1.05, letterSpacing: '-0.035em', margin: 0, color: '#FFFFFF' }}>
           Ask it something.

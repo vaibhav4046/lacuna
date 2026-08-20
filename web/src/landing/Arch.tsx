@@ -5,7 +5,7 @@ const row = { display: 'flex', alignItems: 'center', gap: '8px' } as const;
 
 export function Arch() {
   return (
-    <section id="how" data-scene="arch" style={{ position: 'relative', height: '300vh' }}>
+    <section id="how" data-scene="arch" style={{ position: 'relative', height: '215vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', left: 'clamp(20px, 5.4vw, 84px)', top: 'max(10%, 92px)', maxWidth: '460px' }}>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#9A9A9A' }}>How it works</span>

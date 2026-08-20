@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useScope, useScoped } from '../../api/scope';
@@ -44,6 +45,7 @@ const rowMeta = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', co
 export function Dashboard() {
   const go = useNavigate();
   const { prefix } = useScope();
+  const [question, setQuestion] = useState('');
   const changes = useScoped<readonly Change[]>('changes');
   const conflicts = useScoped<readonly Conflict[]>('conflicts');
   const connections = useScoped<readonly Connection[]>('connections');
@@ -74,10 +76,26 @@ export function Dashboard() {
         ))}
       </div>
 
-      <button className="hv-edge30" onClick={() => go(`${prefix}/ask`)} style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px', background: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+      {/*
+        This was a button shaped exactly like a text field. Clicking anywhere on
+        it went to the Ask screen, which is a reasonable thing to do and a poor
+        thing to disguise: something that looks typeable should be typeable. It
+        is a real field now, and the question it carries is run on arrival.
+      */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px' }}>
         <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
-        <span style={{ fontFamily: MONO, fontSize: '13px', color: '#7A7A7A' }}>Ask Lacuna anything in this workspace…</span>
-      </button>
+        <input
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' || question.trim() === '') return;
+            go(`${prefix}/ask?q=${encodeURIComponent(question.trim())}`);
+          }}
+          placeholder="Ask Lacuna anything in this workspace…"
+          aria-label="Ask a question about this workspace"
+          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
+        />
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: '40px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

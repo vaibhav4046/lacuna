@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
@@ -118,14 +118,34 @@ export function Ask() {
    * parser that guessed wrong would otherwise produce a fully evidenced answer
    * to a question nobody asked and look exactly like a correct one.
    */
+  /**
+   * A question that arrived in the URL, run once on arrival.
+   *
+   * The Dashboard field hands the question over rather than making somebody
+   * retype it, and a shared link to an answer is worth having. It runs once:
+   * re-running on every render would spend a request per keystroke elsewhere on
+   * the page.
+   */
+  useEffect(() => {
+    const carried = new URLSearchParams(window.location.search).get('q');
+    if (carried === null || carried.trim() === '') return;
+    setSentence(carried);
+    void askSentence(carried);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function runSentence() {
-    if (sentence.trim() === '') return;
-    setAsked(sentence.trim());
+    await askSentence(sentence);
+  }
+
+  async function askSentence(text: string) {
+    if (text.trim() === '') return;
+    setAsked(text.trim());
     setResult(null);
     setReading(null);
     setUnread(null);
     setStage('READING THE QUESTION');
-    const planned = await postFor<Planned>(`${base}/query`, { question: sentence.trim() });
+    const planned = await postFor<Planned>(`${base}/query`, { question: text.trim() });
     setStage(null);
     if (planned === null) {
       setUnread({ failure: 'unreachable', knownSubjects: [], available: [] });

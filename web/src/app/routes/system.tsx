@@ -15,7 +15,7 @@ import { SAMPLE_WORKSPACE } from '../Shell';
  * product uses, and the rows that describe things nobody has configured say
  * so rather than describing a default that does not exist.
  *
- * This is also where the demo workspace is opened, deliberately and by name.
+ * This is also where the public workspace is opened, deliberately and by name.
  * Nothing loads it silently.
  */
 
@@ -65,7 +65,7 @@ export function Settings() {
       ))}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'center', padding: '16px', marginTop: '22px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>{onDemo ? 'You are in the demo workspace' : 'Open the demo workspace'}</span>
+        <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>{onDemo ? 'You are in the public workspace' : 'Open the public workspace'}</span>
         {onDemo ? (
           <span style={note}>{scope.demo ? 'READ ONLY · ITS CONTENTS ARE THE GENERATED CORPUS' : 'ITS CONTENTS ARE THE GENERATED CORPUS'}</span>
         ) : (

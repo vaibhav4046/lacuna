@@ -51,153 +51,185 @@ time and a source, and answers from the claims rather than
 from the text.
 
 14
-00:00:35,410 --> 00:00:39,023
-This is the deployed product, and every row on it is
+00:00:35,410 --> 00:00:36,813
+Prose becomes claims here.
 
 15
-00:00:39,023 --> 00:00:40,665
-computed when the page loads.
+00:00:36,813 --> 00:00:39,969
+A suggestion files where the resolver cannot read it.
 
 16
-00:00:40,665 --> 00:00:43,950
-Current state: answered, with the two sources it rests on.
+00:00:39,969 --> 00:00:43,476
+So does a line ordering the system to record something.
 
 17
-00:00:45,350 --> 00:00:46,703
-A value that changed.
+00:00:43,476 --> 00:00:45,580
+Neither one can become an answer.
 
 18
-00:00:46,703 --> 00:00:48,732
-The answer is the current one.
+00:00:46,980 --> 00:00:50,593
+This is the deployed product, and every row on it is
 
 19
-00:00:48,732 --> 00:00:52,453
-The one it replaced stays readable as history, because nothing is
+00:00:50,593 --> 00:00:52,235
+computed when the page loads.
 
 20
-00:00:52,453 --> 00:00:54,820
-deleted to make the picture look clean.
+00:00:52,235 --> 00:00:55,520
+Current state: answered, with the two sources it rests on.
 
 21
-00:00:56,220 --> 00:00:57,395
-Two sources disagree.
+00:00:56,920 --> 00:00:58,273
+A value that changed.
 
 22
-00:00:57,395 --> 00:01:00,137
-Lacuna keeps both and refuses to pick.
+00:00:58,273 --> 00:01:00,302
+The answer is the current one.
 
 23
-00:01:00,137 --> 00:01:04,447
-A confident guess here is the failure this whole product exists
+00:01:00,302 --> 00:01:04,022
+The one it replaced stays readable as history, because nothing is
 
 24
-00:01:04,447 --> 00:01:05,230
-to prevent.
+00:01:04,022 --> 00:01:06,390
+deleted to make the picture look clean.
 
 25
-00:01:06,630 --> 00:01:09,656
-A real subject, and a value nobody ever stated.
+00:01:07,790 --> 00:01:08,965
+Two sources disagree.
 
 26
-00:01:09,656 --> 00:01:13,354
-No evidence, so no answer, and the reason is on the
+00:01:08,965 --> 00:01:11,707
+Lacuna keeps both and refuses to pick.
 
 27
-00:01:13,354 --> 00:01:13,690
-screen.
+00:01:11,707 --> 00:01:16,017
+A confident guess here is the failure this whole product exists
 
 28
-00:01:15,090 --> 00:01:18,097
-The contact for the vendor behind a package.
+00:01:16,017 --> 00:01:16,800
+to prevent.
 
 29
-00:01:18,097 --> 00:01:22,232
-That answer sits on a second entity, reached through the first.
+00:01:18,200 --> 00:01:21,226
+A real subject, and a value nobody ever stated.
 
 30
-00:01:22,232 --> 00:01:23,360
-Answered, and cited.
+00:01:21,226 --> 00:01:24,924
+No evidence, so no answer, and the reason is on the
 
 31
-00:01:24,760 --> 00:01:27,560
-The same six questions, asked three ways.
+00:01:24,924 --> 00:01:25,260
+screen.
 
 32
-00:01:27,560 --> 00:01:29,560
-The deployed site over HTTPS.
+00:01:26,660 --> 00:01:29,667
+The contact for the vendor behind a package.
 
 33
-00:01:29,560 --> 00:01:31,960
-The command line on a laptop.
+00:01:29,667 --> 00:01:33,802
+That answer sits on a second entity, reached through the first.
 
 34
-00:01:31,960 --> 00:01:36,360
-And an MCP server, started the way an editor starts one.
+00:01:33,802 --> 00:01:34,930
+Answered, and cited.
 
 35
-00:01:36,360 --> 00:01:40,360
-One store behind all three, and the same six answers.
+00:01:36,330 --> 00:01:39,130
+The same six questions, asked three ways.
 
 36
-00:01:41,760 --> 00:01:44,239
-HydraDB Cloud holds all of it.
+00:01:39,130 --> 00:01:41,130
+The deployed site over HTTPS.
 
 37
-00:01:44,239 --> 00:01:46,304
-Seventy two conversations as evidence.
+00:01:41,130 --> 00:01:43,530
+The command line on a laptop.
 
 38
-00:01:46,304 --> 00:01:48,783
-Eighty six entity records as claims.
+00:01:43,530 --> 00:01:47,930
+And an MCP server, started the way an editor starts one.
 
 39
-00:01:48,783 --> 00:01:53,327
-Evidence and claims kept apart, because they are different kinds of
+00:01:47,930 --> 00:01:51,930
+One store behind all three, and the same six answers.
 
 40
-00:01:53,327 --> 00:01:53,740
-thing.
+00:01:53,330 --> 00:01:55,809
+HydraDB Cloud holds all of it.
 
 41
-00:01:55,140 --> 00:01:58,995
-Measured against five retrieval baselines over sixty four questions.
+00:01:55,809 --> 00:01:57,874
+Seventy two conversations as evidence.
 
 42
-00:01:58,995 --> 00:02:03,708
-The strongest baseline reaches sixty three, and spends eighteen hundred context
+00:01:57,874 --> 00:02:00,353
+Eighty six entity records as claims.
 
 43
-00:02:03,708 --> 00:02:05,421
-tokens to do it.
+00:02:00,353 --> 00:02:04,897
+Evidence and claims kept apart, because they are different kinds of
 
 44
-00:02:05,421 --> 00:02:08,420
-Lacuna answers all sixty four, on eighteen.
+00:02:04,897 --> 00:02:05,310
+thing.
 
 45
-00:02:09,820 --> 00:02:14,314
-The same sixty four questions asked of a self hosted node
+00:02:06,710 --> 00:02:10,961
+HydraDB builds a graph of its own from the same transcripts.
 
 46
-00:02:14,314 --> 00:02:17,582
-and of HydraDB Cloud, compared field by field.
+00:02:10,961 --> 00:02:14,439
+Walked for one subject, it reaches twenty one edges.
 
 47
-00:02:17,582 --> 00:02:17,990
-Identical.
+00:02:14,439 --> 00:02:16,758
+Ten are sentences saying nothing happened.
 
 48
-00:02:19,390 --> 00:02:20,272
-One context.
+00:02:16,758 --> 00:02:18,690
+Lacuna files none of them.
 
 49
-00:02:20,272 --> 00:02:21,155
-Any agent.
+00:02:20,090 --> 00:02:23,945
+Measured against five retrieval baselines over sixty four questions.
 
 50
-00:02:21,155 --> 00:02:26,009
-The repository, the deployment, and every artifact behind these numbers are
+00:02:23,945 --> 00:02:28,658
+The strongest baseline reaches sixty three, and spends eighteen hundred context
 
 51
-00:02:26,009 --> 00:02:26,450
+00:02:28,658 --> 00:02:30,371
+tokens to do it.
+
+52
+00:02:30,371 --> 00:02:33,370
+Lacuna answers all sixty four, on eighteen.
+
+53
+00:02:34,770 --> 00:02:39,264
+The same sixty four questions asked of a self hosted node
+
+54
+00:02:39,264 --> 00:02:42,532
+and of HydraDB Cloud, compared field by field.
+
+55
+00:02:42,532 --> 00:02:42,940
+Identical.
+
+56
+00:02:44,340 --> 00:02:45,223
+One context.
+
+57
+00:02:45,223 --> 00:02:46,105
+Any agent.
+
+58
+00:02:46,105 --> 00:02:50,959
+The repository, the deployment, and every artifact behind these numbers are
+
+59
+00:02:50,959 --> 00:02:51,400
 public.

@@ -51,18 +51,46 @@ function scrollTo(needle: string, top = 90): string {
   })()`;
 }
 
+/**
+ * Fires a real agent run and waits for the verdict.
+ *
+ * A still of this screen before the run is a still of a text box, which is
+ * exactly the empty-feature shot the film exists to avoid. So the shot drives
+ * it: types the task, clicks RUN, and returns only once the reviewer's verdict
+ * is on the page. It reports MISS rather than settling for the empty state,
+ * because a photograph of the wrong moment is worse than a failed run.
+ */
+function runAgent(task: string): string {
+  return `(async () => {
+    const ta = document.querySelector('textarea');
+    if (!ta) return 'MISS';
+    const set = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+    set.call(ta, ${JSON.stringify(task)});
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    const run = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'RUN');
+    if (!run) return 'MISS';
+    run.click();
+    for (let waited = 0; waited < 40_000; waited += 500) {
+      await new Promise((r) => setTimeout(r, 500));
+      if (document.body.innerText.includes('VERDICT')) return 'OK';
+    }
+    return 'MISS';
+  })()`;
+}
+
 const SET: readonly Shot[] = [
   {
     // The top of the same screen, for the scene that talks about what the
     // managed service holds rather than about the walk.
     file: 'live-hydradb-top-1920x1080.png',
-    url: '/demo/hydra',
+    url: '/explore/hydra',
     focus: scrollTo('HYDRADB', 0),
     settleMs: 5_000,
   },
   {
     file: 'live-hydradb-1920x1080.png',
-    url: '/demo/hydra',
+    url: '/explore/hydra',
     focus: scrollTo('THE SAME GRAPH, WALKED FOR ONE SUBJECT'),
     // The walk is a real traversal against the managed service and takes about
     // three seconds, so this waits for the rows rather than the page.
@@ -70,9 +98,17 @@ const SET: readonly Shot[] = [
   },
   {
     file: 'live-extract-1920x1080.png',
-    url: '/demo/memory',
+    url: '/explore/memory',
     focus: scrollTo('BEFORE THE GRAPH'),
     settleMs: 4_000,
+  },
+  {
+    // A run that actually ran, over the corpus anybody can read. Two model
+    // calls happen while the shutter is open, which is why it settles longest.
+    file: 'live-agents-1920x1080.png',
+    url: '/explore/agents',
+    focus: runAgent('What does trace-collector depend on, and who owns it?'),
+    settleMs: 2_000,
   },
 ];
 
@@ -121,9 +157,13 @@ try {
     await loaded;
     await wait(shot.settleMs);
 
+    // `awaitPromise` because a focus script may be async: the agents shot has
+    // to fire a run and wait for its verdict, and without this the evaluate
+    // returns the pending promise itself, which is never 'OK'.
     const focused = await devtools.send('Runtime.evaluate', {
       expression: shot.focus,
       returnByValue: true,
+      awaitPromise: true,
     }) as { result?: { value?: string } };
 
     if (focused.result?.value !== 'OK') {

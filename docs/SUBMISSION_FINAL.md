@@ -10,19 +10,19 @@ Everything the form asks for, with the state of each item.
 | Deployed | https://lacuna-five.vercel.app | live, no account needed |
 | Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six questions computed on load |
 | Whole product, read only | https://lacuna-five.vercel.app/explore/dash | fifteen screens, all real |
-| Video | `video/hyperframes/renders/lacuna-demo-master.mp4`, 131s | rendered 19 Aug, **stale**, see below |
+| Video | `video/hyperframes/renders/lacuna-demo-master.mp4`, 173s | recut against the current deployment, **not uploaded** |
 | Captions | `video/hyperframes/renders/lacuna-demo.srt` | rendered |
 
 ## What is left, and why it is left
 
-**The video is out of date and I would not submit it as it stands.** It was
-rendered on 19 August, before the product stopped calling itself a demo and
-before the Agents screen existed. Nothing in it is false and none of its links
-are dead, because `/demo/*` redirects to `/explore/*`, but it shows the old
-name in the URL bar and it does not show the agent run, which is the strongest
-thing on the site. Either recapture it against the current deployment with
-`npx tsx scripts/film-shots.ts`, or submit without it if the form allows.
-Uploading whichever version you choose needs a signed-in YouTube session.
+**Uploading the video.** It needs a signed-in YouTube session, which is the
+only reason it is not up. The file itself is current: every still in it was
+captured from the deployment today, including the agent run, which the capture
+script fires for real and waits on rather than photographing an empty text box.
+Rebuild it any time with `npx tsx scripts/screens.ts <url> --live`, then
+`npx tsx scripts/film-shots.ts`, then `npm run render` and `node master.mjs`
+inside `video/hyperframes`. Every number in `artifacts/video/final-metadata.json`
+is measured off the finished file rather than typed.
 
 **Submitting the form.** Same reason. Every field it asks for is in this file.
 

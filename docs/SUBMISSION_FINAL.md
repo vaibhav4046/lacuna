@@ -7,8 +7,8 @@ Everything the form asks for, with the state of each item.
 | Project | Lacuna | ready |
 | Track | 03 — Memory and Context Retrieval | ready |
 | Repository | https://github.com/vaibhav4046/lacuna | public, MIT |
-| Deployed | https://lacuna-five.vercel.app | live, no account needed |
-| Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six questions computed on load |
+| Deployed | https://lacuna-five.vercel.app | live, no account needed, ask it a question on the landing |
+| Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six computed on load, plus one the reader types |
 | Whole product, read only | https://lacuna-five.vercel.app/explore/dash | fifteen screens, all real |
 | Video | `video/hyperframes/renders/lacuna-demo-master.mp4`, 173s | recut against the current deployment, **not uploaded** |
 | Captions | `video/hyperframes/renders/lacuna-demo.srt` | rendered |

@@ -22,6 +22,20 @@ machine-readable reason instead of guessing.
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
+**Thirty seconds, no account.** Open
+[lacuna-five.vercel.app](https://lacuna-five.vercel.app) and ask it something in
+a sentence. `what does token-forge depend on?` answers from evidence.
+`who is the runbook owner for billing-gate?` reports that two sources disagree
+and refuses to pick. `when does Lowbank launch?` reports that it was stated and
+then taken back. `what is the connection pool size for Foxglove?` reports that
+nothing ever said, which is a different answer from not knowing.
+
+The question is read into a subject and a predicate before anything is
+resolved, and the reading is printed next to the answer, because a parser that
+guessed wrong would otherwise produce a fully evidenced answer to a question
+nobody asked. No model is involved in any of that: the parser is a closed
+vocabulary and the resolver is a graph traversal.
+
 **The clearest evidence is on one screen.** HydraDB Cloud builds its own graph
 out of the same transcripts, and [/explore/hydra](https://lacuna-five.vercel.app/explore/hydra)
 walks it live and sets every edge beside what Lacuna's claim graph says of the

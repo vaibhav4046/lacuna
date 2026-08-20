@@ -133,3 +133,31 @@ show, or realtime speech that never claims LISTENING without a live
 microphone track. None is completable and testable in the remaining window, and
 a half-built one would be exactly the empty feature theatre this audit exists
 to remove.
+
+## Added after the audit, 20 August
+
+**Questions in a sentence.** Ask took a subject and a predicate, which is a
+vocabulary nobody arrives already knowing, so the most likely first interaction
+with this product was a blank result. It now parses the sentence, on the
+landing, on `/judge` and on the Ask screen, and prints its reading beside the
+answer. No model: a closed synonym table mapped onto the predicates the store
+actually records for the subject that matched.
+
+Two things that came out of building it. The predicate list was originally
+written by hand and was wrong in both directions, inventing three properties
+the corpus does not record while missing six it does, so it now comes from the
+store. And what is *askable* is deliberately wider than what a subject
+*records*, because a property it does not hold still has a real answer, which
+is that nothing ever stated it. Refusing that in the parser would have replaced
+evidenced absence with a shrug.
+
+**A timing that was measuring the wrong thing.** Reading a subject's predicates
+warms the source memo, so `askEnvelope`'s own timer then measured a cached read
+and the page displayed 0 MS beside an answer that had taken about half a
+second. The planned reply now carries the whole request. Measured after: 114 to
+163ms, against the 0 it reported before.
+
+**The LongMemEval run is visible.** It had been measured and left in an
+artifact: 500 instances read with no parse failure, no ground truth surviving
+the strip, and 16 percent coverage. That coverage is the reason there is no
+score, and showing it is better than describing it.

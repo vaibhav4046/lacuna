@@ -6,7 +6,7 @@ import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { dotFor } from '../../design/connectors';
 import { Panel } from '../state';
-import type { AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
+import type { AgentRecommendationRecord, AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
 
 /**
  * The dashboard.
@@ -53,10 +53,33 @@ export function Dashboard() {
   const counts = useScoped<HealthCounts>('health');
   const runs = useScoped<readonly AgentRunRecord[]>('runs');
   const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
+  const recommendations = useScoped<readonly AgentRecommendationRecord[]>('recommendations');
+  const featuredRecommendation = recommendations.state === 'ready' ? recommendations.value[0] ?? null : null;
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingBottom: '4px' }}>
+    <div className="dashboard-home" style={{ maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      <section className="dashboard-brief" aria-labelledby="dashboard-heading">
+        <div className="dashboard-brief-copy">
+          <span className="dashboard-eyebrow">MEMORY CONTROL ROOM</span>
+          <h1 id="dashboard-heading">Your memory, ready for work.</h1>
+          <p>Ask what is current, inspect what changed, or send a bounded Context Pack into an agent run.</p>
+          <div className="dashboard-memory-counts" aria-label="Workspace memory counts">
+            <span><strong>{counts.state === 'ready' ? counts.value.current : '—'}</strong>CURRENT</span>
+            <span><strong>{counts.state === 'ready' ? counts.value.historical : '—'}</strong>HISTORICAL</span>
+            <span data-tone={counts.state === 'ready' && counts.value.conflicts > 0 ? 'amber' : undefined}><strong>{counts.state === 'ready' ? counts.value.conflicts : '—'}</strong>CONFLICTS</span>
+          </div>
+        </div>
+        <aside className="dashboard-recommendation" data-tone={featuredRecommendation?.kind === 'CONFLICT_TRIAGE' ? 'amber' : 'violet'}>
+          <span>{recommendations.state === 'loading' ? 'SCANNING MEMORY' : featuredRecommendation === null ? 'NO SUGGESTION YET' : 'SUGGESTED FROM MEMORY'}</span>
+          <h2>{featuredRecommendation?.name ?? (recommendations.state === 'failed' ? 'Memory suggestions did not load.' : 'No agent is justified yet.')}</h2>
+          <p>{featuredRecommendation?.reason ?? (recommendations.state === 'failed' ? recommendations.reason : 'Suggestions appear only when resolved memory provides a concrete reason and evidence.')}</p>
+          <button type="button" onClick={() => go(featuredRecommendation === null ? `${prefix}/memory` : `${prefix}/agents`)}>
+            {featuredRecommendation === null ? 'OPEN MEMORY' : 'REVIEW AGENT'}<span aria-hidden="true">↗</span>
+          </button>
+        </aside>
+      </section>
+
+      <div className="dashboard-actions" aria-label="Workspace actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingBottom: '4px' }}>
         {([
           ['ADD CONTEXT', `${prefix}/memory`],
           ['ASK LACUNA', `${prefix}/ask`],
@@ -87,7 +110,7 @@ export function Dashboard() {
         thing to disguise: something that looks typeable should be typeable. It
         is a real field now, and the question it carries is run on arrival.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px' }}>
+      <div className="dashboard-ask" style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '15px 18px' }}>
         <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
         <input
           value={question}

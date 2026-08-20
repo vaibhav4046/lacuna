@@ -65,6 +65,7 @@ describe('HydraDB hosted runtime records', () => {
     );
 
     const cold = new CloudScheduleStore(hydra(cloud));
+    expect(await cold.listWorkspaces()).toEqual(['workspace-a']);
     const reloaded = await cold.listSchedules('workspace-a');
     expect(reloaded[0]).toMatchObject({ lastRunId: 'run-a', nextEligibleAt: '2026-08-21T06:00:00.000Z' });
     const duplicate = await cold.claimDispatch(

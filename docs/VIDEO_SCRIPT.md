@@ -1,9 +1,11 @@
-# V8 demo video script
+# V8 demo video, superseded preview script
 
-This is the composition that is actually built by
-`video/hyperframes/build.mjs`. It supersedes the earlier manual-capture script.
-The generated timeline is 175.2 seconds: 2:55.2, leaving 4.8 seconds below the
-three-minute judging limit.
+This is the script for the 175.2-second composition preview built by
+`video/hyperframes/build.mjs`. Its runtime/layout/motion checks passed, but the
+owner rejected its visual direction. It is retained as work history and is not
+the accepted final film. Fresh production captures, the selected Vaibhav
+professional clone, preview approval, a final render and a new claim review are
+still required.
 
 ## Required coverage
 
@@ -37,16 +39,17 @@ three-minute judging limit.
 | 2:38.2–2:46.9 | s12 | self-hosted/Cloud field-by-field parity |
 | 2:46.9–2:54.6 | s13 | public deployment and repository close |
 
-The exact narrated copy lives in `video/hyperframes/SCRIPT.md`. The V8 graph,
-agent and voice scenes are intentionally silent proof beats; their claims are
-on screen and do not extend the narration.
+The exact preview narration lives in `video/hyperframes/SCRIPT.md`. The graph,
+agent and voice scenes below describe the older preview. In particular, the
+voice frame proves a UI fallback, not audible provider output.
 
 ## Render contract
 
 - 1920×1080, 30 fps, H.264/AAC MP4.
-- Captions are generated from the exact scene narration into
-  `video/hyperframes/renders/lacuna-demo.srt`.
+- The existing `video/hyperframes/renders/lacuna-demo.srt` belongs to this
+  preview and must be regenerated if timing or narration changes.
 - HyperFrames runtime, layout, motion and contrast checks must pass before the
   final render.
-- The final render requires manual preview approval. The YouTube upload remains
-  unlisted and must be opened once without a signed-in session.
+- The final render still requires manual preview approval. No accepted master,
+  Supademo walkthrough, or YouTube URL exists. The owner will upload the final
+  file unlisted and must open it once without a signed-in session.

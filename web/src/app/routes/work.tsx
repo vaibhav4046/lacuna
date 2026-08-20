@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
-import { postFor } from '../../api/client';
+import { getJson, postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import type { AgentRecord, AgentRunRecord, DailyScheduleRecord, RunStatus } from '../agents/contracts';
@@ -117,20 +117,33 @@ function RunDetail({ run, agentName, demo, onChange }: {
   );
 }
 
-function Schedules({ demo }: { readonly demo: boolean }) {
+function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (run: AgentRunRecord) => void }) {
   const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
   const rows = schedules.state === 'ready' ? schedules.value : [];
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const pendingRequests = useRef(new Map<string, string>());
 
   async function runNow(schedule: DailyScheduleRecord): Promise<void> {
     setWorking(schedule.id);
     setMessage(null);
-    const requestId = `ui-${Date.now().toString(36)}`;
+    const requestId = pendingRequests.current.get(schedule.id) ?? `ui-${crypto.randomUUID()}`;
+    pendingRequests.current.set(schedule.id, requestId);
     const result = await postFor<{ readonly outcome: string; readonly runId: string | null }>(
       `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
       { requestId },
     );
+    if (result !== null) pendingRequests.current.delete(schedule.id);
+    if (result?.runId !== null && result?.runId !== undefined) {
+      try {
+        const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal);
+        const completed = current.find((run) => run.id === result.runId);
+        if (completed !== undefined) onRun(completed);
+      } catch {
+        // The run id remains in the success message. A failed refresh does not
+        // turn a completed dispatch into a reported failure.
+      }
+    }
     setMessage(result === null ? 'Run now did not complete.' : `${result.outcome}${result.runId === null ? '' : ` · ${result.runId}`}`);
     setWorking(null);
   }
@@ -149,8 +162,10 @@ function Schedules({ demo }: { readonly demo: boolean }) {
             <div style={{ color: '#FFFFFF', fontSize: '14.5px' }}>{schedule.name}</div>
             <div style={{ ...note, marginTop: '6px' }}>DAILY · {schedule.localTime} {schedule.timezone} · NEXT {at(schedule.nextEligibleAt)}</div>
             <div style={{ ...note, marginTop: '4px' }}>LAST {at(schedule.lastRunAt)} · RETRY {schedule.retry.state} ({schedule.retry.attempts})</div>
+            <div style={{ marginTop: '7px', color: '#9A9A9A', fontSize: '12px', lineHeight: 1.55, maxWidth: '72ch' }}>{schedule.task}</div>
+            <div style={{ ...note, marginTop: '5px', color: '#B79BFF' }}>RESEARCHER → REVIEWER · NO AUTHORITATIVE WRITE</div>
           </div>
-          {demo ? null : <button disabled={working !== null} onClick={() => void runNow(schedule)} style={{ ...note, alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '8px 11px', cursor: 'pointer' }}>RUN NOW</button>}
+          {demo ? null : <button disabled={working !== null} onClick={() => void runNow(schedule)} style={{ ...note, alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: working === schedule.id ? '#7A7A7A' : '#FFFFFF', padding: '8px 11px', cursor: working === null ? 'pointer' : 'default' }}>{working === schedule.id ? 'RUNNING NOW' : 'RUN NOW'}</button>}
         </div>
       ))}
       {message === null ? null : <div aria-live="polite" style={{ ...note, color: '#BDBDBD' }}>{message}</div>}
@@ -179,7 +194,7 @@ export function Work() {
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      <Schedules demo={scope.demo} />
+      <Schedules demo={scope.demo} onRun={replace} />
       <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={head}>AGENT RUNS · OBSERVED EVENTS ONLY</div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

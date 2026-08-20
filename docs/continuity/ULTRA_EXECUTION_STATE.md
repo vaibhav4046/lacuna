@@ -1,5 +1,10 @@
 # Execution state
 
+> Historical checkpoint. This file records the V6/V7 run that produced it. Its
+> rendered-film, credential, account, client and capability statements do not
+> describe the current V8 acceptance state. Use
+> `docs/FINAL_EXECUTION_STATE.md` and `docs/EVIDENCE_INDEX.md` for current truth.
+
 Status: `READY_FOR_RELEASE`
 Production: https://lacuna-five.vercel.app — Ask is live against HydraDB Cloud
 Public live demo: https://lacuna-five.vercel.app/judge — no account needed

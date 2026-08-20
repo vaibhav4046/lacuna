@@ -40,6 +40,7 @@ of when it moved.
 | Session persistence | The session survives another function invocation, and sign out ends it | same | Part of 12 of 12 | [RELEASE_GATE.md](../RELEASE_GATE.md), [scripts/smoke-auth.ts](../scripts/smoke-auth.ts) |
 | Onboarding | Onboarding names a workspace and the name persists to the next read | same, plus a by-hand pass in a browser from a cleared cookie jar | 12 of 12. The by-hand pass reached the dashboard reporting `0 current · 0 historical · 0 conflict`, a real empty workspace | [RELEASE_GATE.md](../RELEASE_GATE.md), [scripts/smoke-auth.ts](../scripts/smoke-auth.ts) |
 | Workspace, signed in | A signed-in workspace reads empty unless it is the one named as the demo | covered by the account suite and by `src/api/router.ts` | 12 of 12 for the account flow. The signed-in path to the demo corpus is decided in code and asserted in the unit suite, not in a production transcript | [RELEASE_GATE.md](../RELEASE_GATE.md), [src/api/router.ts](../src/api/router.ts) |
+| Google sign in | A previous production browser pass reached onboarding, but the later security review found an unsafe email-only account merge | held below release acceptance | Provider/subject binding, JWKS/RS256, PKCE and nonce candidate code exists. Router wiring, `no-store` redirects, negative merge tests and a new production browser pass are still required | [docs/FINAL_EXECUTION_STATE.md](FINAL_EXECUTION_STATE.md), [tests/unit/google-auth.test.ts](../tests/unit/google-auth.test.ts), [tests/unit/auth-identity.test.ts](../tests/unit/auth-identity.test.ts) |
 
 ## Clients
 
@@ -47,13 +48,16 @@ of when it moved.
 |---|---|---|---|---|
 | CLI | Every gold question asked through `lacuna ask` and compared field by field against both MCP transports: status, answer, reason code, claim id, superseded claims, evidence, evidence total, source state, and every graph read with its parameters and row counts | `npm run parity` | `SWEEP_IDENTICAL: 64 of 64`, `ALL_IDENTICAL: True` | [RELEASE_GATE.md](../RELEASE_GATE.md), [artifacts/verification/2026-08-18-gates/parity.txt](../artifacts/verification/2026-08-18-gates/parity.txt), single-question captures at [artifacts/verification/2026-08-14b/cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json) and [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) |
 | MCP | The same sweep over stdio and HTTP; four tools advertised over stdio at the time of that capture; a third-party client consumed the documented config block and drove both transports | `npm run parity`, plus the MCP Inspector CLI | 64 of 64 identical. Five tools are advertised now: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `lacuna_health`, verified by `tools/list` against the deployed `/mcp` on 20 Aug. `lacuna_read_question` postdates the stdio transcript below, which still shows four | [RELEASE_GATE.md](../RELEASE_GATE.md), [artifacts/verification/2026-08-14b/mcp-stdio.txt](../artifacts/verification/2026-08-14b/mcp-stdio.txt), [artifacts/verification/2026-08-14e/README.md](../artifacts/verification/2026-08-14e/README.md), timings at [artifacts/mcp/stdio-timings.txt](../artifacts/mcp/stdio-timings.txt) |
-| Cross-client continuity | The deployed web over HTTPS, the CLI in a local process, and an MCP server started as a subprocess, all reading the same HydraDB Cloud workspace, on six questions covering six outcomes | `npm run continuity` | `ONE_CONTEXT_IDENTICAL: true`, six questions, every row `same: true` | [RELEASE_GATE.md](../RELEASE_GATE.md), [artifacts/continuity/one-context.json](../artifacts/continuity/one-context.json) |
+| Lacuna surface continuity | The deployed web over HTTPS, the CLI in a local process, and an MCP server started as a subprocess, all reading the same HydraDB Cloud workspace, on six questions covering six outcomes | `npm run continuity` | `ONE_CONTEXT_IDENTICAL: true`, six questions, every row `same: true`. This is not a ChatGPT or Claude proof | [RELEASE_GATE.md](../RELEASE_GATE.md), [artifacts/continuity/one-context.json](../artifacts/continuity/one-context.json) |
+| ChatGPT custom app | Not exercised against Lacuna | not run | `NOT VERIFIED` | none |
+| Claude MCP | Not exercised against Lacuna | not run | `NOT VERIFIED` | none |
+| Packaged Lacuna SDK | No package exists | package inspection | `NOT SHIPPED` | [package.json](../package.json) |
 
 ## HydraDB
 
 | Surface | What was exercised | Command or action | Result | Evidence |
 |---|---|---|---|---|
-| Cloud ingest | The corpus and claim graph written to HydraDB Cloud, indexed, and a sampled entity plus the index read back and compared to what was written | `npm run ingest:cloud` | 159 written, 159 accepted, 159 indexed, 0 refused; sample and index both read back identical; 86 entities, 174 claims, 72 sessions | [artifacts/hydra/cloud-ingest.json](../artifacts/hydra/cloud-ingest.json), [cloud-ingest.log](../artifacts/hydra/cloud-ingest.log) |
+| Cloud ingest | The corpus and claim graph written to HydraDB Cloud, indexed, and a sampled entity plus the index read back and compared to what was written | `npm run ingest:cloud` | 159 written, 159 accepted, 159 indexed, 0 refused; sample and index both read back identical; 86 entities, 174 claims, 72 sessions | [artifacts/hydra/cloud-ingest.json](../artifacts/hydra/cloud-ingest.json) |
 | Cloud reads, against the node | All 64 gold questions asked of the node and of the cloud, compared field by field with wall clock and read log excluded | `npm run parity:cloud` | `identical: true`, 64 questions, node 342 reads against cloud 119, median node 108ms against cloud 230ms | [artifacts/hydra/cloud-parity.json](../artifacts/hydra/cloud-parity.json), [RELEASE_GATE.md](../RELEASE_GATE.md) |
 | Cloud health, from the deployment | A real round trip from the deployed function to the configured database | `GET /api/health` on production | ok, `api.hydradb.com` answered in 160ms, database `lacuna`, collection `backend` | [RELEASE_GATE.md](../RELEASE_GATE.md), [api/index.ts](../api/index.ts) |
 | Local node, contents | Every stored key read back and compared against the ingest plan, so a missing node and a stray node cannot cancel out | `npm run census` | `graph matches the plan exactly` | [RELEASE_GATE.md](../RELEASE_GATE.md), [artifacts/verification/2026-08-18-gates/census.txt](../artifacts/verification/2026-08-18-gates/census.txt) |
@@ -82,16 +86,23 @@ of when it moved.
 
 Named here rather than left for a reader to notice.
 
-- **No Google sign in.** Email and password only. It would need an OAuth client
-  created in a Google Cloud project, and creating accounts or credentials was
-  out of scope for this run.
+- **Google sign in is not accepted.** A redirect and earlier browser success are
+  insufficient because the old callback merged accounts by email. The new
+  provider-bound path must pass integration, negative and production-browser
+  gates before it can be checked above.
 - **No connector syncs.** The Connectors screen lists nothing that pulls. File
   and document ingest through the web is the largest missing piece of product
   completeness, and it was left unstarted rather than half started against a
   frozen release.
 - **Voice is unconfigured** in the deployment, and the screen says so.
+- **No end-to-end provider audio exists.** The route and state-machine tests do
+  not prove microphone, realtime transcription, the selected clone, streamed
+  playback or interruption in production.
 - **No evidence about two writers.** The soak row above covers concurrent
   readers. Nothing here says what happens when two clients write at once.
+- **No distributed scheduler atomicity.** HydraDB persistence has no CAS or
+  transaction seam in this adapter. Process-local locks, quotas and leases do
+  not establish exactly-once behaviour across Vercel instances.
 - **Roughly a fifth of the specified harness exists.** Counted item by item in
   [docs/HARNESS_CONFORMANCE_MATRIX.md](HARNESS_CONFORMANCE_MATRIX.md): nothing
   end to end, four partial, six absent. There is no run object, so everything
@@ -111,6 +122,11 @@ Named here rather than left for a reader to notice.
   clients that have connected are a stdio driver from this repository, the SDK's
   own client in the parity run, and the MCP Inspector CLI. A client run from a
   terminal is not a host.
+- **No private MCP issuance proof.** The candidate listener fails closed and
+  the capability store persists only digests, but the authenticated issue/use/
+  revoke path is not yet wired and deployed.
+- **No ChatGPT/Claude, Supademo or final-film evidence.** None may be inferred
+  from the web/CLI/MCP continuity artifact or from an older video preview.
 - **[artifacts/deployment/production.json](../artifacts/deployment/production.json)
   is a record of 2026-08-18 and one of its `honestLimits` lines is now stale.**
   It says the answer engine still reads the self-hosted node. The deployment now

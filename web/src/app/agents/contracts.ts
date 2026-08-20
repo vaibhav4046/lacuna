@@ -32,6 +32,28 @@ export interface AgentRecord {
   readonly lastRun: { readonly id: string; readonly status: RunStatus; readonly at: string } | null;
 }
 
+export interface AgentRecommendationRecord {
+  readonly id: string;
+  readonly workspace: string;
+  readonly kind: 'CONFLICT_TRIAGE' | 'CHANGE_BRIEF' | 'CONTEXT_BRIEF';
+  readonly name: string;
+  readonly subject: string;
+  readonly reason: string;
+  readonly evidence: readonly string[];
+  readonly task: string;
+  readonly flow: readonly ['RESEARCHER', 'REVIEWER'];
+  readonly tools: readonly ['lacuna_context_pack'];
+  readonly permissions: { readonly read: readonly string[]; readonly write: readonly string[] };
+  readonly budgets: AgentRecord['budgets'];
+  readonly writeback: 'NO_WRITE';
+  readonly suggestedSchedule: {
+    readonly cadence: 'DAILY';
+    readonly localTime: string;
+    readonly timezone: string;
+    readonly reason: string;
+  };
+}
+
 export interface EvidenceReference {
   readonly id: string;
   readonly subject: string;

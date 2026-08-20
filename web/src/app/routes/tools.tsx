@@ -1,4 +1,7 @@
-import { useScoped } from '../../api/scope';
+import { useState } from 'react';
+
+import { postFor, postJson } from '../../api/client';
+import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import type { RegisteredToolRecord } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
@@ -10,6 +13,98 @@ function at(value: string | null): string {
   if (value === null) return 'NOT VERIFIED BY A RUN YET';
   const parsed = new Date(value);
   return Number.isNaN(parsed.valueOf()) ? 'UNKNOWN' : parsed.toLocaleString();
+}
+
+interface McpCapabilityResponse {
+  readonly capability: string;
+  readonly createdAt: string;
+  readonly endpoint: string;
+}
+
+function McpAccess() {
+  const scope = useScope();
+  const [issued, setIssued] = useState<McpCapabilityResponse | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const endpoint = typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`;
+
+  async function issue() {
+    setBusy(true);
+    setProblem(null);
+    const result = await postFor<McpCapabilityResponse>('/api/workspace/mcp/capabilities', {});
+    setBusy(false);
+    if (result === null) {
+      setProblem('A private MCP capability could not be issued.');
+      return;
+    }
+    setIssued(result);
+  }
+
+  async function copy() {
+    if (issued === null) return;
+    try {
+      await navigator.clipboard.writeText(issued.capability);
+      setProblem('Capability copied. Treat it like a password.');
+    } catch {
+      setProblem('Clipboard access was refused. Select and copy the capability manually.');
+    }
+  }
+
+  async function revoke() {
+    if (issued === null) return;
+    setBusy(true);
+    setProblem(null);
+    const result = await postJson('/api/workspace/mcp/capabilities/revoke', { capability: issued.capability });
+    setBusy(false);
+    if (!result.ok) {
+      setProblem('The capability could not be revoked.');
+      return;
+    }
+    setIssued(null);
+    setProblem('Capability revoked. Clients using it no longer have private access.');
+  }
+
+  if (scope.demo) {
+    return (
+      <section style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px' }}>
+        <div style={{ ...head, paddingBottom: '7px', color: '#B79BFF' }}>REMOTE MCP</div>
+        <p style={{ fontSize: '13px', color: '#9A9A9A', lineHeight: 1.6, margin: 0 }}>
+          Public tools are read-only at <code>{endpoint}</code>. Sign in to mint a random, revocable capability for private memory reads and governed <code>remember</code> writes.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="mcp-access" style={{ border: '1px solid rgba(128,82,255,0.42)', borderRadius: '10px', padding: '16px', background: 'rgba(128,82,255,0.045)' }}>
+      <div id="mcp-access" style={{ ...head, paddingBottom: '7px', color: '#B79BFF' }}>PRIVATE MCP ACCESS</div>
+      <p style={{ fontSize: '13px', color: '#9A9A9A', lineHeight: 1.6, margin: '0 0 14px', maxWidth: '78ch' }}>
+        Mint a random bearer for this workspace. Lacuna stores only its digest; the raw value is shown in this browser once. Use it only in clients that support a custom Authorization header.
+      </p>
+      {issued === null ? (
+        <button className="hv-violet" type="button" disabled={busy} onClick={() => { void issue(); }} style={{ border: 0, borderRadius: '7px', padding: '10px 14px', background: '#8052FF', color: '#FFFFFF', cursor: busy ? 'wait' : 'pointer' }}>
+          {busy ? 'ISSUING…' : 'ISSUE PRIVATE CAPABILITY'}
+        </button>
+      ) : (
+        <div style={{ display: 'grid', gap: '12px' }}>
+          <div>
+            <div style={head}>ENDPOINT</div>
+            <code style={{ display: 'block', marginTop: '6px', color: '#D9D9D9', overflowWrap: 'anywhere' }}>{endpoint}</code>
+          </div>
+          <div>
+            <div style={head}>AUTHORIZATION</div>
+            <code style={{ display: 'block', marginTop: '6px', color: '#FFB829', overflowWrap: 'anywhere', userSelect: 'all' }}>Bearer {issued.capability}</code>
+          </div>
+          <pre style={{ margin: 0, padding: '12px', border: '1px solid rgba(255,255,255,0.10)', overflowX: 'auto', whiteSpace: 'pre-wrap', color: '#9A9A9A', fontFamily: MONO, fontSize: '10.5px', lineHeight: 1.55 }}>{`Authorization: Bearer ${issued.capability}\nContent-Type: application/json`}</pre>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <button type="button" onClick={() => { void copy(); }} style={{ border: '1px solid rgba(255,255,255,0.18)', borderRadius: '7px', padding: '9px 12px', background: 'transparent', color: '#FFFFFF', cursor: 'pointer' }}>COPY CAPABILITY</button>
+            <button type="button" disabled={busy} onClick={() => { void revoke(); }} style={{ border: '1px solid rgba(255,184,41,0.45)', borderRadius: '7px', padding: '9px 12px', background: 'transparent', color: '#FFB829', cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'REVOKING…' : 'REVOKE'}</button>
+          </div>
+        </div>
+      )}
+      {problem === null ? null : <p role="status" style={{ margin: '12px 0 0', color: problem.startsWith('Capability copied') || problem.startsWith('Capability revoked') ? '#B79BFF' : '#FFB829', fontSize: '12px' }}>{problem}</p>}
+    </section>
+  );
 }
 
 export function Tools() {
@@ -25,6 +120,41 @@ export function Tools() {
           implementation is present. Last verified means a persisted run completed the call.
         </p>
       </div>
+
+      <section aria-labelledby="surface-coverage" style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px', overflowX: 'auto' }}>
+        <div id="surface-coverage" style={{ ...head, paddingBottom: '7px', color: '#B79BFF' }}>IMPLEMENTED SURFACE COVERAGE</div>
+        <p style={{ fontSize: '13px', color: '#9A9A9A', lineHeight: 1.6, margin: '0 0 13px', maxWidth: '78ch' }}>
+          Canonical memory reads are shared. Governed run control is currently an HTTP product capability; the CLI and MCP do not expose run launch, cancel, retry, or schedule control.
+        </p>
+        <table aria-label="Agent capability by client" style={{ minWidth: '660px', width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '12px' }}>
+          <thead>
+            <tr>
+              {['CLIENT', 'RESOLVED MEMORY', 'CONTEXT PACK / EVIDENCE', 'AGENT RUN CONTROL'].map((cell) => (
+                <th key={cell} scope="col" style={{ padding: '9px 8px', borderTop: '1px solid rgba(255,255,255,0.09)', textAlign: 'left', fontFamily: MONO, fontWeight: 400, letterSpacing: '0.1em', color: '#7A7A7A' }}>{cell}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ['WEB + HTTP', 'YES', 'YES', 'LAUNCH · CANCEL · RETRY · SCHEDULE'],
+              ['CLI', 'YES', 'CLAIM + EVIDENCE ENVELOPE', 'NOT EXPOSED'],
+              ['MCP', 'YES', 'CLAIM + EVIDENCE ENVELOPE', 'NOT EXPOSED'],
+              ['PACKAGED SDK', 'NOT SHIPPED', 'NOT SHIPPED', 'NOT SHIPPED'],
+            ].map((row) => (
+              <tr key={row[0]}>
+                {row.map((cell, cellIndex) => {
+                  const style = { padding: '9px 8px', borderTop: '1px solid rgba(255,255,255,0.09)', textAlign: 'left' as const, fontFamily: cellIndex === 0 ? MONO : 'inherit', fontWeight: 400, letterSpacing: cellIndex === 0 ? '0.1em' : 'normal', color: cell === 'NOT EXPOSED' || cell === 'NOT SHIPPED' ? '#FFB829' : '#BDBDBD' };
+                  return cellIndex === 0
+                    ? <th key={cell} scope="row" style={style}>{cell}</th>
+                    : <td key={`${row[0]}-${cellIndex}`} style={style}>{cell}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <McpAccess />
 
       {tools.state === 'loading' ? <Stage label="LOADING TOOL REGISTRY" /> : null}
       {tools.state === 'failed' ? <Failed reason={tools.reason} /> : null}

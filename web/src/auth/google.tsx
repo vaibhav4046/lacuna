@@ -19,7 +19,7 @@ const REASONS: Readonly<Record<string, string>> = {
   cancelled: 'Sign in with Google was cancelled. Nothing happened.',
   state: 'That sign in took too long to come back. Press the button again.',
   code: 'Google did not send an authorisation back. Try once more.',
-  identity: 'Google did not confirm a verified address for that account, so it was refused. Sign in with an email and password instead.',
+  identity: "Google identity could not be safely bound. Try a fresh Google account, or use this account's original sign-in method.",
   store: 'The account store did not answer. Nothing was changed.',
   unconfigured: 'Sign in with Google is not configured on this deployment.',
 };
@@ -31,14 +31,16 @@ export function googleProblem(search: string): string | null {
   return REASONS[reason] ?? 'Sign in with Google did not complete.';
 }
 
-export function GoogleButton({ label }: { label: string }) {
+export function GoogleButton({ label, showDivider = true }: { label: string; showDivider?: boolean }) {
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '2px 0' }}>
-        <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#7A7A7A' }}>OR</span>
-        <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
-      </div>
+      {showDivider ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '2px 0' }}>
+          <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
+          <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.2em', color: '#7A7A7A' }}>OR</span>
+          <span style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.12)' }} />
+        </div>
+      ) : null}
       <a
         href="/api/auth/google/start"
         style={{

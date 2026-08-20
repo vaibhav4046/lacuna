@@ -1,8 +1,9 @@
 # Current external contracts
 
-Verified on 2026-08-20. This file records the live boundary Lacuna builds
-against. It is not a roadmap. A capability appears here only when the provider
-documents it or this release has probed it.
+Checked on 2026-08-20. This file records the provider boundary Lacuna builds
+against. Provider documentation is kept separate from Lacuna integration proof.
+A documented capability is not marked as a Lacuna success until this release
+has probed it.
 
 ## Hack Hydra
 
@@ -47,24 +48,28 @@ Sources:
 
 ## ChatGPT
 
-The account available for the V8 proof is ChatGPT Pro. OpenAI currently permits
+The account available for a future V8 proof is ChatGPT Pro. OpenAI currently permits
 Pro accounts to connect custom MCP apps with read and fetch permissions in
 developer mode. Full MCP write and modify actions are currently limited to
 Business and Enterprise/Edu. ChatGPT connects to remote MCP servers, not a
 loopback-only server.
 
-Lacuna therefore treats the ChatGPT proof as a read and fetch proof. A write
+Lacuna therefore scopes any ChatGPT proof to read and fetch. A write
 proof belongs in Claude or another client that exposes the write tool. The
-product must not describe a ChatGPT Pro write as available.
+product must not describe a ChatGPT Pro write as available. No ChatGPT client
+has connected to Lacuna in the current evidence set.
 
 Source: <https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt>
 
 ## Claude
 
 Anthropic documents MCP support in Claude Code, Claude.ai, Claude Desktop, and
-the Messages API. Lacuna exposes the same remote Streamable HTTP endpoint to
-Claude and the same evidence-bearing read tools. A workspace endpoint may also
-expose `remember` when the client and account permit a write action.
+the Messages API. Lacuna's public Streamable HTTP endpoint is protocol-shaped
+for those clients, but no Claude product has connected in the current evidence
+set. The local candidate exposes `remember` only after an authenticated random
+capability resolves to the session-owned workspace. Deployment and client
+permission proof are still pending. None of that is inferred from Anthropic's
+documentation.
 
 Source: <https://docs.anthropic.com/en/docs/mcp>
 
@@ -117,10 +122,11 @@ Source: <https://developers.google.com/identity/branding-guidelines>
 
 ## Client and connector claim boundary
 
-Lacuna is a general memory layer because its remote MCP and HTTP surfaces are
-client-neutral. That does not make every named service a connected integration.
-ChatGPT, Claude, Codex, local agents, voice, and custom clients may be shown
-where there is a real endpoint or proof. Spotify, Slack, Notion, Gmail, Linear,
-and similar products are examples of source data or future connector work until
-a real authorization and ingestion path exists. Marketing copy must preserve
-that distinction.
+Lacuna's remote MCP and HTTP surfaces are client-neutral. That does not make
+every named service a connected integration. The verified client set is the
+Lacuna web adapter, Lacuna CLI, Lacuna MCP subprocess, the official MCP SDK
+client, and MCP Inspector. ChatGPT, Claude, Codex, voice clients and custom
+clients may be shown only as protocol targets until a named-client proof exists.
+Spotify, Slack, Notion, Gmail, Linear, and similar products are examples of
+source data or future connector work until a real authorization and ingestion
+path exists. Marketing copy must preserve that distinction.

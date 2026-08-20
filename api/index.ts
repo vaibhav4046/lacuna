@@ -25,6 +25,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ApiRouter } from '../src/api/router.js';
 import { AccountStore } from '../src/auth/store.js';
 import { CloudAccounts, FileAccounts } from '../src/auth/accounts.js';
+import { CloudMcpCapabilities } from '../src/auth/mcp-capability-store.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
 import { normaliseGraphContext, normaliseRelations, type ServiceRelation } from '../src/hydra/relations.js';
@@ -118,6 +119,7 @@ const cloud = cloudFromEnv(process.env);
 const store = cloud === null
   ? new FileAccounts(new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '/tmp/lacuna-store'))
   : new CloudAccounts(cloud);
+const mcpCapabilities = cloud === null ? null : new CloudMcpCapabilities(cloud);
 
 async function cloudHealth(): Promise<unknown> {
   if (cloud === null) {
@@ -174,6 +176,11 @@ const scheduleRuntime = cloud === null
 
 const api = new ApiRouter({
   store,
+  // The hosted account store has no atomic conditional-create primitive.
+  // Google is therefore the only hosted account creator until identity data
+  // moves behind a unique transactional constraint.
+  allowPasswordSignup: false,
+  ...(mcpCapabilities === null ? {} : { mcpCapabilities }),
   secure: true,
   health: cloudHealth,
   voice,
@@ -267,52 +274,47 @@ const api = new ApiRouter({
  * cloned the repository, which is a different product from one an agent
  * somewhere else can connect to. It reads the same public demo corpus
  * `/api/demo/*` already serves, over the same resolver, so exposing it widens
- * who can ask and not what can be read. Every tool is a read; nothing here
- * writes.
+ * who can ask and not what can be read. The public endpoint is read-only. A
+ * private capability can additionally call the governed `remember` ingest.
  *
  * `allowAnyOrigin` is on because the Origin check in the transport exists to
  * stop a browser page reaching a server bound to loopback. That is a real
  * attack against a local process and not one against a public HTTPS endpoint
  * that clients are meant to call directly.
  */
-const mcp = cloud === null ? null : createMcpListener({
+const mcp = cloud === null || mcpCapabilities === null ? null : createMcpListener({
   allowAnyOrigin: true,
   context: {
     source: new CloudSource(cloud),
     node: { namespace: cloud.database, graph: cloud.collection, cell: 'cloud' },
     store: 'cloud',
   },
-  // One header scopes the same tools to a workspace somebody ingested into, so
-  // an agent reads the memory its user wrote through the web product. The
-  // handle is the unguessable collection id the ingest report returns.
-  contextFor: (collection) => ({
-    source: new CloudSource(cloud.withCollection(collection)),
-    node: { namespace: cloud.database, graph: collection, cell: 'cloud' },
-    store: 'cloud',
-    /**
-     * The write, and the reason it exists only here.
-     *
-     * A connection that names a workspace can put something into it, so a
-     * thing learned in one assistant is readable in another. The public
-     * connection has no writer at all, which is what keeps a URL anybody can
-     * fetch from being a URL anybody can fill.
-     *
-     * It takes prose rather than a subject and a value on purpose: the
-     * extractor decides what becomes a claim, so two assistants writing to one
-     * memory cannot quietly overwrite each other, and a correction supersedes
-     * rather than replaces.
-     */
-    remember: async (title: string, text: string) => {
-      const report = await ingestSource(cloud, collection, title, text);
-      return typeof report === 'string' ? report : {
-        claims: report.claims,
-        entities: report.entities,
-        turns: report.turns,
-        accepted: report.accepted,
-        collection: report.collection,
-      };
-    },
-  }),
+  // Private tools require an independently random, revocable bearer. The raw
+  // capability never reaches HydraDB; its digest resolves to the server-derived
+  // workspace collection and only then is a scoped context constructed.
+  authorizeWorkspace: async (capability) => {
+    const collection = await mcpCapabilities.resolve(capability);
+    if (collection === null) return null;
+    return {
+      source: new CloudSource(cloud.withCollection(collection)),
+      node: { namespace: cloud.database, graph: collection, cell: 'cloud' },
+      store: 'cloud',
+      /**
+       * Prose enters the same governed extraction pipeline as the web ingest.
+       * The extractor, not the caller, decides what may become a claim.
+       */
+      remember: async (title: string, text: string) => {
+        const report = await ingestSource(cloud, collection, title, text);
+        return typeof report === 'string' ? report : {
+          claims: report.claims,
+          entities: report.entities,
+          turns: report.turns,
+          accepted: report.accepted,
+          collection: report.collection,
+        };
+      },
+    };
+  },
 });
 
 /**

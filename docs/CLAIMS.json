@@ -1,6 +1,6 @@
 {
   "about": "Every claim this project makes about itself, with the state of the thing claimed, where its numbers came from, and the file that proves it. The two state vocabularies are the ones in src/model/capability.ts and nowhere else, so a state cannot appear here that the interface pages do not also know. Checked by tests/unit/claims.test.ts, which fails if a state is invented, an id repeats, or an evidence path does not exist on disk.",
-  "generated_at": "2026-08-18",
+  "generated_at": "2026-08-20",
   "states_from": "src/model/capability.ts",
   "capability_states": [
     "NOT_STARTED",
@@ -325,70 +325,185 @@
     },
     {
       "id": "voice-surface",
-      "claim": "The voice interface exists as a finite machine with fourteen states, every one of which renders from the address bar. No audio is captured, transcribed or synthesised.",
+      "claim": "The voice interface and provider routes exist, with explicit listening, thinking, speaking, interrupted, error and typed-fallback states. Production has no provider credentials and no accepted end-to-end audio session.",
       "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "measured": {
-        "states": 14,
-        "events": 16,
-        "pipeline_stages": 4,
-        "stages_installed": 2
+        "provider_enabled_in_production": false,
+        "end_to_end_audio_proof": false
       },
       "evidence": [
-        "src/voice/states.ts",
-        "src/view/voice.ts",
-        "tests/unit/view-voice.test.ts"
+        "src/api/voice.ts",
+        "web/src/voice",
+        "tests/unit/voice-api.test.ts",
+        "tests/unit/voice-browser.test.ts"
       ],
-      "reproduce": "npm run serve  # then open /voice and follow any state link",
-      "caveat": "Two of the four pipeline stages are the product and run. Two are audio and are not installed, so their timing column prints UNAVAILABLE rather than an estimate. The design this was built from carried two timings; neither was measured here, so neither is printed."
+      "reproduce": "npm test && npm run serve  # then open /voice",
+      "caveat": "Fixture coverage proves route and state-machine behaviour, not microphone capture, provider transcription, the selected voice clone, streamed playback or interruption in production. The deployed route returns speech_unavailable until server-only credentials are supplied."
     },
     {
       "id": "speech-to-text",
-      "claim": "Speech to text is chosen and not built. The intended component is whisper.cpp with a quantized small.en model, run on the machine.",
-      "capability": "NOT_STARTED",
+      "claim": "Realtime speech-to-text code targets ElevenLabs Scribe through a server-issued single-use token; it is fixture-tested and unavailable in production because provider credentials are absent.",
+      "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "evidence": [
-        "src/voice/stack.ts",
-        "DECISIONS.md"
+        "src/api/voice.ts",
+        "web/src/voice",
+        "tests/unit/voice-api.test.ts",
+        "tests/unit/voice-browser.test.ts"
       ],
-      "reproduce": "npm run serve  # /voice, Stack panel",
-      "caveat": "Named so its absence is on the record. See DECISIONS.md D-056 for why the local path was chosen over a hosted one."
+      "reproduce": "npm test",
+      "caveat": "No production microphone or provider session has been accepted. A route that returns the correct unavailable state is not working speech recognition."
     },
     {
       "id": "text-to-speech",
-      "claim": "Speech synthesis is chosen and not built. The intended component is Kokoro-82M, run on the machine.",
-      "capability": "NOT_STARTED",
+      "claim": "Text-to-speech code streams ElevenLabs audio through the server with cancellation and backpressure; it is fixture-tested and unavailable in production because provider credentials are absent.",
+      "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "evidence": [
-        "src/voice/stack.ts",
-        "DECISIONS.md"
+        "src/api/voice.ts",
+        "web/src/voice",
+        "tests/unit/voice-api.test.ts",
+        "tests/unit/voice-browser.test.ts"
       ],
-      "reproduce": "npm run serve  # /voice, Stack panel",
-      "caveat": "See DECISIONS.md D-056."
+      "reproduce": "npm test",
+      "caveat": "The Vaibhav Lalwani professional clone has been selected for the final narration, but no provider voice id or production audio proof is committed."
     },
     {
       "id": "metered-voice-fallback",
-      "claim": "The hosted services that would make voice work today are named, and none of them is called by any code here.",
+      "claim": "Production voice is blocked on server-only ElevenLabs credentials and returns an explicit unavailable response while typed Ask remains usable.",
       "capability": "BLOCKED",
       "data": "UNAVAILABLE",
       "evidence": [
-        "src/voice/stack.ts",
-        "NEEDS_VAIBHAV.md"
+        "src/api/voice.ts",
+        "docs/FINAL_EXECUTION_STATE.md"
       ],
-      "reproduce": "grep -rn 'assemblyai\\|elevenlabs\\|api.groq.com' src/ || echo 'no calls'",
-      "caveat": "Each is metered and quota limited, which is the reason the local path is the intended one. AssemblyAI has no credential configured at all and is listed in NEEDS_VAIBHAV.md item 7. There is no HTTP client in this repository except the HydraDB one."
+      "reproduce": "open /voice on production and request provider speech",
+      "caveat": "Absence of a browser-visible API key proves secret placement, not provider readiness. A real production STT/TTS/interruption session is still required."
     },
     {
       "id": "llm-router",
-      "claim": "No language model is called anywhere in this project, in the demo path or outside it.",
+      "claim": "The deterministic Ask and retrieval path calls no language model. The separate governed agent runtime can call a configured Groq-compatible model for Researcher and Reviewer stages.",
+      "capability": "VERIFIED",
+      "data": "LIVE",
+      "evidence": [
+        "src/retrieval",
+        "src/agent/run.ts",
+        "api/index.ts",
+        "tests/unit/agent-run.test.ts"
+      ],
+      "reproduce": "npm test",
+      "caveat": "The no-model claim applies only to Ask and the resolver. One production agent run proves a bounded two-role flow, not arbitrary models, arbitrary agents or an autonomous general-purpose agent platform."
+    },
+    {
+      "id": "password-auth",
+      "claim": "Email/password signup, durable session state, onboarding, workspace persistence, sign-out, sign-in and wrong-password refusal passed the twelve-step production smoke.",
+      "capability": "VERIFIED",
+      "data": "RECORDED",
+      "measured": {
+        "checks": "12/12",
+        "surface": "production"
+      },
+      "evidence": [
+        "scripts/smoke-auth.ts",
+        "docs/FINAL_EXECUTION_STATE.md"
+      ],
+      "reproduce": "npm run smoke:auth -- https://lacuna-five.vercel.app",
+      "caveat": "This is historical production proof for existing password accounts. Hosted password creation is disabled in the candidate because HydraDB cannot atomically enforce a unique email. The result does not prove ownership of an email address and does not transfer to Google OAuth."
+    },
+    {
+      "id": "google-auth",
+      "claim": "Google sign-in is a security candidate, not a production-accepted capability. The candidate replaces the old email-only merge with provider/subject binding, signed-token verification, PKCE, nonce and non-cacheable redirects.",
+      "capability": "PARTIAL",
+      "data": "UNAVAILABLE",
+      "evidence": [
+        "src/auth/google.ts",
+        "src/auth/identity.ts",
+        "tests/unit/google-auth.test.ts",
+        "tests/unit/auth-identity.test.ts",
+        "tests/unit/google-auth-api.test.ts"
+      ],
+      "reproduce": "npx vitest run tests/unit/google-auth.test.ts tests/unit/auth-identity.test.ts tests/unit/google-auth-api.test.ts",
+      "caveat": "Provider/subject binding, JWKS/RS256, PKCE, nonce, no-store redirects and negative HTTP account-merge tests pass locally. Deployment and a fresh-identity production browser pass remain required; legacy unbound Google records fail closed."
+    },
+    {
+      "id": "agent-runtime",
+      "claim": "Two built-in no-write roles can persist a bounded Researcher to Reviewer run with lifecycle, Context Pack, evidence, verdict and timing.",
+      "capability": "VERIFIED",
+      "data": "RECORDED",
+      "measured": {
+        "built_in_roles": 2,
+        "accepted_production_runs": 1,
+        "lifecycle_events": 8
+      },
+      "evidence": [
+        "src/agent/run.ts",
+        "src/agent/store.ts",
+        "artifacts/screens/v8/agents-live.png",
+        "artifacts/screens/v8/work-live.png"
+      ],
+      "reproduce": "npx vitest run tests/unit/agent-run.test.ts tests/unit/agent-persistence.test.ts",
+      "caveat": "This is not an arbitrary user-created agent platform. CLI and MCP do not expose lifecycle commands. Memory-derived recommendations in the candidate are read-only suggestions until their integrated production gate passes."
+    },
+    {
+      "id": "scheduler",
+      "claim": "Daily schedule definitions and dispatch claims persist, but hosted execution is not distributed exactly-once.",
+      "capability": "PARTIAL",
+      "data": "RECORDED",
+      "measured": {
+        "accepted_daily_definitions": 1,
+        "distributed_atomic_claim": false
+      },
+      "evidence": [
+        "src/scheduler/store.ts",
+        "src/scheduler/dispatcher.ts",
+        "tests/unit/scheduler-runtime.test.ts",
+        "artifacts/screens/v8/dashboard-runtime.png"
+      ],
+      "reproduce": "npx vitest run tests/unit/scheduler-runtime.test.ts",
+      "caveat": "The file adapter serializes within one process. The HydraDB adapter has no compare-and-swap or transaction seam, so idempotency, quota and lease decisions are not atomic across simultaneous Vercel instances. Vercel Hobby cadence is daily and imprecise within the selected hour."
+    },
+    {
+      "id": "private-mcp",
+      "claim": "Private MCP uses signed-in CSRF-protected issue/revoke routes, a 256-bit random bearer stored digest-only, cross-workspace refusal, bounded streamed bodies and rate-limited calls.",
+      "capability": "PARTIAL",
+      "data": "FIXTURE",
+      "evidence": [
+        "src/auth/mcp-capability.ts",
+        "src/auth/mcp-capability-store.ts",
+        "src/mcp/http.ts",
+        "tests/unit/mcp-capability-store.test.ts",
+        "tests/unit/mcp-http.test.ts",
+        "tests/unit/mcp-capability-api.test.ts"
+      ],
+      "reproduce": "npx vitest run tests/unit/mcp-capability-store.test.ts tests/unit/mcp-http.test.ts tests/unit/mcp-capability-api.test.ts",
+      "caveat": "Router and deployment wiring pass locally. Production issue/use/revoke and a named external-client probe remain pending. Process-local rate limits are not a distributed quota. Public MCP remains the verified remote surface."
+    },
+    {
+      "id": "external-client-proof",
+      "claim": "No ChatGPT or Claude product has connected to Lacuna in the current evidence set.",
       "capability": "NOT_STARTED",
       "data": "UNAVAILABLE",
       "evidence": [
-        "PLAN.md",
-        "src/hydra"
+        "docs/END_TO_END_MATRIX.md",
+        "docs/CURRENT_EXTERNAL_CONTRACTS.md"
       ],
-      "reproduce": "grep -rn 'chat/completions\\|openai\\|anthropic' src/ || echo 'no model calls'",
-      "caveat": "This is a deliberate exclusion from PLAN.md rather than something unfinished. The retrieval result is the answer, which is what makes the evidence trail complete."
+      "reproduce": "No command exists yet. A named-client capture is required.",
+      "caveat": "ONE_CONTEXT_IDENTICAL proves agreement among Lacuna web, CLI and MCP. MCP Inspector proves protocol interoperability. Neither artifact is a ChatGPT or Claude session."
+    },
+    {
+      "id": "submission-media",
+      "claim": "An older draft MP4, a 175.2-second composition preview and a draft SRT exist. There is no accepted final master, Supademo walkthrough or YouTube URL.",
+      "capability": "PARTIAL",
+      "data": "RECORDED",
+      "evidence": [
+        "video/hyperframes/meta.json",
+        "video/hyperframes/renders/lacuna-demo.srt",
+        "docs/VIDEO_SCRIPT.md",
+        "docs/SCREENSHOT_EVIDENCE_PLAN.md"
+      ],
+      "reproduce": "Inspect video/hyperframes/renders and video/hyperframes/meta.json",
+      "caveat": "The owner rejected the preview's visual direction. Final production recapture, selected-voice narration, preview approval, render and upload remain undone."
     },
     {
       "id": "mcp-server",
@@ -407,7 +522,7 @@
         "artifacts/verification/2026-08-14e/inspector-http-ask-answered.txt"
       ],
       "reproduce": "npm run parity   # both transports end to end; the inspector commands are in the 2026-08-14e README",
-      "caveat": "The third-party client is the MCP Inspector's CLI run from a terminal, not an editor or agent runtime. No interactive host has held a session with this server, so nothing on this line claims Claude Desktop or Cursor compatibility, and the server is not called universal. The inspector announces protocol 2025-11-25 against this server's 2025-06-18 and every call succeeded, which is version negotiation working, not a claim about either revision's full surface. The parity script's HTTP session was the SDK's Client over StreamableHTTPClientTransport, which validates structured output against each tool's outputSchema, so a successful call there is schema conformance rather than reachability."
+      "caveat": "This verifies the public read surface. The third-party client is MCP Inspector's CLI, not ChatGPT, Claude, Cursor or an agent host. Private capability issuance and production wiring remain a separate partial claim. The parity script's HTTP session uses the official SDK Client and validates each outputSchema, which proves protocol/schema conformance rather than named-host compatibility."
     },
     {
       "id": "cli",
@@ -423,7 +538,7 @@
         "artifacts/verification/2026-08-14b/cli-exit.txt"
       ],
       "reproduce": "node bin/lacuna.js ask Bellwether beta_partner --json",
-      "caveat": "Two subcommands of the several the binary carries were exercised this way. The JSON caps evidence at fifty items and reports the true count in evidenceTotal, so a caller reading the array length rather than that field would undercount. Nothing is published to a package registry and the exit codes are the only part of the surface a script should depend on so far."
+      "caveat": "The JSON caps evidence at fifty items and reports the true count in evidenceTotal. Nothing is published to a package registry, and the CLI does not expose agent create, run, cancel, retry or schedule lifecycle commands."
     },
     {
       "id": "cross-surface-contract",
@@ -437,7 +552,7 @@
         "artifacts/verification/2026-08-18/README.md"
       ],
       "reproduce": "npm run parity",
-      "caveat": "The check proves the three surfaces agree, not that the answers are right; judging answers against the gold expectations is npm run eval's job and is deliberately not duplicated here. The order the reads appear in the trace is excluded, because the reads are issued together and land as the node answers them, and reads with identical query text are tiebroken by their parameters, a fix the sweep's own first run forced. The two MCP surfaces share one tool implementation, so the HTTP case exercises the transport rather than the substance of the answer. The web pages share the resolver but are not part of this check."
+      "caveat": "The check proves Lacuna CLI and both MCP transports agree, not that the answers are right and not that ChatGPT or Claude connected. The order of concurrent reads is excluded. The two MCP surfaces share one tool implementation, so HTTP exercises the transport rather than a second answer implementation."
     },
     {
       "id": "deployment",
@@ -504,7 +619,7 @@
     },
     {
       "id": "prompt-injection-surface",
-      "claim": "Text stored in the graph is rendered as data and never followed as instruction, because nothing in the answer path consults a model.",
+      "claim": "The deterministic Ask path treats stored text as quoted data and never sends it to a model. The separate agent runtime is a different prompt-injection surface and is not covered by that structural guarantee.",
       "capability": "VERIFIED",
       "data": "SEEDED_DEMO",
       "evidence": [
@@ -513,7 +628,7 @@
         "tests/unit"
       ],
       "reproduce": "npm test",
-      "caveat": "The claim rests on the same fact as the llm-router entry: there is no model to inject into. Output escaping is a separate defence and is covered by the renderer tests."
+      "caveat": "This guarantee is scoped to Ask and retrieval. Agent Context Packs contain evidence seen by a model, so their bounded prompts, no-write manifest and Reviewer stage reduce risk but do not prove that arbitrary stored instructions can never influence model output. Output escaping is a separate defence."
     }
   ]
 }

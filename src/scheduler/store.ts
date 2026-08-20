@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { workspaceFingerprint } from '../agent/registry.js';
@@ -13,8 +13,15 @@ interface SchedulerState {
   readonly dispatches: readonly ScheduleDispatch[];
 }
 
+interface SchedulerWorkspaceIndex {
+  readonly version: 1;
+  readonly workspaces: readonly string[];
+}
+
 export interface ScheduleStore {
   putSchedule(schedule: DailySchedule): Promise<DailySchedule>;
+  /** Workspaces holding schedules, for an authenticated dispatcher tick. */
+  listWorkspaces(): Promise<readonly string[]>;
   getSchedule(workspace: string, scheduleId: string): Promise<DailySchedule | null>;
   listSchedules(workspace: string): Promise<readonly DailySchedule[]>;
   claimDispatch(
@@ -57,6 +64,12 @@ export class ScheduleConflict extends SchedulerStoreError {
 
 const MAX_SCHEDULES = 100;
 const MAX_DISPATCH_HISTORY = 400;
+const MAX_SCHEDULE_WORKSPACES = 5_000;
+const WORKSPACE_INDEX_ID = 'lacuna:schedule-workspaces:v1';
+
+function validWorkspace(workspace: string): boolean {
+  return workspace.trim() !== '' && workspace.length <= 256 && !workspace.includes('\0');
+}
 
 function dispatchHash(key: string): string {
   if (key === '' || key.length > 320 || key.includes('\0')) throw new SchedulerStoreError('invalid dispatch key');
@@ -90,7 +103,7 @@ export class FileScheduleStore implements ScheduleStore {
   }
 
   async #locked<T>(workspace: string, action: () => Promise<T>): Promise<T> {
-    if (workspace.trim() === '' || workspace.length > 256 || workspace.includes('\0')) {
+    if (!validWorkspace(workspace)) {
       throw new SchedulerStoreError('invalid workspace');
     }
     const key = workspaceFingerprint(workspace);
@@ -142,6 +155,30 @@ export class FileScheduleStore implements ScheduleStore {
       await this.#write({ ...state, schedules: [...state.schedules, schedule] });
       return schedule;
     });
+  }
+
+  async listWorkspaces(): Promise<readonly string[]> {
+    let entries;
+    try {
+      entries = await readdir(this.#root, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    }
+    const workspaces: string[] = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !/^[0-9a-f]{12}$/u.test(entry.name)) continue;
+      try {
+        const raw = JSON.parse(await readFile(join(this.#root, entry.name, 'scheduler.json'), 'utf8')) as Partial<SchedulerState>;
+        if (raw.version === 1 && typeof raw.workspace === 'string' && validWorkspace(raw.workspace)
+          && Array.isArray(raw.schedules) && raw.schedules.length > 0) {
+          workspaces.push(raw.workspace);
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new SchedulerStoreError('scheduler workspace index is unreadable');
+      }
+    }
+    return [...new Set(workspaces)].sort();
   }
 
   async getSchedule(workspace: string, scheduleId: string): Promise<DailySchedule | null> {
@@ -286,6 +323,7 @@ export class CloudScheduleStore implements ScheduleStore {
   readonly #collection: string;
   readonly #locks = new Map<string, Promise<void>>();
   readonly #state = new Map<string, SchedulerState>();
+  #indexLock: Promise<void> = Promise.resolve();
 
   constructor(cloud: HydraCloud, collection = 'lacuna-schedules') {
     this.#cloud = cloud;
@@ -293,7 +331,7 @@ export class CloudScheduleStore implements ScheduleStore {
   }
 
   async #locked<T>(workspace: string, action: () => Promise<T>): Promise<T> {
-    if (workspace.trim() === '' || workspace.length > 256 || workspace.includes('\0')) {
+    if (!validWorkspace(workspace)) {
       throw new SchedulerStoreError('invalid workspace');
     }
     const key = workspaceFingerprint(workspace);
@@ -347,9 +385,60 @@ export class CloudScheduleStore implements ScheduleStore {
     this.#state.set(state.workspace, state);
   }
 
+  async #readWorkspaceIndex(): Promise<SchedulerWorkspaceIndex> {
+    const source = await this.#cloud.inspect(WORKSPACE_INDEX_ID, 10_000, this.#collection);
+    if (source === null) return { version: 1, workspaces: [] };
+    try {
+      const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
+      const text = envelope.content?.text;
+      if (typeof text !== 'string' || text === '') throw new Error('missing text');
+      const parsed = JSON.parse(text) as Partial<SchedulerWorkspaceIndex>;
+      if (parsed.version !== 1 || !Array.isArray(parsed.workspaces)
+        || parsed.workspaces.some((workspace) => typeof workspace !== 'string' || !validWorkspace(workspace))) {
+        throw new Error('invalid index');
+      }
+      return parsed as SchedulerWorkspaceIndex;
+    } catch {
+      throw new SchedulerStoreError('scheduler workspace index is unreadable');
+    }
+  }
+
+  async #registerWorkspace(workspace: string): Promise<void> {
+    const previous = this.#indexLock;
+    let release = (): void => undefined;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    this.#indexLock = current;
+    await previous;
+    try {
+      const held = await this.#readWorkspaceIndex();
+      if (held.workspaces.includes(workspace)) return;
+      if (held.workspaces.length >= MAX_SCHEDULE_WORKSPACES) {
+        throw new SchedulerStoreError('scheduler workspace limit reached');
+      }
+      const next: SchedulerWorkspaceIndex = {
+        version: 1,
+        workspaces: [...held.workspaces, workspace].sort(),
+      };
+      const results = await this.#cloud.ingestApp([{
+        id: WORKSPACE_INDEX_ID,
+        title: 'Lacuna schedule workspace registry',
+        type: 'custom',
+        timestamp: new Date().toISOString(),
+        text: JSON.stringify(next),
+        metadata: { lacuna_record: 'schedule_workspace_index' },
+      }], this.#collection);
+      if (results.length === 0 || results.some((result) => result.error !== null && result.error !== '')) {
+        throw new SchedulerStoreError('scheduler workspace registration was refused');
+      }
+    } finally {
+      release();
+      if (this.#indexLock === current) this.#indexLock = Promise.resolve();
+    }
+  }
+
   async putSchedule(schedule: DailySchedule): Promise<DailySchedule> {
     assertScheduleScope(schedule.workspace, schedule.id);
-    return this.#locked(schedule.workspace, async () => {
+    const stored = await this.#locked(schedule.workspace, async () => {
       const state = await this.#read(schedule.workspace);
       const existing = state.schedules.find((candidate) => candidate.id === schedule.id);
       if (existing !== undefined) return existing;
@@ -357,6 +446,12 @@ export class CloudScheduleStore implements ScheduleStore {
       await this.#write({ ...state, schedules: [...state.schedules, schedule] });
       return schedule;
     });
+    await this.#registerWorkspace(schedule.workspace);
+    return stored;
+  }
+
+  async listWorkspaces(): Promise<readonly string[]> {
+    return [...(await this.#readWorkspaceIndex()).workspaces].sort();
   }
 
   async getSchedule(workspace: string, scheduleId: string): Promise<DailySchedule | null> {

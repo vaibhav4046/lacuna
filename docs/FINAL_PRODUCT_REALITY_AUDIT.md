@@ -4,14 +4,16 @@
 > because it is useful change history, but its statements that Work, Tools,
 > Scheduler and Voice were absent are no longer current.
 
-## V8 verdict
+## V8 verdict after red-team review
 
-The product now has a complete governed runtime around the temporal resolver:
-interactive overview and proof graphs, persisted Researcher/Reviewer runs,
-durable daily schedules, a real voice boundary, and route-level lazy loading.
-The production public workspace returned 453 nodes and 682 edges in both graph
-modes. A real production agent run completed with eight persisted lifecycle
-events and its exact Context Pack, reviewer result, tool record and timing.
+The product has a governed runtime around the temporal resolver: interactive
+overview and proof graphs, two persisted Researcher/Reviewer roles, daily
+schedule definitions, guarded voice routes, and route-level lazy loading. The
+acceptance deployment's seeded public workspace returned 453 nodes and 682
+edges in both graph modes. One production agent run completed with eight
+persisted lifecycle events and its exact Context Pack, reviewer result, tool
+record and timing. This proves that one bounded, no-write run, not arbitrary
+user-created agents or distributed orchestration.
 
 The landing and product views were inspected from production, not inferred
 from source. The desktop and mobile landing have no horizontal overflow; the
@@ -22,21 +24,39 @@ closed.
 
 The limitations are narrower and explicit:
 
+- Google sign-in is not production release-accepted. The prior callback could
+  merge a verified Google identity into an unverified password account by email
+  alone. The candidate integrates provider/subject binding, JWKS/RS256, PKCE,
+  nonce and no-store redirects; negative HTTP tests pass. Deployment and a
+  fresh-identity browser pass remain.
 - Production has no ElevenLabs credentials. The real route therefore returns
   `503 speech_unavailable` after CSRF and Origin validation instead of
-  pretending to listen.
+  pretending to listen. Provider calls are fixture-tested; no production audio
+  session has been accepted.
 - Vercel Hobby cron is daily and imprecise within the selected hour. The UI
   advertises only the supported daily cadence.
 - Spotify, Slack, Notion, Gmail and similar names are interoperability examples,
-  not connected integrations. ChatGPT, Claude, the CLI and MCP are claimed only
-  where a real endpoint or external-client proof exists.
+  not connected integrations. CLI, public MCP, the official SDK client and MCP
+  Inspector have proof. ChatGPT and Claude are protocol targets with no Lacuna
+  client proof yet.
 - A cross-instance HydraDB schedule upsert cannot provide database-level CAS
-  with the current managed API. The dispatcher is idempotent and leased, the
-  local file adapter serializes atomically, and this hosted limitation remains
-  named rather than hidden.
+  with the current managed API. The local file adapter serializes within one
+  process. The hosted adapter persists schedule and claim records, but its
+  idempotency, quota and lease decisions are not atomic across simultaneous
+  serverless instances. Exactly-once execution is not claimed.
+- Private MCP issue/revoke and deployment wiring are implemented locally with
+  a random digest-only bearer, cross-workspace refusal, request limits and
+  fail-closed authorization. Production and external-client probes are still
+  pending. Public MCP remains the verified remote surface.
+- The repository ships a CLI and uses the official MCP SDK internally. It does
+  not publish a Lacuna SDK, and neither surface exposes agent lifecycle
+  commands.
+- The existing continuity proof is web + CLI + MCP. ChatGPT and Claude have not
+  been connected. Supademo is not assembled, and the current film is an
+  unapproved preview, not a final master.
 
-Current details: `docs/FINAL_EXECUTION_STATE.md` and
-`docs/FINAL_CAPABILITY_MATRIX.md`.
+Current details: `docs/FINAL_EXECUTION_STATE.md`,
+`docs/FINAL_CAPABILITY_MATRIX.md`, and `docs/SCREENSHOT_EVIDENCE_PLAN.md`.
 
 Opened in a real browser against production, not read out of the source. Every
 line below is something that was observed, with the observation next to it.
@@ -72,7 +92,7 @@ the navigation to what is real, not by widening claims.
 | Revision visible | `Sessions storage Postgres` HISTORICAL beneath `Redis` CURRENT |
 | Proposal never becomes an answer | `storage:proposal` filed and labelled PROPOSAL |
 | MCP over HTTPS, public | `tools/list` returns four tools; `tools/call` answers from the cloud |
-| MCP scoped to a user's workspace | `x-lacuna-workspace` header returned the ingested claim |
+| legacy MCP workspace header | removed as authorization; deterministic collection ids now fail closed |
 | Contradiction labelled correctly | Both sources read CURRENT · CONFLICTING |
 | 404 | Real page, not a redirect to the front |
 | Mobile | 0px horizontal overflow, all 13 routes at 375×812 |

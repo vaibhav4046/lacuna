@@ -1,7 +1,7 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 
 import { builtInAgentId, workspaceFingerprint } from '../agent/registry.js';
-import type { AgentRun } from '../agent/types.js';
+import type { AgentRecommendation, AgentRun } from '../agent/types.js';
 import type { ScheduleStore } from './store.js';
 import { nextDailyOccurrence } from './time.js';
 import type { DailySchedule, DispatchClaim, ScheduleDispatchResult } from './types.js';
@@ -47,6 +47,49 @@ export function dailyContextHealthSchedule(
     timezone,
     enabled: true,
     nextEligibleAt: nextDailyOccurrence(nowMs, localTime, timezone),
+    lastRunAt: null,
+    lastRunId: null,
+    retry: { state: 'IDLE', attempts: 0, lastError: null },
+    createdAt: at,
+    updatedAt: at,
+  };
+}
+
+/**
+ * Materialises one explicit recommendation choice. The recommendation is
+ * recomputed server-side before this is called; clients cannot supply a task,
+ * permissions, agent id or writeback policy.
+ */
+export function recommendedDailySchedule(
+  workspace: string,
+  recommendation: AgentRecommendation,
+  localTime: string,
+  timezone: string,
+  nowMs: number,
+): DailySchedule {
+  if (recommendation.workspace !== workspace
+    || !recommendation.id.startsWith(`recommendation-${workspaceFingerprint(workspace)}-`)) {
+    throw new Error('recommendation belongs to another workspace');
+  }
+  if (!/^\d{2}:\d{2}$/u.test(localTime)) throw new Error('daily time must be HH:mm');
+  if (timezone.length < 1 || timezone.length > 64 || !/^[A-Za-z0-9_+./-]+$/u.test(timezone)) {
+    throw new Error('invalid timezone');
+  }
+  const nextEligibleAt = nextDailyOccurrence(nowMs, localTime, timezone);
+  const at = new Date(nowMs).toISOString();
+  const suffix = recommendation.id.slice(`recommendation-${workspaceFingerprint(workspace)}-`.length);
+  return {
+    id: `schedule-${workspaceFingerprint(workspace)}-recommended-${suffix}`,
+    workspace,
+    agentId: builtInAgentId(workspace, 'RESEARCHER'),
+    name: recommendation.name.slice(0, 120),
+    task: recommendation.task,
+    runKind: 'CONTEXT_HEALTH',
+    cadence: 'DAILY',
+    localTime,
+    timezone,
+    enabled: true,
+    nextEligibleAt,
     lastRunAt: null,
     lastRunId: null,
     retry: { state: 'IDLE', attempts: 0, lastError: null },

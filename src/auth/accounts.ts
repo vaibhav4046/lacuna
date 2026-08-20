@@ -5,8 +5,11 @@ import {
   AccountStore,
   StoreUnavailable,
   hashToken,
+  isAccount,
+  isSession,
   mintToken,
   SESSION_TTL_MS,
+  sessionVersionMatches,
   type Account,
   type SessionRecord,
 } from './store.js';
@@ -87,7 +90,7 @@ export class FileAccounts implements Accounts {
  *
  * It is kept apart from the context it serves. Accounts live in their own
  * collection, so nothing here is ever retrieved as evidence, and no question a
- * user asks can reach them. What is stored is an email, a scrypt hash, a
+ * user asks can reach them. What is stored is an email, an Argon2id hash, a
  * workspace name and two timestamps. The password itself is never seen by this
  * class, and the session token is stored only as a SHA-256 hash, so a reader of
  * the collection cannot sign in as anybody.
@@ -155,15 +158,16 @@ export class CloudAccounts implements Accounts {
   }
 
   async find(email: string): Promise<Account | null> {
-    return this.#read<Account>(this.#accountId(email));
+    const value = await this.#read<unknown>(this.#accountId(email));
+    return isAccount(value) ? value : null;
   }
 
   async create(account: Account): Promise<Account | null> {
     // Read before write rather than a conditional put, which this service does
-    // not offer. Two sign ups for one address within the same few hundred
-    // milliseconds would both succeed and the second would win; the cost of
-    // that race is one person seeing someone else's empty workspace name, and
-    // the alternative was a lock this store cannot hold.
+    // not offer. This is not safe for public password sign-up: two same-address
+    // requests can both succeed and the later upsert can replace credential and
+    // recovery hashes. Hosted password sign-up must remain disabled until the
+    // identity store can enforce a unique/conditional create.
     if (await this.find(account.email) !== null) return null;
     await this.#write(this.#accountId(account.email), account.email, account);
     return account;
@@ -174,22 +178,29 @@ export class CloudAccounts implements Accounts {
   }
 
   async startSession(email: string, now: number): Promise<string> {
+    const account = await this.find(email);
+    if (account === null) throw new StoreUnavailable('cannot start a session for a missing account');
     const token = mintToken();
     const record: SessionRecord = {
       tokenHash: hashToken(token),
       email,
       expiresAt: now + SESSION_TTL_MS,
+      ...(account.sessionVersion === undefined ? {} : { sessionVersion: account.sessionVersion }),
     };
     await this.#write(this.#sessionId(record.tokenHash), 'session', record);
     return token;
   }
 
   async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
-    const record = await this.#read<SessionRecord>(this.#sessionId(hashToken(token)));
-    if (record === null) return null;
+    const tokenHash = hashToken(token);
+    const value = await this.#read<unknown>(this.#sessionId(tokenHash));
+    if (!isSession(value) || value.tokenHash !== tokenHash) return null;
+    const record = value;
     // Expiry is checked here rather than trusted from storage, so a clock the
     // store does not enforce cannot extend a session.
     if (record.expiresAt <= now) return null;
+    const account = await this.find(record.email);
+    if (account === null || !sessionVersionMatches(account, record)) return null;
     return record;
   }
 

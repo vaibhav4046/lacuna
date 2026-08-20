@@ -134,6 +134,7 @@ describe('the daily dispatcher', () => {
     const schedules = new FileScheduleStore(root);
     const agents = new FileAgentRuntimeStore(root);
     const schedule = await schedules.putSchedule(dueSchedule());
+    expect(await schedules.listWorkspaces()).toEqual(['workspace-a']);
 
     await expect(dispatchDueDaily({
       store: schedules,
@@ -197,40 +198,42 @@ describe('the daily dispatcher', () => {
       leaseId: () => 'lease-first',
     });
     await started;
-    const second = await dispatchDueDaily({
+    const contenders = await Promise.all(Array.from({ length: 48 }, (_, index) => dispatchDueDaily({
       store: schedules,
       workspace: 'workspace-a',
       authorization: 'Bearer cron-secret',
       cronSecret: 'cron-secret',
       run: runner,
       now: () => NOW,
-      leaseId: () => 'lease-second',
-    });
+      leaseId: () => `lease-contender-${index}`,
+    })));
     release();
-    expect(second[0]?.outcome).toBe('BUSY');
+    expect(contenders.every((result) => result[0]?.outcome === 'BUSY')).toBe(true);
     expect((await first)[0]?.outcome).toBe('DISPATCHED');
     expect(calls).toBe(1);
 
-    const manualOne = await runScheduleNow({
+    const manual = await Promise.all(Array.from({ length: 32 }, (_, index) => runScheduleNow({
       store: schedules,
       workspace: 'workspace-a',
       scheduleId: schedule.id,
       requestId: 'button-click-1',
       run: real,
       now: () => NOW + 1_000,
-      leaseId: () => 'lease-manual-1',
-    });
-    const manualTwo = await runScheduleNow({
+      leaseId: () => `lease-manual-${index}`,
+    })));
+    const dispatched = manual.filter((result) => result.outcome === 'DISPATCHED');
+    expect(dispatched).toHaveLength(1);
+    expect(manual.filter((result) => result.outcome === 'BUSY')).toHaveLength(31);
+    const replay = await runScheduleNow({
       store: schedules,
       workspace: 'workspace-a',
       scheduleId: schedule.id,
       requestId: 'button-click-1',
       run: real,
       now: () => NOW + 2_000,
-      leaseId: () => 'lease-manual-2',
+      leaseId: () => 'lease-replay',
     });
-    expect(manualOne.outcome).toBe('DISPATCHED');
-    expect(manualTwo).toEqual({ scheduleId: schedule.id, outcome: 'DUPLICATE', runId: manualOne.runId });
+    expect(replay).toEqual({ scheduleId: schedule.id, outcome: 'DUPLICATE', runId: dispatched[0]?.runId });
     expect(await agents.listRuns('workspace-a')).toHaveLength(2);
   });
 

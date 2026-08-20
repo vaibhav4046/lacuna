@@ -327,10 +327,16 @@ export async function storeWorkspace(
 
   for (const name of names.slice(0, limit)) {
     const { value: subject } = await source.subject(name, timeoutMs);
-    const live = subject.claims.filter(
-      (claim) => claim.supersededBy.length === 0 && !claim.predicate.includes(':'),
+    const liveByPredicate = new Map<string, Set<string>>();
+    for (const claim of subject.claims) {
+      if (claim.supersededBy.length > 0 || claim.predicate.includes(':')) continue;
+      const values = liveByPredicate.get(claim.predicate) ?? new Set<string>();
+      values.add(claim.objectText);
+      liveByPredicate.set(claim.predicate, values);
+    }
+    const disagreeingPredicates = new Set(
+      [...liveByPredicate].filter(([, values]) => values.size > 1).map(([predicate]) => predicate),
     );
-    const disagreeing = new Set(live.map((claim) => claim.objectText)).size > 1;
 
     for (const claim of subject.claims) {
       const superseded = claim.supersededBy.length > 0;
@@ -338,10 +344,16 @@ export async function storeWorkspace(
       // unsuperseded, and calling that CURRENT would say the thing the whole
       // design exists to avoid saying.
       const slotted = claim.predicate.includes(':');
-      const state: MemoryRow['st'] = slotted ? 'PRO' : superseded ? 'SUP' : disagreeing ? 'CON' : 'CUR';
+      const state: MemoryRow['st'] = slotted
+        ? 'PRO'
+        : superseded
+          ? 'SUP'
+          : disagreeingPredicates.has(claim.predicate)
+            ? 'CON'
+            : 'CUR';
       if (slotted) proposals += 1;
       else if (superseded) historical += 1;
-      else if (disagreeing) conflicted += 1;
+      else if (disagreeingPredicates.has(claim.predicate)) conflicted += 1;
       else current += 1;
       rows.push({
         claim: `${name} ${claim.predicate} ${claim.objectText}`,

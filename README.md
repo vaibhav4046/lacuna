@@ -32,28 +32,55 @@ rules:
   timeline and abstention reason as inspectable artifacts.
 - **Memory and Graph** expose the same live HydraDB-backed workspace as a
   searchable table, a state-shaped overview field, and a deterministic
-  provenance DAG. The public workspace currently contains 453 graph nodes and
-  682 edges, paged with server-signed cursors.
+  provenance DAG. The seeded public workspace measured 453 graph nodes and 682
+  edges on the V8 acceptance deployment, paged with server-signed cursors.
 - **Agents and Work** persist a governed Researcher → Reviewer run. A completed
   production run records eight lifecycle events from `CREATED` to `COMPLETED`,
   the exact context pack, reviewer verdict, tool use, latency, and no
-  authoritative writeback.
-- **Schedules** persist one daily context-health task. Vercel invokes a single
-  bearer-protected dispatcher; workspace identifiers come from server-side
-  enumeration, never the request body.
-- **Voice** implements the complete browser state machine, raw PCM realtime
-  Scribe transport, committed-transcript query, streamed server-side TTS,
-  interruption and text fallback. Production deliberately returns
+  authoritative writeback. The shipped catalogue is two built-in roles, not a
+  general user-created agent platform. Memory-derived recommendations are a
+  release candidate until their API and production flow are rerun.
+- **Schedules** persist daily context-health definitions. Vercel invokes a
+  bearer-protected dispatcher and workspace identifiers are enumerated
+  server-side. The file adapter serializes locally, but HydraDB currently
+  provides no compare-and-swap operation, so hosted multi-instance execution is
+  not claimed to be distributed exactly-once.
+- **Voice** implements the browser state machine, realtime Scribe and streamed
+  TTS routes, interruption, and text fallback. The provider boundary is covered
+  by fixtures, not an end-to-end production voice session. Production returns
   `speech_unavailable` until `ELEVENLABS_API_KEY` and
   `ELEVENLABS_VOICE_ID` are supplied as server-only environment variables.
-- **Everywhere** is the same contract over the browser, CLI, stdio MCP, and
-  remote Streamable HTTP MCP. A workspace is addressed by its own scoped MCP
-  URL; no client chooses a workspace through an untrusted query or body.
+- **Everywhere** is the same read contract over the browser, CLI, stdio MCP,
+  and public Streamable HTTP MCP. The repository does not ship a packaged
+  Lacuna SDK. Private MCP now has authenticated issue/revoke routes, random
+  revocable digest-only capabilities, and a fail-closed listener. Deployment
+  and named-client proof remain acceptance gates.
 
 The quickest judge path is [the live public workspace](https://lacuna-five.vercel.app/explore).
 The exact V8 capability boundary is in
 [docs/FINAL_CAPABILITY_MATRIX.md](docs/FINAL_CAPABILITY_MATRIX.md), and the
 current evidence is indexed in [docs/EVIDENCE_INDEX.md](docs/EVIDENCE_INDEX.md).
+
+### Release acceptance boundary
+
+The last clean production acceptance run passed web smoke 9/9, demo smoke
+30/30, and password-account smoke 12/12. The current working tree contains
+security and runtime hardening that must be rebuilt, deployed, and rerun before
+those changes may inherit the same label.
+
+Google sign-in is not release-accepted at this point. A security review found
+that the deployed callback could merge a verified Google identity into an
+existing password account on email equality alone. The candidate now binds the
+provider and Google subject, verifies JWKS/RS256 claims, uses PKCE and a nonce,
+hardens redirect caching, and passes negative HTTP account-merge tests. It is
+not a production claim until deployment and a fresh-identity browser pass.
+Hosted password signup is disabled because the current HydraDB identity store
+cannot atomically enforce a unique email; existing password sign-in remains.
+
+The continuity artifact proves agreement among Lacuna's deployed web endpoint,
+its CLI, and its MCP process. It is not evidence that ChatGPT or Claude has
+connected. No ChatGPT/Claude cross-client result, Supademo walkthrough, accepted
+final MP4, YouTube upload, Spotify sync, or other native connector is claimed.
 
 **Thirty seconds, no account.** Open
 [lacuna-five.vercel.app](https://lacuna-five.vercel.app) and ask it something in

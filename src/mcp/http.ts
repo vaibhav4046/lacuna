@@ -3,6 +3,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
+import { createHash } from 'node:crypto';
+
+import { MCP_CAPABILITY_SHAPE } from '../auth/mcp-capability.js';
+import { FixedWindow, type RateLimitOptions } from '../server/ratelimit.js';
 import { createMcpServer, type ToolContext } from './server.js';
 
 /**
@@ -10,8 +14,9 @@ import { createMcpServer, type ToolContext } from './server.js';
  *
  * Stateless: a fresh server and a fresh transport per request, closed when the
  * response ends. There is no session to resume and no cross-request state, so
- * there is nothing for one caller to inherit from another. Every tool is a
- * read, so a session would buy nothing but bookkeeping.
+ * there is nothing for one caller to inherit from another. Public tools are
+ * reads. A private context may add `remember`, but only after a separate random
+ * capability has resolved to that context.
  *
  * The Origin check is written here rather than configured on the transport
  * because the transport's own `allowedOrigins` and `enableDnsRebindingProtection`
@@ -37,6 +42,10 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
  * megabyte is not one of those.
  */
 const MAX_BODY_BYTES = 1_048_576;
+
+export const MCP_REQUEST_LIMIT = Object.freeze({ limit: 120, windowMs: 60_000, maxKeys: 8_192 });
+export const MCP_TOOL_LIMIT = Object.freeze({ limit: 30, windowMs: 60_000, maxKeys: 8_192 });
+export const MCP_WRITE_LIMIT = Object.freeze({ limit: 6, windowMs: 60_000, maxKeys: 8_192 });
 
 /**
  * Is this request allowed to come from a page.
@@ -65,8 +74,13 @@ export function isLoopbackOrigin(value: string | undefined): boolean {
   return LOOPBACK_HOSTS.has(origin.hostname);
 }
 
-function refuse(res: ServerResponse, status: number, message: string): void {
-  res.writeHead(status, { 'content-type': 'application/json' });
+function refuse(res: ServerResponse, status: number, message: string, retryAfterSeconds?: number): void {
+  res.writeHead(status, {
+    'content-type': 'application/json',
+    'cache-control': 'no-store, private',
+    'x-content-type-options': 'nosniff',
+    ...(retryAfterSeconds === undefined ? {} : { 'retry-after': String(retryAfterSeconds) }),
+  });
   res.end(JSON.stringify({ error: message }));
 }
 
@@ -82,17 +96,20 @@ function header(req: IncomingMessage, name: string): string | undefined {
 export interface HttpOptions {
   readonly context: ToolContext;
   /**
-   * Builds the context for one named workspace, when a caller asks for one.
-   *
-   * An MCP client that ingested a transcript through the web product should be
-   * able to read that same memory from its agent, or the two halves are two
-   * products. The workspace is named by the `x-lacuna-workspace` header,
-   * carrying the collection id the ingest report returned. A collection id is
-   * an unguessable 32-hex handle derived from the account, so possession is
-   * the authorisation, the same way an unlisted document link works. Nothing
-   * writable is reachable through MCP either way.
+   * Legacy seam retained while the deployment migrates. It is deliberately not
+   * consulted: a collection id derived from an email is an address, not proof
+   * that the caller owns the account. Remove this option after index wiring no
+   * longer passes it.
    */
   readonly contextFor?: (collection: string) => ToolContext;
+  /**
+   * Resolves an independently random, revocable bearer capability.
+   *
+   * The callback must look up a hash of the capability and return only the
+   * workspace bound to that record. A deterministic collection id is not an
+   * authorization decision and is never passed here.
+   */
+  readonly authorizeWorkspace?: (capability: string) => Promise<ToolContext | null> | ToolContext | null;
   /** Called once per rejected request. Never called with a header value. */
   readonly log?: (line: string) => void;
   /**
@@ -104,11 +121,15 @@ export interface HttpOptions {
    * directly. A hosted server that refuses every remote origin is a server no
    * hosted client can use.
    *
-   * Turning it on does not widen what the tools can read. Every tool is a read
-   * against the context it was constructed with, and the deployment constructs
-   * it over the same public demo corpus `/api/demo/*` already serves.
+   * Turning it on does not widen what the public tools can read. Private tools
+   * are reachable only after `authorizeWorkspace` returns a scoped context.
    */
   readonly allowAnyOrigin?: boolean;
+  /** Test/configuration seams. Hosted limits still need a durable gateway. */
+  readonly requestLimit?: RateLimitOptions;
+  readonly toolLimit?: RateLimitOptions;
+  readonly writeLimit?: RateLimitOptions;
+  readonly now?: () => number;
 }
 
 /**
@@ -119,16 +140,15 @@ export interface HttpOptions {
  * attempted: the endpoint looks broken while working perfectly for curl. That
  * was the state this was in.
  *
- * Any origin, and deliberately no credentials. Every tool is a read, the
- * default context is the corpus anybody can fetch without an account, and a
- * workspace read needs a handle that is unguessable and carried in a header
- * rather than in a cookie. Nothing here is protected by the browser refusing
- * to send the request, so refusing it bought nothing and cost the connection.
+ * Any origin, and deliberately no cookies. The default context is the corpus
+ * anybody can fetch without an account. A workspace call needs an independent
+ * random capability in an Authorization/header field or, for clients that
+ * cannot set headers, in the path. CORS is not treated as authorization.
  */
 const CORS: Readonly<Record<string, string>> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
-  'access-control-allow-headers': 'content-type, accept, authorization, mcp-protocol-version, mcp-session-id, last-event-id, x-lacuna-workspace',
+  'access-control-allow-headers': 'content-type, accept, authorization, mcp-protocol-version, mcp-session-id, last-event-id, x-lacuna-capability',
   'access-control-expose-headers': 'mcp-session-id, mcp-protocol-version',
   'access-control-max-age': '86400',
 };
@@ -146,53 +166,104 @@ export function createMcpListener(
   options: HttpOptions,
 ): (req: IncomingMessage, res: ServerResponse) => void {
   const log = options.log ?? ((): void => {});
+  const requests = new FixedWindow(options.requestLimit ?? MCP_REQUEST_LIMIT);
+  const tools = new FixedWindow(options.toolLimit ?? MCP_TOOL_LIMIT);
+  const writes = new FixedWindow(options.writeLimit ?? MCP_WRITE_LIMIT);
+  const now = options.now ?? Date.now;
 
   return (req, res) => {
-    /**
-     * The workspace, from the path or from a header.
-     *
-     * The header came first and is kept, but the path is the one that works
-     * everywhere. Hosted clients take a URL and little else: one dedupes
-     * connectors by URL, so a second workspace on the same address cannot be
-     * added at all, and another offers no way to set a header. A handle in the
-     * path makes each workspace its own address, which is what those clients
-     * are built to accept, and it needs no configuration beyond pasting a link.
-     *
-     * The handle is unguessable either way, so nothing moved from a secret
-     * place to a public one: it was always a bearer value, and a URL is exactly
-     * as private as a header somebody has to be given.
-     */
-    const url = new URL(req.url ?? '/', 'http://localhost');
-    const fromPath = url.pathname.startsWith(`${MCP_PATH}/w/`)
-      ? url.pathname.slice(`${MCP_PATH}/w/`.length).replace(/\/+$/, '')
-      : undefined;
-    const wanted = fromPath ?? header(req, 'x-lacuna-workspace');
-
-    const scoped = wanted !== undefined && COLLECTION_SHAPE.test(wanted) && options.contextFor !== undefined
-      ? options.contextFor(wanted)
-      : options.context;
-    void handle(req, res, scoped, log, options.allowAnyOrigin === true);
+    void handle(req, res, options, log, options.allowAnyOrigin === true, requests, tools, writes, now);
   };
 }
 
-/**
- * What a workspace handle looks like. Anything else is ignored rather than
- * refused, so a stray header cannot turn a public read into an error.
- */
-const COLLECTION_SHAPE = /^lacuna-ws-[0-9a-f]{32}$/;
+class BodyLimitExceeded extends Error {}
+
+async function boundedBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  for await (const raw of req) {
+    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw));
+    bytes += chunk.length;
+    if (bytes > MAX_BODY_BYTES) throw new BodyLimitExceeded();
+    chunks.push(chunk);
+  }
+  if (chunks.length === 0) return null;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+  } catch {
+    throw new SyntaxError('invalid JSON');
+  }
+}
+
+function bearer(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const match = /^Bearer\s+(\S+)$/iu.exec(value.trim());
+  return match?.[1];
+}
+
+interface CapabilityRequest {
+  readonly privateRequested: boolean;
+  readonly capability: string | null;
+  readonly conflicting: boolean;
+}
+
+function requestedCapability(req: IncomingMessage, url: URL): CapabilityRequest {
+  const privateRequested = url.pathname.startsWith(`${MCP_PATH}/w/`);
+  const path = privateRequested
+    ? url.pathname.slice(`${MCP_PATH}/w/`.length).replace(/\/+$/, '')
+    : undefined;
+  const supplied = [
+    path,
+    header(req, 'x-lacuna-capability'),
+    bearer(header(req, 'authorization')),
+  ].filter((value): value is string => value !== undefined && value !== '');
+  const unique = [...new Set(supplied)];
+  return {
+    privateRequested: privateRequested || unique.length > 0,
+    capability: unique.length === 1 && MCP_CAPABILITY_SHAPE.test(unique[0] ?? '') ? unique[0] ?? null : null,
+    conflicting: unique.length > 1,
+  };
+}
+
+function sourceKey(req: IncomingMessage, capability: string | null): string {
+  const forwarded = header(req, 'x-forwarded-for')?.split(',')[0]?.trim();
+  const address = forwarded === undefined || forwarded === '' ? req.socket.remoteAddress ?? 'unknown' : forwarded;
+  const scope = capability === null
+    ? 'public'
+    : createHash('sha256').update(capability, 'utf8').digest('hex').slice(0, 24);
+  return `${scope}:${address}`;
+}
+
+function calls(parsed: unknown): readonly { readonly method: string; readonly tool: string | null }[] {
+  const rows = Array.isArray(parsed) ? parsed : [parsed];
+  return rows.flatMap((row) => {
+    if (typeof row !== 'object' || row === null || Array.isArray(row)) return [];
+    const record = row as Readonly<Record<string, unknown>>;
+    if (record['method'] !== 'tools/call') return [];
+    const params = record['params'];
+    const tool = typeof params === 'object' && params !== null && !Array.isArray(params)
+      && typeof (params as Readonly<Record<string, unknown>>)['name'] === 'string'
+      ? String((params as Readonly<Record<string, unknown>>)['name'])
+      : null;
+    return [{ method: 'tools/call', tool }];
+  });
+}
 
 async function handle(
   req: IncomingMessage,
   res: ServerResponse,
-  context: ToolContext,
+  options: HttpOptions,
   log: (line: string) => void,
   allowAnyOrigin: boolean,
+  requests: FixedWindow,
+  tools: FixedWindow,
+  writes: FixedWindow,
+  now: () => number,
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
-  // `/mcp` is the public corpus and `/mcp/w/<handle>` is one workspace. A
-  // handle that is not a handle already fell back to the public context above,
-  // so this only has to reject a path that is neither shape.
+  // `/mcp` is the public corpus and `/mcp/w/<capability>` is one workspace.
+  // The latter still has to pass capability resolution below.
   const workspacePath = url.pathname.startsWith(`${MCP_PATH}/w/`);
   if (url.pathname !== MCP_PATH && !workspacePath) {
     refuse(res, 404, `nothing is mounted at ${url.pathname}`);
@@ -211,6 +282,8 @@ async function handle(
   if (req.method !== 'POST') {
     res.writeHead(405, {
       'content-type': 'application/json',
+      'cache-control': 'no-store, private',
+      'x-content-type-options': 'nosniff',
       allow: 'POST, OPTIONS',
       ...(allowAnyOrigin ? CORS : {}),
     });
@@ -228,10 +301,73 @@ async function handle(
     return;
   }
 
+  const requested = requestedCapability(req, url);
+  const requestKey = sourceKey(req, null);
+  // Count before capability lookup. Otherwise a stream of wrong capabilities
+  // spends unbounded persistence reads without entering any budget.
+  const requestVerdict = requests.check(requestKey, now());
+  if (!requestVerdict.allowed) {
+    refuse(res, 429, 'the MCP request limit was reached', requestVerdict.retryAfterSeconds);
+    return;
+  }
+
+  let context = options.context;
+  if (requested.privateRequested) {
+    if (requested.conflicting || requested.capability === null || options.authorizeWorkspace === undefined) {
+      refuse(res, 401, 'a valid workspace capability is required');
+      return;
+    }
+    try {
+      const scoped = await options.authorizeWorkspace(requested.capability);
+      if (scoped === null) {
+        refuse(res, 401, 'a valid workspace capability is required');
+        return;
+      }
+      context = scoped;
+    } catch {
+      refuse(res, 503, 'workspace authorization is unavailable');
+      return;
+    }
+  }
+
+  const key = sourceKey(req, requested.capability);
+
   const declared = Number(header(req, 'content-length') ?? '0');
-  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+  if (!Number.isFinite(declared) || declared < 0) {
+    refuse(res, 400, 'content-length is invalid');
+    return;
+  }
+  if (declared > MAX_BODY_BYTES) {
     refuse(res, 413, `the body cap is ${MAX_BODY_BYTES} bytes`);
     return;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = await boundedBody(req);
+  } catch (error) {
+    // Keep consuming an oversized request so a persistent connection cannot
+    // smuggle its remaining bytes into the next request.
+    req.resume();
+    refuse(res, error instanceof BodyLimitExceeded ? 413 : 400,
+      error instanceof BodyLimitExceeded ? `the body cap is ${MAX_BODY_BYTES} bytes` : 'the request body is not valid JSON');
+    return;
+  }
+
+  const toolCalls = calls(parsed);
+  for (const call of toolCalls) {
+    const verdict = tools.check(key, now());
+    if (!verdict.allowed) {
+      refuse(res, 429, 'the MCP tool limit was reached', verdict.retryAfterSeconds);
+      return;
+    }
+    if (call.tool === 'remember') {
+      const writeVerdict = writes.check(key, now());
+      if (!writeVerdict.allowed) {
+        refuse(res, 429, 'the MCP write limit was reached', writeVerdict.retryAfterSeconds);
+        return;
+      }
+    }
   }
 
   const server = createMcpServer(context);
@@ -252,7 +388,7 @@ async function handle(
     // `exactOptionalPropertyTypes` those are different types, though at runtime
     // they are the same field.
     await server.connect(transport as Transport);
-    await transport.handleRequest(req, res);
+    await transport.handleRequest(req, res, parsed);
   } catch (error) {
     log(`the MCP endpoint failed: ${error instanceof Error ? error.name : 'UnknownError'}`);
     if (!res.headersSent) {

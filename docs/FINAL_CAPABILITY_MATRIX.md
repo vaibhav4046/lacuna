@@ -1,31 +1,46 @@
 # V8 final capability matrix
 
-`SHIPPED` means implemented and verified. `GUARDED` means the complete product
-path exists but an external credential or permission controls availability.
-`EXAMPLE` means the protocol can carry it; no native connector is claimed.
+This matrix separates the last accepted production build from the current
+working-tree candidate.
+
+- `VERIFIED` means a committed artifact or a repeatable production gate proves
+  the behaviour.
+- `CANDIDATE` means code and focused tests exist, but the integrated production
+  gate has not been rerun.
+- `LIMITED` means the capability works within the boundary stated in the final
+  column.
+- `UNAVAILABLE` means a required credential or proof is absent.
+- `PROTOCOL ONLY` means an endpoint contract exists but a named external client
+  has not been connected.
+- `EXAMPLE` means no native connector exists.
 
 | Capability | State | Proof or boundary |
 | --- | --- | --- |
-| temporal claims, corrections and retractions | SHIPPED | immutable evidence records and explicit supersession |
-| contradiction and missing-evidence abstention | SHIPPED | deterministic resolver and machine-readable reasons |
-| plain-English Ask with artifacts | SHIPPED | interpreted subject/predicate, answer, evidence, timeline, Context Pack |
-| dense memory table | SHIPPED | live public and session-scoped APIs |
-| interactive overview graph | SHIPPED | state-shaped navigation, filters, keyboard list, pan/zoom, cursor pages |
-| exact provenance graph | SHIPPED | deterministic source → evidence → claim → entity DAG with rejected edges |
-| private graph isolation | SHIPPED | workspace collection derived from authenticated account only |
-| Researcher and Reviewer agents | SHIPPED | bounded roles, permissions, budgets, persisted run record |
-| run cancel and retry | SHIPPED | authenticated, CSRF-protected state transitions |
-| tools registry | SHIPPED | observed tools and last verification state |
-| daily schedules | SHIPPED | persisted definition, leases, idempotency and fixed-workspace cron dispatch |
-| realtime speech-to-text | GUARDED | raw PCM Scribe WebSocket; single-use token from server |
-| streamed text-to-speech | GUARDED | server-side ElevenLabs stream with backpressure and cancellation |
+| temporal claims, corrections and retractions | VERIFIED | immutable evidence records and explicit supersession |
+| contradiction and missing-evidence abstention | VERIFIED | deterministic resolver and machine-readable reasons |
+| plain-English Ask with artifacts | VERIFIED | interpreted subject/predicate, answer, evidence, timeline, Context Pack |
+| dense memory table | VERIFIED | live public and session-scoped APIs |
+| interactive overview graph | VERIFIED | state-shaped navigation, filters, keyboard list, pan/zoom, cursor pages |
+| exact provenance graph | VERIFIED | deterministic source → evidence → claim → entity DAG with rejected edges |
+| private graph isolation in the web app | VERIFIED | collection derived from the authenticated account; no caller-supplied workspace id |
+| password sign-in and session flow | LIMITED | existing production password accounts pass sign-in/session/recovery tests; hosted password creation is disabled until identity storage has atomic unique create |
+| Google sign-in | CANDIDATE | provider/subject binding, RS256/JWKS, PKCE, nonce, no-store redirects and negative HTTP tests pass locally; fresh-identity production browser proof pending |
+| Researcher and Reviewer agents | LIMITED | two built-in, no-write roles and one production eight-event run; not arbitrary user-created agents |
+| memory-derived agent recommendations | CANDIDATE | deterministic read-only suggestions with evidence and permissions; integrated production gate pending |
+| run cancel and retry | VERIFIED | authenticated, CSRF-protected state transitions |
+| tools registry | VERIFIED | observed tools and last verification state |
+| daily schedules | LIMITED | persistent definitions and process-level leases; no distributed CAS or exactly-once guarantee on HydraDB |
+| realtime speech-to-text | CANDIDATE | raw PCM Scribe route and single-use token boundary covered by fixtures; no provider-enabled production session |
+| streamed text-to-speech | CANDIDATE | server-side stream, backpressure and cancellation covered by fixtures; no provider-enabled production session |
 | production voice provider | UNAVAILABLE | ElevenLabs server credentials intentionally absent |
-| CLI | SHIPPED | local source and scoped remote source commands |
-| MCP stdio | SHIPPED | stdout-safe JSON-RPC transport |
-| MCP remote HTTP | SHIPPED | Streamable HTTP at public and workspace-scoped URLs |
-| ChatGPT custom app | READ/FETCH | Pro contract; no write claim |
-| Claude MCP | READ/WRITE CAPABLE | client permission and user confirmation still apply |
-| generic app memory sync | SHIPPED PROTOCOL | any client using the scoped HTTP/MCP contract |
+| CLI | VERIFIED | read and ingest commands; no agent lifecycle commands |
+| packaged Lacuna SDK | UNAVAILABLE | the repository uses the official MCP SDK internally but publishes no `@lacuna/sdk` package |
+| MCP stdio | VERIFIED | stdout-safe JSON-RPC transport and parity sweep |
+| MCP public HTTP | VERIFIED | public seeded workspace over Streamable HTTP |
+| MCP private HTTP | CANDIDATE | authenticated issue/revoke, random digest-only bearer, cross-workspace refusal and bounded HTTP pass locally; deployment/client proof pending |
+| ChatGPT custom app | PROTOCOL ONLY | Pro supports read/fetch by provider contract; Lacuna has not completed a ChatGPT proof |
+| Claude MCP | PROTOCOL ONLY | provider documents MCP and may permit writes; Lacuna has not completed a Claude proof |
+| generic app memory sync | PROTOCOL ONLY | HTTP/MCP contract exists; this does not prove every client can connect |
 | Spotify / Slack / Notion / Gmail / Linear | EXAMPLE | no native OAuth or ingestion connector claimed |
 
 ## Security invariants
@@ -37,3 +52,8 @@ path exists but an external credential or permission controls availability.
 - Public and private rate-limit buckets are separate.
 - The cron secret is accepted only as a bearer token at the one dispatcher.
 - Agent writeback is explicit and the shipped reviewer path is non-authoritative.
+
+These are design and test invariants, not a claim of formal verification. The
+Google and private MCP rows remain `CANDIDATE` until production deployment and
+browser/client probes pass. Their router integration, negative tests and clean
+candidate build are complete.

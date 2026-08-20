@@ -15,14 +15,17 @@ import {
   readJsonBody,
   serialiseCookie,
 } from '../auth/http.js';
-import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, sameDigest, type Account } from '../auth/store.js';
+import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
-import { FixedWindow } from '../server/ratelimit.js';
+import { googleBinding } from '../auth/identity.js';
+import type { McpCapabilities } from '../auth/mcp-capability-store.js';
+import { MCP_CAPABILITY_SHAPE } from '../auth/mcp-capability.js';
+import { FixedWindow, type RateLimitOptions, type RateLimitVerdict } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, plannedAskEnvelope, storeWorkspace, validateQuestion } from './workspace.js';
 import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
 import { graphImpact } from './impact.js';
 import type { WorkspaceView } from './workspace.js';
-import { authorizeUrl, identityFromCode, type GoogleConfig } from '../auth/google.js';
+import { authorizeUrl, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
 import { extractionReport } from './extract-demo.js';
 import type { HydraSource } from '../hydra/source.js';
@@ -31,7 +34,7 @@ import type { EvalRow } from '../report/evaluations.js';
 import { headerModel, modelRows } from '../provider/registry.js';
 import { GraphApiError, graphFromInventory, graphFromSource, graphPage } from './graph.js';
 import type { AgentRun } from '../agent/types.js';
-import { builtInAgentId, agentPageRecords } from '../agent/registry.js';
+import { builtInAgentId, agentPageRecords, recommendedAgents } from '../agent/registry.js';
 import { registeredAgentTools } from '../agent/tools.js';
 import {
   AgentInputRejected,
@@ -40,6 +43,7 @@ import {
 import {
   InvalidRunTransition,
   RunConflict,
+  RunBudgetExceeded,
   WorkspaceAccessDenied,
   type AgentRuntimeStore,
 } from '../agent/store.js';
@@ -47,7 +51,9 @@ import type { DailySchedule } from '../scheduler/types.js';
 import type { ScheduleStore } from '../scheduler/store.js';
 import {
   ScheduleAuthorizationFailed,
+  cronAuthorized,
   dispatchDueDaily,
+  recommendedDailySchedule,
   runScheduleNow,
 } from '../scheduler/dispatcher.js';
 import type { VoiceBoundary, VoiceBoundaryResult } from './voice.js';
@@ -75,6 +81,8 @@ import type { VoiceBoundary, VoiceBoundaryResult } from './voice.js';
  * the failures.
  */
 const GOOGLE_STATE_COOKIE = 'lacuna_google_state';
+const GOOGLE_PKCE_COOKIE = 'lacuna_google_pkce';
+const GOOGLE_NONCE_COOKIE = 'lacuna_google_nonce';
 const GOOGLE_STATE_TTL_SECONDS = 600;
 
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
@@ -119,9 +127,71 @@ const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
  * be worth pointing at a bill.
  */
 const PUBLIC_RUN_LIMIT = { limit: 4, windowMs: 60_000, maxKeys: 8_192 };
+/** Private spend ceilings are keyed by the server-derived workspace id. */
+const PRIVATE_RUN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
+const PRIVATE_INGEST_LIMIT = { limit: 4, windowMs: 5 * 60_000, maxKeys: 4_096 };
+const PRIVATE_MCP_ISSUE_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
+
+interface RememberedOperations {
+  readonly windowStart: number;
+  readonly ids: Set<string>;
+}
+
+/**
+ * A workspace spend limit that does not charge an idempotent HTTP replay as a
+ * second attempt. The durable stores still make the actual run idempotent;
+ * this small bounded index only keeps the process-local defence from blocking
+ * the replay before it reaches that durable result.
+ */
+class WorkspaceRunWindow {
+  readonly #window: FixedWindow;
+  readonly #windowMs: number;
+  readonly #maxKeys: number;
+  readonly #operations = new Map<string, RememberedOperations>();
+
+  constructor(options: RateLimitOptions) {
+    this.#window = new FixedWindow(options);
+    this.#windowMs = options.windowMs;
+    this.#maxKeys = options.maxKeys;
+  }
+
+  check(workspace: string, now: number, operationId?: string): RateLimitVerdict {
+    const remembered = this.#operations.get(workspace);
+    if (operationId !== undefined && remembered !== undefined
+      && now - remembered.windowStart < this.#windowMs && remembered.ids.has(operationId)) {
+      return { allowed: true, remaining: 0, retryAfterSeconds: 0 };
+    }
+    const verdict = this.#window.check(workspace, now);
+    if (!verdict.allowed || operationId === undefined) return verdict;
+
+    if (remembered === undefined || now - remembered.windowStart >= this.#windowMs) {
+      this.#evict(now);
+      this.#operations.delete(workspace);
+      this.#operations.set(workspace, { windowStart: now, ids: new Set([operationId]) });
+    } else {
+      remembered.ids.add(operationId);
+    }
+    return verdict;
+  }
+
+  #evict(now: number): void {
+    if (this.#operations.size < this.#maxKeys) return;
+    for (const [workspace, held] of this.#operations) {
+      if (now - held.windowStart >= this.#windowMs) this.#operations.delete(workspace);
+    }
+    for (const workspace of this.#operations.keys()) {
+      if (this.#operations.size < this.#maxKeys) break;
+      this.#operations.delete(workspace);
+    }
+  }
+}
 
 export interface ApiOptions {
   readonly store: Accounts;
+  /** False on hosted stores that cannot atomically create a unique identity. */
+  readonly allowPasswordSignup?: boolean;
+  /** Random, revocable capabilities used to authorize private MCP access. */
+  readonly mcpCapabilities?: McpCapabilities;
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -248,6 +318,16 @@ function send(response: ServerResponse, status: number, body: unknown, cookies: 
   if (cookies.length > 0) headers['Set-Cookie'] = [...cookies];
   response.writeHead(status, headers);
   response.end(text);
+}
+
+function sendRateLimited(response: ServerResponse, retryAfterSeconds: number, error: string): void {
+  response.writeHead(429, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store, private',
+    'X-Content-Type-Options': 'nosniff',
+    'Retry-After': String(Math.max(1, Math.ceil(retryAfterSeconds))),
+  });
+  response.end(JSON.stringify({ error }));
 }
 
 /** Stream provider audio without copying provider headers or buffering bytes. */
@@ -436,6 +516,8 @@ async function knownSubjects(source: HydraSource): Promise<readonly string[]> {
 
 export class ApiRouter {
   readonly #store: Accounts;
+  readonly #allowPasswordSignup: boolean;
+  readonly #mcpCapabilities: McpCapabilities | undefined;
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: ((collection?: string) => HydraSource) | undefined;
@@ -464,9 +546,14 @@ export class ApiRouter {
   readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
   readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
   readonly #runLimit = new FixedWindow(PUBLIC_RUN_LIMIT);
+  readonly #privateRunLimit = new WorkspaceRunWindow(PRIVATE_RUN_LIMIT);
+  readonly #privateIngestLimit = new FixedWindow(PRIVATE_INGEST_LIMIT);
+  readonly #privateMcpIssueLimit = new FixedWindow(PRIVATE_MCP_ISSUE_LIMIT);
 
   constructor(options: ApiOptions) {
     this.#store = options.store;
+    this.#allowPasswordSignup = options.allowPasswordSignup ?? true;
+    this.#mcpCapabilities = options.mcpCapabilities;
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
@@ -583,6 +670,14 @@ export class ApiRouter {
     const method = request.method ?? 'GET';
 
     if (path === '/api/cron/agents/daily' && method === 'GET') {
+      const authorization = firstHeader(request.headers.authorization);
+      // Authenticate before even reading the workspace registry. Otherwise an
+      // unauthenticated request can spend a database scan despite being unable
+      // to dispatch anything.
+      if (!cronAuthorized(authorization, this.#cronSecret)) {
+        send(response, 401, { error: 'authorization' });
+        return HANDLED;
+      }
       const schedules = this.#scheduleStore;
       if (schedules === undefined || this.#agent === undefined) {
         send(response, 503, { error: 'runtime_unavailable' });
@@ -590,14 +685,17 @@ export class ApiRouter {
       }
       try {
         const dispatched = [];
-        for (const workspace of this.#cronWorkspaces) {
+        const registered = await schedules.listWorkspaces();
+        const workspaces = [...new Set([...this.#cronWorkspaces, ...registered])].sort();
+        for (const workspace of workspaces) {
           await this.#prepareRuntime(workspace);
           dispatched.push(...await dispatchDueDaily({
             store: schedules,
             workspace,
-            authorization: firstHeader(request.headers.authorization),
+            authorization,
             cronSecret: this.#cronSecret,
             run: (schedule, key) => this.#runScheduled(schedule, key),
+            now: this.#now,
           }));
         }
         send(response, 200, dispatched);
@@ -736,6 +834,9 @@ export class ApiRouter {
             ...account,
             passwordHash: await hashPassword(next),
             recoveryHash: await hashPassword(canonicalRecoveryCode(replacement)),
+            // Credential recovery revokes every prior 30-day session. The
+            // replacement session minted below carries this fresh epoch.
+            sessionVersion: newSessionVersion(),
           });
           const token = await this.#store.startSession(email, this.#now());
           send(response, 200, { signedIn: true, recoveryCode: replacement }, [this.#sessionCookie(token)]);
@@ -819,6 +920,11 @@ export class ApiRouter {
             error: error instanceof GraphApiError ? error.code : 'GRAPH_FAILED',
           });
         }
+        return HANDLED;
+      }
+
+      if (part === 'recommendations') {
+        send(response, 200, recommendedAgents('public', view.memory));
         return HANDLED;
       }
 
@@ -1023,6 +1129,18 @@ export class ApiRouter {
     if (path.startsWith('/api/workspace/') && method === 'GET') {
       const part = path.slice('/api/workspace/'.length);
 
+      if (part === 'recommendations') {
+        const account = await this.#accountFor(cookies);
+        if (account === null) {
+          send(response, 401, { error: 'session' });
+          return HANDLED;
+        }
+        const workspace = workspaceCollection(account.email);
+        const view = await this.#viewFor(cookies);
+        send(response, 200, recommendedAgents(workspace, view.memory));
+        return HANDLED;
+      }
+
       if (part === 'graph') {
         const account = await this.#accountFor(cookies);
         if (account === null) {
@@ -1218,6 +1336,76 @@ export class ApiRouter {
       return HANDLED;
     }
 
+    /**
+     * Mint and revoke private MCP bearers from the authenticated workspace.
+     *
+     * The workspace is never accepted from the request. A capability is shown
+     * once, stored only as a digest, and can later be revoked with the same
+     * bearer. This replaces the old deterministic collection id, which was an
+     * address and never an authorization credential.
+     */
+    if ((path === '/api/workspace/mcp/capabilities'
+      || path === '/api/workspace/mcp/capabilities/revoke') && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const capabilities = this.#mcpCapabilities;
+      if (capabilities === undefined) {
+        send(response, 503, { error: 'mcp_capabilities_unavailable' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      try {
+        if (path.endsWith('/revoke')) {
+          const body = await readJsonBody(request);
+          const keys = body === null ? [] : Object.keys(body);
+          const capability = body?.['capability'];
+          if (keys.length !== 1 || keys[0] !== 'capability'
+            || typeof capability !== 'string' || !MCP_CAPABILITY_SHAPE.test(capability)) {
+            send(response, 422, { error: 'capability' });
+            return HANDLED;
+          }
+          // Resolve first so one signed-in workspace cannot revoke another's
+          // bearer merely by obtaining its value elsewhere.
+          if (await capabilities.resolve(capability) !== workspace) {
+            send(response, 404, { error: 'capability' });
+            return HANDLED;
+          }
+          const revoked = await capabilities.revoke(capability, this.#now());
+          send(response, revoked ? 204 : 404, revoked ? null : { error: 'capability' });
+          return HANDLED;
+        }
+
+        const body = await readJsonBody(request);
+        if (body !== null && Object.keys(body).length > 0) {
+          send(response, 422, { error: 'body' });
+          return HANDLED;
+        }
+        const issueBudget = this.#privateMcpIssueLimit.check(workspace, this.#now());
+        if (!issueBudget.allowed) {
+          sendRateLimited(response, issueBudget.retryAfterSeconds, 'workspace_mcp_capability_budget');
+          return HANDLED;
+        }
+        const issued = await capabilities.issue(workspace, this.#now());
+        send(response, 201, {
+          capability: issued.capability,
+          createdAt: issued.createdAt,
+          endpoint: '/mcp',
+        });
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 503, {
+          error: error instanceof BodyTooLarge ? 'body' : 'mcp_capabilities_unavailable',
+        });
+      }
+      return HANDLED;
+    }
+
     if ((path === '/api/explore/voice/token' || path === '/api/explore/voice/speech') && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
@@ -1296,6 +1484,75 @@ export class ApiRouter {
       return HANDLED;
     }
 
+    const recommendedSchedule = /^\/api\/workspace\/agent\/recommendations\/([^/]+)\/schedule$/u.exec(path);
+    if (recommendedSchedule !== null && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const schedules = this.#scheduleStore;
+      if (schedules === undefined || this.#agent === undefined) {
+        send(response, 503, { error: 'runtime_unavailable' });
+        return HANDLED;
+      }
+      let recommendationId: string;
+      try {
+        recommendationId = decodeURIComponent(recommendedSchedule[1] ?? '');
+      } catch {
+        send(response, 400, { error: 'recommendation_id' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const cadence = body?.['cadence'];
+      const localTime = body?.['localTime'];
+      const timezone = body?.['timezone'];
+      const controls = body === null ? [] : Object.keys(body);
+      if (cadence !== 'DAILY' || typeof localTime !== 'string' || typeof timezone !== 'string'
+        || controls.some((key) => key !== 'cadence' && key !== 'localTime' && key !== 'timezone')) {
+        send(response, 422, { error: 'schedule_controls' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const view = await this.#viewFor(cookies);
+      const choice = recommendedAgents(workspace, view.memory)
+        .find((recommendation) => recommendation.id === recommendationId);
+      if (choice === undefined) {
+        send(response, 404, { error: 'recommendation' });
+        return HANDLED;
+      }
+      let schedule: DailySchedule;
+      try {
+        schedule = recommendedDailySchedule(
+          workspace,
+          choice,
+          localTime,
+          timezone,
+          this.#now(),
+        );
+      } catch {
+        send(response, 422, { error: 'schedule_controls' });
+        return HANDLED;
+      }
+      try {
+        await this.#prepareRuntime(workspace);
+        send(response, 200, await schedules.putSchedule(schedule));
+      } catch {
+        send(response, 503, { error: 'runtime_unavailable' });
+      }
+      return HANDLED;
+    }
+
     if (path === '/api/workspace/agent/run' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
@@ -1329,12 +1586,21 @@ export class ApiRouter {
         send(response, 403, { error: 'agent_scope' });
         return HANDLED;
       }
+      const runBudget = this.#privateRunLimit.check(workspace, this.#now());
+      if (!runBudget.allowed) {
+        sendRateLimited(response, runBudget.retryAfterSeconds, 'workspace_run_budget');
+        return HANDLED;
+      }
       try {
         await this.#prepareRuntime(workspace);
         send(response, 200, await runAgent(workspace, task, {
           idempotencyKey: `web:${randomBytes(16).toString('hex')}`,
         }));
       } catch (error) {
+        if (error instanceof RunBudgetExceeded) {
+          sendRateLimited(response, error.retryAfterSeconds, 'workspace_run_budget');
+          return HANDLED;
+        }
         send(response, error instanceof AgentInputRejected ? 422 : 502, {
           error: error instanceof AgentInputRejected ? 'task_rejected' : 'the run did not complete',
         });
@@ -1381,6 +1647,11 @@ export class ApiRouter {
             send(response, 409, { error: 'run_transition' });
             return HANDLED;
           }
+          const runBudget = this.#privateRunLimit.check(workspace, this.#now(), `retry:${current.id}`);
+          if (!runBudget.allowed) {
+            sendRateLimited(response, runBudget.retryAfterSeconds, 'workspace_run_budget');
+            return HANDLED;
+          }
           send(response, 200, await runAgent(workspace, current.task, {
             idempotencyKey: `retry:${current.id}`,
             kind: current.kind,
@@ -1389,6 +1660,10 @@ export class ApiRouter {
           }));
         }
       } catch (error) {
+        if (error instanceof RunBudgetExceeded) {
+          sendRateLimited(response, error.retryAfterSeconds, 'workspace_run_budget');
+          return HANDLED;
+        }
         const status = error instanceof WorkspaceAccessDenied
           ? 403
           : error instanceof InvalidRunTransition || error instanceof RunConflict
@@ -1432,11 +1707,20 @@ export class ApiRouter {
         return HANDLED;
       }
       const requestId = body?.['requestId'];
-      if (typeof requestId !== 'string') {
+      if (typeof requestId !== 'string' || requestId.trim() === '' || requestId.length > 160 || requestId.includes('\0')) {
         send(response, 422, { error: 'request_id' });
         return HANDLED;
       }
       const workspace = workspaceCollection(account.email);
+      const runBudget = this.#privateRunLimit.check(
+        workspace,
+        this.#now(),
+        `schedule:${scheduleId}:${requestId}`,
+      );
+      if (!runBudget.allowed) {
+        sendRateLimited(response, runBudget.retryAfterSeconds, 'workspace_run_budget');
+        return HANDLED;
+      }
       try {
         await this.#prepareRuntime(workspace);
         send(response, 200, await runScheduleNow({
@@ -1535,9 +1819,16 @@ export class ApiRouter {
         return HANDLED;
       }
 
+      const workspace = workspaceCollection(account.email);
+      const ingestBudget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!ingestBudget.allowed) {
+        sendRateLimited(response, ingestBudget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+
       try {
         const report = await ingestInto(
-          workspaceCollection(account.email),
+          workspace,
           title as string,
           text as string,
         );
@@ -1735,6 +2026,14 @@ export class ApiRouter {
   }
 
   async #signup(request: IncomingMessage, response: ServerResponse, email: string, password: string): Promise<Handled> {
+    if (!this.#allowPasswordSignup) {
+      // HydraDB's document upsert has no conditional-create/CAS primitive. A
+      // hosted same-email signup race could therefore replace credentials. The
+      // Google path proves address ownership and is the only hosted creator
+      // until identities live behind a unique transactional constraint.
+      send(response, 403, { error: 'google_required' });
+      return HANDLED;
+    }
     const verdict = this.#signupLimit.check(sourceKey(request), this.#now());
     if (!verdict.allowed) {
       send(response, 429, { error: 'rate' });
@@ -1763,6 +2062,9 @@ export class ApiRouter {
       const created = await this.#store.create({
         email,
         passwordHash: await hashPassword(password),
+        authProvider: 'password',
+        providerSubject: null,
+        sessionVersion: newSessionVersion(),
         createdAt: new Date(now).toISOString(),
         workspace: null,
         onboarded: false,
@@ -1786,7 +2088,14 @@ export class ApiRouter {
   }
 
   #redirect(response: ServerResponse, to: string, cookies: readonly string[] = []): Handled {
-    response.writeHead(302, { Location: to, 'Set-Cookie': cookies as string[] });
+    const headers: Record<string, string | string[]> = {
+      Location: to,
+      'Cache-Control': 'no-store, private',
+      Pragma: 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    };
+    if (cookies.length > 0) headers['Set-Cookie'] = [...cookies];
+    response.writeHead(302, headers);
     response.end();
     return HANDLED;
   }
@@ -1803,8 +2112,19 @@ export class ApiRouter {
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured');
 
     const state = mintToken();
-    return this.#redirect(response, authorizeUrl(google, state), [
+    const proof = newGoogleAuthorizationProof();
+    return this.#redirect(response, authorizeUrl(google, state, proof), [
       serialiseCookie(GOOGLE_STATE_COOKIE, state, {
+        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
+        httpOnly: true,
+        secure: this.#secure,
+      }),
+      serialiseCookie(GOOGLE_PKCE_COOKIE, proof.codeVerifier, {
+        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
+        httpOnly: true,
+        secure: this.#secure,
+      }),
+      serialiseCookie(GOOGLE_NONCE_COOKIE, proof.nonce, {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
@@ -1824,14 +2144,17 @@ export class ApiRouter {
     cookies: Readonly<Record<string, string>>,
   ): Promise<Handled> {
     const google = this.#google;
-    if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured');
-
     const url = new URL(request.url ?? '/', 'http://placeholder');
-    const clear = clearCookie(GOOGLE_STATE_COOKIE, this.#secure);
+    const clear = [
+      clearCookie(GOOGLE_STATE_COOKIE, this.#secure),
+      clearCookie(GOOGLE_PKCE_COOKIE, this.#secure),
+      clearCookie(GOOGLE_NONCE_COOKIE, this.#secure),
+    ];
+    if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured', clear);
 
     // The person pressed cancel on Google's screen. Not an error.
     if (url.searchParams.get('error') !== null) {
-      return this.#redirect(response, '/signin?google=cancelled', [clear]);
+      return this.#redirect(response, '/signin?google=cancelled', clear);
     }
 
     const state = url.searchParams.get('state');
@@ -1841,23 +2164,30 @@ export class ApiRouter {
       || state.length !== expected.length
       || !sameDigest(hashToken(state), hashToken(expected))
     ) {
-      return this.#redirect(response, '/signin?google=state', [clear]);
+      return this.#redirect(response, '/signin?google=state', clear);
     }
 
     const code = url.searchParams.get('code');
     if (code === null || code === '') {
-      return this.#redirect(response, '/signin?google=code', [clear]);
+      return this.#redirect(response, '/signin?google=code', clear);
+    }
+
+    const codeVerifier = cookies[GOOGLE_PKCE_COOKIE];
+    const expectedNonce = cookies[GOOGLE_NONCE_COOKIE];
+    if (typeof codeVerifier !== 'string' || codeVerifier === ''
+      || typeof expectedNonce !== 'string' || expectedNonce === '') {
+      return this.#redirect(response, '/signin?google=state', clear);
     }
 
     if (!await this.#store.available()) {
-      return this.#redirect(response, '/signin?google=store', [clear]);
+      return this.#redirect(response, '/signin?google=store', clear);
     }
 
     let identity;
     try {
-      identity = await identityFromCode(google, code);
+      identity = await identityFromCode(google, code, fetch, { codeVerifier, expectedNonce });
     } catch {
-      return this.#redirect(response, '/signin?google=identity', [clear]);
+      return this.#redirect(response, '/signin?google=identity', clear);
     }
 
     try {
@@ -1870,20 +2200,31 @@ export class ApiRouter {
         const created = await this.#store.create({
           email: identity.email,
           passwordHash: await decoy(),
+          authProvider: 'google',
+          providerSubject: identity.subject,
+          sessionVersion: newSessionVersion(),
           createdAt: new Date(this.#now()).toISOString(),
           workspace: null,
           onboarded: false,
+          recoveryHash: null,
         });
         // Null means the address was taken between the read and the write, which
         // means an account exists and signing in is still the right outcome.
         account = created ?? await this.#store.find(identity.email);
-        if (account === null) return this.#redirect(response, '/signin?google=store', [clear]);
+        if (account === null) return this.#redirect(response, '/signin?google=store', clear);
+      }
+
+      // A verified address is not enough to merge providers. Existing legacy,
+      // password, or differently-bound Google records all fail closed until a
+      // separately verified linking/migration flow exists.
+      if (!googleBinding(account, identity).allowed) {
+        return this.#redirect(response, '/signin?google=identity', clear);
       }
 
       const token = await this.#store.startSession(account.email, this.#now());
-      return this.#redirect(response, this.#afterSignIn(account), [clear, this.#sessionCookie(token)]);
+      return this.#redirect(response, this.#afterSignIn(account), [...clear, this.#sessionCookie(token)]);
     } catch {
-      return this.#redirect(response, '/signin?google=store', [clear]);
+      return this.#redirect(response, '/signin?google=store', clear);
     }
   }
 

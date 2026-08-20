@@ -16,6 +16,7 @@ import {
 import {
   FileAgentRuntimeStore,
   InvalidRunTransition,
+  RunBudgetExceeded,
   WorkspaceAccessDenied,
 } from '../../src/agent/store.js';
 import { registeredAgentTools } from '../../src/agent/tools.js';
@@ -184,6 +185,87 @@ describe('persisted agent runtime', () => {
       fetchImpl: modelReturning('unused'),
     })).rejects.toBeInstanceOf(AgentInputRejected);
     expect(await runtime.listRuns('workspace-a')).toEqual([]);
+  });
+
+  it('admits one run when 32 callers present the same idempotency key', async () => {
+    const runtime = store();
+    let release = (): void => undefined;
+    const pause = new Promise<void>((resolve) => { release = resolve; });
+    let started = (): void => undefined;
+    const toolStarted = new Promise<void>((resolve) => { started = resolve; });
+    let modelCalls = 0;
+    const fetchImpl = (async () => {
+      modelCalls += 1;
+      const text = modelCalls === 1
+        ? 'Sessions use Redis.'
+        : '{"approved":true,"supported":["Sessions use Redis."],"unsupported":[],"note":"ok"}';
+      return new Response(JSON.stringify({ choices: [{ message: { content: text } }], model: 'stub-model' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const leader = runAgents({
+      ...base,
+      source: source({ pause, notify: started }),
+      store: runtime,
+      idFactory: () => 'leader',
+      idempotencyKey: 'same-request',
+      fetchImpl,
+    });
+    await toolStarted;
+    const duplicates = await Promise.all(Array.from({ length: 31 }, (_, index) => runAgents({
+      ...base,
+      store: runtime,
+      idFactory: () => `duplicate-${index}`,
+      idempotencyKey: 'same-request',
+      fetchImpl,
+    })));
+    release();
+    const completed = await leader;
+
+    expect(completed.status).toBe('COMPLETED');
+    expect(duplicates.every((run) => run.id === completed.id)).toBe(true);
+    expect(modelCalls).toBe(2);
+    expect(await runtime.listRuns('workspace-a')).toEqual([completed]);
+  });
+
+  it('enforces a durable per-workspace rolling run budget after idempotency', async () => {
+    const runtime = store();
+    const withoutClaims: HydraSource = {
+      ...source(),
+      subject: async () => ({ value: { name: 'Sessions', id: 1, kind: 'service', claims: [], mentions: [] }, traces: [] }),
+    };
+    for (let index = 0; index < 6; index += 1) {
+      const run = await runAgents({
+        ...base,
+        source: withoutClaims,
+        store: runtime,
+        idFactory: () => `bounded-${index}`,
+        idempotencyKey: `bounded-${index}`,
+        now: () => Date.parse('2026-08-20T12:00:00.000Z'),
+      });
+      expect(run.status).toBe('COMPLETED');
+    }
+    await expect(runAgents({
+      ...base,
+      source: withoutClaims,
+      store: runtime,
+      idFactory: () => 'over-budget',
+      idempotencyKey: 'over-budget',
+      now: () => Date.parse('2026-08-20T12:00:00.000Z'),
+    })).rejects.toMatchObject({ name: 'RunBudgetExceeded', retryAfterSeconds: 60 });
+
+    // Replaying a prior request is an idempotent read of its result, not new spend.
+    await expect(runAgents({
+      ...base,
+      source: withoutClaims,
+      store: runtime,
+      idFactory: () => 'ignored',
+      idempotencyKey: 'bounded-0',
+      now: () => Date.parse('2026-08-20T12:00:00.000Z'),
+    })).resolves.toMatchObject({ id: expect.stringContaining('bounded-0') });
+    expect(RunBudgetExceeded.name).toBe('RunBudgetExceeded');
   });
 });
 

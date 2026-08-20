@@ -31,6 +31,25 @@ import { dirname, join } from 'node:path';
 export interface Account {
   readonly email: string;
   readonly passwordHash: string;
+  /**
+   * How ownership of this account was established.
+   *
+   * Optional only for records written before provider binding existed. Those
+   * records remain readable, but an absent value must never be inferred to
+   * mean Google: old password accounts and old Google accounts have the same
+   * shape. A separate verified linking flow is the only safe migration.
+   */
+  readonly authProvider?: 'password' | 'google';
+  /** Google's stable `sub`, present only on provider-bound Google accounts. */
+  readonly providerSubject?: string | null;
+  /**
+   * Random credential epoch copied into every session minted for this account.
+   *
+   * Optional only for backward compatibility. An old account and an old
+   * session both mean the same legacy epoch; rotating the account to a fresh
+   * value immediately invalidates every session that omitted this field.
+   */
+  readonly sessionVersion?: string;
   /** ISO 8601. */
   readonly createdAt: string;
   /** Null until onboarding names one. */
@@ -53,10 +72,19 @@ export interface SessionRecord {
   readonly email: string;
   /** Epoch milliseconds. */
   readonly expiresAt: number;
+  /** Account credential epoch at the instant this session was created. */
+  readonly sessionVersion?: string;
 }
 
 /** Thirty days, the same as the cookie. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const SESSION_VERSION_SHAPE = /^[A-Za-z0-9_-]{43}$/u;
+
+/** Rotate on credential recovery/change. This value is not a bearer token. */
+export function newSessionVersion(): string {
+  return randomBytes(32).toString('base64url');
+}
 
 const ACCOUNTS_FILE = 'accounts.jsonl';
 const SESSIONS_FILE = 'sessions.jsonl';
@@ -98,7 +126,7 @@ function readLines(path: string): unknown[] {
   return out;
 }
 
-function isAccount(value: unknown): value is Account {
+export function isAccount(value: unknown): value is Account {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
   return typeof v['email'] === 'string'
@@ -106,18 +134,40 @@ function isAccount(value: unknown): value is Account {
     && typeof v['createdAt'] === 'string'
     && (v['workspace'] === null || typeof v['workspace'] === 'string')
     && typeof v['onboarded'] === 'boolean'
+    && (v['authProvider'] === undefined || v['authProvider'] === 'password' || v['authProvider'] === 'google')
+    && (v['providerSubject'] === undefined || v['providerSubject'] === null || (
+      typeof v['providerSubject'] === 'string'
+      && v['providerSubject'].length > 0
+      && v['providerSubject'].length <= 255
+    ))
+    && (v['authProvider'] !== 'google' || typeof v['providerSubject'] === 'string')
+    && (v['authProvider'] !== 'password' || v['providerSubject'] === undefined || v['providerSubject'] === null)
+    && (v['sessionVersion'] === undefined || (
+      typeof v['sessionVersion'] === 'string' && SESSION_VERSION_SHAPE.test(v['sessionVersion'])
+    ))
     // Absent on every account written before recovery codes existed, which is
     // why it is optional rather than required: rejecting those records would
     // lock out the people it is meant to help.
     && (v['recoveryHash'] === undefined || v['recoveryHash'] === null || typeof v['recoveryHash'] === 'string');
 }
 
-function isSession(value: unknown): value is SessionRecord {
+export function isSession(value: unknown): value is SessionRecord {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
   return typeof v['tokenHash'] === 'string'
     && typeof v['email'] === 'string'
-    && typeof v['expiresAt'] === 'number';
+    && typeof v['expiresAt'] === 'number'
+    && (v['sessionVersion'] === undefined || (
+      typeof v['sessionVersion'] === 'string' && SESSION_VERSION_SHAPE.test(v['sessionVersion'])
+    ));
+}
+
+/** Legacy records match each other until the account epoch is first rotated. */
+export function sessionVersionMatches(
+  account: Pick<Account, 'sessionVersion'>,
+  session: Pick<SessionRecord, 'sessionVersion'>,
+): boolean {
+  return (account.sessionVersion ?? '') === (session.sessionVersion ?? '');
 }
 
 export class AccountStore {
@@ -196,8 +246,15 @@ export class AccountStore {
 
   /** Returns the raw token. Only the hash is stored. */
   startSession(email: string, now: number): string {
+    const account = this.#accounts.get(email);
+    if (account === undefined) throw new StoreUnavailable('cannot start a session for a missing account');
     const token = mintToken();
-    const record: SessionRecord = { tokenHash: hashToken(token), email, expiresAt: now + SESSION_TTL_MS };
+    const record: SessionRecord = {
+      tokenHash: hashToken(token),
+      email,
+      expiresAt: now + SESSION_TTL_MS,
+      ...(account.sessionVersion === undefined ? {} : { sessionVersion: account.sessionVersion }),
+    };
     this.#append(SESSIONS_FILE, record);
     this.#sessions.set(record.tokenHash, record);
     return token;
@@ -207,6 +264,11 @@ export class AccountStore {
     const record = this.#sessions.get(hashToken(token));
     if (record === undefined) return null;
     if (record.expiresAt <= now) {
+      this.#sessions.delete(record.tokenHash);
+      return null;
+    }
+    const account = this.#accounts.get(record.email);
+    if (account === undefined || !sessionVersionMatches(account, record)) {
       this.#sessions.delete(record.tokenHash);
       return null;
     }

@@ -400,13 +400,35 @@ function numberOr(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * The sole cloud origin allowed to receive the deployment bearer.
+ *
+ * Hostname substring checks are not an allowlist: `api.hydradb.com.evil.test`
+ * contains the right text while naming somebody else's server. Parse and
+ * canonicalise the URL before the token is ever put into a client instead.
+ */
+function hydraCloudOrigin(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'api.hydradb.com'
+    || url.username !== '' || url.password !== '' || url.port !== ''
+    || url.pathname !== '/' || url.search !== '' || url.hash !== '') return null;
+  return url.origin;
+}
+
 /** Builds a cloud client from the environment, or null when nothing is configured. */
 export function cloudFromEnv(env: Record<string, string | undefined>): HydraCloud | null {
-  const baseUrl = env['HYDRA_CLOUD_URL'] ?? env['HYDRA_HTTP_URL'];
+  const configuredUrl = env['HYDRA_CLOUD_URL'] ?? env['HYDRA_HTTP_URL'];
   const token = env['HYDRA_CLOUD_TOKEN'] ?? env['HYDRA_TOKEN'];
   const database = env['HYDRA_DATABASE'];
-  if (baseUrl === undefined || token === undefined || database === undefined) return null;
-  if (!baseUrl.includes('api.hydradb.com')) return null;
+  if (configuredUrl === undefined || token === undefined || token === ''
+    || database === undefined || database === '') return null;
+  const baseUrl = hydraCloudOrigin(configuredUrl);
+  if (baseUrl === null) return null;
   return new HydraCloud({
     baseUrl,
     token,

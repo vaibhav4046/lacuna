@@ -18,6 +18,35 @@ export interface AgentTemplate {
   readonly writeback: WritebackPolicy;
 }
 
+export type AgentRecommendationKind = 'CONFLICT_TRIAGE' | 'CHANGE_BRIEF' | 'CONTEXT_BRIEF';
+
+/**
+ * A read-only suggestion derived from memory the resolver has already
+ * classified. It is not an agent definition and it never causes a run or a
+ * schedule by being read.
+ */
+export interface AgentRecommendation {
+  readonly id: string;
+  readonly workspace: string;
+  readonly kind: AgentRecommendationKind;
+  readonly name: string;
+  readonly subject: string;
+  readonly reason: string;
+  readonly evidence: readonly string[];
+  readonly task: string;
+  readonly flow: readonly ['RESEARCHER', 'REVIEWER'];
+  readonly tools: readonly ['lacuna_context_pack'];
+  readonly permissions: AgentPermissions;
+  readonly budgets: AgentBudgets;
+  readonly writeback: 'NO_WRITE';
+  readonly suggestedSchedule: {
+    readonly cadence: 'DAILY';
+    readonly localTime: string;
+    readonly timezone: string;
+    readonly reason: string;
+  };
+}
+
 export interface AgentPermissions {
   readonly read: readonly string[];
   readonly write: readonly string[];

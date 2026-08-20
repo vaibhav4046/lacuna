@@ -1,27 +1,35 @@
 # Release gate
 
-> **V8 current gate — 2026-08-20.** The material below this block is the dated
-> V7 evidence record and remains for audit history. It does not describe the
-> current product boundary. V8 is pinned by the final clean commit and
-> deployment recorded in `docs/FINAL_EXECUTION_STATE.md`.
+> **V8 candidate gate, 2026-08-20.** The material below this block is the dated
+> V7 evidence record and remains only for audit history. It does not describe
+> the current product boundary. The table separates local candidate proof from
+> production acceptance; nothing is promoted merely because it compiles.
 
 | V8 gate | Current evidence |
 | --- | --- |
-| unit | 1,300 of 1,300; 70 files; no skips |
+| unit | 1,344 of 1,344; 79 files; no skips |
 | TypeScript | root and web typechecks exit 0 |
-| production build | split production bundle; entry 281.92 kB / 92.65 kB gzip |
+| production build | 104 modules; entry 282.09 kB / 92.64 kB gzip |
 | dependency audit | zero known npm vulnerabilities |
 | public graph | 453 nodes, 682 edges; signed cursor pages; overview + exact proof modes |
 | agent runtime | 2 persisted roles; one real production run completed through 8 lifecycle events |
-| scheduler | one durable daily schedule; bearer-protected fixed-workspace dispatcher |
+| recommendations | local candidate derives reasons/evidence/budgets from resolved memory; never auto-runs |
+| scheduler | persistent definitions and authenticated dispatcher; no distributed CAS or exactly-once claim |
+| Google OAuth | local candidate passes RS256/JWKS, provider binding, PKCE, nonce, session-revocation and HTTP tests; live post-deploy gate pending |
+| hosted password signup | disabled until identity storage has atomic unique create |
+| private MCP | local candidate has random digest-only revocable capabilities and bounded HTTP; live post-deploy gate pending |
 | voice | 15-state runtime and guarded streaming boundary shipped; production provider credentials absent, so honest 503 fallback |
 | landing accessibility | WCAG A/AA automated audit: 0 violations |
-| production responsiveness | no horizontal overflow at 390 and 1440 on landing; graph verified at 1440; final route matrix artifact is indexed in `docs/EVIDENCE_INDEX.md` |
+| candidate responsiveness | rebuilt landing/shell have no measured horizontal overflow in the local visual audit; production recapture pending |
 | secrets | provider keys remain server-side; client bundle contains no ElevenLabs or Hydra credential |
 
 The V8 acceptance details and limitation language are in
 `docs/FINAL_CAPABILITY_MATRIX.md`. A pending video or human-only cross-client
 send is never silently converted into a pass.
+
+The exact final narration voice is **Vaibhav Lalwani Professional**. Selection
+is recorded, but no provider voice id or accepted audio session exists. There
+is no approved final MP4, Supademo walkthrough or YouTube link.
 
 Every gate below was run in this session, in this order, and the output pasted
 is the output it produced. A gate with no evidence line is not a gate.

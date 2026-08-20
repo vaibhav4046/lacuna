@@ -297,6 +297,7 @@ describe('recovery codes', () => {
   const EMAIL = 'recover@example.com';
   const NEXT = 'a-completely-different-password';
   let code = '';
+  let sessionBeforeRecovery = '';
 
   it('are issued once when the account is created', async () => {
     const jar = await primed();
@@ -309,6 +310,7 @@ describe('recovery codes', () => {
     // Twenty characters in four groups of five, which is what the screen shows.
     expect(body.recoveryCode).toMatch(/^[0-9A-Z]{5}(-[0-9A-Z]{5}){3}$/);
     code = body.recoveryCode ?? '';
+    sessionBeforeRecovery = jar.get('lacuna_session') ?? '';
   });
 
   it('are never returned again', async () => {
@@ -375,6 +377,14 @@ describe('recovery codes', () => {
 
     const fresh = await primed();
     expect((await post(fresh, '/api/auth/signin', { email: EMAIL, password: NEXT })).status).toBe(200);
+  });
+
+  it('revoked every session minted before the credential recovery', async () => {
+    expect(sessionBeforeRecovery).not.toBe('');
+    const response = await fetch(url('/api/session'), {
+      headers: { cookie: `lacuna_session=${sessionBeforeRecovery}` },
+    });
+    await expect(response.json()).resolves.toEqual({ signedIn: false });
   });
 
   it('refuse a code that has already been spent', async () => {

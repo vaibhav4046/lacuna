@@ -19,7 +19,7 @@ Last inventory: 2026-08-19.
 | `HYDRA_TOKEN`, `HYDRA_HTTP_URL`, `HYDRA_DATABASE`, `HYDRA_COLLECTION` | Vercel, Production environment | AVAILABLE, encrypted at rest | the deployed function |
 | `LACUNA_ACCOUNTS_DIR`, `LACUNA_SECURE_COOKIES` | Vercel, Production environment | AVAILABLE | durable accounts |
 | `GROQ_API_KEY` | `.env.local`, `.env.deploy` | AVAILABLE, the provider answered 200 | the model router, one real provider |
-| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | `.env.local`, `.env.deploy` | AVAILABLE, the provider answered 200 | narration for the demo film, never the product |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | historical local/deploy files, if still present | NOT INSTALLED on Vercel Production | final narration and product voice remain blocked until the owner supplies and later rotates the server-only values |
 | `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` | `.env.deploy` | present, not exercised this run | optional model providers in the router |
 | GitHub | `gh` keyring | AVAILABLE, signed in | pushing this repository |
 | Vercel | CLI session | AVAILABLE, signed in | preview and production deployments |
@@ -28,7 +28,7 @@ Last inventory: 2026-08-19.
 
 | Credential | State | What it blocks |
 | --- | --- | --- |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | Google sign in, which now works end to end. Project `lacuna-auth-506009` on a personal account, app `Lacuna`, audience External and published, one client `Lacuna web` with a single redirect URI. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | The local provider-bound candidate passes OAuth HTTP/security tests. Production must be redeployed and reverified with a fresh identity; legacy unbound records fail closed. |
 | Supabase project URL and keys | MISSING | Nothing today. Accounts are durable in HydraDB Cloud already, so the Supabase path described in the earlier plan is not on the critical path and starting it now would replace a working, tested auth store with an untested one. |
 | A connector credential of any kind | MISSING | One real connector syncing. The Connectors screen reports the honest empty state. |
 

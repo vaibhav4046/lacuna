@@ -4,8 +4,16 @@ Lacuna exposes its answer path over the Model Context Protocol, so an MCP client
 can ask the corpus a question and get back the answer together with the claim it
 came from, the quotations that support it, and the reads that produced it.
 
-Four tools, all read-only. There is no tool that writes, resets or deletes
-anything, and the server holds no session state between calls.
+The verified public surface exposes five read-only tools. It has no write,
+reset, delete, agent-run, or scheduler tool, and the server holds no session
+state between calls.
+
+The current working tree also contains a private `lacuna_remember` path guarded
+by a random revocable capability. Its listener, persistence, authenticated
+issue/revoke routes, cross-workspace refusal and limits are tested and fail
+closed. Production deployment and an external-client probe remain acceptance
+gates. Until those pass, the public endpoint below is the only remote MCP
+surface this document calls verified.
 
 ## Running it
 
@@ -38,7 +46,7 @@ A client entry for the stdio transport looks like this:
 }
 ```
 
-The HTTP transport exists for clients that cannot spawn a process. It is
+The local HTTP transport exists for clients that cannot spawn a process. It is
 Streamable HTTP mounted at `/mcp`, stateless: a fresh server and a fresh
 transport per request, closed when the response ends. It binds to `127.0.0.1`
 unless `HOST` says otherwise, and the port comes from `--port` or `MCP_PORT`,
@@ -47,6 +55,15 @@ nothing, since this server never sends an unsolicited notification.
 
 A POST must send `Accept: application/json, text/event-stream`. The transport
 answers 406 without it.
+
+Production exposes the public seeded workspace at
+`https://lacuna-five.vercel.app/mcp`. This endpoint has been exercised with an
+SDK client. Signed-in candidate users can mint a private capability from the
+Tools screen or `POST /api/workspace/mcp/capabilities`, then send it as
+`Authorization: Bearer <capability>` to `/mcp`. The path form
+`/mcp/w/<capability>` exists only for clients that cannot set headers and may
+expose the bearer in infrastructure logs. Deployment and an external-client
+issue/use/revoke probe are not complete.
 
 ## The tools
 
@@ -57,6 +74,12 @@ answers 406 without it.
 | `lacuna_explain` | same | `explanation`, `trace` |
 | `lacuna_timeline` | same | `considered`, every claim about the predicate, oldest first |
 | `lacuna_health` | none | a different shape: `reachable`, `error` |
+
+Candidate private tool, not in the verified public claim:
+
+| Tool | Input | Boundary |
+| --- | --- | --- |
+| `lacuna_remember` | bounded transcript/source fields | requires a resolved private capability; route issuance and production proof pending |
 
 `via` is a single hop. When set, the predicate is read on the entity the
 subject's claims name through that relation rather than on the subject itself.
@@ -138,7 +161,21 @@ loopback over http or https, or it gets 403. An absent header is allowed, becaus
 command-line clients do not send one and the header exists to stop a page in a
 browser from reaching a loopback server. The literal `null` origin, which is what
 a sandboxed frame or a `file:` page sends, fails the check. Bodies over 1 MiB are
-refused with 413.
+refused with 413 while streaming, even when the caller omits or lies about
+`Content-Length`.
+
+**Hosted limits are defence in depth, not distributed quotas.** The candidate
+listener separates request, tool-call and write buckets and scopes private
+limits by a capability digest rather than by the bearer itself. Those counters
+are process-local. They reduce accidental or single-instance abuse but do not
+provide a global Vercel quota without a durable gateway.
+
+**Private workspace names are not credentials.** The candidate private route
+accepts only a 256-bit random capability, stores its SHA-256 digest, and asks an
+injected authorizer for the bound workspace. A caller-supplied collection or
+deterministic workspace id is never treated as proof. With no authorizer, every
+private request is 401. This is source-and-test evidence until router/deployment
+acceptance is complete.
 
 ## Errors
 
@@ -157,7 +194,7 @@ on rather than a mistake in the request. The SDK prefixes these messages with
 
 | File | What is in it |
 | --- | --- |
-| [`src/mcp/tools.ts`](../src/mcp/tools.ts) | The four tool definitions: descriptions, input schemas, output schemas, annotations. |
+| [`src/mcp/tools.ts`](../src/mcp/tools.ts) | The public tool definitions and the candidate private `remember` definition: descriptions, schemas and annotations. |
 | [`src/mcp/result.ts`](../src/mcp/result.ts) | `Answer` to result. Pure: no I/O, no environment, no transport. |
 | [`src/mcp/server.ts`](../src/mcp/server.ts) | Argument validation, dispatch, the deadline, the error split. |
 | [`src/mcp/http.ts`](../src/mcp/http.ts) | The Streamable HTTP listener and the origin policy. |
@@ -227,5 +264,6 @@ dependency and translating every schema through a converter to reach the JSON
 Schema that travels on the wire. `Server` takes the wire types directly, and the
 JSON Schemas in `tools.ts` are the ones a client receives.
 
-The SDK version in use is `@modelcontextprotocol/sdk` 1.30.0, the only runtime
-dependency this repository has.
+The SDK version in use is `@modelcontextprotocol/sdk` 1.30.0. The root package
+also depends on `hash-wasm`. This is an implementation dependency, not a
+published Lacuna SDK. There is no `@lacuna/sdk` package in this repository.

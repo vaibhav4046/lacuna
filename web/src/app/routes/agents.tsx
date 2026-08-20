@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
-import { csrfHeaders } from '../../api/client';
+import { csrfHeaders, postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
-import type { AgentRecord, AgentRunRecord } from '../agents/contracts';
+import type { AgentRecommendationRecord, AgentRecord, AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
 
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
@@ -33,12 +33,40 @@ function permission(agent: AgentRecord): string {
 export function Agents() {
   const scope = useScope();
   const agents = useScoped<readonly AgentRecord[]>('agents');
+  const recommendations = useScoped<readonly AgentRecommendationRecord[]>('recommendations');
   const rows = agents.state === 'ready' ? agents.value : [];
+  const suggested = recommendations.state === 'ready' ? recommendations.value : [];
   const researcher = rows.find((agent) => agent.role === 'RESEARCHER') ?? null;
   const [task, setTask] = useState('');
   const [run, setRun] = useState<AgentRunRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [recommendationMessage, setRecommendationMessage] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState<string | null>(null);
+
+  function useRecommendation(recommendation: AgentRecommendationRecord): void {
+    setTask(recommendation.task);
+    setRun(null);
+    setProblem(null);
+    setRecommendationMessage(`${recommendation.name} task is ready below. Review it, then run it explicitly.`);
+  }
+
+  async function scheduleRecommendation(recommendation: AgentRecommendationRecord): Promise<void> {
+    setScheduling(recommendation.id);
+    setRecommendationMessage(null);
+    const schedule = await postFor<DailyScheduleRecord>(
+      `/api/workspace/agent/recommendations/${encodeURIComponent(recommendation.id)}/schedule`,
+      {
+        cadence: recommendation.suggestedSchedule.cadence,
+        localTime: recommendation.suggestedSchedule.localTime,
+        timezone: recommendation.suggestedSchedule.timezone,
+      },
+    );
+    setRecommendationMessage(schedule === null
+      ? 'The schedule was not created. Check the session and schedule controls.'
+      : `${schedule.name} will run daily at ${schedule.localTime} ${schedule.timezone}. Nothing ran now.`);
+    setScheduling(null);
+  }
 
   async function launch(): Promise<void> {
     if (researcher === null || task.trim() === '') return;
@@ -73,6 +101,65 @@ export function Agents() {
           Both roles are persisted per workspace and neither may write authoritative context.
         </p>
       </div>
+
+      <section aria-labelledby="agent-recommendations" style={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
+        <div>
+          <div id="agent-recommendations" style={{ ...head, paddingBottom: '7px', color: '#B79BFF' }}>SUGGESTED FROM THIS MEMORY</div>
+          <p style={{ fontSize: '14px', color: '#9A9A9A', margin: 0, maxWidth: '76ch', lineHeight: 1.6 }}>
+            These are read-only suggestions from resolved claim standings. Reading this page does not create an agent, start a run, or enable a schedule.
+          </p>
+        </div>
+        {recommendations.state === 'loading' ? <Stage label="SCANNING RESOLVED MEMORY" /> : null}
+        {recommendations.state === 'failed' ? <Failed reason={recommendations.reason} /> : null}
+        {recommendations.state === 'ready' && suggested.length === 0 ? (
+          <Empty headline="No agent suggestion yet." detail="Add current, revised, or conflicting evidence. Lacuna will suggest bounded work only when memory provides a reason." />
+        ) : null}
+        {suggested.map((recommendation) => (
+          <article key={recommendation.id} style={{ border: '1px solid rgba(183,155,255,0.24)', borderRadius: '10px', padding: '17px', background: 'linear-gradient(110deg, rgba(128,82,255,0.08), rgba(128,82,255,0) 56%)', display: 'grid', gap: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '18px', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: '17px', color: '#FFFFFF' }}>{recommendation.name}</div>
+                <p style={{ margin: '7px 0 0', color: '#BDBDBD', fontSize: '13.5px', lineHeight: 1.6, maxWidth: '72ch' }}>{recommendation.reason}</p>
+              </div>
+              <span style={{ ...note, color: '#B79BFF', border: '1px solid rgba(183,155,255,0.34)', padding: '6px 8px' }}>{recommendation.kind.replaceAll('_', ' ')}</span>
+            </div>
+            <div aria-label="Recommendation path" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+              {[
+                ['MEMORY SIGNAL', `${recommendation.evidence.length} resolved rows`],
+                ['BOUNDED RUN', `${recommendation.flow.join(' → ')} · ${recommendation.budgets.maxWallMs / 1000}s`],
+                ['SAFETY', `${recommendation.writeback} · ${recommendation.permissions.write.length} write grants`],
+              ].map(([label, value]) => (
+                <div key={label} style={{ borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '8px' }}>
+                  <div style={head}>{label}</div>
+                  <div style={{ ...note, color: '#BDBDBD', marginTop: '5px', letterSpacing: '0.08em' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            {recommendation.evidence.length === 0 ? null : (
+              <details>
+                <summary style={{ ...head, cursor: 'pointer' }}>WHY THIS WAS SUGGESTED</summary>
+                <ul style={{ margin: '9px 0 0', paddingLeft: '18px', color: '#9A9A9A', fontSize: '12.5px', lineHeight: 1.7 }}>
+                  {recommendation.evidence.map((evidence, index) => (
+                    <li key={`${recommendation.id}-evidence-${index}`}>{evidence}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button className="hv-text" onClick={() => useRecommendation(recommendation)} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '8px 11px', cursor: 'pointer' }}>USE THIS TASK</button>
+              {scope.demo ? (
+                <span style={{ ...note, letterSpacing: '0.08em' }}>SIGN IN TO SCHEDULE · PREVIEW STAYS READ ONLY</span>
+              ) : (
+                <button disabled={scheduling !== null} onClick={() => void scheduleRecommendation(recommendation)} style={{ ...note, background: 'none', border: '1px solid rgba(255,255,255,0.16)', color: scheduling === recommendation.id ? '#7A7A7A' : '#BDBDBD', padding: '8px 11px', cursor: scheduling === null ? 'pointer' : 'default' }}>
+                  {scheduling === recommendation.id ? 'CREATING SCHEDULE' : `SCHEDULE ${recommendation.suggestedSchedule.localTime} ${recommendation.suggestedSchedule.timezone}`}
+                </button>
+              )}
+              <span style={{ ...note, letterSpacing: '0.08em' }}>{recommendation.suggestedSchedule.reason}</span>
+            </div>
+          </article>
+        ))}
+        {recommendationMessage === null ? null : <div aria-live="polite" style={{ fontSize: '13px', color: '#BDBDBD' }}>{recommendationMessage}</div>}
+      </section>
 
       {agents.state === 'loading' ? <Stage label="LOADING AGENTS" /> : null}
       {agents.state === 'failed' ? <Failed reason={agents.reason} /> : null}

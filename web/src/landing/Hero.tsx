@@ -1,21 +1,46 @@
 import { useNavigate } from 'react-router-dom';
-import { MONO } from '../design/mark';
+
+import { Mark } from '../design/mark';
 
 export function Hero() {
   const go = useNavigate();
+
   return (
-    <section id="top" data-scene="hero" style={{ position: 'relative', height: '140vh' }}>
-      <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', padding: '84px clamp(20px, 4.4vw, 72px) 0', boxSizing: 'border-box' }}>
-        <div style={{ maxWidth: '660px', display: 'flex', flexDirection: 'column', gap: 'clamp(18px, 2.2vh, 28px)' }}>
-          <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#9A9A9A', animation: 'heroIn 0.6s ease 0.05s both' }}>Context for long-running agents</span>
-          <h1 style={{ fontSize: 'clamp(54px, 7.3vw, 113px)', fontWeight: 400, lineHeight: 0.98, letterSpacing: '-0.045em', margin: 0, color: '#FFFFFF', animation: 'heroIn 0.7s ease 0.2s both' }}>Memory that knows<br />what changed.</h1>
-          <p style={{ fontSize: '18px', fontWeight: 400, lineHeight: 1.7, color: '#9A9A9A', margin: '4px 0 0', maxWidth: '50ch', textWrap: 'pretty', animation: 'heroIn 0.7s ease 0.55s both' }}>Lacuna gives your agents one memory across sessions, models and tools. It keeps the history, finds what matters now, shows where it came from, and stops when the answer is missing.</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '26px', marginTop: '8px', flexWrap: 'wrap', animation: 'heroIn 0.7s ease 0.8s both' }}>
-            <button className="hv-violet" onClick={() => go('/explore/dash')} style={{ background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '15px', fontWeight: 500, padding: '13px 24px', borderRadius: '8px', whiteSpace: 'nowrap' }}>Open live workspace</button>
-            <button className="hv-edge35" onClick={() => go('/judge')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer', color: '#FFFFFF', fontSize: '15px', padding: '13px 22px', whiteSpace: 'nowrap' }}>See it answer</button>
-            <a href="#how" style={{ fontSize: '15px', color: '#BDBDBD', borderBottom: '1px solid rgba(255,255,255,0.28)', paddingBottom: '3px', whiteSpace: 'nowrap' }}>See how it works</a>
+    <section id="top" data-scene="hero" className="landing-hero">
+      <div className="hero-stage">
+        <div className="hero-copy" data-shield>
+          <span className="landing-kicker hero-kicker"><i /> CONTEXT FOR LONG-RUNNING AGENTS</span>
+          <h1>Memory that knows<br /><em>what changed.</em></h1>
+          <p>Lacuna gives every model, tool and agent the same evidence-bearing memory. It keeps the history, resolves what is current, exposes disagreement and stops when the answer is missing.</p>
+          <div className="hero-actions">
+            <button className="primary-action" onClick={() => go('/explore/dash')}>Open live workspace <span aria-hidden="true">↗</span></button>
+            <button className="secondary-action" onClick={() => go('/judge')}>Run the judge proof</button>
+            <a href="#journey">Follow a memory <span aria-hidden="true">↓</span></a>
           </div>
-          <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 400, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#7A7A7A', marginTop: '14px', animation: 'heroIn 0.7s ease 1s both' }}>Built on HydraDB.</span>
+          <div className="hero-contract" aria-label="Lacuna product contract">
+            <span>HYDRADB GRAPH STATE</span>
+            <span>EVIDENCE ATTACHED</span>
+            <span>ABSTAINS WHEN MISSING</span>
+          </div>
+        </div>
+
+        <div className="hero-aperture" data-shield aria-label="Lacuna keeps current, historical and conflicting memory distinct">
+          <div className="hero-aperture-grid" aria-hidden="true" />
+          <div className="hero-mark-wrap" aria-hidden="true">
+            <span className="hero-orbit hero-orbit-one" />
+            <span className="hero-orbit hero-orbit-two" />
+            <span className="hero-mark-motion"><Mark size={222} className="hero-mark" /></span>
+          </div>
+          <div className="hero-memory-card">
+            <div><span>MEMORY FIELD</span><span>LIVE ROUTE</span></div>
+            <strong>Current is not the same as latest.</strong>
+            <ul>
+              <li><i data-tone="violet" />Current claim <span>resolves</span></li>
+              <li><i />Historical claim <span>stays</span></li>
+              <li><i data-tone="amber" />Conflict <span>abstains</span></li>
+            </ul>
+          </div>
+          <span className="hero-aperture-note">THE CENTRE NEVER CLOSES</span>
         </div>
       </div>
     </section>

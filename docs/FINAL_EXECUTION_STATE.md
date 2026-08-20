@@ -1,6 +1,7 @@
-# V8 final execution state
+# V8 execution state
 
-Measured 2026-08-20. This file is the current state; dated V7 audits are history.
+Measured 2026-08-20. The accepted production build and the uncommitted security
+candidate are kept separate. Dated V7 audits are history.
 
 ## Release identity
 
@@ -8,64 +9,88 @@ Measured 2026-08-20. This file is the current state; dated V7 audits are history
 - Production: <https://lacuna-five.vercel.app>
 - V8 product commit: `d1f41e32c5707cfd872f4c2fbe4ea7182ad8788d`
 - V8 acceptance-media commit and deployment source: `9aeb4cd`
-- V8 production deployment: `dpl_GUni4wA2yEoRMv5z8rTLPqHqtgfw`
-- Immutable URL: <https://lacuna-blnqeytdv-vaibhav4046s-projects.vercel.app>
+- Documentation acceptance commit: `c6d684e`
+- Current production deployment inspected 2026-08-20:
+  `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN`
+- Current immutable URL:
+  <https://lacuna-htdff1nt5-vaibhav4046s-projects.vercel.app>
 - HydraDB: managed production source, with the self-hosted contract pinned in
   `SOURCE_LOG.md`
 
 ## What is live
 
-The browser, REST boundary, CLI, stdio MCP and remote Streamable HTTP MCP all
-project the same temporal answer contract. The public graph census is 453 nodes
-and 682 edges. Overview and proof are separate projections of that same scoped
-dataset; pagination uses an opaque HMAC-signed cursor.
+The browser, REST boundary, CLI, stdio MCP and public Streamable HTTP MCP project
+the same temporal read contract. The seeded public workspace measured 453 nodes
+and 682 edges on the acceptance deployment. Overview and proof are separate
+projections of that dataset; pagination uses an opaque HMAC-signed cursor.
 
 Two built-in agents are persisted per workspace. A production Researcher →
 Reviewer run completed through `CREATED`, `QUEUED`, `RUNNING`, `WAITING_TOOL`,
 `RUNNING`, `HANDOFF`, `RUNNING`, `COMPLETED`. The reviewer approved the bounded
 two-claim/two-evidence pack and no authoritative write occurred.
 
-One daily context-health schedule is persisted. The Vercel cron endpoint uses a
-server-only bearer secret and enumerates allowed workspaces server-side. Manual
-run-now exists only in an authenticated workspace with CSRF protection.
+One daily context-health schedule was observed persisted. The Vercel cron
+endpoint uses a server-only bearer secret, and the candidate dispatcher
+enumerates workspaces server-side. Manual run-now exists only in an
+authenticated workspace with CSRF protection. The local file store serializes
+claims atomically within one process. HydraDB supplies no compare-and-swap or
+transaction for this adapter, so concurrent serverless instances do not have a
+distributed exactly-once guarantee.
 
-Voice is implemented but not provider-enabled in production. Single-use Scribe
-tokens and TTS stay server-side; exact Origin, CSRF, workspace scope, rate
-limits, cancellation, audio backpressure and no-store responses are enforced.
-With the current environment the honest production result is
-`503 speech_unavailable`, and typed Ask remains available.
+Voice routes and the browser state machine are implemented but not
+provider-enabled in production. Tests cover single-use Scribe token handling,
+server-side TTS, exact Origin, CSRF, workspace scope, rate limits,
+cancellation, audio backpressure and no-store responses. No end-to-end provider
+audio session has been accepted. With the current environment the production
+result is `503 speech_unavailable`, and typed Ask remains available.
+
+Google sign-in is held below production release acceptance. The previous
+callback matched an existing account by email and could silently merge a Google
+identity into a password-created account whose email had not been verified.
+The candidate now integrates provider/subject binding, RS256/JWKS verification,
+PKCE, nonce, no-store redirects and negative HTTP account-merge tests. A fresh
+identity browser pass on the deployed build remains the gate.
+
+Private MCP is also a candidate, not a shipped production claim. The working
+tree has signed-in CSRF-protected issue/revoke routes, 256-bit random revocable
+capabilities, digest-only persistence, bounded request bodies, cross-workspace
+refusal and private rate-limit buckets. Router wiring and HTTP negatives pass;
+deployment and an external-client issue/use/revoke probe remain.
 
 ## Measured gates
 
 | Gate | Result |
 | --- | --- |
-| unit suite | 70 files, 1,300 tests, all passed |
+| unit suite, current candidate | 79 files, 1,344 tests, all passed |
 | root TypeScript | passed |
 | web TypeScript | passed |
-| production web build | passed; lazy route chunks; entry 281.92 kB / 92.65 kB gzip |
+| production web build | passed; 104 modules; entry 282.09 kB / 92.64 kB gzip |
 | npm audit | zero known vulnerabilities at the recorded run |
 | public production health | HTTP 200 |
 | production web smoke | 9/9 passed against the acceptance deployment |
 | production demo smoke | 30/30 passed against the acceptance deployment |
-| graph API | 453 nodes, 682 edges; overview and proof |
+| seeded public graph API | 453 nodes, 682 edges; overview and proof on the accepted deployment |
 | agent API | 2 agents, 1 completed run, 8 lifecycle events |
-| schedule API | 1 daily schedule |
+| schedule API | 1 daily definition observed; not distributed exactly-once |
 | landing axe WCAG A/AA | 0 violations |
 | landing overflow | 0 px at 390×844 and 1440×900 |
 | normal-motion route matrix | 198/198: 22 routes × 9 viewports, clean |
 | reduced-motion route matrix | 198/198: 22 routes × 9 viewports, clean |
 | graph, proof, agents and voice axe | 0 WCAG A/AA violations |
-| video composition | 18 scenes, 175.2 seconds; runtime/layout/motion clean and 16/16 contrast samples AA |
+| video composition preview | 18 scenes, 175.2 seconds; runtime/layout/motion clean and 16/16 contrast samples AA; user rejected its visual quality and it is not the final film |
 
-The video preview is built and checked. Final MP4 render, external-client
-prompts, Supademo publication and YouTube publication remain at their explicit
-human-confirmation boundaries.
+The repository contains an older draft MP4, a 175.2-second composition preview,
+and an SRT. There is no accepted final master, no Supademo walkthrough, and no
+YouTube link. ChatGPT and Claude have not been run against Lacuna. The existing
+continuity artifact covers Lacuna web, CLI and MCP, not those products.
 
 ## Named limitations
 
 No ElevenLabs server credentials are installed. No Spotify, Slack, Notion,
-Gmail or Linear OAuth connector is claimed. ChatGPT Pro is read/fetch only under
-its current custom-app contract. External-client prompts and video publication
-require human-visible confirmation at the action boundary. The hosted schedule
-store is durable and idempotent but cannot claim database-level cross-instance
-compare-and-swap over the current managed HydraDB API.
+Gmail or Linear OAuth connector is claimed. No packaged Lacuna SDK is shipped.
+The CLI and MCP expose the temporal read contract but not agent lifecycle
+commands. ChatGPT Pro's provider contract is read/fetch only; there is no Lacuna
+client proof yet. The HydraDB schedule adapter persists definitions and claims,
+but cannot claim atomic multi-instance idempotency, leases, quotas or exactly
+once execution. The ingest quota is process-local and registry discovery is
+sequential. External-client prompts and publication remain human actions.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { HydraConfigError } from '../../src/hydra/errors.js';
+import { cloudFromEnv } from '../../src/hydra/cloud.js';
 import { openSource, readProfile } from '../../src/hydra/open.js';
 
 /**
@@ -45,6 +46,26 @@ describe('reading the named profile', () => {
 });
 
 describe('opening the store', () => {
+  it('sends the cloud bearer only to the exact HydraDB HTTPS origin', () => {
+    expect(cloudFromEnv({ ...CLOUD, HYDRA_CLOUD_URL: 'https://api.hydradb.com/' })).not.toBeNull();
+    for (const hostile of [
+      'http://api.hydradb.com',
+      'https://api.hydradb.com.evil.example',
+      'https://api.hydradb.com@evil.example',
+      'https://user@api.hydradb.com',
+      'https://api.hydradb.com:444',
+      'https://api.hydradb.com/proxy',
+      'https://api.hydradb.com/?next=evil',
+    ]) {
+      expect(cloudFromEnv({ ...CLOUD, HYDRA_CLOUD_URL: hostile })).toBeNull();
+    }
+  });
+
+  it('does not construct a bearer client from empty credentials', () => {
+    expect(cloudFromEnv({ ...CLOUD, HYDRA_CLOUD_TOKEN: '' })).toBeNull();
+    expect(cloudFromEnv({ ...CLOUD, HYDRA_DATABASE: '' })).toBeNull();
+  });
+
   it('reads the cloud when the environment names it', () => {
     const opened = openSource({ ...NODE, ...CLOUD, LACUNA_PROFILE: 'cloud' });
     expect(opened.profile).toBe('cloud');

@@ -47,6 +47,20 @@ export class InvalidRunTransition extends RuntimeStoreError {
   override readonly name: string = 'InvalidRunTransition';
 }
 
+export class RunBudgetExceeded extends RuntimeStoreError {
+  override readonly name: string = 'RunBudgetExceeded';
+  readonly retryAfterSeconds: number;
+
+  constructor(message: string, retryAfterSeconds: number) {
+    super(message);
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+const MAX_ACTIVE_RUNS_PER_WORKSPACE = 4;
+const MAX_RUNS_PER_WORKSPACE_MINUTE = 6;
+const RUN_WINDOW_MS = 60_000;
+
 function validateWorkspace(workspace: string): void {
   if (workspace.trim() === '' || workspace.length > 256 || workspace.includes('\0')) {
     throw new RuntimeStoreError('invalid workspace');
@@ -96,6 +110,29 @@ function sameRunIdentity(before: AgentRun, after: AgentRun): boolean {
     && before.createdAt === after.createdAt
     && before.attempt === after.attempt
     && before.retryOf === after.retryOf;
+}
+
+function assertRunBudget(state: WorkspaceState, run: AgentRun): void {
+  // The public corpus has a separate address-scoped spend budget in the API.
+  // A shared durable limit here would let one visitor exhaust the demo for
+  // everyone else.
+  if (run.workspace === 'public') return;
+  const active = state.runs.filter((candidate) => !TERMINAL_RUN_STATUSES.has(candidate.status));
+  if (active.length >= MAX_ACTIVE_RUNS_PER_WORKSPACE) {
+    throw new RunBudgetExceeded('workspace has too many active runs', 5);
+  }
+  const nowMs = Date.parse(run.createdAt);
+  const recent = state.runs
+    .map((candidate) => Date.parse(candidate.createdAt))
+    .filter((createdAt) => Number.isFinite(createdAt) && createdAt > nowMs - RUN_WINDOW_MS)
+    .sort((a, b) => a - b);
+  if (recent.length >= MAX_RUNS_PER_WORKSPACE_MINUTE) {
+    const first = recent[0] ?? nowMs;
+    throw new RunBudgetExceeded(
+      'workspace run budget is exhausted for this minute',
+      Math.max(1, Math.ceil((first + RUN_WINDOW_MS - nowMs) / 1_000)),
+    );
+  }
 }
 
 function parseState(text: string, workspace: string): WorkspaceState {
@@ -201,6 +238,7 @@ export class FileAgentRuntimeStore implements AgentRuntimeStore {
         if (prior === undefined) throw new RuntimeStoreError('idempotency index is corrupt');
         return { run: prior, created: false };
       }
+      assertRunBudget(state, run);
       if (state.runs.some((candidate) => candidate.id === run.id)) throw new RunConflict('run id already exists');
       if (!state.agents.some((agent) => agent.id === run.agentId)
         || !state.agents.some((agent) => agent.id === run.reviewerAgentId)) {
@@ -358,6 +396,7 @@ export class CloudAgentRuntimeStore implements AgentRuntimeStore {
         if (prior === undefined) throw new RuntimeStoreError('idempotency index is corrupt');
         return { run: prior, created: false };
       }
+      assertRunBudget(state, run);
       if (state.runs.some((candidate) => candidate.id === run.id)) throw new RunConflict('run id already exists');
       if (!state.agents.some((agent) => agent.id === run.agentId)
         || !state.agents.some((agent) => agent.id === run.reviewerAgentId)) {

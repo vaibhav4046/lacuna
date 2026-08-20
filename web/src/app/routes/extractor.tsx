@@ -80,8 +80,8 @@ export function Extractor() {
       // proxy caches and browser history, and somebody pasting a real
       // conversation has no reason to expect that.
       const response = prose.trim() === ''
-        ? await fetch('/api/demo/extract')
-        : await fetch('/api/demo/extract', {
+        ? await fetch('/api/explore/extract')
+        : await fetch('/api/explore/extract', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: prose }),

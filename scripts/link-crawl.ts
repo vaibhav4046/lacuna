@@ -30,14 +30,16 @@ const LOAD_TIMEOUT_MS = 30_000;
 const ROOTS: readonly string[] = [
   '/',
   '/judge',
-  '/demo/dash',
-  '/demo/ask',
-  '/demo/memory',
-  '/demo/timeline',
-  '/demo/graph',
-  '/demo/health',
+  '/explore/dash',
+  '/explore/ask',
+  '/explore/memory',
+  '/explore/timeline',
+  '/explore/graph',
+  '/explore/health',
+  '/explore/hydra',
+  '/explore/evals',
+  // The old prefix, which must still land somewhere rather than 404.
   '/demo/hydra',
-  '/demo/evals',
 ];
 
 /** Paths a public crawl is allowed to end on even though they are gated. */

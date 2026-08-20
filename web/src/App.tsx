@@ -10,6 +10,7 @@ import Onboarding from './onboarding/Onboarding';
 import Shell from './app/Shell';
 import { Judge } from './pages/Judge';
 import NotFound from './pages/NotFound';
+import { LegacyDemo } from './pages/LegacyDemo';
 import { ScopeProvider } from './api/scope';
 
 /**
@@ -30,8 +31,15 @@ export default function App() {
         <Route path="/onboarding" element={<RequireSession><Onboarding /></RequireSession>} />
         <Route path="/app" element={<Navigate to="/app/dash" replace />} />
         <Route path="/app/:route" element={<RequireSession><Shell /></RequireSession>} />
-        <Route path="/demo" element={<Navigate to="/demo/dash" replace />} />
-        <Route path="/demo/:route" element={<ScopeProvider demo><Shell /></ScopeProvider>} />
+        <Route path="/explore" element={<Navigate to="/explore/dash" replace />} />
+        <Route path="/explore/:route" element={<ScopeProvider demo><Shell /></ScopeProvider>} />
+        {/*
+          The public workspace used to live under /demo. Those links are in
+          documents, a social card and a video frame, and a link somebody else
+          published is not ours to break.
+        */}
+        <Route path="/demo" element={<Navigate to="/explore/dash" replace />} />
+        <Route path="/demo/:route" element={<LegacyDemo />} />
         {/*
           A real Not Found rather than a redirect to the front page. Sending a
           mistyped address to `/` shows a reader a working page and hides the

@@ -9,9 +9,9 @@ import { AddSource } from './ingest';
 /**
  * The CONTEXT group: Memory, Timeline, Graph and Context health.
  *
- * All four read the workspace. The design draws them with the demo corpus in
- * them; here the rows are whatever the workspace holds, which for a new
- * account is nothing. The graph keeps its fixed layout and no physics, so the
+ * All four read the workspace: the public one signed out, your own signed in.
+ * The rows are whatever that workspace holds, which for a new account is
+ * nothing until a source is added. The graph keeps its fixed layout and no physics, so the
  * same claims draw the same picture every time.
  */
 
@@ -74,9 +74,9 @@ export function Memory() {
   return (
     <div style={{ maxWidth: '1220px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/*
-        Only where there is a workspace to write into. The public demo reads a
-        corpus that ships here, and offering to add to it would be offering
-        something the endpoint refuses.
+        Only where there is a workspace to write into. The public workspace is
+        read only, and offering to add to it would be offering something the
+        endpoint refuses.
       */}
       {demo ? null : <AddSource onIngested={() => window.location.reload()} />}
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -113,7 +113,7 @@ export function Memory() {
             */}
             {shown.length} SHOWN · {page.value.rows.length} LOADED · {page.value.total} IN THIS WORKSPACE
             {page.value.rows.length < page.value.total ? ' · SEARCH COVERS THE LOADED ROWS' : ''}
-            {page.value.demo ? ' · SAMPLE WORKSPACE' : ''}
+            {page.value.demo ? ' · PUBLIC WORKSPACE' : ''}
           </div>
         ) : null}
       </div>

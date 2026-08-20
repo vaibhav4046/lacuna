@@ -245,7 +245,7 @@ interface ContinuityReply {
  * are named, because a filter nobody can see is a claim rather than a proof.
  */
 function GraphProof() {
-  const impact = useLoaded<ImpactReply>('/api/demo/impact');
+  const impact = useLoaded<ImpactReply>('/api/explore/impact');
   if (impact.state !== 'ready') return <span style={{ ...label }}>WALKING THE STORE…</span>;
   if (!impact.value.available || impact.value.accepted === undefined) {
     return <span style={{ ...label }}>GRAPH WALK UNAVAILABLE</span>;
@@ -286,7 +286,7 @@ function GraphProof() {
 
 /** One question, three clients, compared field by field. A recorded run, labelled. */
 function ContinuityProof() {
-  const run = useLoaded<ContinuityReply>('/api/demo/continuity');
+  const run = useLoaded<ContinuityReply>('/api/explore/continuity');
   if (run.state !== 'ready' || !run.value.available) return null;
   const it = run.value;
   return (
@@ -324,8 +324,8 @@ export function Judge() {
     void (async () => {
       try {
         const [suggestions, hops, doctor] = await Promise.all([
-          getJson<readonly Suggestion[]>('/api/demo/questions', control.signal),
-          getJson<readonly Suggestion[]>('/api/demo/hops', control.signal).catch(() => [] as readonly Suggestion[]),
+          getJson<readonly Suggestion[]>('/api/explore/questions', control.signal),
+          getJson<readonly Suggestion[]>('/api/explore/hops', control.signal).catch(() => [] as readonly Suggestion[]),
           getJson<Health>('/api/health', control.signal).catch(() => null),
         ]);
         if (control.signal.aborted) return;
@@ -342,7 +342,7 @@ export function Judge() {
           setResults((current) => ({ ...current, [key]: 'running' }));
           // The demo endpoint, not /api/ask. This board answers the same way
           // whether or not the person reading it happens to be signed in.
-          const envelope = await postFor<Envelope>('/api/demo/ask', {
+          const envelope = await postFor<Envelope>('/api/explore/ask', {
             subject: row.subject,
             predicate: row.predicate,
             ...(row.via === null ? {} : { via: row.via }),
@@ -439,12 +439,12 @@ export function Judge() {
           </p>
           <p style={{ color: '#9A9A9A', fontSize: '15px', lineHeight: 1.65, margin: 0, maxWidth: '64ch' }}>
             HydraDB builds a graph of its own from these same transcripts.{' '}
-            <Link to="/demo/hydra" style={{ color: '#B79BFF' }}>Walked for one subject</Link> it
+            <Link to="/explore/hydra" style={{ color: '#B79BFF' }}>Walked for one subject</Link> it
             reaches 21 edges: 6 that stand, 2 the transcripts replaced, 3 disputed, and 10 that are
             not claims at all. Those 10 are sentences saying nothing happened, a discussion
             deferred, an item skipped, notes reread and unchanged. Lacuna files none of them,
             because{' '}
-            <Link to="/demo/memory" style={{ color: '#B79BFF' }}>what may become a claim</Link> is
+            <Link to="/explore/memory" style={{ color: '#B79BFF' }}>what may become a claim</Link> is
             decided before anything is written. Both screens are live and neither needs an account.
           </p>
         </section>
@@ -453,11 +453,11 @@ export function Judge() {
           <a href="https://github.com/vaibhav4046/lacuna" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
             SOURCE
           </a>
-          <Link to="/demo/memory" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
+          <Link to="/explore/memory" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
             PASTE YOUR OWN TRANSCRIPT
           </Link>
-          <Link to="/demo/hydra" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>WHAT HYDRADB FOUND</Link>
-          <Link to="/demo/dash" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>OPEN THE WHOLE PRODUCT</Link>
+          <Link to="/explore/hydra" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>WHAT HYDRADB FOUND</Link>
+          <Link to="/explore/dash" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>OPEN THE WHOLE PRODUCT</Link>
           <Link to="/signin" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>SIGN IN</Link>
           <span style={label}>NOTHING ON THIS PAGE IS RECORDED</span>
         </footer>

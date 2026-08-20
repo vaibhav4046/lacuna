@@ -1,6 +1,6 @@
 /**
- * The app's eighteen routes, taken from the design's own TITLES map and
- * navGroups array so the sidebar and the route table can never disagree.
+ * Every route the app can render. The sidebar is a subset: a route that opens
+ * onto nothing is still reachable by URL and is not offered in the navigation.
  *
  * The design renders one shell and switches an sc-if per route, so the port
  * uses one /app/:route param route rather than eighteen siblings: the shell
@@ -21,15 +21,22 @@ export function isRouteKey(value: string | undefined): value is RouteKey {
 export const DEFAULT_ROUTE: RouteKey = 'dash';
 
 /**
- * The seven sidebar groups, verbatim from the design. The satisfies clause is
- * the point: a nav entry naming a route that TITLES does not have stops the
- * build rather than rendering a dead button.
+ * The sidebar, which lists what this product does rather than what it might.
+ *
+ * Work, Agents and Tools were here and their endpoints return an empty array,
+ * because nothing schedules a run, registers an agent or exposes a tool yet.
+ * Voice was here and is not configured. Four screens that open onto nothing
+ * make a working product look half built, and a reader has no way to tell an
+ * empty screen from a broken one.
+ *
+ * The routes still resolve, so an existing link or a bookmark still lands
+ * somewhere rather than on a 404. They are simply not offered, which is what
+ * shipping means.
  */
 export const NAV_GROUPS = [
   { h: 'OVERVIEW', items: [['DASHBOARD', 'dash'], ['ASK', 'ask']] },
   { h: 'CONTEXT', items: [['MEMORY', 'memory'], ['TIMELINE', 'timeline'], ['GRAPH', 'graph'], ['HEALTH', 'health']] },
-  { h: 'WORK', items: [['WORK', 'work'], ['AGENTS', 'agents'], ['TOOLS', 'tools']] },
-  { h: 'MODELS', items: [['MODELS', 'models'], ['VOICE', 'voice']] },
+  { h: 'MODELS', items: [['MODELS', 'models']] },
   { h: 'DEVELOPERS', items: [['MCP', 'mcp'], ['SDK · API', 'sdk'], ['CLI', 'cli'], ['CONNECTORS', 'conn']] },
   { h: 'PROOF', items: [['EVALUATIONS', 'evals'], ['HYDRADB', 'hydra']] },
   { h: 'SYSTEM', items: [['SETTINGS', 'settings']] }

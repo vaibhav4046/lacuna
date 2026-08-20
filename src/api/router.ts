@@ -500,10 +500,15 @@ export class ApiRouter {
     // holding the right session, and it is read only: nothing under /api/demo
     // writes. Every other workspace stays behind the session, and this one
     // holds nothing personal to protect.
-    if (path.startsWith('/api/demo/') && method === 'GET') {
+    // `/api/explore` is the name; `/api/demo` still answers, because it is
+    // written into documents, a social card and a video frame, and those are
+    // not ours to break.
+    if ((path.startsWith('/api/explore/') || path.startsWith('/api/demo/')) && method === 'GET') {
       const inventory = this.#inventory;
       const view = inventory === undefined ? emptyWorkspace() : demoWorkspace(inventory);
-      const part = path.slice('/api/demo/'.length);
+      const part = path.startsWith('/api/explore/')
+        ? path.slice('/api/explore/'.length)
+        : path.slice('/api/demo/'.length);
 
       // Probed rather than listed, same as the signed-in route: these two ask
       // the endpoints and report what answered.
@@ -694,7 +699,7 @@ export class ApiRouter {
     // it is a pure function of the body, so it needs no CSRF token, and it is
     // marked no-store so nothing between here and the browser keeps a copy of
     // somebody's transcript.
-    if (path === '/api/demo/extract' && method === 'POST') {
+    if ((path === '/api/explore/extract' || path === '/api/demo/extract') && method === 'POST') {
       let body: Record<string, unknown> | null;
       try {
         // Four times the text the extractor will read, so anything a reader can
@@ -790,7 +795,7 @@ export class ApiRouter {
      * Read only and session free, so it needs no CSRF token, and it shares the
      * public read budget.
      */
-    if (path === '/api/demo/ask' && method === 'POST') {
+    if ((path === '/api/explore/ask' || path === '/api/demo/ask') && method === 'POST') {
       let body: Record<string, unknown> | null;
       try {
         body = await readJsonBody(request);

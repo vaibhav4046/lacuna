@@ -187,7 +187,7 @@ const REJECTION_LABEL: Readonly<Record<RejectedEdge['reason'], string>> = {
  * answer. Both halves are shown, because a filter nobody can see is a claim.
  */
 function GraphImpact() {
-  const impact = useLoaded<ImpactReply>('/api/demo/impact');
+  const impact = useLoaded<ImpactReply>('/api/explore/impact');
 
   if (impact.state !== 'ready') {
     return <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Computing over the store&rsquo;s graph.</span>;

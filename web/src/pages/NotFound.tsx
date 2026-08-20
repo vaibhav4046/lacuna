@@ -28,7 +28,7 @@ export default function NotFound() {
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', paddingTop: '6px' }}>
           <Link to="/" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>LACUNA</Link>
           <Link to="/judge" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>SEE IT ANSWER</Link>
-          <Link to="/demo/dash" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>OPEN THE PRODUCT</Link>
+          <Link to="/explore/dash" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>OPEN THE PRODUCT</Link>
         </div>
       </div>
     </main>

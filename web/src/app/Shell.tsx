@@ -93,11 +93,11 @@ export default function Shell() {
             <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#9A9A9A' }}>HYDRADB {hydraState(health)}</span>
           </div>
           {workspace === SAMPLE_WORKSPACE ? (
-            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>SAMPLE WORKSPACE</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>PUBLIC WORKSPACE</span>
           ) : null}
           {scope.demo ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#8052FF' }}>DEMO · READ ONLY</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#8052FF' }}>READ ONLY · NO ACCOUNT</span>
               <button onClick={() => go('/signin')} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>SIGN IN</button>
             </div>
           ) : (

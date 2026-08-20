@@ -161,3 +161,40 @@ second. The planned reply now carries the whole request. Measured after: 114 to
 artifact: 500 instances read with no parse failure, no ground truth surviving
 the strip, and 16 percent coverage. That coverage is the reason there is no
 score, and showing it is better than describing it.
+
+## The honesty sweep, 20 August
+
+A brutal read of every deployed screen found one overstatement and four
+understatements. All five cost the same credibility, and the understatements
+were the more numerous.
+
+**Overstated.** The Models screen carried a seven-mode router, AUTO through
+CUSTOM, where clicking a mode moved a highlight and changed nothing. Nothing in
+this product routes between models. The same screen printed a LATENCY column
+directly above the words NO FAKE VALUES while showing an identical figure for
+six different models, because the figure was one round trip to the provider's
+catalogue rather than anything measured per model.
+
+**Understated.** The SDK screen put one NOT SHIPPED banner across all three
+tabs, telling readers the MCP server was a design contract while it was
+answering requests. Connectors listed Text and Custom ingestion as PLANNED, on
+reasoning that was correct when written and had since stopped being true. Four
+FAQ answers described the CLI and MCP in future tense, and one of them was an
+instruction to whoever built the thing rather than an answer to whoever was
+reading it. The Dashboard's ask field was a button shaped exactly like a text
+input.
+
+All fixed, and every replacement claim was run before being published: the two
+curl commands the SDK screen prints were executed exactly as printed, the FAQ's
+seven CLI commands come from `--help`, and its claim about three surfaces
+agreeing is the continuity gate, which fails unless they do.
+
+## Final state
+
+Sentence questions on all four surfaces, sharing one parser in
+`src/retrieval/plan.ts` so they cannot drift: the web, the HTTP API, MCP as
+`lacuna_read_question`, and the command line as `lacuna read`.
+
+Gates at the close: 1242 unit, 77 contract, parity 64 of 64 `ALL_IDENTICAL`,
+`ONE_CONTEXT_IDENTICAL` across web, CLI and MCP, route audit clean over 22
+routes at 9 viewports, auth smoke 12 of 12, link crawl clean, copy lint clean.

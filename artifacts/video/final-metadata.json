@@ -1,7 +1,7 @@
 {
   "file": "video/hyperframes/renders/lacuna-demo-master.mp4",
-  "sha256": "caf5f86e086930afb3df587401f332296e00ef3493df210fd5fb6eed1d24b3eb",
-  "bytes": 44818695,
+  "sha256": "da9434324b1e325788dec483031a92306cf5f5c4cb7ada06eda7da13304ed996",
+  "bytes": 44728039,
   "seconds": 173.5,
   "video": {
     "codec": "h264",

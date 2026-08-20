@@ -1,10 +1,12 @@
 
-import { useScoped } from '../../api/scope';
+import { useScope, useScoped } from '../../api/scope';
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import type { HealthReport } from '../../api/health';
+import { ProofGraph } from '../../canvas/ProofGraph';
 import { icStyle } from '../../design/icons';
 import { useLoaded } from '../../api/client';
 import { MONO } from '../../design/mark';
+import { useGraph } from '../../graph/useGraph';
 import { Empty, Failed, Stage } from '../state';
 
 /**
@@ -334,14 +336,16 @@ function GraphImpact() {
 }
 
 export function HydraDb() {
+  const { prefix } = useScope();
   const health = useHealth();
   const relations = useScoped<RelationsReply>('relations');
   const expansion = useScoped<ExpansionReply>('expansion');
+  const graph = useGraph('proof', 160);
   const report = health.state === 'ready' ? health.value : null;
   const state = hydraState(health);
 
   return (
-    <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
+    <div style={{ maxWidth: '1220px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
       <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
         <span style={icStyle('HydraDB', 15)}></span>
         <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#BDBDBD' }}>HYDRADB · {state}</span>
@@ -363,6 +367,16 @@ export function HydraDb() {
             <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: c.state === 'pass' ? '#15846E' : c.state === 'warn' ? '#FFB829' : '#9A9A9A' }}>{c.state.toUpperCase()}</span>
           </div>
         ))}
+      </div>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '22px' }}>
+        {graph.loaded.state === 'loading' ? <Stage label="RETRIEVING PROOF GRAPH" /> : null}
+        {graph.loaded.state === 'failed' ? <Failed reason={graph.loaded.reason} /> : null}
+        {graph.loaded.state === 'ready' && graph.loaded.value.nodes.length === 0
+          ? <Empty headline="No provenance path to draw." detail="A proof graph appears when this workspace has a claim or a recorded source. Missing evidence remains visible as a missing state." />
+          : null}
+        {graph.loaded.state === 'ready' && graph.loaded.value.nodes.length > 0
+          ? <ProofGraph graph={graph.loaded.value} prefix={prefix} loadingMore={graph.loadingMore} moreFailed={graph.moreFailed} onLoadMore={graph.loadMore} />
+          : null}
       </div>
       {/* HydraDB's own graph, not this product's.
           Every other screen shows what Lacuna traversed. This one asks the

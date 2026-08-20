@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
 import { useScope, useScoped } from '../../api/scope';
+import { MemoryFieldOverview } from '../../canvas/MemoryField';
 import { MONO } from '../../design/mark';
+import { useGraph } from '../../graph/useGraph';
 import { Empty, Failed, Panel, Stage } from '../state';
 import { Extractor } from './extractor';
 import { AddSource } from './ingest';
@@ -165,63 +167,21 @@ export function Timeline() {
   );
 }
 
-/**
- * The graph, drawn as a fixed layered diagram: query on the left, claims, then
- * evidence, then sources. No physics and no randomness, so the same claims
- * produce the same picture every time. The list underneath is the same graph
- * for anyone who cannot use the picture.
- */
+/** The navigational field. Exact provenance lives on the Proof screen. */
 export function Graph() {
-  const page = useScoped<MemoryPage>('memory');
-  const rows = page.state === 'ready' ? page.value.rows.slice(0, 6) : [];
+  const { prefix } = useScope();
+  const { loaded, loadingMore, moreFailed, loadMore } = useGraph('overview', 140);
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {page.state === 'loading' ? <Stage label="RETRIEVING" /> : null}
-      {page.state === 'failed' ? <Failed reason={page.reason} /> : null}
-      {page.state === 'ready' && rows.length === 0 ? (
-        <Empty headline="Nothing to draw yet." detail="The graph shows claims, the evidence behind them and where that evidence came from." />
+    <div style={{ maxWidth: '1220px', margin: '0 auto' }}>
+      {loaded.state === 'loading' ? <Stage label="RETRIEVING MEMORY FIELD" /> : null}
+      {loaded.state === 'failed' ? <Failed reason={loaded.reason} /> : null}
+      {loaded.state === 'ready' && loaded.value.nodes.length === 0 ? (
+        <Empty headline="Nothing in this field yet." detail="The field appears after this workspace holds a claim, evidence span, source or Context Pack." />
       ) : null}
-      {rows.length > 0 ? (
-        <>
-          <svg viewBox={`0 0 960 ${Math.max(200, 60 + rows.length * 62)}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Claims, their evidence and their sources">
-            <text x="70" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">QUERY</text>
-            <text x="330" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">CLAIMS</text>
-            <text x="610" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">EVIDENCE</text>
-            <text x="840" y="30" fill="#7A7A7A" fontSize="10" letterSpacing="3" fontFamily="JetBrains Mono, monospace">SOURCES</text>
-            {rows.map((r, i) => {
-              const y = 70 + i * 62;
-              const current = r.st === 'CUR';
-              const stroke = current ? '#8052FF' : 'rgba(255,255,255,0.18)';
-              return (
-                <g key={`${r.entity}-${r.claim}`}>
-                  <line x1="185" y1={y + 22} x2="320" y2={y + 22} stroke={stroke} strokeWidth={current ? 1.4 : 1} strokeDasharray={current ? undefined : '4 4'} />
-                  <line x1="470" y1={y + 22} x2="600" y2={y + 22} stroke={stroke} strokeWidth={current ? 1.4 : 1} strokeDasharray={current ? undefined : '4 4'} />
-                  <line x1="750" y1={y + 22} x2="830" y2={y + 22} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-                  <rect x="320" y={y} width="150" height="44" rx="8" fill="none" stroke={stroke} strokeWidth={current ? 1.4 : 1} strokeDasharray={current ? undefined : '4 4'} />
-                  <text x="338" y={y + 20} fill={current ? '#FFFFFF' : '#9A9A9A'} fontSize="13" fontFamily="Space Grotesk, sans-serif">{r.claim.slice(0, 18)}</text>
-                  <text x="338" y={y + 36} fill={current ? '#8052FF' : '#7A7A7A'} fontSize="9" letterSpacing="2" fontFamily="JetBrains Mono, monospace">{STATE_LABEL[r.st]}</text>
-                  <rect x="600" y={y} width="150" height="44" rx="8" fill="none" stroke="rgba(255,255,255,0.3)" />
-                  <circle cx="608" cy={y + 22} r="2.5" fill="#FFB829" />
-                  <text x="618" y={y + 26} fill="#BDBDBD" fontSize="12" fontFamily="Space Grotesk, sans-serif">{r.src.slice(0, 16)}</text>
-                  <text x="838" y={y + 26} fill="#9A9A9A" fontSize="11" fontFamily="JetBrains Mono, monospace">{r.entity.slice(0, 12)}</text>
-                </g>
-              );
-            })}
-            <rect x="60" y="70" width="125" height="44" rx="8" fill="none" stroke="rgba(255,255,255,0.3)" />
-            <text x="74" y="90" fill="#FFFFFF" fontSize="12" fontFamily="Space Grotesk, sans-serif">This workspace</text>
-            <text x="74" y="105" fill="#9A9A9A" fontSize="10" fontFamily="JetBrains Mono, monospace">{rows.length} shown</text>
-          </svg>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {rows.map((r) => (
-              <li key={`list-${r.entity}-${r.claim}`} style={{ fontSize: '13px', color: '#9A9A9A' }}>
-                <span style={{ color: '#FFFFFF' }}>{r.claim}</span> · {STATE_LABEL[r.st]} · evidence from {r.src} · scope {r.entity}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      <span style={note}>FIXED LAYOUT · NO PHYSICS · SAME GRAPH EVERY TIME</span>
+      {loaded.state === 'ready' && loaded.value.nodes.length > 0
+        ? <MemoryFieldOverview graph={loaded.value} prefix={prefix} loadingMore={loadingMore} moreFailed={moreFailed} onLoadMore={loadMore} />
+        : null}
     </div>
   );
 }

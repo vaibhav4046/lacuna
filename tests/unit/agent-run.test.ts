@@ -198,4 +198,17 @@ describe('what a run may spend', () => {
     // percentage of.
     expect(JSON.stringify(run.events)).not.toMatch(/\d+%/);
   });
+
+  it('fails closed when the wall-time budget is exhausted', async () => {
+    let tick = 0;
+    const run = await runAgents({
+      ...BASE,
+      source: sourceWith([{ predicate: 'storage', value: 'Redis', superseded: false }]),
+      task: 'What is the storage for Sessions?',
+      now: () => tick++ * 70_000,
+      fetchImpl: modelReturning('must not be used'),
+    } as never);
+    expect(run.status).toBe('FAILED');
+    expect(run.error).toBe('over_budget');
+  });
 });

@@ -1,143 +1,203 @@
+import { useMemo, useState } from 'react';
 
-import { useScoped } from '../../api/scope';
+import { postFor } from '../../api/client';
+import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
+import type { AgentRecord, AgentRunRecord, DailyScheduleRecord, RunStatus } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
 
-/**
- * The WORK group: Work, Agents and Tools.
- *
- * Nothing here is configured out of the box, and the screens say so rather
- * than listing four agents nobody created. The design's own line on the work
- * screen is the rule for all three: stages move only on real events.
- */
+export { Tools } from './tools';
 
-const chip = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', borderRadius: '7px', padding: '7px 11px' } as const;
-const stage = { fontFamily: MONO, fontSize: '11px', letterSpacing: '0.18em', color: '#BDBDBD' } as const;
-const rule = { width: '30px', height: '1px', background: 'rgba(255,255,255,0.16)' } as const;
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
-const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
+const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.13em', color: '#7A7A7A' } as const;
+const ACTIVE: ReadonlySet<RunStatus> = new Set(['CREATED', 'QUEUED', 'RUNNING', 'WAITING_TOOL', 'HANDOFF']);
 
-const STAGES = ['REQUEST', 'CONTEXT', 'AGENT', 'TOOLS', 'OUTCOME', 'WRITEBACK'] as const;
+function at(value: string | null): string {
+  if (value === null) return 'NEVER';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf()) ? 'UNKNOWN' : parsed.toLocaleString();
+}
 
-export function Work() {
-  const runs = useScoped<readonly unknown[]>('runs');
+function tone(status: RunStatus): string {
+  if (status === 'COMPLETED') return '#B79BFF';
+  if (status === 'FAILED' || status === 'CANCELLED') return '#FFB829';
+  return '#FFFFFF';
+}
+
+type Filter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+function includes(filter: Filter, status: RunStatus): boolean {
+  return filter === 'ALL'
+    || (filter === 'ACTIVE' && ACTIVE.has(status))
+    || filter === status;
+}
+
+function RunDetail({ run, agentName, demo, onChange }: {
+  readonly run: AgentRunRecord;
+  readonly agentName: string;
+  readonly demo: boolean;
+  readonly onChange: (run: AgentRunRecord) => void;
+}) {
+  const [mutating, setMutating] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function action(kind: 'cancel' | 'retry'): Promise<void> {
+    setMutating(true);
+    setProblem(null);
+    const updated = await postFor<AgentRunRecord>(`/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`, {});
+    if (updated === null) setProblem(`${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`);
+    else onChange(updated);
+    setMutating(false);
+  }
 
   return (
-    <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.16)', color: '#FFFFFF' }}>ACTIVE</span>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#7A7A84' }}>WAITING</span>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#7A7A84' }}>COMPLETED</span>
-        <span style={{ ...chip, border: '1px solid rgba(255,255,255,0.10)', color: '#7A7A84' }}>SCHEDULED</span>
+    <article style={{ borderTop: '1px solid rgba(255,255,255,0.14)', padding: '18px 0 4px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: '16px', color: '#FFFFFF', lineHeight: 1.55 }}>{run.task}</div>
+          <div style={{ ...note, marginTop: '6px' }}>{agentName} · {run.provider.name} / {run.provider.model} · ATTEMPT {run.attempt}</div>
+        </div>
+        <div style={{ ...note, color: tone(run.status), border: '1px solid rgba(255,255,255,0.14)', padding: '7px 9px' }}>{run.status}</div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        {STAGES.map((s, i) => (
-          <span key={s} style={{ display: 'contents' }}>
-            <span style={stage}>{s}</span>
-            {i < STAGES.length - 1 ? <span style={rule}></span> : null}
+
+      <div aria-label="Observed run lifecycle" style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+        {run.events.map((event, index) => (
+          <span key={`${event.at}-${index}`} style={{ display: 'contents' }}>
+            <span title={`${at(event.at)} · ${event.detail}`} style={{ ...note, color: event.stage === 'HANDOFF' ? '#B79BFF' : '#9A9A9A' }}>{event.stage}</span>
+            {index === run.events.length - 1 ? null : <span style={{ width: '18px', height: '1px', background: 'rgba(255,255,255,0.16)' }} />}
           </span>
         ))}
       </div>
-      {runs.state === 'loading' ? <Stage label="RETRIEVING" /> : null}
-      {runs.state === 'failed' ? <Failed reason={runs.reason} /> : null}
-      {runs.state === 'ready' && runs.value.length === 0 ? (
-        <div style={{ padding: '70px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <div style={{ fontSize: '22px', color: '#FFFFFF', letterSpacing: '-0.01em' }}>No runs yet.</div>
-          <p style={{ fontSize: '15px', color: '#9A9A9A', margin: 0, maxWidth: '44ch' }}>Work appears when an agent executes a task with a Context Pack.</p>
-          <span style={{ ...note, letterSpacing: '0.18em', marginTop: '6px' }}>NO FAKE PROGRESS · STAGES MOVE ONLY ON REAL EVENTS</span>
+
+      {run.result === null ? null : <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>{run.result}</p>}
+      {run.error === null ? null : <p style={{ fontSize: '13px', color: '#FFB829', margin: 0 }}>Run error: {run.error}</p>}
+      {run.verdict !== null && run.verdict.unsupported.length > 0 ? (
+        <div style={{ borderLeft: '2px solid #FFB829', paddingLeft: '12px' }}>
+          <div style={{ ...head, color: '#FFB829' }}>UNSUPPORTED IN REVIEW</div>
+          {run.verdict.unsupported.map((claim) => <div key={claim} style={{ marginTop: '6px', color: '#BDBDBD', fontSize: '13px' }}>{claim}</div>)}
         </div>
       ) : null}
-    </div>
+
+      <details>
+        <summary style={{ ...head, cursor: 'pointer', padding: '8px 0' }}>RUN RECORD</summary>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(130px, .4fr) minmax(0, 1.6fr)', gap: '12px 18px', padding: '12px 0 8px', fontSize: '12.5px' }}>
+          <span style={head}>CONTEXT PACK</span>
+          <span style={{ color: '#BDBDBD' }}>{run.pack === null ? 'NOT COMPILED' : `${run.pack.id} · ${run.pack.claims.length} claims · ${run.pack.estimatedTokens} estimated tokens`}</span>
+          <span style={head}>TOOLS</span>
+          <span style={{ color: '#BDBDBD' }}>{run.toolEvents.length === 0 ? 'NONE CALLED' : run.toolEvents.map((event) => `${event.tool} · ${event.status} · ${event.calls} calls · ${event.ms ?? '—'}ms`).join('; ')}</span>
+          <span style={head}>HANDOFF</span>
+          <span style={{ color: '#BDBDBD' }}>{run.handoff === null ? 'NONE' : `${run.handoff.from} → ${run.handoff.to} · ${run.handoff.supportedFacts.length} supported facts · pack ${run.handoff.packId}`}</span>
+          <span style={head}>EVIDENCE</span>
+          <span style={{ color: '#BDBDBD' }}>{run.evidenceRefs.length === 0 ? 'NO QUOTED EVIDENCE' : run.evidenceRefs.map((ref) => `${ref.subject} ${ref.predicate}: “${ref.quote}”${ref.source === null ? '' : ` · ${ref.source}`}`).join(' | ')}</span>
+          <span style={head}>CONFLICTS</span>
+          <span style={{ color: '#BDBDBD' }}>{run.conflicts.length === 0 ? 'NONE RETURNED' : run.conflicts.join('; ')}</span>
+          <span style={head}>OPEN QUESTIONS</span>
+          <span style={{ color: '#BDBDBD' }}>{run.openQuestions.length === 0 ? 'NONE RETURNED' : run.openQuestions.join('; ')}</span>
+          <span style={head}>WRITEBACK</span>
+          <span style={{ color: '#BDBDBD' }}>{run.writebackDecision.policy} · {run.writebackDecision.decision} · {run.writebackDecision.reason}</span>
+          <span style={head}>TIMINGS</span>
+          <span style={{ ...note, letterSpacing: '0.08em' }}>CONTEXT {run.timings.contextMs ?? '—'} · RESEARCHER {run.timings.researcherMs ?? '—'} · REVIEWER {run.timings.reviewerMs ?? '—'} · TOTAL {run.timings.totalMs} MS</span>
+          <span style={head}>TRACE</span>
+          <span style={{ color: '#9A9A9A' }}>{run.trace.map((entry) => `${entry.kind}: ${entry.detail}`).join(' · ')}</span>
+        </div>
+      </details>
+
+      {demo ? null : (
+        <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {ACTIVE.has(run.status) ? (
+            <button disabled={mutating} onClick={() => void action('cancel')} style={{ ...note, background: 'none', border: '1px solid rgba(255,184,41,0.45)', color: '#FFB829', padding: '7px 10px', cursor: 'pointer' }}>CANCEL</button>
+          ) : null}
+          {run.status === 'FAILED' || run.status === 'CANCELLED' ? (
+            <button disabled={mutating} onClick={() => void action('retry')} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '7px 10px', cursor: 'pointer' }}>RETRY</button>
+          ) : null}
+          {problem === null ? null : <span style={{ color: '#FFB829', fontSize: '12px' }}>{problem}</span>}
+        </div>
+      )}
+    </article>
   );
 }
 
-interface Agent {
-  readonly name: string;
-  readonly role: string;
-  readonly model: string;
-  readonly tools: string;
-  readonly state: string;
-}
+function Schedules({ demo }: { readonly demo: boolean }) {
+  const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
+  const rows = schedules.state === 'ready' ? schedules.value : [];
+  const [working, setWorking] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-const AGENT_GRID = '1.2fr 0.9fr 1.1fr 0.8fr';
-
-export function Agents() {
-  const agents = useScoped<readonly Agent[]>('agents');
-  const rows = agents.state === 'ready' ? agents.value : [];
+  async function runNow(schedule: DailyScheduleRecord): Promise<void> {
+    setWorking(schedule.id);
+    setMessage(null);
+    const requestId = `ui-${Date.now().toString(36)}`;
+    const result = await postFor<{ readonly outcome: string; readonly runId: string | null }>(
+      `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
+      { requestId },
+    );
+    setMessage(result === null ? 'Run now did not complete.' : `${result.outcome}${result.runId === null ? '' : ` · ${result.runId}`}`);
+    setWorking(null);
+  }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      <p style={{ fontSize: '15.5px', lineHeight: 1.75, color: '#9A9A9A', margin: 0, maxWidth: '60ch' }}>No avatars. An agent is a role, a model, a tool set and a context scope.</p>
-      <div>
-        <div style={{ display: 'grid', gridTemplateColumns: AGENT_GRID, gap: '16px', padding: '8px 4px', borderBottom: '1px solid rgba(255,255,255,0.14)', ...head }}>
-          <span>AGENT</span><span>MODEL</span><span>TOOLS</span><span>STATE</span>
-        </div>
-        {agents.state === 'loading' ? <Stage label="RETRIEVING" /> : null}
-        {agents.state === 'failed' ? <Failed reason={agents.reason} /> : null}
-        {agents.state === 'ready' && rows.length === 0 ? (
-          <Empty headline="No agents configured." detail="An agent is a role, a model and a tool set. Create one and it appears here." />
-        ) : null}
-        {rows.map((a) => (
-          <div key={a.name} className="hv-surface3" style={{ display: 'grid', gridTemplateColumns: AGENT_GRID, gap: '16px', alignItems: 'baseline', padding: '16px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', transition: 'background 140ms ease' }}>
-            <div>
-              <div style={{ fontSize: '15px', color: '#FFFFFF' }}>{a.name}</div>
-              <div style={{ fontFamily: MONO, fontSize: '10.5px', color: '#9A9A9A', marginTop: '5px' }}>{a.role}</div>
-            </div>
-            <span style={{ fontFamily: MONO, fontSize: '12px', color: '#BDBDBD' }}>{a.model}</span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{a.tools}</span>
-            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em', color: '#7A7A7A' }}>{a.state}</span>
+    <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={head}>SCHEDULES · DAILY IS THE SUPPORTED CADENCE</div>
+      {schedules.state === 'loading' ? <Stage label="LOADING SCHEDULES" /> : null}
+      {schedules.state === 'failed' ? <Failed reason={schedules.reason} /> : null}
+      {schedules.state === 'ready' && rows.length === 0 ? (
+        <Empty headline="No schedules configured." detail="The daily dispatcher has no schedule for this workspace." />
+      ) : null}
+      {rows.map((schedule) => (
+        <div key={schedule.id} style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '13px', display: 'flex', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ color: '#FFFFFF', fontSize: '14.5px' }}>{schedule.name}</div>
+            <div style={{ ...note, marginTop: '6px' }}>DAILY · {schedule.localTime} {schedule.timezone} · NEXT {at(schedule.nextEligibleAt)}</div>
+            <div style={{ ...note, marginTop: '4px' }}>LAST {at(schedule.lastRunAt)} · RETRY {schedule.retry.state} ({schedule.retry.attempts})</div>
           </div>
-        ))}
-        <div style={{ border: '1px dashed rgba(255,255,255,0.16)', borderRadius: '8px', padding: '16px', textAlign: 'center', marginTop: '18px', fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#7A7A7A' }}>+ NEW AGENT</div>
-      </div>
-    </div>
+          {demo ? null : <button disabled={working !== null} onClick={() => void runNow(schedule)} style={{ ...note, alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '8px 11px', cursor: 'pointer' }}>RUN NOW</button>}
+        </div>
+      ))}
+      {message === null ? null : <div aria-live="polite" style={{ ...note, color: '#BDBDBD' }}>{message}</div>}
+    </section>
   );
 }
 
-interface Tool {
-  readonly name: string;
-  readonly kind: string;
-  readonly conn: string;
-  readonly dot: string;
-  readonly perm: string;
-  readonly acc: string;
-  readonly last: string;
-}
+export function Work() {
+  const scope = useScope();
+  const loadedRuns = useScoped<readonly AgentRunRecord[]>('runs');
+  const loadedAgents = useScoped<readonly AgentRecord[]>('agents');
+  const [changedRuns, setChangedRuns] = useState<readonly AgentRunRecord[]>([]);
+  const [filter, setFilter] = useState<Filter>('ALL');
 
-const TOOL_GRID = '1.3fr 1fr 0.9fr 0.9fr 0.6fr';
+  const agents = loadedAgents.state === 'ready' ? loadedAgents.value : [];
+  const names = useMemo(() => new Map(agents.map((agent) => [agent.id, agent.name])), [agents]);
+  const persistedRuns = loadedRuns.state === 'ready' ? loadedRuns.value : [];
+  const changedIds = new Set(changedRuns.map((run) => run.id));
+  const runs = [...changedRuns, ...persistedRuns.filter((run) => !changedIds.has(run.id))];
+  const visible = runs.filter((run) => includes(filter, run.status));
+  const filters: readonly Filter[] = ['ALL', 'ACTIVE', 'COMPLETED', 'FAILED', 'CANCELLED'];
 
-export function Tools() {
-  const tools = useScoped<readonly Tool[]>('tools');
-  const rows = tools.state === 'ready' ? tools.value : [];
+  function replace(updated: AgentRunRecord): void {
+    setChangedRuns((current) => [updated, ...current.filter((run) => run.id !== updated.id)]);
+  }
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      <p style={{ fontSize: '15.5px', lineHeight: 1.75, color: '#9A9A9A', margin: 0, maxWidth: '60ch' }}>Connections, permissions and access. Colour never carries the state alone.</p>
-      <div>
-        <div style={{ display: 'grid', gridTemplateColumns: TOOL_GRID, gap: '16px', padding: '8px 4px', borderBottom: '1px solid rgba(255,255,255,0.14)', ...head }}>
-          <span>TOOL</span><span>CONNECTION</span><span>PERMISSIONS</span><span>AGENT ACCESS</span><span>LAST RUN</span>
+    <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <Schedules demo={scope.demo} />
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={head}>AGENT RUNS · OBSERVED EVENTS ONLY</div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {filters.map((value) => {
+            const count = runs.filter((run) => includes(value, run.status)).length;
+            return <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} style={{ ...note, background: 'none', border: `1px solid ${filter === value ? 'rgba(128,82,255,0.65)' : 'rgba(255,255,255,0.12)'}`, color: filter === value ? '#FFFFFF' : '#7A7A7A', padding: '7px 10px', cursor: 'pointer' }}>{value} · {count}</button>;
+          })}
         </div>
-        {tools.state === 'loading' ? <Stage label="CHECKING CONTEXT" /> : null}
-        {tools.state === 'failed' ? <Failed reason={tools.reason} /> : null}
-        {tools.state === 'ready' && rows.length === 0 ? (
-          <Empty headline="No tools connected." detail="A tool is something an agent may call. Nothing is connected in this workspace." />
+        {loadedRuns.state === 'loading' ? <Stage label="LOADING RUNS" /> : null}
+        {loadedRuns.state === 'failed' ? <Failed reason={loadedRuns.reason} /> : null}
+        {loadedRuns.state === 'ready' && runs.length === 0 ? (
+          <Empty headline="Run your first agent." detail="Launch a Researcher task from Agents. Its persisted lifecycle, handoff and evidence will appear here." />
         ) : null}
-        {rows.map((t) => (
-          <div key={t.name} className="hv-surface3" style={{ display: 'grid', gridTemplateColumns: TOOL_GRID, gap: '16px', alignItems: 'baseline', padding: '15px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', transition: 'background 140ms ease' }}>
-            <div>
-              <div style={{ fontFamily: MONO, fontSize: '13px', color: '#FFFFFF' }}>{t.name}</div>
-              <div style={{ fontFamily: MONO, fontSize: '10px', color: '#7A7A7A', marginTop: '5px' }}>{t.kind}</div>
-            </div>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: t.dot }}></span>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#BDBDBD' }}>{t.conn}</span>
-            </span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{t.perm}</span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{t.acc}</span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#7A7A7A' }}>{t.last}</span>
-          </div>
-        ))}
-      </div>
+        {loadedRuns.state === 'ready' && runs.length > 0 && visible.length === 0 ? (
+          <Empty headline={`No ${filter.toLowerCase()} runs.`} detail="Choose another status to inspect the runs this workspace has recorded." />
+        ) : null}
+        {visible.map((run) => <RunDetail key={run.id} run={run} agentName={names.get(run.agentId) ?? run.agentId} demo={scope.demo} onChange={replace} />)}
+      </section>
     </div>
   );
 }

@@ -1,75 +1,94 @@
 /**
- * Two agents, and the rule that neither of them decides what is true.
+ * Persisted agent and run contracts.
  *
- * The point of running a model over this memory is not to have it write nicer
- * sentences. It is that a long-running task needs somebody to gather the
- * relevant state, and somebody else to check that what came back is actually
- * supported. Both of those are jobs a model can do and neither is a job it may
- * be trusted with unsupervised, which is why the Reviewer exists and why its
- * output is a verdict about evidence rather than a second opinion.
- *
- * What the model never gets to do:
- *
- *   - decide that a claim is current. The resolver did that before the model
- *     saw anything, and the Context Pack carries the standing it decided.
- *   - reach a tool it was not granted. The capability manifest is resolved
- *     before the run and the model cannot widen it by asking.
- *   - write to memory. A run produces a record of itself and nothing else;
- *     turning agent output into a claim is a separate decision a person makes.
- *
- * What is deliberately absent: chain of thought. It is not stored, not
- * returned and not rendered. A run is judged on its output and its evidence.
+ * These records contain operational state, evidence and model output. They do
+ * not contain prompts, provider credentials or chain of thought. Temporal
+ * standing still comes from the existing resolver before either agent runs.
  */
 
 export type AgentRole = 'RESEARCHER' | 'REVIEWER';
 
-export interface Agent {
+export type WritebackPolicy = 'NO_WRITE' | 'EPISODIC_RUN_OUTCOME' | 'PROCEDURE_CANDIDATE';
+
+export interface AgentTemplate {
   readonly id: AgentRole;
   readonly name: string;
-  /** What this agent is for, in one sentence, shown in the product. */
   readonly purpose: string;
-  /** Tools it may call. Resolved into the manifest before a run starts. */
   readonly tools: readonly string[];
-  /** What a run of this agent is allowed to write. */
   readonly writeback: WritebackPolicy;
 }
 
-/**
- * Agent output is never truth by assertion.
- *
- * `NO_WRITE` is the only policy in use. The others are named because the
- * distinction is the design, and adding one later should be a change to a
- * policy rather than a change to whether a policy exists.
- */
-export type WritebackPolicy = 'NO_WRITE' | 'EPISODIC_RUN_OUTCOME' | 'PROCEDURE_CANDIDATE';
+export interface AgentPermissions {
+  readonly read: readonly string[];
+  readonly write: readonly string[];
+}
 
-/**
- * Everything a run may spend, decided before it starts.
- *
- * A model that can ask for more calls is a model that can spend somebody's
- * money in a loop, so the numbers are resolved from the agent and the
- * workspace and are never read back out of the model's output.
- */
-export interface CapabilityManifest {
+export interface AgentBudgets {
+  readonly maxModelCalls: number;
+  readonly maxToolCalls: number;
+  readonly maxContextClaims: number;
+  readonly maxOutputTokens: number;
+  readonly maxWallMs: number;
+}
+
+/** A stored configuration. Provider means an identifier, never a credential. */
+export interface PersistedAgent {
+  readonly id: string;
+  readonly name: string;
+  readonly role: AgentRole;
+  readonly workspace: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly purpose: string;
+  readonly contextPolicy: string;
+  readonly tools: readonly string[];
+  readonly permissions: AgentPermissions;
+  readonly budgets: AgentBudgets;
+  readonly writeback: WritebackPolicy;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CapabilityManifest extends AgentBudgets {
   readonly workspace: string;
   readonly collection: string;
   readonly model: string;
   readonly allowedTools: readonly string[];
-  readonly maxModelCalls: number;
-  readonly maxContextClaims: number;
-  readonly maxWallMs: number;
   readonly canWrite: false;
 }
 
 export type RunStatus =
-  | 'RETRIEVING'
-  | 'COMPILING'
+  | 'CREATED'
+  | 'QUEUED'
   | 'RUNNING'
-  | 'REVIEWING'
+  | 'WAITING_TOOL'
+  | 'HANDOFF'
   | 'COMPLETED'
-  | 'FAILED';
+  | 'FAILED'
+  | 'CANCELLED';
 
-/** One thing that happened, in order. No percentages, no invented progress. */
+export const TERMINAL_RUN_STATUSES: ReadonlySet<RunStatus> = new Set([
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+]);
+
+export const RUN_TRANSITIONS: Readonly<Record<RunStatus, readonly RunStatus[]>> = Object.freeze({
+  CREATED: ['QUEUED', 'CANCELLED'],
+  QUEUED: ['RUNNING', 'FAILED', 'CANCELLED'],
+  RUNNING: ['WAITING_TOOL', 'HANDOFF', 'COMPLETED', 'FAILED', 'CANCELLED'],
+  WAITING_TOOL: ['RUNNING', 'FAILED', 'CANCELLED'],
+  HANDOFF: ['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'],
+  COMPLETED: [],
+  FAILED: [],
+  CANCELLED: [],
+});
+
+export function canTransition(from: RunStatus, to: RunStatus): boolean {
+  return RUN_TRANSITIONS[from].includes(to);
+}
+
+/** One observed state change. There are no percentages or inferred progress. */
 export interface RunEvent {
   readonly at: string;
   readonly stage: RunStatus;
@@ -77,30 +96,17 @@ export interface RunEvent {
   readonly ms?: number;
 }
 
-/**
- * One claim the Context Pack carries, already resolved.
- *
- * `standing` is the resolver's, not the model's. A model reading this cannot
- * promote a superseded value by describing it confidently, because the word
- * next to the value already says what it is.
- */
 export interface PackedClaim {
   readonly subject: string;
   readonly predicate: string;
   readonly value: string;
+  /** The canonical resolver's standing, copied without reinterpretation. */
   readonly standing: string;
   readonly quote: string | null;
   readonly source: string | null;
   readonly observedAt: string | null;
 }
 
-/**
- * What the model is given. Bounded, resolved, and quotable.
- *
- * This is the same shape for every surface: the researcher gets it, the
- * reviewer gets the subset the handoff carried, and both are reading claims the
- * resolver already decided rather than raw transcript.
- */
 export interface ContextPack {
   readonly id: string;
   readonly workspace: string;
@@ -110,13 +116,7 @@ export interface ContextPack {
   readonly estimatedTokens: number;
 }
 
-/**
- * What crosses between the two agents.
- *
- * Not the conversation. A handoff is the goal, what was found with the evidence
- * behind it, and what is still open, because a reviewer that receives the
- * researcher's reasoning is a reviewer that inherits its mistakes.
- */
+/** Compact facts cross the handoff. Prompts, transcripts and reasoning do not. */
 export interface ContextHandoff {
   readonly from: AgentRole;
   readonly to: AgentRole;
@@ -128,7 +128,6 @@ export interface ContextHandoff {
   readonly packId: string;
 }
 
-/** The verdict, which is about evidence rather than about quality. */
 export interface ReviewVerdict {
   readonly approved: boolean;
   readonly supported: readonly string[];
@@ -136,38 +135,111 @@ export interface ReviewVerdict {
   readonly note: string;
 }
 
+export interface EvidenceReference {
+  readonly id: string;
+  readonly subject: string;
+  readonly predicate: string;
+  readonly standing: string;
+  readonly quote: string;
+  readonly source: string | null;
+  readonly observedAt: string | null;
+}
+
+export type ToolEventStatus = 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+export interface ToolEvent {
+  readonly id: string;
+  readonly tool: string;
+  readonly status: ToolEventStatus;
+  readonly startedAt: string;
+  readonly finishedAt: string | null;
+  readonly inputSummary: string;
+  readonly outputSummary: string | null;
+  readonly calls: number;
+  readonly ms: number | null;
+  readonly error: string | null;
+}
+
+/** Operational trace only. This is safe to persist and render. */
+export interface RunTrace {
+  readonly at: string;
+  readonly kind: 'LIFECYCLE' | 'TOOL' | 'POLICY';
+  readonly detail: string;
+}
+
+export interface RunTimings {
+  readonly contextMs: number | null;
+  readonly researcherMs: number | null;
+  readonly reviewerMs: number | null;
+  readonly totalMs: number;
+}
+
+export interface WritebackDecision {
+  readonly policy: WritebackPolicy;
+  readonly decision: 'SKIPPED_POLICY' | 'CANDIDATE_RECORDED';
+  readonly authoritativeMutation: false;
+  readonly reason: string;
+}
+
 export interface AgentRun {
   readonly id: string;
+  readonly agentId: string;
+  readonly reviewerAgentId: string;
+  readonly attempt: number;
+  readonly retryOf: string | null;
+  readonly kind: 'TASK' | 'CONTEXT_HEALTH';
   readonly task: string;
   readonly workspace: string;
   readonly status: RunStatus;
   readonly manifest: CapabilityManifest;
   readonly pack: ContextPack | null;
   readonly events: readonly RunEvent[];
+  /** Approved answer only. A rejected or unreviewed draft is not a result. */
+  readonly result: string | null;
   readonly draft: string | null;
   readonly handoff: ContextHandoff | null;
   readonly verdict: ReviewVerdict | null;
+  readonly supportedClaims: readonly string[];
+  readonly evidenceRefs: readonly EvidenceReference[];
+  readonly conflicts: readonly string[];
+  readonly openQuestions: readonly string[];
+  readonly toolEvents: readonly ToolEvent[];
+  readonly provider: { readonly name: string; readonly model: string };
+  readonly timings: RunTimings;
   readonly writeback: WritebackPolicy;
+  readonly writebackDecision: WritebackDecision;
+  readonly trace: readonly RunTrace[];
   readonly error: string | null;
-  readonly startedAt: string;
+  readonly createdAt: string;
+  readonly queuedAt: string | null;
+  readonly startedAt: string | null;
   readonly finishedAt: string | null;
+  readonly cancelledAt: string | null;
   readonly ms: number;
 }
 
-export const AGENTS: Readonly<Record<AgentRole, Agent>> = Object.freeze({
+export const DEFAULT_AGENT_BUDGETS: AgentBudgets = Object.freeze({
+  maxModelCalls: 2,
+  maxToolCalls: 40,
+  maxContextClaims: 40,
+  maxOutputTokens: 1_200,
+  maxWallMs: 60_000,
+});
+
+export const AGENTS: Readonly<Record<AgentRole, AgentTemplate>> = Object.freeze({
   RESEARCHER: {
     id: 'RESEARCHER',
     name: 'Researcher',
     purpose:
-      'Reads the governed workspace context and reports what it supports, naming conflicts and missing evidence rather than filling them in.',
-    tools: ['lacuna_query', 'lacuna_graph_impact'],
+      'Gathers resolved context, evidence, changes, conflicts and missing facts without deciding that unsupported claims are true.',
+    tools: ['lacuna_context_pack'],
     writeback: 'NO_WRITE',
   },
   REVIEWER: {
     id: 'REVIEWER',
     name: 'Reviewer',
     purpose:
-      'Checks every material claim in a draft against the evidence it was handed, and rejects the ones nothing supports.',
+      'Checks a compact Researcher handoff for unsupported claims, temporal mistakes, contradictions and unsafe assumptions.',
     tools: [],
     writeback: 'NO_WRITE',
   },

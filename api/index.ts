@@ -33,6 +33,8 @@ import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
 import { ingestSource } from '../src/api/ingest.js';
+import { runAgents } from '../src/agent/run.js';
+import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
@@ -41,6 +43,28 @@ const snapshot = createSnapshotHandler(process.cwd());
  * The recorded run comparing a browser, a CLI process and an MCP subprocess.
  * Absent on a build that does not ship it, and the screen says so.
  */
+/**
+ * The provider an agent run uses, and the model it calls.
+ *
+ * Chosen here rather than by the model, and pinned rather than discovered, so
+ * two runs of the same task are comparable. Absent when nothing is configured,
+ * which makes the route answer 501 instead of pretending to have run.
+ */
+const groq = configured(process.env).find((provider) => provider.name === 'groq' && provider.apiKey !== undefined);
+// Pinned to a model this account actually serves, confirmed against the
+// provider's own model list rather than assumed. A name that is not there
+// answers 404 and the run fails at the model call, which is how the first
+// attempt failed.
+const AGENT_MODEL = 'groq/compound-mini';
+
+/** The predicates a run resolves for each subject the task names. */
+const AGENT_PREDICATES = ['depends_on', 'owner', 'storage', 'region', 'ttl', 'pool_size', 'policy'] as const;
+
+/** Names the public corpus holds, used to find what a task is about. */
+const SUBJECT_NAMES: readonly string[] = [
+  ...new Set(buildDemo().inventory.claims.map((claim) => claim.subject)),
+];
+
 const continuityRun = ((): Readonly<Record<string, unknown>> | null => {
   try {
     return JSON.parse(
@@ -143,6 +167,20 @@ const api = new ApiRouter({
     // never written to, so ingesting a transcript cannot publish it.
     ingest: (collection: string, title: string, text: string) =>
       ingestSource(cloud, collection, title, text),
+    // One agent run over that workspace, when a real model provider answers.
+    // Absent otherwise, so the route says 501 rather than inventing a run.
+    ...(groq === undefined ? {} : {
+      agent: (collection: string, task: string) => runAgents({
+        source: new CloudSource(cloud.withCollection(collection)),
+        provider: groq,
+        model: AGENT_MODEL,
+        workspace: collection,
+        collection,
+        task,
+        knownSubjects: SUBJECT_NAMES,
+        predicates: [...AGENT_PREDICATES],
+      }),
+    }),
   }),
   // The store's own relation graph, read from the service. Kept small: this is
   // a proof that HydraDB extracted relations from the transcripts, not a

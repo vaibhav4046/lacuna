@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 
 import type { HydraCloud, IngestResult } from '../hydra/cloud.js';
-import { buildCloudGraph, toAppRecords } from '../hydra/cloud-graph.js';
+import { INDEX_ID } from '../hydra/cloud-graph.js';
+import type { BuiltGraph } from '../hydra/cloud-graph.js';
+import { buildCloudGraph, toAppRecords, unwrapEnvelope } from '../hydra/cloud-graph.js';
 import { extract } from '../extract/extract.js';
 import { toCorpus } from '../extract/adapt.js';
 import { buildPlan } from '../ingest/plan.js';
@@ -60,6 +62,35 @@ export interface IngestReport {
  * keeps them identifiable as this product's, beside whatever else shares the
  * database.
  */
+/**
+ * The stored index for this collection, with the new graph's entries added.
+ *
+ * A missing or unreadable index is treated as empty rather than as an error:
+ * the first ingest into a workspace has none, and that is the normal case
+ * rather than a failure.
+ */
+async function mergeIndex(scoped: HydraCloud, graph: BuiltGraph): Promise<BuiltGraph> {
+  let existing: { claims: Record<string, string>; entities: Record<string, string> } | null = null;
+  try {
+    const source = await scoped.inspect(INDEX_ID, 15_000);
+    const text = source === null ? null : unwrapEnvelope(source.envelope);
+    if (typeof text === 'string' && text.trim() !== '') {
+      existing = JSON.parse(text) as { claims: Record<string, string>; entities: Record<string, string> };
+    }
+  } catch {
+    existing = null;
+  }
+  if (existing === null) return graph;
+
+  return {
+    ...graph,
+    index: {
+      claims: { ...existing.claims, ...graph.index.claims },
+      entities: { ...existing.entities, ...graph.index.entities },
+    },
+  };
+}
+
 export function workspaceCollection(email: string): string {
   const digest = createHash('sha256').update(email.trim().toLowerCase(), 'utf8').digest('hex');
   return `lacuna-ws-${digest.slice(0, 32)}`;
@@ -111,9 +142,20 @@ export async function ingestSource(
   });
 
   const graph = buildCloudGraph(buildPlan(corpus));
-  const records = toAppRecords(graph);
-
   const scoped = cloud.withCollection(collection);
+
+  /**
+   * The index is one record under a fixed id, so a second ingest replaced the
+   * first one's index and every subject in it became unreachable. A memory
+   * where adding a source erases the previous source is not a memory.
+   *
+   * The entity and claim records themselves were never lost; only the map that
+   * finds them was. So the existing index is read and merged rather than
+   * overwritten, and a re-ingest of the same source still lands on the same
+   * ids and stays idempotent.
+   */
+  const merged = await mergeIndex(scoped, graph);
+  const records = toAppRecords(merged);
   const accepted: string[] = [];
   const refused: { id: string; error: string }[] = [];
 

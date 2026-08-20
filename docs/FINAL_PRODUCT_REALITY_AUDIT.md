@@ -104,7 +104,16 @@ attempting them badly.
 Each of these stays out of the navigation. The rule the product holds to is
 that a visible feature works, and an invisible one is honest.
 
-## The single highest-leverage remaining fix
+## The single highest-leverage remaining gap
 
-Compress the landing. It costs no engineering risk, touches nothing on the
-answer path, and it is the first thing every judge sees.
+Agents. Everything else visible is real; a memory layer for long-running agents
+that cannot itself run one is narrower than the category it competes in. The
+pieces exist already, which is what makes it worth attempting rather than
+deferring: a real model provider is connected and answering, the Context Pack
+is what `resolve` already returns, and the graph-impact walk is a tool an agent
+could call.
+
+The bar it has to clear is the same as everything else here. A run must call a
+real model, use the governed context, validate what it produced against the
+evidence, and persist. If it cannot clear that, it stays out of the
+navigation.

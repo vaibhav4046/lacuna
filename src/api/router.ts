@@ -113,6 +113,11 @@ export interface ApiOptions {
     title: string,
     text: string,
   ) => Promise<Awaited<ReturnType<typeof ingestSource>>>;
+  /**
+   * Runs the two agents over one workspace. Absent where no model provider is
+   * configured, and the route then answers 501 rather than pretending.
+   */
+  readonly agent?: (collection: string, task: string) => Promise<unknown>;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   /**
@@ -301,6 +306,7 @@ export class ApiRouter {
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: ((collection?: string) => HydraSource) | undefined;
   readonly #ingest: ApiOptions['ingest'];
+  readonly #agent: ApiOptions['agent'];
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #continuity: Readonly<Record<string, unknown>> | undefined;
@@ -319,6 +325,7 @@ export class ApiRouter {
     this.#health = options.health;
     this.#source = options.source;
     this.#ingest = options.ingest;
+    this.#agent = options.agent;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#continuity = options.continuity;
@@ -733,6 +740,48 @@ export class ApiRouter {
      * pasted transcript that contains instructions, since an instruction is not
      * a statement and files where no answer reads it.
      */
+    /**
+     * One agent run: Researcher drafts from the governed pack, Reviewer checks
+     * it against the same evidence and refuses what nothing supports.
+     *
+     * Signed in only, because a run costs a real model call. Nothing it does
+     * writes to memory: it produces a record of itself and stops.
+     */
+    if (path === '/api/workspace/agent/run' && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const runAgent = this.#agent;
+      if (runAgent === undefined) {
+        send(response, 501, { error: 'no model provider is configured on this deployment' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const task = body?.['task'];
+      if (typeof task !== 'string' || task.trim() === '' || task.length > 600) {
+        send(response, 422, { error: 'task_required' });
+        return HANDLED;
+      }
+      try {
+        send(response, 200, await runAgent(workspaceCollection(account.email), task));
+      } catch {
+        send(response, 502, { error: 'the run did not complete' });
+      }
+      return HANDLED;
+    }
+
     if (path === '/api/workspace/ingest' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));

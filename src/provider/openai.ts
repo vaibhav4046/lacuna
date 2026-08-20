@@ -116,3 +116,87 @@ function readModels(body: unknown): readonly ProviderModel[] {
   }
   return out;
 }
+
+/**
+ * One chat completion, from whichever OpenAI-compatible endpoint is configured.
+ *
+ * Deliberately thin. It sends messages and returns text, and it does not
+ * stream, retry, or interpret. Everything that decides whether the text may
+ * become an answer happens above this, because a model's output is a proposal
+ * in this product and never a fact.
+ *
+ * The temperature is fixed low rather than exposed. An agent run here is asked
+ * to read supplied evidence and report what it supports, which is a task that
+ * gets worse with sampling, and a knob nobody tunes is a knob that only adds
+ * ways for two runs to disagree.
+ */
+export interface CompletionMessage {
+  readonly role: 'system' | 'user' | 'assistant';
+  readonly content: string;
+}
+
+export interface CompletionResult {
+  readonly text: string;
+  readonly model: string;
+  readonly ms: number;
+}
+
+export class CompletionFailed extends Error {
+  override readonly name = 'CompletionFailed';
+}
+
+export async function complete(
+  config: ProviderConfig,
+  model: string,
+  messages: readonly CompletionMessage[],
+  options: { readonly timeoutMs?: number; readonly maxTokens?: number; readonly fetch?: FetchLike } = {},
+): Promise<CompletionResult> {
+  if (config.apiKey === undefined || config.apiKey === '') {
+    throw new CompletionFailed(`${config.name} has no API key configured`);
+  }
+
+  const send = options.fetch ?? ((input, init) => fetch(input, init));
+  const started = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 30_000);
+
+  try {
+    const response = await send(`${config.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.1,
+        max_tokens: options.maxTokens ?? 1_200,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      // The status, never the body. A provider error body can echo the request,
+      // and the request carried a key.
+      throw new CompletionFailed(`${config.name} answered ${response.status}`);
+    }
+
+    const body = await response.json() as {
+      choices?: { message?: { content?: string } }[];
+      model?: string;
+    };
+    const text = body.choices?.[0]?.message?.content;
+    if (typeof text !== 'string' || text.trim() === '') {
+      throw new CompletionFailed(`${config.name} returned no content`);
+    }
+    return { text, model: body.model ?? model, ms: Date.now() - started };
+  } catch (error) {
+    if (error instanceof CompletionFailed) throw error;
+    throw new CompletionFailed(
+      controller.signal.aborted ? `${config.name} timed out` : `${config.name} did not answer`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}

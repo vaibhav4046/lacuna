@@ -8,7 +8,7 @@ import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server.js';
 import { describeNode } from '../../src/mcp/result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, READ_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, FETCH_TOOL, HEALTH_TOOL, READ_TOOL, SEARCH_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools.js';
 
 /**
  * The tool list, and dispatch, without a node.
@@ -89,21 +89,30 @@ function structuredOf(result: CallToolResult): Record<string, unknown> {
 }
 
 describe('the advertised tools', () => {
-  it('are the five this release ships, each named for its prefix', () => {
+  it('are the seven this release ships', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual([
       ASK_TOOL,
       EXPLAIN_TOOL,
       TIMELINE_TOOL,
       READ_TOOL,
+      SEARCH_TOOL,
+      FETCH_TOOL,
       HEALTH_TOOL,
     ]);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
   });
 
-  it('use names a client can group and route on', () => {
+  it('use names a client can group and route on, except the two whose name is the contract', () => {
+    // `search` and `fetch` are unprefixed on purpose: some hosted clients look
+    // for exactly those names, and a prefix would mean the connector works for
+    // nobody who is looking. Everything else stays namespaced so a client with
+    // several servers connected can tell whose tool it is holding.
+    const contractual = new Set<string>([SEARCH_TOOL, FETCH_TOOL]);
     for (const tool of TOOLS) {
+      if (contractual.has(tool.name)) continue;
       expect(tool.name).toMatch(/^lacuna_[a-z_]+$/);
     }
+    expect(TOOLS.filter((tool) => contractual.has(tool.name))).toHaveLength(2);
   });
 
   it('name nothing that could be mistaken for a write', () => {
@@ -314,7 +323,7 @@ describe('createMcpServer, over a linked in-memory transport', () => {
     return client;
   }
 
-  it('lists the five tools with their schemas', async () => {
+  it('lists the seven tools with their schemas', async () => {
     const client = await connected(silentNode());
 
     const listed = await client.listTools();
@@ -324,6 +333,8 @@ describe('createMcpServer, over a linked in-memory transport', () => {
       EXPLAIN_TOOL,
       TIMELINE_TOOL,
       READ_TOOL,
+      SEARCH_TOOL,
+      FETCH_TOOL,
       HEALTH_TOOL,
     ]);
     await client.close();
@@ -402,5 +413,55 @@ describe('asking in a sentence', () => {
     // one failure a parser in front of a resolver introduces.
     expect(schema.required).toContain('read');
     expect(schema.required).toContain('answer');
+  });
+});
+
+/**
+ * The two tools named for a contract rather than for this product.
+ *
+ * A hosted client that looks for `search` and `fetch` will call them with no
+ * knowledge of what a claim is, and will quote whatever comes back to somebody
+ * who has never seen this server. So the thing that matters is not that they
+ * return data: it is that a replaced value cannot leave here looking current.
+ */
+describe('search and fetch', () => {
+  it('return nothing rather than the nearest thing', async () => {
+    const result = await callTool(SEARCH_TOOL, { query: 'something this corpus never heard of' }, silentNode());
+    expect(structuredOf(result)['results']).toEqual([]);
+  });
+
+  it('refuse an empty query and an empty id', async () => {
+    await expect(callTool(SEARCH_TOOL, { query: '  ' }, silentNode())).rejects.toThrow();
+    await expect(callTool(FETCH_TOOL, { id: '' }, silentNode())).rejects.toThrow();
+  });
+
+  it('say plainly when the memory holds nothing under an id', async () => {
+    const structured = structuredOf(await callTool(FETCH_TOOL, { id: 'Nobody' }, silentNode()));
+    expect(String(structured['text'])).toContain('holds nothing');
+    // Still the documented shape, so a client does not have to special case it.
+    expect(structured['id']).toBe('Nobody');
+    expect(typeof structured['url']).toBe('string');
+  });
+
+  it('never let a disagreement leave marked as current', () => {
+    // Not a live call: the node in these tests knows nothing. What is asserted
+    // is the instruction that travels with every record, because the client
+    // reading it has no idea what a contradiction is and will quote whatever
+    // the text says.
+    const fetched = TOOLS.find((one) => one.name === FETCH_TOOL);
+    expect(fetched?.description).toContain('disputed');
+  });
+
+  it('advertise the shape a client builds a citation from', () => {
+    const search = TOOLS.find((one) => one.name === SEARCH_TOOL);
+    const results = (search?.outputSchema as { properties?: { results?: { items?: { required?: string[] } } } })
+      .properties?.results?.items?.required;
+    expect(results).toEqual(['id', 'title', 'url']);
+
+    const fetched = TOOLS.find((one) => one.name === FETCH_TOOL);
+    const required = (fetched?.outputSchema as { required?: string[] }).required;
+    // `text` is the whole point: it is what gets quoted.
+    expect(required).toContain('text');
+    expect(required).toContain('url');
   });
 });

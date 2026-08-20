@@ -19,8 +19,9 @@ import {
   renderJson,
   timelineResult,
 } from './result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, READ_TOOL, TOOLS } from './tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, FETCH_TOOL, HEALTH_TOOL, READ_TOOL, SEARCH_TOOL, TOOLS } from './tools.js';
 import { UNDERSTOOD_PREDICATES, predicateIn, subjectsIn } from '../retrieval/plan.js';
+import { askCore } from '../contract/result.js';
 
 /**
  * The MCP server, and the dispatch under it.
@@ -321,6 +322,14 @@ export async function callTool(
     return await readQuestionTool(args, context, timeoutMs);
   }
 
+  if (name === SEARCH_TOOL) {
+    return await searchTool(args, context, timeoutMs);
+  }
+
+  if (name === FETCH_TOOL) {
+    return await fetchTool(args, context, timeoutMs);
+  }
+
   const question = readQuestion(args);
 
   try {
@@ -408,6 +417,169 @@ async function readQuestionTool(
       holds: [],
       records,
       answer: askResult(answer, context.node, context.store),
+    });
+  } catch (error) {
+    const mcpError = toMcpError(error);
+    if (mcpError.code === ErrorCode.InvalidParams) throw mcpError;
+    return failedResult(mcpError);
+  }
+}
+
+/** Where a reader can go and see the same record in the product. */
+const WEB = 'https://lacuna-five.vercel.app';
+
+/**
+ * Subjects matching a query, for a client that wants something to cite.
+ *
+ * Two passes, in this order on purpose. First the same reader every other
+ * surface uses, which finds whole names inside a sentence, so a query written as
+ * a question works. Then a plain substring pass, because `search` is expected to
+ * behave like search: somebody typing half a name should get the name.
+ *
+ * A query naming nothing this memory holds returns an empty list. Not the
+ * nearest thing, which is how a client ends up citing a record about something
+ * else entirely.
+ */
+async function searchTool(
+  args: unknown,
+  context: ToolContext,
+  timeoutMs: number,
+): Promise<CallToolResult> {
+  const query = (args as { query?: unknown })?.query;
+  if (typeof query !== 'string' || query.trim() === '') {
+    throw new McpError(ErrorCode.InvalidParams, 'query must be a non-empty string');
+  }
+
+  try {
+    const known = context.source.subjects === undefined
+      ? []
+      : (await withDeadline(context.source.subjects(timeoutMs), timeoutMs, SEARCH_TOOL)).value;
+
+    const named = subjectsIn(query, known);
+    const folded = query.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const loose = folded === '' ? [] : known.filter((name) => {
+      const other = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      return other.includes(folded) || folded.includes(other);
+    });
+
+    const ids = [...new Set([...named, ...loose])].slice(0, 20);
+    return toolResult({
+      results: ids.map((id) => ({
+        id,
+        title: id,
+        url: `${WEB}/explore/ask?q=${encodeURIComponent(`what does ${id} depend on?`)}`,
+      })),
+    });
+  } catch (error) {
+    const mcpError = toMcpError(error);
+    if (mcpError.code === ErrorCode.InvalidParams) throw mcpError;
+    return failedResult(mcpError);
+  }
+}
+
+/**
+ * Everything this memory holds about one subject, as a document.
+ *
+ * The standings are in the text rather than only in a field, because whatever
+ * reads this will quote the text. A record that hands over "owner: Rasmus Berg"
+ * with the disagreement recorded somewhere the reader did not look is the exact
+ * failure this project is about, and it is worse here than anywhere else: a
+ * client citing it puts the claim in front of somebody who never saw this
+ * server at all.
+ */
+async function fetchTool(
+  args: unknown,
+  context: ToolContext,
+  timeoutMs: number,
+): Promise<CallToolResult> {
+  const id = (args as { id?: unknown })?.id;
+  if (typeof id !== 'string' || id.trim() === '') {
+    throw new McpError(ErrorCode.InvalidParams, 'id must be a non-empty string');
+  }
+
+  try {
+    const held = await withDeadline(context.source.subject(id.trim(), timeoutMs), timeoutMs, FETCH_TOOL);
+    const subject = held.value;
+
+    /**
+     * A missing subject and a subject with nothing stated read the same way.
+     *
+     * They are different internally and identical to whoever is reading: in
+     * both cases this memory has nothing to say. Rendering the second as a
+     * document with a heading and no body invited a client to quote the heading
+     * as though it were a finding.
+     */
+    if (subject === null || subject.claims.length === 0) {
+      return toolResult({
+        id: id.trim(),
+        title: id.trim(),
+        text: `This memory holds nothing under "${id.trim()}". That is an absence, not an unknown: nothing here has ever stated anything about it.`,
+        url: `${WEB}/explore/memory`,
+        metadata: { held: false },
+      });
+    }
+
+    /**
+     * Every property, resolved by the resolver rather than read off the claims.
+     *
+     * The first version of this walked the claims itself and marked anything
+     * unsuperseded as current, which left a contradicted pair reading as two
+     * current facts. A client would then pick one and state it, to somebody who
+     * never saw this server. The architecture guard caught it and was right to:
+     * deciding what is current is exactly the thing that must not have a second
+     * implementation, because two surfaces answering differently does not look
+     * like a bug in either of them.
+     *
+     * So each property goes back through `ask`, and what comes out is the same
+     * verdict the web product and the CLI would give. It costs one resolve per
+     * property, which the source memoises, and it is the only version of this
+     * that cannot drift.
+     */
+    const predicates = [...new Set(subject.claims.map((claim) => claim.predicate))];
+    const lines: string[] = [];
+    for (const predicate of predicates) {
+      const answer = await withDeadline(
+        ask(context.source, buildQuestion(subject.name, predicate, null), { timeoutMs }),
+        timeoutMs,
+        FETCH_TOOL,
+      );
+      const core = askCore(answer);
+      const label = predicate.replace(/_/g, ' ');
+
+      if (core.status === 'answered' && core.answer !== null) {
+        lines.push(`- ${label}: ${core.answer} [current]`);
+        continue;
+      }
+      if (core.reasonCode === 'contradicted') {
+        const values = core.evidence.map((item) => item.quote).filter((quote) => quote !== null);
+        lines.push(`- ${label}: DISPUTED, sources disagree and nothing resolves it. Report the disagreement, do not pick a side.`);
+        for (const quote of values.slice(0, 4)) lines.push(`    "${quote}"`);
+        continue;
+      }
+      if (core.reasonCode === 'retracted') {
+        lines.push(`- ${label}: WITHDRAWN, it was stated and then taken back, so there is no current value.`);
+        continue;
+      }
+      lines.push(`- ${label}: nothing current (${core.reasonCode ?? 'no answer'}).`);
+    }
+
+    const text = [
+      typeof subject.kind === 'string' && subject.kind !== '' ? `${subject.name} (${subject.kind})` : subject.name,
+      '',
+      'What this memory holds:',
+      ...lines,
+      '',
+      'DISPUTED and WITHDRAWN are not answers. Quoting one as the current value is the',
+      'mistake this memory exists to prevent. Anything not listed was never stated,',
+      'which is different from unknown.',
+    ].join('\n');
+
+    return toolResult({
+      id: subject.name,
+      title: subject.name,
+      text,
+      url: `${WEB}/explore/memory`,
+      metadata: { held: true, kind: subject.kind ?? null, claims: subject.claims.length, properties: predicates.length },
     });
   } catch (error) {
     const mcpError = toMcpError(error);

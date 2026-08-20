@@ -245,6 +245,26 @@ export const TIMELINE_TOOL = `${PREFIX}timeline` as const;
 export const HEALTH_TOOL = `${PREFIX}health` as const;
 export const READ_TOOL = `${PREFIX}read_question` as const;
 
+/**
+ * Two tools that are not named for this product, on purpose.
+ *
+ * Some hosted clients look for a connector to expose exactly `search` and
+ * `fetch`: search returns a list of things with an id, a title and a link, and
+ * fetch returns the full text of one of them. It is a narrow contract and it is
+ * a reasonable one, because it is the shape a client can build a citation out of
+ * without knowing anything about the server.
+ *
+ * Lacuna fits it without pretending. A subject is the thing with an id, its
+ * resolved claims are the document, and the standings come along in the text
+ * because a memory that hands over a fact without saying whether it still holds
+ * is the thing this project exists to argue against.
+ *
+ * They are unprefixed because the contract is on the name. Everything else here
+ * keeps `lacuna_`.
+ */
+export const SEARCH_TOOL = 'search' as const;
+export const FETCH_TOOL = 'fetch' as const;
+
 export const TOOLS: readonly Tool[] = [
   {
     name: ASK_TOOL,
@@ -339,6 +359,72 @@ export const TOOLS: readonly Tool[] = [
         answer: { ...ASK_OUTPUT, type: ['object', 'null'] },
       },
       required: ['read', 'unread', 'holds', 'records', 'answer'],
+    },
+    annotations: READ_ONLY,
+  },
+  {
+    name: SEARCH_TOOL,
+    title: 'Search Lacuna',
+    description:
+      'Find subjects this memory holds that match a query, so their records can be fetched. '
+      + 'Returns an id, a title and a link for each. The id is what `fetch` takes. '
+      + 'Matching is over the names the corpus actually holds, so a query naming nothing it '
+      + 'knows returns an empty list rather than the nearest thing. '
+      + `${CORPUS_NOTE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'What to look for. A name, or a question mentioning one.' },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        results: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              url: { type: 'string' },
+            },
+            required: ['id', 'title', 'url'],
+          },
+        },
+      },
+      required: ['results'],
+    },
+    annotations: READ_ONLY,
+  },
+  {
+    name: FETCH_TOOL,
+    title: 'Fetch a Lacuna record',
+    description:
+      'The full record for one subject: every claim the memory holds about it, each marked '
+      + 'with whether it is current, was replaced, is disputed, or was only ever proposed. '
+      + 'Takes an id from `search`. '
+      + `${CORPUS_NOTE} ${EVIDENCE_NOTE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'A subject id, as returned by `search`.' },
+      },
+      required: ['id'],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        title: { type: 'string' },
+        text: { type: 'string' },
+        url: { type: 'string' },
+        metadata: { type: 'object' },
+      },
+      required: ['id', 'title', 'text', 'url'],
     },
     annotations: READ_ONLY,
   },

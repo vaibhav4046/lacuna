@@ -94,7 +94,22 @@ interface Soak {
 }
 const soak = json<Soak>('artifacts/soak/soak.json');
 
-const VIDEO = 'video/hyperframes/renders/draft/lacuna-demo-DRAFT-2026-08-19.mp4';
+/**
+ * The master cut, and the file `master.mjs` measured while writing it.
+ *
+ * Both are read rather than described: the manifest previously carried a
+ * hand-written state string that outlived the thing it described by a day.
+ */
+const VIDEO = 'video/hyperframes/renders/lacuna-demo-master.mp4';
+const VIDEO_META = 'artifacts/video/final-metadata.json';
+
+function videoMeta(): { seconds: number; sha256: string; bytes: number } | null {
+  try {
+    return JSON.parse(readFileSync(VIDEO_META, 'utf8')) as { seconds: number; sha256: string; bytes: number };
+  } catch {
+    return null;
+  }
+}
 
 const manifest = {
   generatedAt: new Date().toISOString(),
@@ -187,14 +202,23 @@ const manifest = {
     passwordReset: 'not configured, and the page says so',
   },
 
-  video: {
-    path: existsSync(VIDEO) ? VIDEO : null,
-    bytes: existsSync(VIDEO) ? statSync(VIDEO).size : null,
-    sha256: sha256Of(VIDEO),
-    durationSeconds: null,
-    url: null,
-    state: 'draft, to be recaptured from the frozen release',
-  },
+  video: (() => {
+    const meta = videoMeta();
+    const present = existsSync(VIDEO);
+    return {
+      path: present ? VIDEO : null,
+      // The renders directory is gitignored, so a clone has the metadata but
+      // not the file. Falling back to the recorded figures keeps the manifest
+      // honest about what was cut without claiming the file is here.
+      bytes: present ? statSync(VIDEO).size : meta?.bytes ?? null,
+      sha256: present ? sha256Of(VIDEO) : meta?.sha256 ?? null,
+      durationSeconds: meta?.seconds ?? null,
+      url: null,
+      state: present
+        ? 'cut from stills captured against the deployment, not uploaded'
+        : 'not in this checkout; renders/ is gitignored',
+    };
+  })(),
 
   submission: {
     state: 'not submitted',

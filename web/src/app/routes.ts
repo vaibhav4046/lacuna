@@ -23,11 +23,10 @@ export const DEFAULT_ROUTE: RouteKey = 'dash';
 /**
  * The sidebar, which lists what this product does rather than what it might.
  *
- * Work, Agents and Tools were here and their endpoints return an empty array,
- * because nothing schedules a run, registers an agent or exposes a tool yet.
- * Voice was here and is not configured. Four screens that open onto nothing
- * make a working product look half built, and a reader has no way to tell an
- * empty screen from a broken one.
+ * Work, Tools and Voice are not here: their endpoints return an empty array or
+ * the feature is not configured, and a screen that opens onto nothing makes a
+ * working product look half built. Agents came back when a run became real,
+ * which is the rule this list holds to in both directions.
  *
  * The routes still resolve, so an existing link or a bookmark still lands
  * somewhere rather than on a 404. They are simply not offered, which is what
@@ -36,6 +35,7 @@ export const DEFAULT_ROUTE: RouteKey = 'dash';
 export const NAV_GROUPS = [
   { h: 'OVERVIEW', items: [['DASHBOARD', 'dash'], ['ASK', 'ask']] },
   { h: 'CONTEXT', items: [['MEMORY', 'memory'], ['TIMELINE', 'timeline'], ['GRAPH', 'graph'], ['HEALTH', 'health']] },
+  { h: 'AGENTS', items: [['AGENTS', 'agents']] },
   { h: 'MODELS', items: [['MODELS', 'models']] },
   { h: 'DEVELOPERS', items: [['MCP', 'mcp'], ['SDK · API', 'sdk'], ['CLI', 'cli'], ['CONNECTORS', 'conn']] },
   { h: 'PROOF', items: [['EVALUATIONS', 'evals'], ['HYDRADB', 'hydra']] },

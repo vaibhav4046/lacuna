@@ -60,14 +60,21 @@ Verified after the cut: zero horizontal overflow at 360, 390, 430, 768, 1366,
 
 **Severity: was HIGH, now resolved.**
 
-### 2. Four feature areas are unbuilt
+### 2. Three feature areas are unbuilt. Agents was the fourth, and is now real.
 
-`agents`, `tools` and `runs` return `[]` from their endpoints. Voice is not
-configured. All four are out of the navigation, so nothing lies about them, but
-a memory product without agents is a narrower product than the category
-suggests.
+`tools` and `runs` return `[]` from their endpoints and Voice is not
+configured, so all three stay out of the navigation.
 
-**Severity: MEDIUM.** Honest, and still a gap.
+Agents is in, because a run is now real: a Researcher reads the resolved claims
+for whatever the task names, a Reviewer checks the draft against the same
+evidence in a fresh context, and the verdict is about support rather than
+quality. Verified in the browser against a workspace ingested through the
+product: 3 resolved claims, 2.6 seconds end to end, the pack showing
+`Sessions storage = Postgres SUPERSEDED` beside `= Redis CURRENT`, and the
+handoff carrying only the live facts.
+
+**Severity: was MEDIUM, now reduced.** Three surfaces remain out, which is the
+same rule applied in both directions.
 
 ### 3. Vendor marks were invented
 
@@ -104,16 +111,25 @@ attempting them badly.
 Each of these stays out of the navigation. The rule the product holds to is
 that a visible feature works, and an invisible one is honest.
 
-## The single highest-leverage remaining gap
+## What running it found
 
-Agents. Everything else visible is real; a memory layer for long-running agents
-that cannot itself run one is narrower than the category it competes in. The
-pieces exist already, which is what makes it worth attempting rather than
-deferring: a real model provider is connected and answering, the Context Pack
-is what `resolve` already returns, and the graph-impact walk is a tool an agent
-could call.
+Building the agent surfaced two defects nothing else had:
 
-The bar it has to clear is the same as everything else here. A run must call a
-real model, use the governed context, validate what it produced against the
-evidence, and persist. If it cannot clear that, it stays out of the
-navigation.
+**Each ingest overwrote the workspace index.** The index is one record under a
+fixed id, so a second source replaced the first one's map and every subject in
+it became unreachable. The entity and claim records were never lost; only the
+thing that finds them was. A memory where adding a source erases the previous
+source is not a memory. The index is merged now, and three subjects across two
+sources were verified visible together afterwards.
+
+**A workspace that says nothing was reported as a failed run.** Absence is the
+answer this product is proudest of, and reporting it as breakage teaches people
+to distrust every other absence. It completes and reports the absence now.
+
+## What remains out of the navigation
+
+Work, Tools and Voice. Each would need real runs to list, a real registry to
+show, or realtime speech that never claims LISTENING without a live
+microphone track. None is completable and testable in the remaining window, and
+a half-built one would be exactly the empty feature theatre this audit exists
+to remove.

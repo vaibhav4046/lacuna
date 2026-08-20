@@ -3,8 +3,15 @@
  *
  * This is marketing prose, not workspace data: the Redis-to-Postgres story is
  * how the page explains temporal resolution to someone who has never signed
- * in. It is frozen copy and it stays frozen. The same story inside the signed
+ * in. That story is frozen and stays frozen. The same story inside the signed
  * in app is a different thing entirely and comes from the API there.
+ *
+ * The answers about the product's own surfaces are not frozen, because they
+ * were written before those surfaces existed and had gone stale in the
+ * direction that costs the most: the CLI answer said the implementation came
+ * next when six commands had shipped, and the MCP answer was an instruction to
+ * whoever built it rather than an answer to whoever was reading it. Anything
+ * here that describes what exists gets corrected when what exists changes.
  */
 
 export const FAQ: readonly (readonly [string, string])[] = [
@@ -14,15 +21,15 @@ export const FAQ: readonly (readonly [string, string])[] = [
   ['What is context rot?', 'Context rot happens when an agent keeps collecting stale, duplicate, conflicting or weak context until more memory starts making the next answer worse.'],
   ['What is a Context Pack?', 'It is the small set of facts, constraints, evidence and open questions needed for one task.'],
   ['Does Lacuna replace my model?', 'No. Models do the work. Lacuna keeps the context.'],
-  ['Can I use a local model?', 'Lacuna is designed to support local and self-hosted model adapters such as Ollama, vLLM and compatible endpoints.'],
-  ['Can different agents share memory?', 'Yes. The product is designed around a shared workspace context rather than separate memory silos for every client.'],
+  ['Can I use a local model?', 'The provider layer takes any OpenAI-compatible endpoint, so a local one works by configuration. Only a cloud provider is configured on this deployment, and the Models screen names it rather than implying more.'],
+  ['Can different agents share memory?', 'Yes, and it is checked rather than asserted. A gate asks the same six questions through the web app, the command line and an MCP subprocess and fails unless all three answers are identical, field for field.'],
   ['What happens when information changes?', 'The old state remains in history while the current state becomes clear.'],
   ['What happens when two sources disagree?', 'The conflict stays visible until evidence or policy resolves it.'],
   ['What happens when the answer is missing?', 'Lacuna returns no supporting evidence instead of inventing a value.'],
   ['Why HydraDB?', 'HydraDB gives Lacuna a persistent graph-first context substrate for memory, knowledge, relationships, history and retrieval.'],
-  ['Does Lacuna work with MCP?', 'MCP is a first-class Lacuna developer surface. Connection state and exact tools must reflect the real implementation.'],
-  ['Does Lacuna have an SDK?', 'The finished MVP will expose a Lacuna SDK and API around the same context contract used by the web product, CLI and MCP.'],
-  ['Does Lacuna have a CLI?', 'Yes in the product design. The approved CLI contract becomes the real implementation next.'],
+  ['Does Lacuna work with MCP?', 'Yes. The server is live at /mcp over streamable HTTP, and stdio locally. Five read-only tools: ask in a sentence, ask by subject and predicate, explain a decision, read a revision history, and check which node answered.'],
+  ['Does Lacuna have an SDK?', 'There is no published package. The HTTP API is real and callable without a key, and so is MCP; the Developers screen prints the exact commands and says which of the three is not shipped.'],
+  ['Does Lacuna have a CLI?', 'Yes, with six commands: doctor, status, ask, explain, timeline and bench. It reads the same store the web product reads, which is what the three-surface gate checks.'],
   ['Does Lacuna expose chain of thought?', 'No. Lacuna shows evidence, retrieval and system traces, not hidden model reasoning.']
 ];
 

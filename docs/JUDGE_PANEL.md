@@ -230,8 +230,8 @@ Each of these was opened on production.
 that does not exist, calling `lacuna.query("Where does session state live now?")`
 and returning `"Postgres"` with evidence `PR #184`, none of which is in this
 workspace, and listing a contract of `remember`, `query`, `timeline`, `evidence`,
-`contextPack`, `health`, `handoff`. The four tools that exist are `lacuna_ask`,
-`lacuna_explain`, `lacuna_timeline`, `lacuna_health`. The REST tab shows
+`contextPack`, `health`, `handoff`. The five tools that exist are `lacuna_ask`,
+`lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `lacuna_health`. The REST tab shows
 `POST /v1/query` with `"mode": "fast"`; no such endpoint exists. The MCP tab
 lists `context.pack` and `handoff` and two `context://` resources; the MCP server
 exposes no resources. The disclaimer is a 9px caption at the bottom reading

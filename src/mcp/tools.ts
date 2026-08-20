@@ -243,6 +243,7 @@ export const ASK_TOOL = `${PREFIX}ask` as const;
 export const EXPLAIN_TOOL = `${PREFIX}explain` as const;
 export const TIMELINE_TOOL = `${PREFIX}timeline` as const;
 export const HEALTH_TOOL = `${PREFIX}health` as const;
+export const READ_TOOL = `${PREFIX}read_question` as const;
 
 export const TOOLS: readonly Tool[] = [
   {
@@ -280,6 +281,65 @@ export const TOOLS: readonly Tool[] = [
       + `${CORPUS_NOTE} ${EVIDENCE_NOTE}`,
     inputSchema: QUESTION_INPUT,
     outputSchema: TIMELINE_OUTPUT,
+    annotations: READ_ONLY,
+  },
+  {
+    name: READ_TOOL,
+    title: 'Ask Lacuna in a sentence',
+    description:
+      'Ask in the words the user used, rather than as a subject and a predicate. Reads the '
+      + 'sentence into a subject and a predicate against the names this corpus actually holds, '
+      + 'then answers through the same resolver as lacuna_ask. Returns the reading it used '
+      + 'alongside the answer, so a misread is visible rather than silent. When the sentence '
+      + 'names nothing the corpus holds, or asks for a property it has no word for, it says so '
+      + 'and lists what it does hold instead of guessing. '
+      + `${CORPUS_NOTE} ${EVIDENCE_NOTE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The question as a sentence, for example "who owns billing-gate?".',
+          minLength: 1,
+          maxLength: 300,
+        },
+      },
+      required: ['question'],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        read: {
+          type: ['object', 'null'],
+          description: 'How the sentence was read, or null when it could not be read.',
+          properties: {
+            subject: { type: 'string' },
+            predicate: { type: 'string' },
+            via: { type: ['string', 'null'] },
+            fromWords: { type: 'string', description: 'The words in the question that selected the predicate.' },
+          },
+          required: ['subject', 'predicate', 'via', 'fromWords'],
+        },
+        unread: {
+          type: ['string', 'null'],
+          enum: ['no_subject', 'no_predicate', null],
+          description: 'Which half could not be read, when one could not.',
+        },
+        holds: {
+          type: 'array',
+          description: 'Names this corpus holds, when the subject was the unreadable half.',
+          items: { type: 'string' },
+        },
+        records: {
+          type: 'array',
+          description: 'Properties recorded for the matched subject, when the predicate was the unreadable half.',
+          items: { type: 'string' },
+        },
+        answer: { ...ASK_OUTPUT, type: ['object', 'null'] },
+      },
+      required: ['read', 'unread', 'holds', 'records', 'answer'],
+    },
     annotations: READ_ONLY,
   },
   {

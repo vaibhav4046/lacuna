@@ -87,7 +87,7 @@ export function Mcp() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '20px' }}>
         <span style={{ ...note, letterSpacing: '0.2em' }}>TOOLS</span>
-        <span style={{ fontFamily: MONO, fontSize: '12px', letterSpacing: '0.08em', color: '#BDBDBD', lineHeight: 2 }}>lacuna_ask · lacuna_explain · lacuna_timeline · lacuna_health</span>
+        <span style={{ fontFamily: MONO, fontSize: '12px', letterSpacing: '0.08em', color: '#BDBDBD', lineHeight: 2 }}>lacuna_ask · lacuna_explain · lacuna_timeline · lacuna_read_question · lacuna_health</span>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
           <button
             className="hv-text"

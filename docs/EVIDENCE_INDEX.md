@@ -235,7 +235,7 @@ That last check is not decorative. It is what caught a proof panel printing
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
 | The MCP server answers over stdio | CLAIMS, MCP | [artifacts/verification/2026-08-14b/mcp-stdio.txt](../artifacts/verification/2026-08-14b/mcp-stdio.txt) | a throwaway JSON-RPC driver, described in that directory's README | `LIVE` |
-| Four tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_health` | MCP | same, the `tools/list` response | same | `LIVE` |
+| Five tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `lacuna_health` | MCP | same, the `tools/list` response | `tools/list` against the deployed `/mcp` on 20 Aug returned all five in order; `lacuna_read_question` was added after the 14 Aug stdio capture, so that transcript still shows four | `LIVE` |
 | The command line answers and abstains with the same typed result | CLAIMS, CLI | [cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json), [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) | `node bin/lacuna.js ask Bellwether beta_partner --json` | `LIVE` |
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
 | MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty-four eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-18/parity.txt](../artifacts/verification/2026-08-18/parity.txt) | `npm run parity` | `LIVE` |

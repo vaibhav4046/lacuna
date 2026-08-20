@@ -8,7 +8,7 @@ import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server.js';
 import { describeNode } from '../../src/mcp/result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, READ_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools.js';
 
 /**
  * The tool list, and dispatch, without a node.
@@ -89,11 +89,12 @@ function structuredOf(result: CallToolResult): Record<string, unknown> {
 }
 
 describe('the advertised tools', () => {
-  it('are the four this release ships, each named for its prefix', () => {
+  it('are the five this release ships, each named for its prefix', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual([
       ASK_TOOL,
       EXPLAIN_TOOL,
       TIMELINE_TOOL,
+      READ_TOOL,
       HEALTH_TOOL,
     ]);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
@@ -313,7 +314,7 @@ describe('createMcpServer, over a linked in-memory transport', () => {
     return client;
   }
 
-  it('lists the four tools with their schemas', async () => {
+  it('lists the five tools with their schemas', async () => {
     const client = await connected(silentNode());
 
     const listed = await client.listTools();
@@ -322,6 +323,7 @@ describe('createMcpServer, over a linked in-memory transport', () => {
       ASK_TOOL,
       EXPLAIN_TOOL,
       TIMELINE_TOOL,
+      READ_TOOL,
       HEALTH_TOOL,
     ]);
     await client.close();
@@ -355,5 +357,50 @@ describe('createMcpServer, over a linked in-memory transport', () => {
       .rejects.toMatchObject({ code: ErrorCode.MethodNotFound });
 
     await client.close();
+  });
+});
+
+/**
+ * A question in the words the caller used.
+ *
+ * The source here is a node that answers and knows nothing, so what these check
+ * is the reading and the refusals rather than a value: an agent handed this
+ * tool has to be able to tell "the corpus does not hold that name" apart from
+ * "the corpus holds it and says nothing", because acting on those two is
+ * completely different.
+ */
+describe('asking in a sentence', () => {
+  it('refuses a sentence naming nothing the corpus holds, and says what it does hold', async () => {
+    const result = await callTool(READ_TOOL, { question: 'who owns Cassandra?' }, silentNode());
+    const structured = structuredOf(result);
+
+    expect(result.isError).toBeUndefined();
+    expect(structured['unread']).toBe('no_subject');
+    expect(structured['read']).toBeNull();
+    expect(structured['answer']).toBeNull();
+    // The names are returned rather than left to be guessed at.
+    expect(Array.isArray(structured['holds'])).toBe(true);
+  });
+
+  it('rejects an empty question as a bad request rather than answering it', async () => {
+    await expect(callTool(READ_TOOL, { question: '   ' }, silentNode())).rejects.toThrow();
+  });
+
+  it('advertises a schema that admits only a question', () => {
+    const tool = TOOLS.find((one) => one.name === READ_TOOL);
+    const schema = tool?.inputSchema as { required?: string[]; additionalProperties?: boolean };
+    expect(schema.required).toEqual(['question']);
+    // A tool that silently accepted a subject would let a caller think it had
+    // bypassed the parser when it had not.
+    expect(schema.additionalProperties).toBe(false);
+  });
+
+  it('returns the reading beside the answer, never only the answer', () => {
+    const tool = TOOLS.find((one) => one.name === READ_TOOL);
+    const schema = tool?.outputSchema as { required?: string[] };
+    // A caller that cannot see the reading cannot catch a misread, which is the
+    // one failure a parser in front of a resolver introduces.
+    expect(schema.required).toContain('read');
+    expect(schema.required).toContain('answer');
   });
 });

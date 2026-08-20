@@ -52,6 +52,7 @@ answers 406 without it.
 
 | Tool | Input | What it adds to the envelope |
 | --- | --- | --- |
+| `lacuna_read_question` | `question`, a sentence | the reading it used, so a misread is visible |
 | `lacuna_ask` | `subject`, `predicate`, optional `via` | nothing, this is the envelope |
 | `lacuna_explain` | same | `explanation`, `trace` |
 | `lacuna_timeline` | same | `considered`, every claim about the predicate, oldest first |

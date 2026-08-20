@@ -19,7 +19,8 @@ import {
   renderJson,
   timelineResult,
 } from './result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, TOOLS } from './tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, HEALTH_TOOL, READ_TOOL, TOOLS } from './tools.js';
+import { UNDERSTOOD_PREDICATES, predicateIn, subjectsIn } from '../retrieval/plan.js';
 
 /**
  * The MCP server, and the dispatch under it.
@@ -316,6 +317,10 @@ export async function callTool(
     return toolResult({ ...(await health(context)) });
   }
 
+  if (name === READ_TOOL) {
+    return await readQuestionTool(args, context, timeoutMs);
+  }
+
   const question = readQuestion(args);
 
   try {
@@ -338,6 +343,75 @@ export async function callTool(
     if (mcpError.code === ErrorCode.InvalidParams) {
       throw mcpError;
     }
+    return failedResult(mcpError);
+  }
+}
+
+/**
+ * A question in the words the caller used.
+ *
+ * An agent receives questions as sentences, not as a subject and a predicate,
+ * and requiring it to already know this corpus's vocabulary before it can ask
+ * anything makes the memory unusable for the case it exists for.
+ *
+ * The reading is returned beside the answer for the same reason the product
+ * renders it: parsing in front of a resolver introduces a failure nothing else
+ * here can produce, which is a correct and fully evidenced answer to a question
+ * nobody asked. A caller that can see the reading can catch that; one that only
+ * sees the answer cannot.
+ *
+ * No model is involved. The names come from the corpus and the predicates from
+ * the subject that matched, widened by the vocabulary the product understands
+ * so that a property the subject does not record still reaches the resolver and
+ * gets its real answer, which is that nothing ever stated it.
+ */
+async function readQuestionTool(
+  args: unknown,
+  context: ToolContext,
+  timeoutMs: number,
+): Promise<CallToolResult> {
+  const label = READ_TOOL;
+  const text = (args as { question?: unknown })?.question;
+  if (typeof text !== 'string' || text.trim() === '') {
+    throw new McpError(ErrorCode.InvalidParams, 'question must be a non-empty string');
+  }
+
+  const empty = { read: null, unread: null as string | null, holds: [] as readonly string[], records: [] as readonly string[], answer: null };
+
+  try {
+    const known = context.source.subjects === undefined
+      ? []
+      : (await withDeadline(context.source.subjects(timeoutMs), timeoutMs, label)).value;
+
+    const [subject, second] = subjectsIn(text, known);
+    if (subject === undefined) {
+      return toolResult({ ...empty, unread: 'no_subject', holds: known.slice(0, 24) });
+    }
+
+    const held = await withDeadline(context.source.subject(subject, timeoutMs), timeoutMs, label);
+    const records = [...new Set(held.value?.claims.map((claim) => claim.predicate) ?? [])];
+    const found = predicateIn(text, [...new Set([...records, ...UNDERSTOOD_PREDICATES])]);
+    if (found === null) {
+      return toolResult({ ...empty, unread: 'no_predicate', records });
+    }
+
+    const via = second ?? null;
+    const answer = await withDeadline(
+      ask(context.source, buildQuestion(subject, found.predicate, via), { timeoutMs }),
+      timeoutMs,
+      label,
+    );
+
+    return toolResult({
+      read: { subject, predicate: found.predicate, via, fromWords: found.matched },
+      unread: null,
+      holds: [],
+      records,
+      answer: askResult(answer, context.node, context.store),
+    });
+  } catch (error) {
+    const mcpError = toMcpError(error);
+    if (mcpError.code === ErrorCode.InvalidParams) throw mcpError;
     return failedResult(mcpError);
   }
 }

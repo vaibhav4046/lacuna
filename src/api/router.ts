@@ -140,6 +140,8 @@ export interface ApiOptions {
    * same reason the evaluation is: this router has no filesystem where it runs.
    */
   readonly continuity?: Readonly<Record<string, unknown>>;
+  /** The recorded LongMemEval ingest check. Absent when the build has none. */
+  readonly longmemeval?: Readonly<Record<string, unknown>>;
   /**
    * HydraDB's own relation graph, read from the service rather than built here.
    *
@@ -333,6 +335,7 @@ export class ApiRouter {
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #continuity: Readonly<Record<string, unknown>> | undefined;
+  readonly #longmemeval: Readonly<Record<string, unknown>> | undefined;
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
@@ -353,6 +356,7 @@ export class ApiRouter {
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#continuity = options.continuity;
+    this.#longmemeval = options.longmemeval;
     this.#relations = options.relations;
     this.#expansion = options.expansion;
     this.#google = options.google;
@@ -643,6 +647,32 @@ export class ApiRouter {
           return HANDLED;
         }
         send(response, 200, { available: true, kind: 'recorded', ...recorded });
+        return HANDLED;
+      }
+
+      /**
+       * What happened when the published LongMemEval file went through.
+       *
+       * There is no accuracy score here and there should not be: the extractor
+       * reads sentence frames about infrastructure and LongMemEval is a
+       * personal assistant benchmark about degrees, hobbies and appointments,
+       * so it produced a claim for 80 of the 500 instances. A score computed
+       * over a sixth of a dataset is not a score, it is a number chosen by what
+       * happened to parse.
+       *
+       * What is here is what was measured and is worth stating: every instance
+       * read without a parse failure, and no ground truth survived the strip,
+       * checked by searching each serialised instance for the answer, the
+       * evidence session ids and the turn level marker. Publishing the coverage
+       * that low is the point rather than the embarrassment.
+       */
+      if (part === 'longmemeval') {
+        const recorded = this.#longmemeval;
+        if (recorded === undefined) {
+          send(response, 200, { available: false, reason: 'no recorded run ships with this build' });
+          return HANDLED;
+        }
+        send(response, 200, { available: true, ...recorded });
         return HANDLED;
       }
 

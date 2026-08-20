@@ -53,7 +53,75 @@ export function Evaluations() {
           </div>
         ))}
       </div>
+      <LongMemEval />
       <span style={{ ...note, lineHeight: 2 }}>COLUMNS WHEN REAL · CORRECTNESS · CONTEXT TOKENS · LATENCY · COST · ABSTENTION<br />SMALL VS LARGE MODEL PANEL FILLS ONLY FROM A RECORDED RUN</span>
+    </div>
+  );
+}
+
+interface IngestCheck {
+  readonly available: boolean;
+  readonly instances?: number;
+  readonly sessions?: number;
+  readonly messages?: number;
+  readonly estimatedTokens?: number;
+  readonly parseFailures?: readonly unknown[];
+  readonly adapterFailures?: number;
+  readonly groundTruthLeaks?: number;
+  readonly claims?: number;
+  readonly instancesWithAtLeastOneClaim?: number;
+  readonly coverage?: number;
+  readonly bySlot?: Readonly<Record<string, number>>;
+  readonly measuredAt?: string;
+}
+
+/**
+ * The published LongMemEval file, and how far this extractor got through it.
+ *
+ * There is no score here on purpose. The extractor reads sentence frames about
+ * infrastructure and LongMemEval is a personal assistant benchmark about
+ * degrees, hobbies and appointments, so it produced a claim for 80 of the 500
+ * instances. A correctness number computed over a sixth of a dataset is not a
+ * result, it is a number chosen by whatever happened to parse, and reporting it
+ * beside the honest ones would poison all of them.
+ *
+ * What is worth stating is what was measured. The published format read without
+ * a parse failure, no ground truth survived the strip, and the coverage is
+ * printed at its real value with the breakdown that explains it.
+ */
+function LongMemEval() {
+  const run = useScoped<IngestCheck>('longmemeval');
+  if (run.state !== 'ready' || !run.value.available) return null;
+  const it = run.value;
+  const clean = (it.parseFailures?.length ?? 0) === 0 && (it.adapterFailures ?? 0) === 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '20px' }}>
+      <div style={{ ...head }}>LONGMEMEVAL · NO SCORE, AND WHY</div>
+      <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#BDBDBD', margin: 0, maxWidth: '68ch' }}>
+        The published dataset was read through this repository&rsquo;s own adapter. It is a personal
+        assistant benchmark about degrees, hobbies and appointments; this extractor reads sentence
+        frames about infrastructure. So it found a claim in {it.instancesWithAtLeastOneClaim ?? 0} of
+        the {it.instances ?? 0} instances, and a correctness figure over that slice would be chosen
+        by whatever happened to parse rather than measured.
+      </p>
+      <div style={{ display: 'flex', gap: '26px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>
+        <span>{it.instances ?? 0} INSTANCES · {it.sessions ?? 0} SESSIONS · {it.messages ?? 0} MESSAGES</span>
+        <span style={{ color: clean ? '#8052FF' : '#FFB829' }}>
+          {clean ? 'READ WITH NO PARSE FAILURE' : `${it.parseFailures?.length ?? 0} PARSE FAILURES`}
+        </span>
+        <span style={{ color: (it.groundTruthLeaks ?? 1) === 0 ? '#8052FF' : '#FFB829' }}>
+          {(it.groundTruthLeaks ?? 1) === 0 ? 'NO GROUND TRUTH LEAKED' : `${it.groundTruthLeaks} LEAKS`}
+        </span>
+        <span style={{ color: '#FFB829' }}>COVERAGE {it.coverage ?? 0}%</span>
+      </div>
+      {it.bySlot === undefined ? null : (
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', color: '#7A7A7A' }}>
+          {Object.entries(it.bySlot).map(([slot, count]) => (
+            <span key={slot}>{slot.replace(/_/g, ' ')} {count}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

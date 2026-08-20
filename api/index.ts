@@ -65,6 +65,17 @@ const SUBJECT_NAMES: readonly string[] = [
   ...new Set(buildDemo().inventory.claims.map((claim) => claim.subject)),
 ];
 
+/** A recorded artifact this build ships, or null when it does not ship one. */
+function recorded(path: string): Readonly<Record<string, unknown>> | null {
+  try {
+    return JSON.parse(readFileSync(join(process.cwd(), path), 'utf8')) as Readonly<Record<string, unknown>>;
+  } catch {
+    return null;
+  }
+}
+
+const longmemevalRun = recorded('artifacts/longmemeval/ingest-check.json');
+
 const continuityRun = ((): Readonly<Record<string, unknown>> | null => {
   try {
     return JSON.parse(
@@ -157,6 +168,7 @@ const api = new ApiRouter({
   // The recorded one-context run. Read here because the function has no
   // filesystem to read it from later.
   ...(continuityRun === null ? {} : { continuity: continuityRun }),
+  ...(longmemevalRun === null ? {} : { longmemeval: longmemevalRun }),
   // A source per request: the memo inside one lives exactly as long as the
   // question that filled it, so a warm instance cannot answer from a record
   // the store has since replaced.

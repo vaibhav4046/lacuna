@@ -135,6 +135,27 @@ describe('graph API envelope', () => {
     expect(a.edges).toEqual(b.edges);
   });
 
+  it('keeps a connected provenance path on the first bounded proof page', () => {
+    const source = { ...node(10, 'Session one'), id: id('source', 10), kind: 'source' as const };
+    const evidence = { ...node(11, 'Quoted evidence'), id: id('evidence', 11), kind: 'evidence' as const };
+    const claim = { ...node(12, 'Atlas · owner · Dana'), id: id('claim', 12), kind: 'claim' as const };
+    const entity = { ...node(13, 'Atlas'), id: id('entity', 13), kind: 'entity' as const };
+    const distractors = Array.from({ length: 12 }, (_, index) => ({
+      ...node(100 + index, `Earlier evidence ${index}`),
+      id: id('evidence', 100 + index),
+      kind: 'evidence' as const,
+    }));
+    const edges: GraphEdge[] = [
+      { ...edge(20, 1, 2), from: source.id, to: evidence.id, relation: 'contains' },
+      { ...edge(21, 1, 2), from: evidence.id, to: claim.id, relation: 'supports' },
+      { ...edge(22, 1, 2), from: claim.id, to: entity.id, relation: 'about' },
+    ];
+
+    const result = page(dataset([...distractors, source, evidence, claim, entity], edges), { limit: 4, mode: 'proof' });
+    expect(result.nodes.map((row) => row.kind)).toEqual(['source', 'evidence', 'claim', 'entity']);
+    expect(result.edges).toHaveLength(3);
+  });
+
   it('keeps rejected stale and non-event edges visible', () => {
     const result = page(dataset([node(1), node(2)], [edge(1, 1, 2, true)]));
     expect(result.edges).toEqual([

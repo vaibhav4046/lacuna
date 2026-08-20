@@ -1,0 +1,162 @@
+[span] Lacuna
+[small] MEMORY OS
+[a] How it works
+[a] Developers
+[a] Benchmarks
+[button] Judge proof
+[button] Sign in
+[button] Get started
+[summary] Menu
+[a] Ask it
+[a] How it works
+[a] Developers
+[a] Benchmarks
+[a] HydraDB
+[button] Judge proof
+[button] Sign in
+[span] CONTEXT FOR LONG-RUNNING AGENTS
+[h1] Memory that knows
+[em] what changed.
+[p] Lacuna gives every model, tool and agent the same evidence-bearing memory. It keeps the history, resolves what is current, exposes disagreement and stops when the answer is missing.
+[button] Open live workspace
+[button] Run the judge proof
+[a] Follow a memory
+[span] HYDRADB GRAPH STATE
+[span] EVIDENCE ATTACHED
+[span] ABSTAINS WHEN MISSING
+[span] MEMORY FIELD
+[span] LIVE ROUTE
+[strong] Current is not the same as latest.
+[li] Current claim
+[span] resolves
+[li] Historical claim
+[span] stays
+[li] Conflict
+[span] abstains
+[span] THE CENTRE NEVER CLOSES
+[h2] Ask it something.
+[p] No account. This reaches the same store, the same resolver and the same evidence the signed-in product uses.
+[button] ASK
+[button] what does token-forge depend on?
+[button] who is the runbook owner for billing-gate?
+[button] when does Lowbank launch?
+[span] THE MEMORY JOURNEY
+[h2] One open loop.
+[h2] Every piece of context.
+[p] The spiral never closes because missing evidence stays missing. Follow one memory as Lacuna resolves it, preserves its history, routes it into work and exposes the proof.
+[span] FOXGLOVE · BETA PARTNER
+[div] Stonecrop
+[span] STANDING
+[strong] CURRENT
+[span] REPLACES
+[strong] Millbrace
+[span] EVIDENCE
+[strong] Data handover notes
+[span] 01 · CURRENT
+[h3] Find what is true now.
+[p] Lacuna resolves the standing claim and keeps the quote, source and observation time attached. The model receives an answer it can inspect, not a detached summary.
+[button] Open the answer
+[span] 02 · HISTORY
+[h3] Keep the old fact without letting it win.
+[p] Supersession is explicit. A correction changes the current answer while the earlier claim stays available for audits, timelines and handoffs.
+[button] Inspect the timeline
+[span] 03 · CONFLICT
+[h3] Refuse to invent consensus.
+[p] The billing-gate record names two runbook owners and neither source resolves the other. Lacuna preserves both claims and returns no answer.
+[button] Inspect the conflict
+[span] 04 · GRAPH + TABLE
+[h3] Move through the field. Verify in rows.
+[p] HydraDB holds the temporal evidence graph. The overview is for navigation; the proof path shows exact edges; the table makes every visible record readable.
+[button] Explore the graph
+[span] 05 · CLIENTS
+[h3] Connect the tools you already use.
+[p] Claude, ChatGPT read and fetch, Codex, local runtimes and custom clients can address the same workspace through MCP, the CLI or the HTTP API.
+[button] Connect MCP
+[span] 06 · AGENTS
+[h3] Turn memory into governed work.
+[p] Researcher and Reviewer presets start with a bounded Context Pack. Runs retain their lifecycle, tools, artifacts and final state; schedules retain their next eligible time.
+[button] Open agent runtime
+[span] 07 · VOICE
+[h3] Talk to the same evidence path.
+[p] The governed voice route exposes listening, transcription, thinking, speaking, interruption and failure as explicit states. When speech is unavailable, the typed path remains.
+[button] Open voice
+[span] 08 · BUILD
+[h3] Inspect the contract, then integrate.
+[p] The product exposes its SDK and API contract, MCP transports, CLI commands, health checks, HydraDB boundary and measured evaluation artifacts inside the workspace.
+[button] Read SDK + API
+[span] CLI
+[h2] Lacuna in your terminal.
+[p] The same context without opening the dashboard. This is a recording of a real run, not a mock up.
+[span] LACUNA TERMINAL
+[span] RECORDED RUN
+[span] HYDRADB CLOUD
+[span] lacuna status
+[span] ···
+[span] ···  ··
+[pre] ··     ·   lacuna
+[span] ··    ··
+[span] ······
+[pre] profile  cloud
+[pre] store    HydraDB Cloud, database lacuna, collection backend
+[pre] counts   not available on this store
+[span] lacuna ask Bellwether beta_partner
+[pre] Bellwether beta_partner
+[span] Halverd
+[pre] This replaced 2 earlier values and nothing has superseded it.
+[pre] Cited from
+[pre] Data planning call, 2025-04-20, user
+[pre] "Correction on Bellwether: the beta partner is now Halverd."
+[pre] 1 query, 443.1ms
+[span] lacuna explain Bellwether beta_partner
+[pre] Bellwether beta_partner
+[span] Halverd
+[pre] This replaced 2 earlier values and nothing has superseded it.
+[pre] How it got there
+[pre] 1. Found "Bellwether" as a project with 4 claims about it.
+[pre] 2. Read 3 "beta_partner" claims about "Bellwether", 2 of them superseded.
+[pre] 3. One current claim stands: "Halverd", stated 2025-04-20T11:48:00.000Z.
+[pre] What it asked HydraDB
+[pre] 1.  GET /context/inspect id=lacuna:entity:56b...  1 row  366.9ms  no epoch
+[pre] 1 query, 367ms
+[span] lacuna ask Redshank launch_date
+[pre] Redshank launch_date
+[span] No answer (out_of_scope)
+[pre] No answer given, because this subject never appears in the sessions at all.
+[pre] 1 query, 249.9ms
+[span] RECORDED
+[span] status · ask · explain
+[span] ARTIFACTS/CLI/SESSION.TXT
+[span] lacuna doctor · status · read · ask · explain · timeline · bench
+[span] EVERY COMMAND ABOVE EXISTS · LACUNA --HELP LISTS THE SAME SIX
+[h2] Measure the context.
+[h2] Then make the claim.
+[p] These are measured, and they are measured on a corpus this project generated. That is a fair test of what to do with a claim graph and it is not a public benchmark, so it is labelled as what it is everywhere it appears.
+[span] 64 / 64
+[span] GENERATED EVALUATION
+[span] Same generator wrote the corpus and the questions. Half of them have no answer.
+[span] 18.27
+[span] MEAN ANSWER CONTEXT TOKENS
+[span] The strongest flat baseline reaches 63 of 64 and spends 1,843.
+[span] 117K
+[span] HISTORY TOKENS AT THE LARGEST POINT
+[span] Measured at five sizes. History grew 6.89 times, answer context grew 1.00.
+[div] 0 FALSE ANSWERS · 32 CORRECT ABSTENTIONS · 5 REASON CODES
+[div] THE SCALE CURVE HOLDS THE CLAIM SET FIXED, SO IT MEASURES HISTORY VOLUME AND NOT CLAIM GROWTH
+[div] NO OFFICIAL LONGMEMEVAL SCORE EXISTS. THE REPOSITORY SAYS WHY
+[h2] Give your agents a memory that survives the session.
+[p] Connect your context once. Use it from whatever comes next.
+[button] Start building
+[button] Read the docs
+[span] Built on HydraDB.
+[span] THE AGENT CAN CHANGE. LACUNA STAYS.
+[button] Timeline
+[span] DEVELOPERS
+[button] SDK · API
+[button] Connectors
+[button] Six questions, live
+[button] Evaluations
+[button] Context health
+[button] Create account
+[button] Recover access
+[span] BUILT ON HYDRADB
+[span] © 2026 LACUNA

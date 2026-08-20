@@ -26,13 +26,13 @@ Nothing is hidden behind chat. Memory stays readable as a table. The graph has a
 
 ## 06 · Agents and scheduler — act from memory
 
-Lacuna recommends bounded agents from workspace evidence. A Researcher builds a Context Pack; a Reviewer checks it. Steps, tool calls, artifacts, retries, cancellation, and final state persist. The daily Context Health schedule is real and idempotent.
+Lacuna recommends bounded agents from workspace evidence. A Researcher builds a Context Pack; a Reviewer checks it. Steps, tool calls, artifacts, retries, cancellation, and final state persist. The daily Context Health schedule runs with stable local idempotency; distributed exactly-once dispatch still requires HydraDB compare-and-set.
 
 ## 07 · Voice — same memory, explicit states
 
-Voice is another client, not another brain. Realtime speech becomes the same evidence-bearing query; listening, thinking, speaking, interruption, failure, and fallback stay visible. Provider keys never enter the browser.
+Voice is another client, not another brain. The fifteen-state route, interruption, and typed fallback are implemented, and provider keys never enter the browser. This build shows the provider gate honestly: Vaibhav Lalwani Professional is selected, but production speech stays disabled until that exact clone is bound and verified.
 
-> Acceptance gate: record this line only after a production single-use speech token and streamed speech both pass. Until then the film must show the disabled state honestly.
+> Acceptance gate: do not render final narration or show a live speech roundtrip until the production single-use token, realtime transcript, streamed speech, and interruption checks all pass with the selected clone.
 
 ## 08 · Why HydraDB — the durable graph
 
@@ -40,7 +40,7 @@ HydraDB holds seventy two conversations as evidence and eighty six entity record
 
 ## 09 · Everywhere — CLI, MCP, A P I
 
-Watch one question run through the website, command line, and M C P client. These are real commands. The remote M C P endpoint, TypeScript S D K, and H T T P A P I reach the same store and return the same evidence.
+Watch one question run through the website, command line, and M C P client. These are real commands. The remote M C P endpoint and H T T P A P I reach the same store and return the same evidence. A packaged Lacuna S D K is not shipped in this build.
 
 ## 10 · Measured proof — show the artifacts
 

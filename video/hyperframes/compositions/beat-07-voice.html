@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Lacuna — honest voice route</title>
+    <style>
+      @font-face {
+        font-family: "Space Grotesk";
+        src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+        font-weight: 300 700;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "JetBrains Mono";
+        src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+        font-weight: 400 500;
+        font-display: block;
+      }
+      * { box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; margin: 0; overflow: hidden; background: #000; }
+      body { color: #fff; font-family: "Space Grotesk", sans-serif; }
+      #b07-root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      .b07-fill { position: absolute; inset: 0; overflow: hidden; background: #000; }
+      .b07-screen {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        transform-origin: 0 0;
+      }
+      .b07-frame {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+      }
+      .b07-status {
+        position: absolute;
+        right: 76px;
+        bottom: 68px;
+        width: 678px;
+        padding: 25px 28px 23px;
+        border: 1px solid rgba(128,82,255,0.7);
+        background: #030303;
+      }
+      .b07-kicker {
+        margin: 0 0 19px;
+        color: #8052ff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.2em;
+      }
+      .b07-grid {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        border-top: 1px solid rgba(255,255,255,0.12);
+      }
+      .b07-row { display: contents; }
+      .b07-label, .b07-value {
+        padding: 13px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.12em;
+      }
+      .b07-label { color: #9a9a9a; }
+      .b07-value { color: #fff; }
+      .b07-value.ready { color: #8052ff; }
+      .b07-value.blocked { color: #ffb829; }
+      .b07-note {
+        margin: 19px 0 0;
+        color: #bdbdbd;
+        font-size: 17px;
+        line-height: 1.48;
+      }
+      .b07-note strong { color: #fff; font-weight: 500; }
+      .b07-stamp {
+        position: absolute;
+        left: 72px;
+        bottom: 68px;
+        padding: 13px 16px;
+        border-left: 1px solid #8052ff;
+        color: #bdbdbd;
+        background: #030303;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-db5z" id="b07-root" data-composition-id="beat-07-voice" data-start="0" data-width="1920" data-height="1080" data-duration="12" data-fps="30">
+      <section data-hf-id="hf-xqib" id="b07-scene" class="clip b07-fill" data-start="0" data-duration="12" data-track-index="1">
+        <img data-hf-id="hf-93gq" id="b07-screen" class="b07-screen" src="assets/screens/live-voice-v8-1920x1080.png" alt="Captured Lacuna Voice surface in ready state with no active microphone, provider session, query, or audio playback">
+        <div data-hf-id="hf-0mal" class="b07-frame"></div>
+        <div data-hf-id="hf-xskl" id="b07-stamp" class="b07-stamp" data-layout-allow-caption-zone="">NO STT/TTS ROUNDTRIP SIMULATED</div>
+        <aside data-hf-id="hf-fp8x" id="b07-status" class="b07-status" data-layout-allow-caption-zone="">
+          <p data-hf-id="hf-xy7g" class="b07-kicker">VOICE ACCEPTANCE · HONEST STATE</p>
+          <div data-hf-id="hf-ro6q" class="b07-grid">
+            <div data-hf-id="hf-qwra" class="b07-row">
+              <span data-hf-id="hf-2djc" class="b07-label">ROUTE</span>
+              <span data-hf-id="hf-ei1b" class="b07-value ready">ROUTE READY</span>
+            </div>
+            <div data-hf-id="hf-vyuy" class="b07-row">
+              <span data-hf-id="hf-w6ui" class="b07-label">PROVIDER</span>
+              <span data-hf-id="hf-x1tp" class="b07-value blocked">NOT CONFIGURED</span>
+            </div>
+            <div data-hf-id="hf-wd5z" class="b07-row">
+              <span data-hf-id="hf-o3b4" class="b07-label">SELECTED VOICE</span>
+              <span data-hf-id="hf-kxhy" class="b07-value">VAIBHAV LALWANI PROFESSIONAL</span>
+            </div>
+            <div data-hf-id="hf-wrh0" class="b07-row">
+              <span data-hf-id="hf-9flt" class="b07-label">FALLBACK</span>
+              <span data-hf-id="hf-373h" class="b07-value">TYPED QUERY AVAILABLE</span>
+            </div>
+          </div>
+          <p data-hf-id="hf-spb1" class="b07-note"><strong data-hf-id="hf-eiuw">Live speech is not claimed.</strong> Final narration and the product roundtrip remain gated on the verified ElevenLabs credentials.</p>
+        </aside>
+      </section>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const b07 = gsap.timeline({ paused: true });
+
+      b07.addLabel("captured-ready", 0);
+      b07.fromTo(
+        "#b07-screen",
+        { x: -19, y: -11, scale: 1.02 },
+        { x: -302, y: 92, scale: 1.16, duration: 3.15, ease: "power3.inOut" },
+        0.4,
+      );
+      b07.to(
+        "#b07-screen",
+        { x: 0, y: 0, scale: 1, duration: 1.5, ease: "power3.inOut" },
+        3.8,
+      );
+
+      b07.addLabel("acceptance", 4.6);
+      b07.fromTo(
+        "#b07-status",
+        { x: 48, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.65, ease: "power3.out" },
+        4.6,
+      );
+      b07.fromTo(
+        ".b07-label, .b07-value",
+        { y: 12, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.38, stagger: 0.13, ease: "power2.out" },
+        5.1,
+      );
+      b07.fromTo(
+        ".b07-note",
+        { y: 12, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.48, ease: "power2.out" },
+        6.55,
+      );
+      b07.fromTo(
+        "#b07-stamp",
+        { x: -30, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.55, ease: "power3.out" },
+        7.0,
+      );
+
+      window.__timelines["beat-07-voice"] = b07;
+    </script>
+  </body>
+</html>

@@ -1,114 +1,22 @@
 {
-  "title": "Lacuna — memory that knows what changed",
-  "durationSeconds": 175.2,
+  "title": "Lacuna V8 — three-minute pitch and demo",
+  "compositionId": "lacuna-v8-film",
+  "durationSeconds": 175,
+  "fps": 30,
+  "resolution": "1920x1080",
+  "audioStatus": "blocked_until_exact_clone_verified",
+  "selectedNarrationVoice": "Vaibhav Lalwani Professional",
   "scenes": [
-    {
-      "id": "s01",
-      "kind": "open",
-      "start": 0.8,
-      "duration": 5.38
-    },
-    {
-      "id": "s02",
-      "kind": "problem",
-      "start": 6.18,
-      "duration": 15.04
-    },
-    {
-      "id": "s03",
-      "kind": "project",
-      "start": 21.22,
-      "duration": 11.79
-    },
-    {
-      "id": "s14",
-      "kind": "shot",
-      "start": 33.01,
-      "duration": 10.77
-    },
-    {
-      "id": "s04",
-      "kind": "judge",
-      "start": 43.78,
-      "duration": 9.14
-    },
-    {
-      "id": "s05",
-      "kind": "judge",
-      "start": 52.92,
-      "duration": 10.07
-    },
-    {
-      "id": "s06",
-      "kind": "judge",
-      "start": 62.99,
-      "duration": 9.61
-    },
-    {
-      "id": "s07",
-      "kind": "judge",
-      "start": 72.6,
-      "duration": 7.66
-    },
-    {
-      "id": "s08",
-      "kind": "judge",
-      "start": 80.26,
-      "duration": 8.87
-    },
-    {
-      "id": "s09",
-      "kind": "continuity",
-      "start": 89.13,
-      "duration": 16.2
-    },
-    {
-      "id": "s16",
-      "kind": "shot",
-      "start": 105.33,
-      "duration": 4.6
-    },
-    {
-      "id": "s17",
-      "kind": "shot",
-      "start": 109.93,
-      "duration": 4.6
-    },
-    {
-      "id": "s18",
-      "kind": "shot",
-      "start": 114.53,
-      "duration": 4.6
-    },
-    {
-      "id": "s10",
-      "kind": "shot",
-      "start": 119.13,
-      "duration": 12.58
-    },
-    {
-      "id": "s15",
-      "kind": "shot",
-      "start": 131.71,
-      "duration": 12.58
-    },
-    {
-      "id": "s11",
-      "kind": "bench",
-      "start": 144.29,
-      "duration": 13.88
-    },
-    {
-      "id": "s12",
-      "kind": "parity",
-      "start": 158.17,
-      "duration": 8.77
-    },
-    {
-      "id": "s13",
-      "kind": "close",
-      "start": 166.94,
-      "duration": 7.66
-    }
+    { "id": "beat-01-aperture", "start": 0, "duration": 9 },
+    { "id": "beat-02-problem", "start": 9, "duration": 18 },
+    { "id": "beat-03-architecture", "start": 27, "duration": 16 },
+    { "id": "beat-04-demo", "start": 43, "duration": 19 },
+    { "id": "beat-05-graph", "start": 62, "duration": 18 },
+    { "id": "beat-06-agents", "start": 80, "duration": 19 },
+    { "id": "beat-07-voice", "start": 99, "duration": 12 },
+    { "id": "beat-08-hydradb", "start": 111, "duration": 17 },
+    { "id": "beat-09-everywhere", "start": 128, "duration": 20 },
+    { "id": "beat-10-proof", "start": 148, "duration": 19 },
+    { "id": "beat-11-close", "start": 167, "duration": 8 }
   ]
 }

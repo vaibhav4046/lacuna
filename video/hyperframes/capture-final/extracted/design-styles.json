@@ -1,0 +1,337 @@
+{
+  "typography": [
+    {
+      "role": "display",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "112px",
+      "fontWeight": "300",
+      "lineHeight": "101.92px",
+      "letterSpacing": "-6.496px",
+      "color": "#F7F5FC",
+      "sampleText": "Memory that knowswhat changed."
+    },
+    {
+      "role": "heading",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "91px",
+      "fontWeight": "300",
+      "lineHeight": "89.18px",
+      "letterSpacing": "-4.55px",
+      "color": "#F7F5FC",
+      "sampleText": "One open loop.Every piece of context."
+    },
+    {
+      "role": "heading-2",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "84px",
+      "fontWeight": "400",
+      "lineHeight": "85.68px",
+      "letterSpacing": "-3.36px",
+      "color": "#FFFFFF",
+      "sampleText": "Give your agents a memory that survives the session."
+    },
+    {
+      "role": "heading-2",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "74px",
+      "fontWeight": "400",
+      "lineHeight": "75.48px",
+      "letterSpacing": "-2.96px",
+      "color": "#FFFFFF",
+      "sampleText": "Lacuna in your terminal."
+    },
+    {
+      "role": "heading-3",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "70px",
+      "fontWeight": "300",
+      "lineHeight": "70.7px",
+      "letterSpacing": "-3.29px",
+      "color": "#F7F5FC",
+      "sampleText": "Find what is true now."
+    },
+    {
+      "role": "heading-2",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "56px",
+      "fontWeight": "400",
+      "lineHeight": "58.8px",
+      "letterSpacing": "-1.96px",
+      "color": "#FFFFFF",
+      "sampleText": "Ask it something."
+    },
+    {
+      "role": "body",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "17px",
+      "fontWeight": "400",
+      "lineHeight": "29.24px",
+      "letterSpacing": "normal",
+      "color": "#AAA6B0",
+      "sampleText": "Lacuna gives every model, tool and agent the same evidence-b"
+    },
+    {
+      "role": "label",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "normal",
+      "letterSpacing": "normal",
+      "color": "#FFFFFF",
+      "sampleText": "CONTEXT FOR LONG-RUNNING AGENTSMemory that knowswhat changed"
+    },
+    {
+      "role": "link",
+      "fontFamily": "Space Grotesk",
+      "fontSize": "14px",
+      "fontWeight": "500",
+      "lineHeight": "normal",
+      "letterSpacing": "0.14px",
+      "color": "#FFFFFF",
+      "sampleText": "LacunaMEMORY OS"
+    },
+    {
+      "role": "code",
+      "fontFamily": "JetBrains Mono",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "lineHeight": "22.75px",
+      "letterSpacing": "normal",
+      "color": "#BDBDBD",
+      "sampleText": "$ lacuna status ●··· ··· ·· ·· · lacuna ·· ·· ······ profile"
+    },
+    {
+      "role": "body-small",
+      "fontFamily": "JetBrains Mono",
+      "fontSize": "8px",
+      "fontWeight": "500",
+      "lineHeight": "normal",
+      "letterSpacing": "1.36px",
+      "color": "#65616E",
+      "sampleText": "MEMORY OS"
+    }
+  ],
+  "spacing": {
+    "observed": [
+      4,
+      5,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      16,
+      18,
+      19,
+      20,
+      22
+    ],
+    "baseUnit": 4
+  },
+  "radius": [
+    "7px",
+    "9px"
+  ],
+  "shadows": [
+    {
+      "value": "rgba(0, 0, 0, 0.42) 0px 18px 70px 0px, rgba(255, 255, 255, 0.035) 0px 1px 0px 0px inset",
+      "count": 1
+    },
+    {
+      "value": "rgba(128, 82, 255, 0.22) 0px 8px 26px 0px",
+      "count": 1
+    },
+    {
+      "value": "rgba(128, 82, 255, 0.2) 0px 14px 36px 0px",
+      "count": 1
+    }
+  ],
+  "buttons": [
+    {
+      "label": "Judge proof",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#A6A2AD",
+      "padding": "10px 12px",
+      "borderRadius": "0px",
+      "border": "0px none rgb(166, 162, 173)",
+      "boxShadow": "none",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "height": "37px"
+    },
+    {
+      "label": "Get started",
+      "background": "transparent",
+      "backgroundImage": "linear-gradient(135deg, rgb(140, 100, 255), rgb(104, 64, 230))",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "10px 16px",
+      "borderRadius": "9px",
+      "border": "1px solid rgba(255, 255, 255, 0.16)",
+      "boxShadow": "rgba(128, 82, 255, 0.22) 0px 8px 26px 0px",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "height": "39px"
+    },
+    {
+      "label": "Open live workspace ↗",
+      "background": "transparent",
+      "backgroundImage": "linear-gradient(135deg, rgb(139, 98, 255), rgb(104, 65, 223))",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "0px 19px",
+      "borderRadius": "9px",
+      "border": "1px solid rgba(255, 255, 255, 0.18)",
+      "boxShadow": "rgba(128, 82, 255, 0.2) 0px 14px 36px 0px",
+      "fontSize": "14px",
+      "fontWeight": "400",
+      "height": "47px"
+    },
+    {
+      "label": "Run the judge proof",
+      "background": "#FFFFFF",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#E3E0E8",
+      "padding": "0px 19px",
+      "borderRadius": "9px",
+      "border": "1px solid rgba(255, 255, 255, 0.14)",
+      "boxShadow": "none",
+      "fontSize": "14px",
+      "fontWeight": "400",
+      "height": "47px"
+    },
+    {
+      "label": "ASK",
+      "background": "#8052FF",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "9px 14px",
+      "borderRadius": "6px",
+      "border": "0px none rgb(255, 255, 255)",
+      "boxShadow": "none",
+      "fontSize": "9.5px",
+      "fontWeight": "400",
+      "height": "31px"
+    },
+    {
+      "label": "what does token-forge depend on?",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#9A9A9A",
+      "padding": "7px 11px",
+      "borderRadius": "7px",
+      "border": "1px solid rgba(255, 255, 255, 0.13)",
+      "boxShadow": "none",
+      "fontSize": "11px",
+      "fontWeight": "400",
+      "height": "30px"
+    }
+  ],
+  "cards": [
+    {
+      "label": "card",
+      "background": "#07070B",
+      "backgroundImage": "",
+      "backdropFilter": "blur(18px)",
+      "color": "#FFFFFF",
+      "padding": "18px 20px",
+      "borderRadius": "14px",
+      "border": "1px solid rgba(255, 255, 255, 0.11)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "109px"
+    },
+    {
+      "label": "card",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "108px 0px",
+      "borderRadius": "0px",
+      "border": "0px none rgb(255, 255, 255)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "820.797px"
+    }
+  ],
+  "nav": {
+    "label": "navigation",
+    "background": "#060609",
+    "backgroundImage": "",
+    "backdropFilter": "blur(24px) saturate(1.3)",
+    "color": "#FFFFFF",
+    "padding": "9px 10px 9px 15px",
+    "borderRadius": "15px",
+    "border": "1px solid rgba(255, 255, 255, 0.106)",
+    "boxShadow": "rgba(0, 0, 0, 0.42) 0px 18px 70px 0px, rgba(255, 255, 255, 0.035) 0px 1px 0px 0px inset",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "height": "59px"
+  },
+  "chips": [],
+  "statCells": [],
+  "tabs": [],
+  "backgrounds": [
+    {
+      "value": "linear-gradient(rgba(0, 0, 0, 0), rgba(10, 8, 15, 0.38) 12%, rgba(4, 4, 7, 0.64) 84%, rgba(0, 0, 0, 0))",
+      "area": 14154930
+    },
+    {
+      "value": "radial-gradient(circle at 50% 30%, rgba(128, 82, 255, 0.16), rgba(0, 0, 0, 0) 32%), linear-gradient(rgba(255, 255, 255, 0.035) 1px, rgba(0, 0, 0, 0) 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, rgba(0, 0, 0, 0) 1px)",
+      "area": 397751
+    },
+    {
+      "value": "radial-gradient(circle at 56% 42%, rgba(128, 82, 255, 0.14), rgba(0, 0, 0, 0) 34%), linear-gradient(145deg, rgba(17, 15, 24, 0.86), rgba(4, 4, 7, 0.7))",
+      "area": 396924
+    },
+    {
+      "value": "linear-gradient(150deg, rgba(16, 14, 22, 0.88), rgba(5, 5, 8, 0.82))",
+      "area": 397751
+    },
+    {
+      "value": "linear-gradient(112deg, rgba(0, 0, 0, 0) 44%, rgba(255, 255, 255, 0.043) 50%, rgba(0, 0, 0, 0) 56%)",
+      "area": 396924
+    },
+    {
+      "value": "linear-gradient(rgba(255, 255, 255, 0.043) 1px, rgba(0, 0, 0, 0) 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.043) 1px, rgba(0, 0, 0, 0) 1px)",
+      "area": 394400
+    }
+  ],
+  "glass": [
+    {
+      "backdropFilter": "blur(18px)",
+      "background": "rgba(5, 5, 8, 0.89)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "borderRadius": "14px",
+      "boxShadow": "",
+      "area": 130835
+    },
+    {
+      "backdropFilter": "blur(24px) saturate(1.3)",
+      "background": "rgba(6, 6, 9, 0.76)",
+      "border": "1px solid rgba(255, 255, 255, 0.106)",
+      "borderRadius": "15px",
+      "boxShadow": "rgba(0, 0, 0, 0.42) 0px 18px 70px 0px, rgba(255, 255, 255, 0.035) 0px 1px 0px 0px inset",
+      "area": 83780
+    },
+    {
+      "backdropFilter": "blur(18px)",
+      "background": "rgba(7, 7, 11, 0.86)",
+      "border": "1px solid rgba(255, 255, 255, 0.11)",
+      "borderRadius": "14px",
+      "boxShadow": "",
+      "area": 76734
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Lacuna — recommended agents that really run</title>
+    <style>
+      @font-face {
+        font-family: "JetBrains Mono";
+        src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+        font-weight: 400 500;
+        font-display: block;
+      }
+      * { box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; margin: 0; overflow: hidden; background: #000; }
+      #b06-root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      .b06-fill { position: absolute; inset: 0; overflow: hidden; background: #000; }
+      .b06-shot {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        transform-origin: 0 0;
+      }
+      #b06-definitions, #b06-run, #b06-work { opacity: 0; }
+      .b06-frame {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+      }
+      .b06-rail {
+        position: absolute;
+        left: 58px;
+        right: 58px;
+        bottom: 38px;
+        height: 68px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        align-items: stretch;
+        padding: 7px;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: #030303;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.13em;
+      }
+      .b06-phase {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 11px;
+        color: #9a9a9a;
+        opacity: 0.44;
+        border-right: 1px solid rgba(255,255,255,0.09);
+      }
+      .b06-phase:last-child { border-right: 0; }
+      .b06-index { color: #8053ff; }
+      .b06-active {
+        position: absolute;
+        left: 7px;
+        bottom: 4px;
+        width: calc((100% - 14px) / 4);
+        height: 2px;
+        background: #8052ff;
+        transform-origin: left center;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-9by2" id="b06-root" data-composition-id="beat-06-agents" data-start="0" data-width="1920" data-height="1080" data-duration="19" data-fps="30">
+      <section data-hf-id="hf-mgxk" id="b06-scene" class="clip b06-fill" data-start="0" data-duration="19" data-track-index="1">
+        <img data-hf-id="hf-6fyd" id="b06-recommendations" class="b06-shot" src="assets/screens/live-agent-recommendations-v8-1920x1080.png" alt="Captured Lacuna memory-derived agent recommendations with evidence counts, bounded run, and no-write safety">
+        <img data-hf-id="hf-2mwy" id="b06-definitions" class="b06-shot" src="assets/screens/live-agents-v8-1920x1080.png" alt="Captured Lacuna Researcher and Reviewer role definitions with permissions, budgets, and completed-run status">
+        <img data-hf-id="hf-rhbr" id="b06-run" class="b06-shot" src="assets/screens/live-agents-1920x1080.png" alt="Captured Lacuna completed agent run with retrieval, compilation, review, context pack, handoff, draft, and verdict">
+        <img data-hf-id="hf-wtuk" id="b06-work" class="b06-shot" src="assets/screens/live-work-v8-1920x1080.png" alt="Captured Lacuna Work surface with a daily schedule and completed persisted run ledger">
+        <div data-hf-id="hf-w6y0" class="b06-frame"></div>
+        <div data-hf-id="hf-nbb6" id="b06-rail" class="b06-rail" data-layout-allow-caption-zone="">
+          <span data-hf-id="hf-galo" id="b06-phase-recommend" class="b06-phase"><span data-hf-id="hf-j4m3" class="b06-index">01</span> MEMORY SUGGESTS</span>
+          <span data-hf-id="hf-y12r" id="b06-phase-bounds" class="b06-phase"><span data-hf-id="hf-iqb2" class="b06-index">02</span> ROLES ARE BOUNDED</span>
+          <span data-hf-id="hf-xiox" id="b06-phase-run" class="b06-phase"><span data-hf-id="hf-ic01" class="b06-index">03</span> RUN IS PERSISTED</span>
+          <span data-hf-id="hf-px13" id="b06-phase-schedule" class="b06-phase"><span data-hf-id="hf-hxp0" class="b06-index">04</span> DAILY · 06:00 UTC</span>
+          <span data-hf-id="hf-4ya7" id="b06-active" class="b06-active"></span>
+        </div>
+      </section>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const b06 = gsap.timeline({ paused: true });
+      const b06Phases = [
+        "#b06-phase-recommend",
+        "#b06-phase-bounds",
+        "#b06-phase-run",
+        "#b06-phase-schedule",
+      ];
+
+      b06.addLabel("recommend", 0);
+      b06.to(b06Phases[0], { opacity: 1, duration: 0.2 }, 0);
+      b06.fromTo(
+        "#b06-recommendations",
+        { x: -25, y: -12, scale: 1.02 },
+        { x: -66, y: -38, scale: 1.08, duration: 3.7, ease: "power2.inOut" },
+        0.35,
+      );
+
+      b06.addLabel("bounds", 4.2);
+      b06.to(b06Phases[0], { opacity: 0.44, duration: 0.18 }, 4.2);
+      b06.to(b06Phases[1], { opacity: 1, duration: 0.18 }, 4.2);
+      b06.to("#b06-active", { x: 448, duration: 0.4, ease: "power3.out" }, 4.2);
+      b06.to("#b06-recommendations", { opacity: 0, duration: 0.3 }, 4.2);
+      b06.fromTo(
+        "#b06-definitions",
+        { opacity: 0, x: -19, y: -11, scale: 1.02 },
+        { opacity: 1, x: -305, y: 91, scale: 1.15, duration: 1.65, ease: "power3.inOut" },
+        4.2,
+      );
+
+      b06.addLabel("run", 8.25);
+      b06.to(b06Phases[1], { opacity: 0.44, duration: 0.18 }, 8.25);
+      b06.to(b06Phases[2], { opacity: 1, duration: 0.18 }, 8.25);
+      b06.to("#b06-active", { x: 896, duration: 0.4, ease: "power3.out" }, 8.25);
+      b06.to("#b06-definitions", { opacity: 0, duration: 0.3 }, 8.25);
+      b06.fromTo(
+        "#b06-run",
+        { opacity: 0, x: -19, y: -11, scale: 1.02 },
+        { opacity: 1, x: -279, y: -168, scale: 1.18, duration: 1.7, ease: "power3.inOut" },
+        8.25,
+      );
+
+      b06.addLabel("schedule", 13.15);
+      b06.to(b06Phases[2], { opacity: 0.44, duration: 0.18 }, 13.15);
+      b06.to(b06Phases[3], { opacity: 1, duration: 0.18 }, 13.15);
+      b06.to("#b06-active", { x: 1344, duration: 0.4, ease: "power3.out" }, 13.15);
+      b06.to("#b06-run", { opacity: 0, duration: 0.3 }, 13.15);
+      b06.fromTo(
+        "#b06-work",
+        { opacity: 0, x: -19, y: -11, scale: 1.02 },
+        { opacity: 1, x: -140, y: 298, scale: 1.1, duration: 1.55, ease: "power3.inOut" },
+        13.15,
+      );
+      b06.to(
+        "#b06-work",
+        { x: 0, y: 0, scale: 1, duration: 1.8, ease: "power3.inOut" },
+        16.2,
+      );
+
+      window.__timelines["beat-06-agents"] = b06;
+    </script>
+  </body>
+</html>

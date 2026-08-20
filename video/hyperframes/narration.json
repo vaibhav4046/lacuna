@@ -1,82 +1,9 @@
 {
-  "voice": "JBFqnCBsd6RMkjVDRZzb",
+  "provider": "ElevenLabs",
+  "selectedVoice": "Vaibhav Lalwani Professional",
+  "voiceId": null,
   "model": "eleven_multilingual_v2",
-  "scenes": [
-    {
-      "id": "s01",
-      "seconds": 4.78,
-      "words": 14
-    },
-    {
-      "id": "s02",
-      "seconds": 14.44,
-      "words": 40
-    },
-    {
-      "id": "s03",
-      "seconds": 11.19,
-      "words": 33
-    },
-    {
-      "id": "s04",
-      "seconds": 8.54,
-      "words": 26
-    },
-    {
-      "id": "s05",
-      "seconds": 9.47,
-      "words": 28
-    },
-    {
-      "id": "s06",
-      "seconds": 9.01,
-      "words": 23
-    },
-    {
-      "id": "s07",
-      "seconds": 7.06,
-      "words": 21
-    },
-    {
-      "id": "s08",
-      "seconds": 8.27,
-      "words": 22
-    },
-    {
-      "id": "s09",
-      "seconds": 15.6,
-      "words": 39
-    },
-    {
-      "id": "s10",
-      "seconds": 11.98,
-      "words": 29
-    },
-    {
-      "id": "s11",
-      "seconds": 13.28,
-      "words": 31
-    },
-    {
-      "id": "s12",
-      "seconds": 8.17,
-      "words": 20
-    },
-    {
-      "id": "s13",
-      "seconds": 7.06,
-      "words": 16
-    },
-    {
-      "id": "s14",
-      "seconds": 10.17,
-      "words": 29
-    },
-    {
-      "id": "s15",
-      "seconds": 11.98,
-      "words": 31
-    }
-  ],
-  "totalSeconds": 151
+  "status": "selected_not_provider_verified",
+  "previewAudio": null,
+  "note": "Do not render or publish narration until the selected clone has a verified provider voice ID and the production audio acceptance gate passes. No substitute voice is approved."
 }

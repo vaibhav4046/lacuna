@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Lacuna — Beat 01 — Memory Aperture</title>
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Space Grotesk";
+          src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+          font-weight: 300 700;
+          font-display: block;
+        }
+        @font-face {
+          font-family: "JetBrains Mono";
+          src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+          font-weight: 400 500;
+          font-display: block;
+        }
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: transparent;
+          color: #ffffff;
+          font-family: "Space Grotesk", Arial, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        .b01-scene {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        .b01-ground {
+          position: absolute;
+          inset: 0;
+          background: #000000;
+        }
+        .b01-camera-outer,
+        .b01-camera-inner {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          transform-origin: 50% 50%;
+          will-change: transform;
+        }
+        .b01-capture {
+          position: absolute;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+          object-fit: cover;
+        }
+        .b01-orbit {
+          position: absolute;
+          left: 1022px;
+          top: 238px;
+          width: 590px;
+          height: 590px;
+          pointer-events: none;
+        }
+        .b01-orbit-svg {
+          position: absolute;
+          inset: 0;
+          width: 590px;
+          height: 590px;
+          overflow: visible;
+        }
+        .b01-orbit-path {
+          fill: none;
+          stroke: rgba(128, 82, 255, 0.62);
+          stroke-width: 2;
+        }
+        .b01-orbit-path-muted {
+          fill: none;
+          stroke: rgba(255, 255, 255, 0.2);
+          stroke-width: 1;
+          stroke-dasharray: 4 10;
+        }
+        .b01-source-chip {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          display: inline-flex;
+          align-items: center;
+          gap: 9px;
+          height: 30px;
+          padding: 0 12px;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          background: #050505;
+          color: #d6d6d6;
+          font: 500 11px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.16em;
+          white-space: nowrap;
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        .b01-source-chip::before {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #8052ff;
+          content: "";
+        }
+        .b01-source-chip:last-of-type::before { background: #ffb829; }
+        .b01-hud {
+          position: absolute;
+          right: 58px;
+          bottom: 54px;
+          width: 314px;
+          padding: 16px 18px;
+          border-top: 1px solid rgba(128, 82, 255, 0.8);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+          background: #000000;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          opacity: 0;
+        }
+        .b01-hud-label {
+          color: #8f8f8f;
+          font-size: 10px;
+          letter-spacing: 0.24em;
+        }
+        .b01-hud-value {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 10px;
+          color: #ffffff;
+          font-size: 14px;
+          letter-spacing: 0.12em;
+        }
+        .b01-hud-value strong {
+          color: #8052ff;
+          font-weight: 500;
+        }
+        .b01-frame {
+          position: absolute;
+          inset: 22px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          pointer-events: none;
+          opacity: 0;
+        }
+        .b01-corner {
+          position: absolute;
+          width: 28px;
+          height: 28px;
+          border-color: rgba(128, 82, 255, 0.9);
+        }
+        .b01-corner-a { left: -1px; top: -1px; border-left: 2px solid; border-top: 2px solid; }
+        .b01-corner-b { right: -1px; bottom: -1px; border-right: 2px solid; border-bottom: 2px solid; }
+      </style>
+
+      <div data-hf-id="hf-a45p" id="root" data-composition-id="beat-01-aperture" data-start="0" data-width="1920" data-height="1080" data-duration="9" data-fps="30">
+        <section data-hf-id="hf-3t20" id="b01-scene" class="clip b01-scene" data-start="0" data-duration="9" data-track-index="1">
+          <div data-hf-id="hf-lged" class="b01-ground"></div>
+          <div data-hf-id="hf-5xea" id="b01-camera-outer" class="b01-camera-outer">
+            <div data-hf-id="hf-vkii" id="b01-camera-inner" class="b01-camera-inner">
+              <img data-hf-id="hf-yxpo" id="b01-capture" class="b01-capture" src="capture-final/screenshots/scroll-000.png" alt="Captured Lacuna landing page hero">
+              <div data-hf-id="hf-pnuv" id="b01-orbit" class="b01-orbit" aria-hidden="true">
+                <svg data-hf-id="hf-pzpj" class="b01-orbit-svg" viewBox="0 0 590 590">
+                  <circle data-hf-id="hf-2wo9" id="b01-ring-muted" class="b01-orbit-path-muted" cx="295" cy="295" r="220" />
+                  <circle data-hf-id="hf-3h12" id="b01-ring-focus" class="b01-orbit-path" cx="295" cy="295" r="174" />
+                </svg>
+                <span data-hf-id="hf-9ae2" id="b01-chip-meeting" class="b01-source-chip">MEETING</span>
+                <span data-hf-id="hf-8q4i" id="b01-chip-pr" class="b01-source-chip">PR</span>
+                <span data-hf-id="hf-f4jq" id="b01-chip-runbook" class="b01-source-chip">RUNBOOK</span>
+                <span data-hf-id="hf-7jde" id="b01-chip-chat" class="b01-source-chip">CHAT</span>
+              </div>
+            </div>
+          </div>
+          <div data-hf-id="hf-45a5" id="b01-frame" class="b01-frame" aria-hidden="true">
+            <span data-hf-id="hf-xrkn" class="b01-corner b01-corner-a"></span>
+            <span data-hf-id="hf-p3os" class="b01-corner b01-corner-b"></span>
+          </div>
+          <div data-hf-id="hf-pyzg" id="b01-hud" class="b01-hud">
+            <div data-hf-id="hf-niov" class="b01-hud-label">MEMORY APERTURE · LIVE LANDING</div>
+            <div data-hf-id="hf-coqj" class="b01-hud-value"><span data-hf-id="hf-ntmx">4 SOURCES</span><strong data-hf-id="hf-g1rd">1 DECISION</strong></div>
+          </div>
+        </section>
+      </div>
+
+      <script>
+        (() => {
+          const id = "beat-01-aperture";
+          const tl = gsap.timeline({ paused: true });
+          const focus = document.getElementById("b01-ring-focus");
+          const muted = document.getElementById("b01-ring-muted");
+
+          [focus, muted].forEach((ring) => {
+            const length = ring.getTotalLength();
+            ring.style.strokeDasharray = String(length);
+            ring.style.strokeDashoffset = String(length);
+          });
+
+          tl.addLabel("establish", 0);
+          tl.fromTo("#b01-camera-outer", { scale: 0.982 }, { scale: 1, duration: 1.25, ease: "power3.out" }, "establish");
+          tl.fromTo("#b01-frame", { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power1.out" }, 0.2);
+          tl.to("#b01-ring-muted", { strokeDashoffset: 0, duration: 1.15, ease: "none" }, 0.35);
+          tl.to("#b01-ring-focus", { strokeDashoffset: 0, duration: 0.95, ease: "power2.out" }, 0.62);
+
+          const chips = [
+            ["#b01-chip-meeting", -236, -110, -224, -124],
+            ["#b01-chip-pr", 128, -214, 146, -201],
+            ["#b01-chip-runbook", 154, 126, 136, 142],
+            ["#b01-chip-chat", -226, 154, -210, 137]
+          ];
+          chips.forEach((item, index) => {
+            const selector = item[0];
+            const start = 0.74 + index * 0.16;
+            tl.set(selector, { opacity: 1 }, start);
+            tl.fromTo(selector, { x: item[1] * 0.72, y: item[2] * 0.72, scale: 0.92 }, {
+              x: item[1], y: item[2], scale: 1, duration: 0.72, ease: "power3.out", immediateRender: false
+            }, start);
+            tl.to(selector, { x: item[3], y: item[4], duration: 4.35, ease: "sine.inOut" }, 1.55 + index * 0.08);
+          });
+
+          tl.fromTo("#b01-hud", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 2.2);
+          tl.addLabel("aperture-push", 7.45);
+          tl.to("#b01-camera-outer", { scale: 1.64, duration: 1.55, ease: "power3.inOut" }, "aperture-push");
+          tl.to("#b01-camera-inner", { x: -354, y: 4, duration: 1.55, ease: "power3.inOut" }, "aperture-push");
+          tl.to("#b01-hud", { opacity: 0, y: 16, duration: 0.34, ease: "power2.in" }, 7.38);
+          tl.to("#b01-frame", { opacity: 0.24, duration: 0.45, ease: "power1.in" }, 7.55);
+
+          window.__timelines = window.__timelines || {};
+          window.__timelines[id] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

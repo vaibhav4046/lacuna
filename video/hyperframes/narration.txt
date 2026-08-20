@@ -8,13 +8,13 @@ Here is the deployed product. Ask a normal question. Lacuna answers plainly, exp
 
 Nothing is hidden behind chat. Memory stays readable as a table. The graph has an overview, a proof path, and one row per visible edge—four hundred fifty three nodes and six hundred eighty two relationships.
 
-Lacuna recommends bounded agents from workspace evidence. A Researcher builds a Context Pack; a Reviewer checks it. Steps, tool calls, artifacts, retries, cancellation, and final state persist. The daily Context Health schedule is real and idempotent.
+Lacuna recommends bounded agents from workspace evidence. A Researcher builds a Context Pack; a Reviewer checks it. Steps, tool calls, artifacts, retries, cancellation, and final state persist. The daily Context Health schedule runs with stable local idempotency; distributed exactly-once dispatch still requires HydraDB compare-and-set.
 
-Voice is another client, not another brain. Realtime speech becomes the same evidence-bearing query; listening, thinking, speaking, interruption, failure, and fallback stay visible. Provider keys never enter the browser.
+Voice is another client, not another brain. The fifteen-state route, interruption, and typed fallback are implemented, and provider keys never enter the browser. This build shows the provider gate honestly: Vaibhav Lalwani Professional is selected, but production speech stays disabled until that exact clone is bound and verified.
 
 HydraDB holds seventy two conversations as evidence and eighty six entity records as claims, preserving relationships and history. Lacuna keeps sources separate from conclusions, traverses multi-hop answers, isolates workspaces, and delivers the same resolved context everywhere.
 
-Watch one question run through the website, command line, and M C P client. These are real commands. The remote M C P endpoint, TypeScript S D K, and H T T P A P I reach the same store and return the same evidence.
+Watch one question run through the website, command line, and M C P client. These are real commands. The remote M C P endpoint and H T T P A P I reach the same store and return the same evidence. A packaged Lacuna S D K is not shipped in this build.
 
 On our labelled generated evaluation, Lacuna answers sixty four of sixty four and correctly abstains thirty two times. The strongest flat baseline reaches sixty three using about eighteen hundred context tokens. Lacuna uses about eighteen. Self-hosted and HydraDB Cloud match field for field.
 

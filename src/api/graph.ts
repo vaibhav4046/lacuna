@@ -766,6 +766,71 @@ function pageLimit(value: number | undefined): number {
   return value;
 }
 
+/**
+ * Order proof pages as inspectable provenance bundles instead of four broad
+ * kind buckets. Sorting every evidence node before every claim made a bounded
+ * first page technically valid but visually useless: it contained many quoted
+ * spans and almost none of the claims or entities their edges point to.
+ *
+ * Each claim now pulls its direct source -> evidence -> claim -> entity path
+ * forward. The remaining nodes retain the canonical normalised order, so the
+ * cursor is still deterministic and every node appears exactly once.
+ */
+function proofNodeOrder(graph: NormalisedGraph): readonly GraphNode[] {
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const edges = [...graph.edges].sort((a, b) => (
+    a.relation.localeCompare(b.relation)
+    || a.from.localeCompare(b.from)
+    || a.to.localeCompare(b.to)
+    || a.id.localeCompare(b.id)
+  ));
+  const stateOrder: Readonly<Record<GraphNodeState, number>> = {
+    conflicted: 0,
+    missing: 1,
+    current: 2,
+    historical: 3,
+    withdrawn: 4,
+    neutral: 5,
+  };
+  const claims = graph.nodes.filter((node) => node.kind === 'claim').sort((a, b) => (
+    stateOrder[a.state] - stateOrder[b.state]
+    || a.label.localeCompare(b.label)
+    || a.id.localeCompare(b.id)
+  ));
+  const ordered: GraphNode[] = [];
+  const seen = new Set<string>();
+  const add = (id: string): void => {
+    if (seen.has(id)) return;
+    const node = byId.get(id);
+    if (node === undefined) return;
+    seen.add(id);
+    ordered.push(node);
+  };
+
+  for (const claim of claims) {
+    const evidence = edges
+      .filter((edge) => edge.relation === 'supports' && edge.to === claim.id)
+      .map((edge) => edge.from);
+    for (const evidenceId of evidence) {
+      for (const edge of edges) {
+        if (edge.relation === 'contains' && edge.to === evidenceId) add(edge.from);
+      }
+      add(evidenceId);
+    }
+    add(claim.id);
+    for (const edge of edges) {
+      if (edge.from !== claim.id) continue;
+      if (edge.relation === 'about' || edge.relation === 'mentions') add(edge.to);
+      if (edge.relation === 'supersedes' || edge.relation === 'contradicts') add(edge.to);
+    }
+    for (const edge of edges) {
+      if ((edge.relation === 'supersedes' || edge.relation === 'contradicts') && edge.to === claim.id) add(edge.from);
+    }
+  }
+  for (const node of graph.nodes) add(node.id);
+  return ordered;
+}
+
 /** Validate tenant scope and return one deterministic, HMAC-cursored page. */
 export function graphPage(dataset: GraphDataset, request: GraphPageRequest): GraphEnvelope {
   if (request.authenticatedWorkspaceId === ''
@@ -784,15 +849,16 @@ export function graphPage(dataset: GraphDataset, request: GraphPageRequest): Gra
     throw new GraphApiError('INVALID_CURSOR', 400);
   }
   const graph = normalise(dataset);
+  const orderedNodes = request.mode === 'proof' ? proofNodeOrder(graph) : graph.nodes;
   const offset = decoded?.offset ?? 0;
-  if (offset > graph.nodes.length) throw new GraphApiError('INVALID_CURSOR', 400);
-  const nodes = graph.nodes.slice(offset, offset + limit);
+  if (offset > orderedNodes.length) throw new GraphApiError('INVALID_CURSOR', 400);
+  const nodes = orderedNodes.slice(offset, offset + limit);
   const pageIds = new Set(nodes.map((node) => node.id));
   const edges = graph.edges
     .filter((edge) => pageIds.has(edge.from) || pageIds.has(edge.to))
     .slice(0, MAX_GRAPH_EDGES_PER_PAGE);
   const nextOffset = offset + nodes.length;
-  const nextCursor = nextOffset < graph.nodes.length
+  const nextCursor = nextOffset < orderedNodes.length
     ? encodeCursor({ v: 1, scope: expectedScope, mode: request.mode, offset: nextOffset }, request.cursorKey)
     : null;
 

@@ -68,12 +68,18 @@ function runAgent(task: string): string {
     set.call(ta, ${JSON.stringify(task)});
     ta.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 250));
-    const run = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'RUN');
+    const run = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'RUN TASK');
     if (!run) return 'MISS';
     run.click();
     for (let waited = 0; waited < 40_000; waited += 500) {
       await new Promise((r) => setTimeout(r, 500));
-      if (document.body.innerText.includes('VERDICT')) return 'OK';
+      if (document.body.innerText.includes('NO AUTHORITATIVE WRITE')) {
+        const marker = [...document.querySelectorAll('span')]
+          .find((el) => (el.textContent || '').includes('NO AUTHORITATIVE WRITE'));
+        marker?.closest('section')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+        window.scrollBy({ top: -82, behavior: 'instant' });
+        return 'OK';
+      }
     }
     return 'MISS';
   })()`;
@@ -105,7 +111,49 @@ function askSentence(question: string, placeholderStartsWith: string): string {
   })()`;
 }
 
-const SET: readonly Shot[] = [
+const ALL_SHOTS: readonly Shot[] = [
+  {
+    file: 'live-dashboard-v8-1920x1080.png',
+    url: '/explore/dash',
+    focus: scrollTo('MEMORY CONTROL ROOM', 88),
+    settleMs: 6_000,
+  },
+  {
+    file: 'live-graph-v8-1920x1080.png',
+    url: '/explore/graph',
+    focus: scrollTo('MEMORY FIELD OVERVIEW', 88),
+    settleMs: 6_000,
+  },
+  {
+    file: 'live-proof-graph-v8-1920x1080.png',
+    url: '/explore/hydra',
+    focus: scrollTo('PROOF GRAPH · EXACT PROVENANCE', 88),
+    settleMs: 9_000,
+  },
+  {
+    file: 'live-agent-recommendations-v8-1920x1080.png',
+    url: '/explore/agents',
+    focus: scrollTo('SUGGESTED FROM THIS MEMORY', 88),
+    settleMs: 6_000,
+  },
+  {
+    file: 'live-work-v8-1920x1080.png',
+    url: '/explore/work',
+    focus: scrollTo('SCHEDULES · DAILY IS THE SUPPORTED CADENCE', 88),
+    settleMs: 6_000,
+  },
+  {
+    file: 'live-tools-v8-1920x1080.png',
+    url: '/explore/tools',
+    focus: scrollTo('REMOTE MCP', 88),
+    settleMs: 6_000,
+  },
+  {
+    file: 'live-voice-v8-1920x1080.png',
+    url: '/explore/voice',
+    focus: scrollTo('VOICE · READY', 88),
+    settleMs: 3_000,
+  },
   {
     // The top of the same screen, for the scene that talks about what the
     // managed service holds rather than about the walk.
@@ -146,6 +194,16 @@ const SET: readonly Shot[] = [
     settleMs: 2_500,
   },
 ];
+
+const onlyArg = process.argv.find((arg) => arg.startsWith('--only='));
+const onlyFile = onlyArg?.slice('--only='.length);
+const SET: readonly Shot[] = onlyFile === undefined
+  ? ALL_SHOTS
+  : ALL_SHOTS.filter((shot) => shot.file === onlyFile);
+
+if (onlyFile !== undefined && SET.length === 0) {
+  throw new Error(`Unknown shot: ${onlyFile}`);
+}
 
 const chrome = findChrome();
 const port = await freePort();

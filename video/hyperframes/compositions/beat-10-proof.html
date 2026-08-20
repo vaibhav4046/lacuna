@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>Lacuna · measured proof</title>
+  <style>
+    @font-face{font-family:"Space Grotesk";src:url("assets/fonts/space-grotesk-latin.woff2") format("woff2");font-weight:300 700;font-display:block}
+    @font-face{font-family:"JetBrains Mono";src:url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");font-weight:400 500;font-display:block}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:1920px;height:1080px;overflow:hidden;background:#000;color:#fff}
+    body{font-family:"Space Grotesk",sans-serif}
+    #beat-10-proof{position:relative;width:1920px;height:1080px;overflow:hidden}
+    .fill{position:absolute;inset:0;background:#000}
+    .scene{position:absolute;inset:0;overflow:hidden}
+    .screen-wrap{position:absolute;inset:0;overflow:hidden}
+    .screen{position:absolute;inset:0;width:1920px;height:1080px;object-fit:cover;will-change:transform}
+    .kicker,.label,.artifact,.parity-label{font-family:"JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.17em}
+    .kicker{position:absolute;left:242px;top:72px;padding:12px 16px;background:#000;border-left:2px solid #8052ff;font-size:12px;color:#8052ff}
+    .score{position:absolute;right:74px;top:74px;width:360px;padding:24px 26px;background:#000;border:1px solid rgba(128,82,255,.62)}
+    .label{font-size:11px;color:#9a9a9a}
+    .score-line{display:flex;align-items:baseline;justify-content:space-between;margin-top:10px}
+    .score strong{font-size:68px;font-weight:300;letter-spacing:-.04em;color:#fff}
+    .score span{font-family:"JetBrains Mono",monospace;font-size:13px;color:#bdbdbd}
+    .proof-rail{position:absolute;left:242px;right:74px;bottom:44px;height:222px;display:grid;grid-template-columns:1.2fr 1.05fr .95fr;background:#030303;border-top:1px solid rgba(128,82,255,.7);border-bottom:1px solid rgba(255,255,255,.14)}
+    .cell{padding:24px 26px;border-right:1px solid rgba(255,255,255,.11)}
+    .cell:last-child{border-right:0}
+    .metric{margin-top:12px;font-size:30px;font-weight:300;line-height:1.15}
+    .metric strong{font-weight:400;color:#8052ff}
+    .bar-row{display:grid;grid-template-columns:170px 1fr 90px;gap:14px;align-items:center;margin-top:15px;font-family:"JetBrains Mono",monospace;font-size:12px;color:#bdbdbd}
+    .bar-track{height:5px;background:#171717;overflow:hidden}
+    .bar{display:block;width:100%;height:5px;background:#8052ff;transform-origin:left center}
+    .bar.base{background:#555}
+    .parity-label{font-size:11px;color:#9a9a9a}
+    .parity-value{margin-top:14px;font-family:"JetBrains Mono",monospace;font-size:25px;color:#8052ff}
+    .parity-copy{margin-top:16px;font-size:18px;line-height:1.35;color:#bdbdbd}
+    .artifact{position:absolute;left:242px;bottom:18px;font-size:10px;color:#757575}
+    .caveat{position:absolute;left:242px;top:134px;padding:11px 15px;background:#000;border-bottom:1px solid #ffb829;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;color:#ffb829}
+    .scan{position:absolute;left:242px;right:74px;top:168px;height:1px;background:#8052ff;transform-origin:left center;opacity:.7}
+  </style>
+</head>
+<body>
+  <div data-hf-id="hf-hovp" id="beat-10-proof" data-composition-id="beat-10-proof" data-start="0" data-width="1920" data-height="1080" data-duration="19" data-fps="30">
+    <div data-hf-id="hf-4qej" class="fill"></div>
+    <section data-hf-id="hf-l203" id="b10-scene" class="clip scene" data-start="0" data-duration="19" data-track-index="1">
+      <div data-hf-id="hf-scyp" class="screen-wrap">
+        <img data-hf-id="hf-8oor" id="b10-screen" class="screen" data-layout-allow-overflow="true" src="assets/screens/live-evaluations-1920x1080.png" alt="Deployed Lacuna evaluation screen">
+      </div>
+      <p data-hf-id="hf-sjw6" id="b10-kicker" class="kicker">10 · Measure before claiming</p>
+      <p data-hf-id="hf-kyrw" id="b10-caveat" class="caveat">GENERATED 64-QUESTION EVALUATION · NOT A PUBLIC BENCHMARK</p>
+      <div data-hf-id="hf-mic8" id="b10-score" class="score">
+        <p data-hf-id="hf-hyhc" class="label">Lacuna · exact result</p>
+        <p data-hf-id="hf-rbfy" class="score-line"><strong data-hf-id="hf-1yh9"><span data-hf-id="hf-53l8" id="b10-correct">64</span>/64</strong><span data-hf-id="hf-ootm">0 false · 0 unsupported</span></p>
+      </div>
+      <div data-hf-id="hf-nj8t" id="b10-scan" class="scan" data-layout-ignore="true"></div>
+      <div data-hf-id="hf-btvz" class="proof-rail">
+        <section data-hf-id="hf-n179" id="b10-context" class="cell">
+          <p data-hf-id="hf-hl84" class="label">Mean context handed to answer step</p>
+          <div data-hf-id="hf-vxho" class="bar-row"><span data-hf-id="hf-b54f">Lacuna</span><span data-hf-id="hf-gdgi" class="bar-track"><span data-hf-id="hf-kzyy" id="b10-bar-lacuna" class="bar"></span></span><strong data-hf-id="hf-mwez">18</strong></div>
+          <div data-hf-id="hf-x17o" class="bar-row"><span data-hf-id="hf-uwty">best baseline</span><span data-hf-id="hf-98na" class="bar-track"><span data-hf-id="hf-tcig" id="b10-bar-base" class="bar base"></span></span><strong data-hf-id="hf-vru0">1,843</strong></div>
+          <p data-hf-id="hf-7hpa" class="metric"><strong data-hf-id="hf-rke8">100.9× fewer</strong> estimated context tokens</p>
+        </section>
+        <section data-hf-id="hf-4o5r" id="b10-abstention" class="cell">
+          <p data-hf-id="hf-ruij" class="label">Abstention cases</p>
+          <p data-hf-id="hf-6n5f" class="metric"><strong data-hf-id="hf-91vg" id="b10-abstentions">32</strong> / 32 correct</p>
+          <p data-hf-id="hf-ypy8" class="parity-copy">Precision, recall, and F1: 1.000. The best baseline finishes one question behind at 63/64.</p>
+        </section>
+        <section data-hf-id="hf-xqz7" id="b10-parity" class="cell">
+          <p data-hf-id="hf-97fu" class="parity-label">Node ↔ HydraDB Cloud</p>
+          <p data-hf-id="hf-vwsd" class="parity-value">ALL_IDENTICAL: true</p>
+          <p data-hf-id="hf-7a7h" class="parity-copy">64 questions compared field by field. 0 mismatches.</p>
+        </section>
+      </div>
+      <p data-hf-id="hf-magw" class="artifact">PROOF · artifacts/bench/results.json · artifacts/hydra/cloud-parity.json</p>
+    </section>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const b10 = gsap.timeline({paused:true});
+    b10.fromTo("#b10-screen",{x:0,y:0,scale:1},{x:-10,y:-5,scale:1.018,duration:18.8,ease:"none"},0)
+      .fromTo("#b10-kicker",{x:-28,opacity:0},{x:0,opacity:1,duration:.65,ease:"power3.out"},0.15)
+      .fromTo("#b10-caveat",{y:-16,opacity:0},{y:0,opacity:1,duration:.7,ease:"power3.out"},0.65)
+      .fromTo("#b10-score",{x:40,opacity:0},{x:0,opacity:1,duration:.8,ease:"power3.out"},1.15)
+      .fromTo("#b10-correct",{innerText:0},{innerText:64,snap:{innerText:1},duration:1.5,ease:"power2.out"},1.35)
+      .fromTo("#b10-scan",{scaleX:0,opacity:0},{scaleX:1,opacity:.7,duration:2.1,ease:"power2.inOut"},2.45)
+      .fromTo("#b10-context",{y:34,opacity:0},{y:0,opacity:1,duration:.7,ease:"power3.out"},4.25)
+      .fromTo("#b10-bar-lacuna",{scaleX:0},{scaleX:.01,duration:.8,ease:"power2.out"},4.7)
+      .fromTo("#b10-bar-base",{scaleX:0},{scaleX:1,duration:1.35,ease:"power3.out"},5.05)
+      .fromTo("#b10-abstention",{y:34,opacity:0},{y:0,opacity:1,duration:.7,ease:"power3.out"},6.15)
+      .fromTo("#b10-abstentions",{innerText:0},{innerText:32,snap:{innerText:1},duration:1.1,ease:"power2.out"},6.35)
+      .fromTo("#b10-parity",{y:34,opacity:0},{y:0,opacity:1,duration:.7,ease:"power3.out"},7.65)
+      .to("#b10-parity",{backgroundColor:"#080613",duration:1.2,ease:"power1.inOut",repeat:3,yoyo:true},8.75)
+      .to("#b10-scan",{x:120,duration:7.5,ease:"none"},10.9);
+    window.__timelines["beat-10-proof"] = b10;
+  </script>
+</body>
+</html>

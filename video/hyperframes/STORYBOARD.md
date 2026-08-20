@@ -15,28 +15,27 @@ The underscore is a restrained modular pulse: low sub and dry clockwork at the p
 
 | Asset | Type | Beat | Role |
 | --- | --- | --- | --- |
-| `capture-live/screenshots/scroll-000.png` | Live landing capture | 1 | Exact hero and Gravity Field aperture |
-| `capture-live/screenshots/scroll-012.png` | Live landing capture | 2 | Six-capability product grid |
-| `capture-live/screenshots/scroll-020.png` | Live landing capture | 2 | Temporal resolution transition |
-| `capture-live/screenshots/scroll-028.png` | Live landing capture | 3 | How-it-works context architecture |
+| `capture-final/screenshots/scroll-000.png` | Production landing capture | 1 | Exact redesigned hero and Memory Aperture |
+| `capture-final/screenshots/scroll-006.png` | Production landing capture | 2 | Problem and capability progression |
+| `capture-final/screenshots/scroll-012.png` | Production landing capture | 3 | Time-aware context journey |
+| `capture-final/screenshots/scroll-023.png` | Production landing capture | 3 | Architecture and client surface |
 | `assets/screens/live-ask-1920x1080.png` | Deployed product | 4 | Answer, explanation, evidence, artifact |
-| `assets/screens/live-memory-fullpage.png` | Deployed product | 5 | Readable memory inventory |
+| `assets/screens/live-dashboard-v8-1920x1080.png` | Deployed product | 4 | Signed-out control room and memory summary |
 | `assets/screens/live-graph-v8-1920x1080.png` | Deployed product | 5 | Interactive graph and table |
+| `assets/screens/live-proof-graph-v8-1920x1080.png` | Deployed product | 5 | Exact source-to-entity proof page |
+| `assets/screens/live-agent-recommendations-v8-1920x1080.png` | Deployed product | 6 | Memory-derived bounded agent suggestions |
 | `assets/screens/live-agents-v8-1920x1080.png` | Deployed product | 6 | Agent ledger and schedule |
+| `assets/screens/live-work-v8-1920x1080.png` | Deployed product | 6 | Daily schedule and run history |
 | `assets/screens/live-voice-v8-1920x1080.png` | Deployed product | 7 | Explicit voice state machine |
 | `assets/screens/live-hydradb-top-1920x1080.png` | Deployed product | 8 | HydraDB counts and checks |
 | `assets/screens/live-hydradb-1920x1080.png` | Deployed product | 8 | Store graph relations |
 | `assets/screens/live-evaluations-1920x1080.png` | Deployed product | 10 | Labelled generated evaluation |
 | `assets/continuity.txt` | Recorded CLI/MCP output | 9 | Exact same-store parity transcript |
 | `assets/favicon.svg` | Brand mark | 1, 11 | Opening and closing Lacuna mark |
-| `captures/final/landing-scroll.mp4` | Required real recording | 1–3 | Post-redesign landing scroll, no mockup |
-| `captures/final/ask-to-artifact.mp4` | Required real recording | 4 | Typed question → answer → evidence artifact |
-| `captures/final/graph-proof.mp4` | Required real recording | 5 | Overview → proof path → edge table |
-| `captures/final/agent-schedule.mp4` | Required real recording | 6 | Recommendation → run → persisted result → schedule |
-| `captures/final/voice-roundtrip.mp4` | Conditional real recording | 7 | Include only after production STT and TTS pass |
-| `captures/final/cli-mcp.mp4` | Required real recording | 9 | Actual CLI plus actual MCP client session |
+| `artifacts/cli/session.txt` | Recorded cloud CLI session · 2026-08-19 | 9 | Status, answered, evidence, and abstention proof |
+| `assets/continuity.txt` | Recorded web/CLI/MCP parity | 9 | Same-store values and `ONE_CONTEXT_IDENTICAL: true` |
 
-The final capture pass must refresh all `live-*` frames after the production deploy. Conditional voice media is omitted, not simulated, if the provider gate fails.
+The preview edit uses verified production captures and repository artifacts only. Continuous cursor recordings remain a final polish gate, not a prerequisite hidden behind simulated UI. Conditional voice media is omitted, not simulated, until the exact selected clone passes production STT, TTS, and interruption acceptance.
 
 ## Beat 1 — The memory aperture · 0:00–0:09
 
@@ -98,7 +97,7 @@ The final capture pass must refresh all `live-*` frames after the production dep
 
 **Concept:** No montage tricks. We watch one uninterrupted real product action from question to artifact, then a fast truthful cut to abstention. The cursor is an actor whose movement explains the interface.
 
-**Visual:** `ask-to-artifact.mp4` full frame. Cursor types the real question, submits, pauses during the live state, follows the answer to WHAT CHANGED, opens the cited sentence, then the artifact. A restrained HUD names `ANSWER / EXPLANATION / EVIDENCE / ARTIFACT`. Final five seconds hard-cut to an unanswered question and its reason.
+**Visual:** Verified deployed captures show the completed answer, explanation, cited sentence, artifact, and conflict abstention. A restrained HUD names `ANSWER / EXPLANATION / EVIDENCE / ARTIFACT`; no fake loading or cursor event is inserted.
 
 **Techniques:** live video compositing; registry `simulated-cursor` only if capture cursor is absent; registry `ui-focus-zoom`; telemetry HUD.
 
@@ -116,7 +115,7 @@ The final capture pass must refresh all `live-*` frames after the production dep
 
 **Concept:** Scale without spaghetti. The camera starts over a readable table, pulls back to reveal hundreds of graph elements, then follows one violet proof path and returns to the exact edge row.
 
-**Visual:** Memory table scroll, graph overview, proof mode, and edge table all come from `graph-proof.mp4`. Count-up lands at 453 nodes and 682 relationships only when the live UI displays those values. Search/filter chips remain readable. A violet tracer follows query → claim → evidence → source.
+**Visual:** Verified overview and proof captures show the graph and readable edge table. Count-up lands at 453 nodes and 682 relationships only where the deployed UI displays those values. A violet tracer follows source → evidence → claim → entity.
 
 **Techniques:** real video compositing; SVG tracing beam; counter; registry `ui-focus-zoom`; velocity throw-and-snap between overview and proof.
 
@@ -134,7 +133,7 @@ The final capture pass must refresh all `live-*` frames after the production dep
 
 **Concept:** Memory becomes bounded work. A recommendation is visibly justified by workspace evidence; then the run ledger proves Researcher, Reviewer, artifacts, retries, cancellation controls, and the daily schedule are real state—not decorative cards.
 
-**Visual:** `agent-schedule.mp4` shows recommendation reason and evidence count, create/enable decision, one live run, expanding steps, artifact detail, a safe retry/cancel state, and `DAILY · 06:00 UTC`. A compact concurrency proof card appears only from the test artifact: 48 cron contenders, 32 Run Now callers, 32 duplicate callers.
+**Visual:** Verified recommendation, completed run, tool ledger, and schedule captures show reasons, evidence, bounded tools, artifacts, and `DAILY · 06:00 UTC`. A compact concurrency proof card appears only from the test artifact: 48 cron contenders, 32 Run Now callers, 32 duplicate callers. The film states that cross-instance exactly-once needs datastore compare-and-set.
 
 **Techniques:** live video compositing; state-chip rail; tracing beam between Researcher and Reviewer; counter/stagger cascade.
 
@@ -152,7 +151,7 @@ The final capture pass must refresh all `live-*` frames after the production dep
 
 **Concept:** The orb is a state instrument. A real speech roundtrip moves through listening, committed transcript, thinking, evidence answer, speaking, and interruption; the typed fallback remains on screen so failure is never disguised.
 
-**Visual:** `voice-roundtrip.mp4` unchanged. A mono rail names the exact state; the committed transcript appears once, the cited answer remains visible during speech, and an interrupt action returns to ready. If provider credentials are absent, replace this beat with a four-second honest `PROVIDER NOT CONFIGURED` proof and give recovered time to CLI/MCP.
+**Visual:** The deployed voice route remains unchanged beneath an honest overlay: `VAIBHAV LALWANI PROFESSIONAL SELECTED`, `PROVIDER NOT CONFIGURED`, and `NO SUBSTITUTE VOICE`. The fifteen-state implementation, server-only key boundary, interruption, and typed fallback are named without simulating a roundtrip.
 
 **Techniques:** live video compositing; state-chip rail; audio-reactive orb driven only by recorded waveform amplitude; soft focus zoom.
 
@@ -188,7 +187,7 @@ The final capture pass must refresh all `live-*` frames after the production dep
 
 **Concept:** This is the credibility beat developers will pause. A real CLI and real MCP client ask the same question; the output lines, evidence, timing, and parity marker are captured directly.
 
-**Visual:** `cli-mcp.mp4` begins full screen on `lacuna status`, continues to `lacuna ask`, then splits to the MCP client invocation and returned record. The remote endpoint and TypeScript SDK call appear as two brief exact-code inserts. `ONE_CONTEXT_IDENTICAL` lands from the recorded artifact, not retyped marketing copy.
+**Visual:** The recorded cloud CLI session begins with `lacuna status`, continues to `lacuna ask` and `lacuna explain`, then splits to the recorded MCP parity artifact and returned record. The remote endpoint and HTTP API appear as exact-code inserts. `PACKAGED LACUNA SDK: NOT SHIPPED` remains visible; `ONE_CONTEXT_IDENTICAL` lands from the recorded artifact, not marketing copy.
 
 **Techniques:** real video compositing; terminal focus zoom; code highlight; match cut on identical answer lines.
 
@@ -246,10 +245,9 @@ video/hyperframes/
 ├── STORYBOARD.md
 ├── transcript.json
 ├── narration.wav
-├── capture-live/
+├── capture-final/
 │   ├── screenshots/
 │   └── extracted/
-├── captures/final/
 ├── assets/
 │   ├── fonts/
 │   ├── narration/

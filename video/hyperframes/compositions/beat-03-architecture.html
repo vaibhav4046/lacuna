@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Lacuna — Beat 03 — Architecture on HydraDB</title>
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Space Grotesk";
+          src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+          font-weight: 300 700;
+          font-display: block;
+        }
+        @font-face {
+          font-family: "JetBrains Mono";
+          src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+          font-weight: 400 500;
+          font-display: block;
+        }
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: transparent;
+          color: #ffffff;
+          font-family: "Space Grotesk", Arial, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        .b03-scene {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        .b03-ground {
+          position: absolute;
+          inset: 0;
+          background: #000000;
+        }
+        .b03-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px);
+          background-size: 72px 72px;
+        }
+        .b03-kicker {
+          position: absolute;
+          left: 64px;
+          top: 52px;
+          color: #8052ff;
+          font: 500 11px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.24em;
+        }
+        .b03-title {
+          position: absolute;
+          left: 64px;
+          top: 80px;
+          color: #ffffff;
+          font-size: 48px;
+          font-weight: 300;
+          letter-spacing: -0.035em;
+        }
+        .b03-capture-stage {
+          position: absolute;
+          left: 64px;
+          top: 170px;
+          width: 690px;
+          height: 388px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.18);
+          background: #030303;
+          will-change: transform, opacity;
+        }
+        .b03-capture {
+          display: block;
+          width: 690px;
+          height: 388px;
+          object-fit: cover;
+        }
+        .b03-capture-meta {
+          position: absolute;
+          left: 64px;
+          top: 580px;
+          width: 690px;
+          display: flex;
+          justify-content: space-between;
+          color: #8d8d8d;
+          font: 500 9px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.18em;
+        }
+        .b03-capture-meta strong { color: #ffb829; font-weight: 500; }
+        .b03-flow {
+          position: absolute;
+          left: 808px;
+          top: 152px;
+          width: 1048px;
+          height: 810px;
+          border-top: 1px solid rgba(255,255,255,0.12);
+          border-bottom: 1px solid rgba(128,82,255,0.56);
+        }
+        .b03-flow-label {
+          position: absolute;
+          color: #8d8d8d;
+          font: 500 9px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.2em;
+        }
+        .b03-flow-label-inputs { left: 0; top: 18px; }
+        .b03-flow-label-core { left: 334px; top: 232px; }
+        .b03-flow-label-store { left: 334px; top: 526px; }
+        .b03-flow-label-output { right: 0; top: 232px; }
+        .b03-inputs {
+          position: absolute;
+          left: 0;
+          top: 58px;
+          width: 1048px;
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .b03-chip,
+        .b03-output-chip {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 40px;
+          padding: 0 13px;
+          border: 1px solid rgba(255,255,255,0.18);
+          background: #050505;
+          color: #c9c9c9;
+          font: 500 10px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.12em;
+          white-space: nowrap;
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        .b03-core {
+          position: absolute;
+          left: 244px;
+          top: 272px;
+          width: 560px;
+          height: 182px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1px;
+          padding: 1px;
+          border: 1px solid rgba(128,82,255,0.74);
+          background: rgba(128,82,255,0.3);
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        .b03-core-node {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          background: #070707;
+          color: #ffffff;
+          font: 500 12px/1 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.14em;
+        }
+        .b03-core-node span { color: #7e7e7e; font-size: 9px; letter-spacing: 0.16em; }
+        .b03-store {
+          position: absolute;
+          left: 244px;
+          top: 566px;
+          width: 560px;
+          height: 142px;
+          padding: 30px 32px;
+          border: 1px solid rgba(255,184,41,0.5);
+          background: #060606;
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        .b03-store-name {
+          color: #ffffff;
+          font-size: 28px;
+          font-weight: 400;
+          letter-spacing: -0.02em;
+        }
+        .b03-store-detail {
+          margin-top: 13px;
+          color: #aaa6a0;
+          font: 400 10px/1.5 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.12em;
+        }
+        .b03-store-fill {
+          position: absolute;
+          left: 32px;
+          right: 32px;
+          bottom: 18px;
+          height: 2px;
+          background: #ffb829;
+          transform-origin: 0 50%;
+          will-change: transform;
+        }
+        .b03-pack {
+          position: absolute;
+          right: 0;
+          top: 272px;
+          width: 184px;
+          height: 182px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 0 22px;
+          border: 1px solid rgba(128,82,255,0.85);
+          background: #08060d;
+          transform-origin: 100% 50%;
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        .b03-pack strong {
+          color: #ffffff;
+          font: 500 14px/1.3 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.12em;
+        }
+        .b03-pack span {
+          margin-top: 13px;
+          color: #a497c8;
+          font: 400 9px/1.5 "JetBrains Mono", Consolas, monospace;
+          letter-spacing: 0.11em;
+        }
+        .b03-output-rail {
+          position: absolute;
+          right: 0;
+          top: 486px;
+          width: 184px;
+          display: grid;
+          gap: 10px;
+        }
+        .b03-output-chip { height: 36px; }
+        .b03-beams {
+          position: absolute;
+          inset: 0;
+          width: 1048px;
+          height: 810px;
+          overflow: visible;
+          pointer-events: none;
+        }
+        .b03-beam {
+          fill: none;
+          stroke: rgba(128,82,255,0.8);
+          stroke-width: 1.5;
+        }
+        .b03-beam-store { stroke: rgba(255,184,41,0.72); }
+        .b03-caption {
+          position: absolute;
+          left: 64px;
+          bottom: 84px;
+          width: 690px;
+          color: #bdbdbd;
+          font-size: 24px;
+          font-weight: 300;
+          line-height: 1.42;
+          opacity: 0;
+        }
+        .b03-caption strong { color: #ffffff; font-weight: 400; }
+      </style>
+
+      <div data-hf-id="hf-169c" id="root" data-composition-id="beat-03-architecture" data-start="0" data-width="1920" data-height="1080" data-duration="16" data-fps="30">
+        <section data-hf-id="hf-awt4" id="b03-scene" class="clip b03-scene" data-start="0" data-duration="16" data-track-index="1">
+          <div data-hf-id="hf-akgn" class="b03-ground"></div>
+          <div data-hf-id="hf-d2ha" class="b03-grid"></div>
+          <div data-hf-id="hf-60ep" id="b03-kicker" class="b03-kicker">LACUNA · CONTEXT RUNTIME ON HYDRADB</div>
+          <h2 data-hf-id="hf-ngv2" id="b03-title" class="b03-title">One durable memory. A smaller, inspectable context pack.</h2>
+
+          <div data-hf-id="hf-cmfc" id="b03-capture-stage" class="b03-capture-stage">
+            <img data-hf-id="hf-8rtg" id="b03-capture" class="b03-capture" src="capture-final/screenshots/scroll-012.png" alt="Captured Lacuna memory journey">
+          </div>
+          <div data-hf-id="hf-vpl2" class="b03-capture-meta"><span data-hf-id="hf-86jp">EXACT PRODUCTION CAPTURE</span><strong data-hf-id="hf-gyzd">MEMORY JOURNEY</strong></div>
+          <p data-hf-id="hf-uqu9" id="b03-caption" class="b03-caption"><strong data-hf-id="hf-m3l6">HydraDB persists the evidence, claims and relationships.</strong> Lacuna applies standing, scope and budget before anything reaches a model, tool or agent.</p>
+
+          <div data-hf-id="hf-z3qa" id="b03-flow" class="b03-flow">
+            <span data-hf-id="hf-sidk" class="b03-flow-label b03-flow-label-inputs">INPUTS</span>
+            <span data-hf-id="hf-ofkk" class="b03-flow-label b03-flow-label-core">LACUNA CORE</span>
+            <span data-hf-id="hf-st6p" class="b03-flow-label b03-flow-label-store">PERSISTENT STATE</span>
+            <span data-hf-id="hf-3b5z" class="b03-flow-label b03-flow-label-output">ROUTED OUTPUT</span>
+
+            <div data-hf-id="hf-mm5p" class="b03-inputs">
+              <span data-hf-id="hf-irk0" id="b03-input-transcript" class="b03-chip">TRANSCRIPT</span>
+              <span data-hf-id="hf-qphw" id="b03-input-corpus" class="b03-chip">CORPUS</span>
+              <span data-hf-id="hf-2bjw" id="b03-input-ingest" class="b03-chip">INGEST</span>
+              <span data-hf-id="hf-1ztw" id="b03-input-mcp" class="b03-chip">MCP</span>
+              <span data-hf-id="hf-b80s" id="b03-input-cli" class="b03-chip">CLI</span>
+              <span data-hf-id="hf-1yic" id="b03-input-api" class="b03-chip">API</span>
+              <span data-hf-id="hf-fivs" id="b03-input-agent" class="b03-chip">AGENT OUTCOME</span>
+            </div>
+
+            <svg data-hf-id="hf-i42z" class="b03-beams" viewBox="0 0 1048 810" aria-hidden="true">
+              <path data-hf-id="hf-vjwd" id="b03-beam-in" class="b03-beam" d="M 40 98 C 168 184, 320 190, 524 272 M 178 98 C 282 178, 368 194, 524 272 M 330 98 C 388 168, 424 204, 524 272 M 472 98 L 524 272 M 610 98 C 594 170, 570 210, 524 272 M 750 98 C 692 182, 638 214, 524 272 M 1008 98 C 866 176, 724 214, 524 272" />
+              <path data-hf-id="hf-w7e9" id="b03-beam-store" class="b03-beam b03-beam-store" d="M 524 454 L 524 566" />
+              <path data-hf-id="hf-kg12" id="b03-beam-out" class="b03-beam" d="M 804 363 C 862 363, 888 363, 912 363 M 956 454 L 956 486" />
+            </svg>
+
+            <div data-hf-id="hf-0io6" id="b03-core" class="b03-core">
+              <div data-hf-id="hf-jsb2" class="b03-core-node">POLICY<span data-hf-id="hf-t6vv">SCOPE · BUDGET</span></div>
+              <div data-hf-id="hf-wceh" class="b03-core-node">COMPILER<span data-hf-id="hf-lqxd">STANDING · EVIDENCE</span></div>
+              <div data-hf-id="hf-zecx" class="b03-core-node">ROUTER<span data-hf-id="hf-2128">CLIENT · TASK</span></div>
+            </div>
+
+            <div data-hf-id="hf-5uvs" id="b03-store" class="b03-store">
+              <div data-hf-id="hf-wnbo" class="b03-store-name">HydraDB persistent graph</div>
+              <div data-hf-id="hf-9oae" class="b03-store-detail">EVIDENCE · CLAIMS · RELATIONSHIPS · ARTIFACTS</div>
+              <div data-hf-id="hf-pp6e" id="b03-store-fill" class="b03-store-fill"></div>
+            </div>
+
+            <div data-hf-id="hf-7p4m" id="b03-pack" class="b03-pack">
+              <strong data-hf-id="hf-uua2">CONTEXT PACK</strong>
+              <span data-hf-id="hf-wng3">ANSWER · EVIDENCE · HISTORY · CONFLICT</span>
+            </div>
+            <div data-hf-id="hf-zenm" class="b03-output-rail">
+              <span data-hf-id="hf-0o2t" id="b03-output-model" class="b03-output-chip">MODEL</span>
+              <span data-hf-id="hf-0i7l" id="b03-output-tool" class="b03-output-chip">TOOL</span>
+              <span data-hf-id="hf-9iu9" id="b03-output-agent" class="b03-output-chip">AGENT</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <script>
+        (() => {
+          const id = "beat-03-architecture";
+          const tl = gsap.timeline({ paused: true });
+          ["b03-beam-in", "b03-beam-store", "b03-beam-out"].forEach((pathId) => {
+            const path = document.getElementById(pathId);
+            const length = path.getTotalLength();
+            path.style.strokeDasharray = String(length);
+            path.style.strokeDashoffset = String(length);
+          });
+
+          tl.fromTo("#b03-kicker", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.08);
+          tl.fromTo("#b03-title", { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.7, ease: "power4.out" }, 0.18);
+          tl.fromTo("#b03-capture-stage", { opacity: 0, x: -74, scale: 0.97 }, { opacity: 1, x: 0, scale: 1, duration: 0.9, ease: "power3.out" }, 0.42);
+          tl.fromTo("#b03-caption", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.62, ease: "power3.out" }, 1.15);
+
+          const inputs = [
+            "#b03-input-transcript", "#b03-input-corpus", "#b03-input-ingest", "#b03-input-mcp",
+            "#b03-input-cli", "#b03-input-api", "#b03-input-agent"
+          ];
+          inputs.forEach((selector, index) => {
+            const at = 1.45 + index * 0.09;
+            tl.fromTo(selector, { opacity: 0, y: -34, scale: 0.94 }, {
+              opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "power3.out", immediateRender: false
+            }, at);
+          });
+
+          tl.to("#b03-beam-in", { strokeDashoffset: 0, duration: 2.35, ease: "none" }, 2.2);
+          tl.fromTo("#b03-core", { opacity: 0, y: 38, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.78, ease: "power4.out" }, 3.15);
+          tl.to("#b03-beam-store", { strokeDashoffset: 0, duration: 0.72, ease: "power2.out" }, 5.0);
+          tl.fromTo("#b03-store", { opacity: 0, y: 38 }, { opacity: 1, y: 0, duration: 0.72, ease: "power3.out" }, 5.34);
+          tl.fromTo("#b03-store-fill", { scaleX: 0 }, { scaleX: 1, duration: 1.55, ease: "power2.out" }, 5.72);
+
+          tl.to("#b03-beam-out", { strokeDashoffset: 0, duration: 0.78, ease: "power2.out" }, 7.42);
+          tl.fromTo("#b03-pack", { opacity: 0, x: -84, scale: 0.88 }, { opacity: 1, x: 0, scale: 1, duration: 0.72, ease: "power4.out" }, 7.68);
+          ["#b03-output-model", "#b03-output-tool", "#b03-output-agent"].forEach((selector, index) => {
+            const at = 9.05 + index * 0.18;
+            tl.fromTo(selector, { opacity: 0, x: 48 }, { opacity: 1, x: 0, duration: 0.46, ease: "power3.out", immediateRender: false }, at);
+          });
+
+          tl.addLabel("compact", 11.35);
+          tl.to("#b03-pack", { scaleX: 0.76, x: 22, duration: 0.62, ease: "power3.inOut" }, "compact");
+          tl.to("#b03-capture-stage", { scale: 1.025, x: 10, duration: 1.35, ease: "power2.inOut" }, 12.15);
+
+          window.__timelines = window.__timelines || {};
+          window.__timelines[id] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

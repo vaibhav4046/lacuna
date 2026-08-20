@@ -305,7 +305,7 @@ function guard(response: ServerResponse, where: string, error: unknown): void {
 export default function handler(request: IncomingMessage, response: ServerResponse): void {
   const path = new URL(request.url ?? '/', 'http://lacuna.invalid').pathname;
 
-  if (path === MCP_PATH) {
+  if (path === MCP_PATH || path.startsWith(`${MCP_PATH}/w/`)) {
     if (mcp === null) {
       response.writeHead(503, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'no context store is configured' }));

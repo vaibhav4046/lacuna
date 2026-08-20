@@ -148,7 +148,26 @@ export function createMcpListener(
   const log = options.log ?? ((): void => {});
 
   return (req, res) => {
-    const wanted = header(req, 'x-lacuna-workspace');
+    /**
+     * The workspace, from the path or from a header.
+     *
+     * The header came first and is kept, but the path is the one that works
+     * everywhere. Hosted clients take a URL and little else: one dedupes
+     * connectors by URL, so a second workspace on the same address cannot be
+     * added at all, and another offers no way to set a header. A handle in the
+     * path makes each workspace its own address, which is what those clients
+     * are built to accept, and it needs no configuration beyond pasting a link.
+     *
+     * The handle is unguessable either way, so nothing moved from a secret
+     * place to a public one: it was always a bearer value, and a URL is exactly
+     * as private as a header somebody has to be given.
+     */
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const fromPath = url.pathname.startsWith(`${MCP_PATH}/w/`)
+      ? url.pathname.slice(`${MCP_PATH}/w/`.length).replace(/\/+$/, '')
+      : undefined;
+    const wanted = fromPath ?? header(req, 'x-lacuna-workspace');
+
     const scoped = wanted !== undefined && COLLECTION_SHAPE.test(wanted) && options.contextFor !== undefined
       ? options.contextFor(wanted)
       : options.context;
@@ -171,7 +190,11 @@ async function handle(
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
-  if (url.pathname !== MCP_PATH) {
+  // `/mcp` is the public corpus and `/mcp/w/<handle>` is one workspace. A
+  // handle that is not a handle already fell back to the public context above,
+  // so this only has to reject a path that is neither shape.
+  const workspacePath = url.pathname.startsWith(`${MCP_PATH}/w/`);
+  if (url.pathname !== MCP_PATH && !workspacePath) {
     refuse(res, 404, `nothing is mounted at ${url.pathname}`);
     return;
   }

@@ -10,7 +10,8 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/mcp", "destination": "/api/index" },
-    { "source": "/((?!api/|mcp|assets/|fonts/|favicon.svg|boot.css).*)", "destination": "/index.html" }
+    { "source": "/mcp/w/(.*)", "destination": "/api/index" },
+    { "source": "/((?!api/|mcp|assets/|fonts/|favicon.svg|mark-256.png|boot.css).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

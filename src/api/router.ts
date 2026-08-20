@@ -16,7 +16,7 @@ import {
 import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, sameDigest, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
 import { FixedWindow } from '../server/ratelimit.js';
-import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, storeWorkspace, validateQuestion } from './workspace.js';
+import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, plannedAskEnvelope, storeWorkspace, validateQuestion } from './workspace.js';
 import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
 import { graphImpact } from './impact.js';
 import type { WorkspaceView } from './workspace.js';
@@ -305,6 +305,22 @@ function standingOf(
     (row) => row.subject.toLowerCase() === lower && row.objectText.toLowerCase() === other.toLowerCase(),
   );
   return claim?.state ?? 'unstated';
+}
+
+/**
+ * The names a source holds, for the parser to match a sentence against.
+ *
+ * A source that cannot list them yields an empty list rather than an error: the
+ * parser then finds no subject and the product says so, which is a better
+ * outcome than a 500 on a question that was probably answerable.
+ */
+async function knownSubjects(source: HydraSource): Promise<readonly string[]> {
+  if (source.subjects === undefined) return [];
+  try {
+    return (await source.subjects(8_000)).value;
+  } catch {
+    return [];
+  }
 }
 
 export class ApiRouter {
@@ -755,6 +771,50 @@ export class ApiRouter {
      * Signed in only, because a run costs a real model call. Nothing it does
      * writes to memory: it produces a record of itself and stops.
      */
+    /**
+     * The same, over the workspace the session owns.
+     *
+     * The subject list comes from the workspace rather than from the public
+     * corpus, so a transcript somebody pasted five minutes ago is askable in
+     * their own words without anybody having told the parser its vocabulary.
+     */
+    if (path === '/api/workspace/query' && method === 'POST') {
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const openSource = this.#source;
+      if (openSource === undefined) {
+        send(response, 503, { error: 'no context store is configured' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const text = body?.['question'];
+      if (typeof text !== 'string' || text.trim() === '' || text.length > 300) {
+        send(response, 422, invalidRequest('question_unreadable'));
+        return HANDLED;
+      }
+      const source = openSource(workspaceCollection(account.email));
+      send(response, 200, await plannedAskEnvelope(
+        source,
+        text,
+        await knownSubjects(source),
+        ASK_TIMEOUT_MS,
+      ));
+      return HANDLED;
+    }
+
     if (path === '/api/workspace/agent/run' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
@@ -925,6 +985,45 @@ export class ApiRouter {
         body?.['subject'] as string,
         body?.['predicate'] as string,
         typeof via === 'string' && via !== '' ? via : null,
+        ASK_TIMEOUT_MS,
+      ));
+      return HANDLED;
+    }
+
+    /**
+     * A question in a sentence, over the corpus anybody can read.
+     *
+     * Same resolver, same evidence, same abstentions. What is new is only that
+     * the caller does not have to already know the vocabulary, which is the
+     * difference between a product and an API somebody has read the docs for.
+     */
+    if ((path === '/api/explore/query' || path === '/api/demo/query') && method === 'POST') {
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const text = body?.['question'];
+      if (typeof text !== 'string' || text.trim() === '' || text.length > 300) {
+        send(response, 422, invalidRequest('question_unreadable'));
+        return HANDLED;
+      }
+      const openSource = this.#source;
+      if (openSource === undefined) {
+        send(response, 503, { error: 'no context store is configured' });
+        return HANDLED;
+      }
+      if (!this.#readLimit.check(sourceKey(request), this.#now()).allowed) {
+        send(response, 429, { error: 'too many questions from this address, try again shortly' });
+        return HANDLED;
+      }
+      const source = openSource();
+      send(response, 200, await plannedAskEnvelope(
+        source,
+        text,
+        await knownSubjects(source),
         ASK_TIMEOUT_MS,
       ));
       return HANDLED;

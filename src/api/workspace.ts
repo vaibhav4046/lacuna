@@ -4,6 +4,8 @@ import type { HydraSource } from '../hydra/source.js';
 import { askCore } from '../contract/result.js';
 import type { EvidenceStanding } from '../contract/result.js';
 import { ask, buildQuestion } from '../retrieval/index.js';
+import { UNDERSTOOD_PREDICATES, predicateIn, subjectsIn } from '../retrieval/plan.js';
+import type { PlanFailure } from '../retrieval/plan.js';
 import type { Inventory } from '../report/inventory.js';
 
 /**
@@ -494,4 +496,87 @@ function suggestions(inventory: Inventory): readonly SuggestedQuestion[] {
     });
   }
   return out;
+}
+
+/**
+ * The same answer, from a sentence instead of two fields.
+ *
+ * Nothing about the answer changes: the question is parsed, and then it goes
+ * through `askEnvelope` like every other question, so the evidence, the
+ * standings and the abstentions are produced by exactly the same resolver. The
+ * parser is in front of the resolver, never inside it.
+ *
+ * The reading is returned alongside the answer rather than hidden, because a
+ * parser that guesses wrong produces the one failure this product has no
+ * defence against: a correct, fully evidenced answer to a question nobody
+ * asked. Showing "read as: Checkout · owner" makes that visible in the one
+ * place it can be caught, which is the reader's own eyes.
+ */
+export async function plannedAskEnvelope(
+  source: HydraSource,
+  text: string,
+  known: readonly string[],
+  timeoutMs: number,
+): Promise<PlannedAnswer> {
+  if (typeof text !== 'string' || text.trim() === '') {
+    return { reading: null, unread: 'empty', knownSubjects: [], available: [], answer: null };
+  }
+
+  // The subject first, because what predicates are even askable depends on it.
+  const subjects = subjectsIn(text, known);
+  const [subject, second] = subjects;
+  if (subject === undefined) {
+    return { reading: null, unread: 'no_subject', knownSubjects: known.slice(0, 12), available: [], answer: null };
+  }
+
+  /**
+   * What this workspace records about that subject, read from the store.
+   *
+   * This is the difference between a refusal that means something and one that
+   * only means the parser had not heard of a word. An earlier version carried a
+   * hand-written predicate list, and it invented three properties the corpus
+   * does not hold while missing six it does.
+   */
+  let recorded: readonly string[] = [];
+  try {
+    const held = await source.subject(subject, timeoutMs);
+    recorded = [...new Set(held.value?.claims.map((claim) => claim.predicate) ?? [])];
+  } catch {
+    recorded = [];
+  }
+
+  // What is askable is wider than what is recorded, on purpose: a property this
+  // subject does not hold still reaches the resolver, which answers that
+  // nothing states it. Refusing it here would hide evidenced absence behind a
+  // parser error, and evidenced absence is the answer this product is for.
+  const askable = [...new Set([...recorded, ...UNDERSTOOD_PREDICATES])];
+  const available = recorded;
+  const predicate = predicateIn(text, askable);
+  if (predicate === null) {
+    return { reading: null, unread: 'no_predicate', knownSubjects: [subject], available, answer: null };
+  }
+
+  const via = second ?? null;
+  return {
+    reading: { subject, predicate: predicate.predicate, via, matched: { subject, predicate: predicate.matched } },
+    unread: null,
+    knownSubjects: [],
+    available,
+    answer: await askEnvelope(source, subject, predicate.predicate, via, timeoutMs),
+  };
+}
+
+export interface PlannedAnswer {
+  readonly reading: {
+    readonly subject: string;
+    readonly predicate: string;
+    readonly via: string | null;
+    readonly matched: { readonly subject: string; readonly predicate: string };
+  } | null;
+  readonly unread: PlanFailure | null;
+  /** Names to offer when nothing matched, or the one that did when the predicate did not. */
+  readonly knownSubjects: readonly string[];
+  /** What this workspace actually records about the matched subject. */
+  readonly available: readonly string[];
+  readonly answer: AnswerEnvelope | null;
 }

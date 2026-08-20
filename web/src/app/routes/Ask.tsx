@@ -40,6 +40,28 @@ interface Envelope {
  * names a subject the graph has never heard of abstains every time and looks
  * like a broken product rather than a working one.
  */
+interface Reading {
+  readonly subject: string;
+  readonly predicate: string;
+  readonly via: string | null;
+  readonly matched: { readonly subject: string; readonly predicate: string };
+}
+
+interface Planned {
+  readonly reading: Reading | null;
+  readonly unread: string | null;
+  readonly knownSubjects: readonly string[];
+  /** What this workspace records about the subject that matched. */
+  readonly available: readonly string[];
+  readonly answer: Envelope | null;
+}
+
+interface Unread {
+  readonly failure: string;
+  readonly knownSubjects: readonly string[];
+  readonly available: readonly string[];
+}
+
 interface Suggestion {
   readonly label: string;
   readonly subject: string;
@@ -70,7 +92,7 @@ const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flex
 
 export function Ask() {
   const go = useNavigate();
-  const { prefix } = useScope();
+  const { prefix, base } = useScope();
   const suggested = useScoped<readonly Suggestion[]>('questions');
   const [asked, setAsked] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
@@ -79,10 +101,47 @@ export function Ask() {
   const [stage, setStage] = useState<string | null>(null);
   const [evOpen, setEvOpen] = useState(true);
   const [voiceOn, setVoiceOn] = useState(false);
+  const [sentence, setSentence] = useState('');
+  const [reading, setReading] = useState<Reading | null>(null);
+  const [unread, setUnread] = useState<Unread | null>(null);
 
   const chips = suggested.state === 'ready' ? suggested.value : [];
 
+  /**
+   * A question written as a sentence.
+   *
+   * The parser runs on the server and the answer comes back through the same
+   * resolver every other question uses, so nothing about the evidence changes.
+   * What comes back alongside it is the reading, which is rendered, because a
+   * parser that guessed wrong would otherwise produce a fully evidenced answer
+   * to a question nobody asked and look exactly like a correct one.
+   */
+  async function runSentence() {
+    if (sentence.trim() === '') return;
+    setAsked(sentence.trim());
+    setResult(null);
+    setReading(null);
+    setUnread(null);
+    setStage('READING THE QUESTION');
+    const planned = await postFor<Planned>(`${base}/query`, { question: sentence.trim() });
+    setStage(null);
+    if (planned === null) {
+      setUnread({ failure: 'unreachable', knownSubjects: [], available: [] });
+      return;
+    }
+    if (planned.reading === null || planned.answer === null) {
+      setUnread({ failure: planned.unread ?? 'no_subject', knownSubjects: planned.knownSubjects, available: planned.available });
+      return;
+    }
+    setReading(planned.reading);
+    setSubject(planned.reading.subject);
+    setPredicate(planned.reading.predicate);
+    setResult(planned.answer);
+  }
+
   async function run(question: Suggestion) {
+    setReading(null);
+    setUnread(null);
     setAsked(question.label);
     setSubject(question.subject);
     setPredicate(question.predicate);
@@ -98,14 +157,76 @@ export function Ask() {
   }
 
   async function runTyped() {
+    setReading(null);
+    setUnread(null);
     if (subject.trim() === '' || predicate.trim() === '') return;
     await run({ label: `${subject.trim()} · ${predicate.trim()}`, subject: subject.trim(), predicate: predicate.trim() });
   }
 
   return (
     <div style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(128,82,255,0.42)', borderRadius: '10px', padding: '14px 18px' }}>
+        <input
+          className="fv-violet"
+          value={sentence}
+          onChange={(e) => setSentence(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void runSentence(); }}
+          placeholder="Ask in a sentence — who owns Checkout? what is Sessions stored in?"
+          aria-label="Ask a question"
+          style={{ flex: 1, minWidth: '0', background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '15px', outline: 'none' }}
+        />
+        <button className="hv-violet" onClick={() => void runSentence()} style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '8px 14px' }}>ASK</button>
+      </div>
+
+      {reading === null ? null : (
+        /*
+          What it understood, before the answer. A parser in front of a resolver
+          can produce the one failure nothing else here can: a correct, fully
+          evidenced answer to a question nobody asked. This line is the only
+          place that is catchable, so it is never collapsed or hidden.
+        */
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A' }}>
+          <span>READ AS</span>
+          <span style={{ color: '#FFFFFF' }}>{reading.subject} · {reading.predicate}{reading.via === null ? '' : ` · via ${reading.via}`}</span>
+          <span>FROM YOUR WORDS “{reading.matched.predicate}”</span>
+        </div>
+      )}
+
+      {unread === null ? null : (
+        <div style={{ border: '1px solid rgba(255,184,41,0.35)', borderRadius: '10px', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '14px', color: '#FFB829', maxWidth: '70ch', lineHeight: 1.6 }}>
+            {unread.failure === 'no_subject'
+              ? 'Nothing in that question names something this workspace holds. It is not that the answer is unknown — the subject is.'
+              : unread.failure === 'no_predicate'
+                ? `That names something this workspace holds, but asks for a property it does not record${unread.available.length === 0 ? '.' : `. About ${unread.knownSubjects[0] ?? 'it'} it records ${unread.available.map((p) => p.replace(/_/g, ' ')).join(', ')}.`}`
+                : unread.failure === 'unreachable'
+                  ? 'The question did not reach the context store.'
+                  : 'Type a question first.'}
+          </span>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '2px' }}>
+            {unread.available.length > 0
+              ? unread.available.slice(0, 12).map((property) => (
+                <button
+                  key={property}
+                  className="hv-text"
+                  onClick={() => setSentence(`what is the ${property.replace(/_/g, ' ')} for ${unread.knownSubjects[0] ?? ''}?`)}
+                  style={{ background: 'none', cursor: 'pointer', borderRadius: '6px', padding: '5px 9px', fontFamily: MONO, fontSize: '10.5px', border: '1px solid rgba(255,255,255,0.12)', color: '#9A9A9A' }}
+                >{property.replace(/_/g, ' ')}</button>
+              ))
+              : unread.knownSubjects.slice(0, 12).map((name) => (
+                <button
+                  key={name}
+                  className="hv-text"
+                  onClick={() => setSentence(`who owns ${name}?`)}
+                  style={{ background: 'none', cursor: 'pointer', borderRadius: '6px', padding: '5px 9px', fontFamily: MONO, fontSize: '10.5px', border: '1px solid rgba(255,255,255,0.12)', color: '#9A9A9A' }}
+                >{name}</button>
+              ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '14px 18px', flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#8052FF' }}>ASK</span>
+        <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#7A7A7A' }}>EXACT</span>
         <input
           className="fv-violet"
           value={subject}

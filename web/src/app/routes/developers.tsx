@@ -65,9 +65,11 @@ export function Mcp() {
       </div>
 
       <p style={{ fontSize: '14.5px', color: '#BDBDBD', margin: 0, maxWidth: '72ch', lineHeight: 1.6 }}>
-        Streamable HTTP, no key, no account. It reads the same public corpus the demo screens
-        read, over the same resolver, and every tool is a read. Point any MCP client at the URL
-        above and ask it about this workspace from wherever that client runs.
+        Streamable HTTP, no key, no account. By default it reads the public workspace, over the
+        same resolver, and every tool is a read. Point any MCP client at the URL above from
+        wherever that client runs. To read a workspace you ingested into, add the header{' '}
+        <span style={{ fontFamily: MONO, color: '#B79BFF' }}>x-lacuna-workspace</span> with the
+        handle the ingest report shows; the handle is unguessable and read only.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

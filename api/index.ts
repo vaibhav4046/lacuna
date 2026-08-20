@@ -192,6 +192,14 @@ const mcp = cloud === null ? null : createMcpListener({
     node: { namespace: cloud.database, graph: cloud.collection, cell: 'cloud' },
     store: 'cloud',
   },
+  // One header scopes the same tools to a workspace somebody ingested into, so
+  // an agent reads the memory its user wrote through the web product. The
+  // handle is the unguessable collection id the ingest report returns.
+  contextFor: (collection) => ({
+    source: new CloudSource(cloud.withCollection(collection)),
+    node: { namespace: cloud.database, graph: collection, cell: 'cloud' },
+    store: 'cloud',
+  }),
 });
 
 /**

@@ -33,7 +33,7 @@ export function Settings() {
 
   const rows: readonly (readonly [string, string])[] = [
     ['Workspace', scope.demo ? SAMPLE_WORKSPACE : account?.workspace ?? '—'],
-    ['Signed in as', scope.demo ? 'nobody, this is the read only demo' : account?.email ?? '—'],
+    ['Signed in as', scope.demo ? 'nobody, this is the public read only workspace' : account?.email ?? '—'],
     ['HydraDB', hydraState(health).toLowerCase()],
     ['Models', model.toLowerCase()],
     ['Voice', 'not configured'],

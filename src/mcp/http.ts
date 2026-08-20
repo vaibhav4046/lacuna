@@ -81,6 +81,18 @@ function header(req: IncomingMessage, name: string): string | undefined {
 
 export interface HttpOptions {
   readonly context: ToolContext;
+  /**
+   * Builds the context for one named workspace, when a caller asks for one.
+   *
+   * An MCP client that ingested a transcript through the web product should be
+   * able to read that same memory from its agent, or the two halves are two
+   * products. The workspace is named by the `x-lacuna-workspace` header,
+   * carrying the collection id the ingest report returned. A collection id is
+   * an unguessable 32-hex handle derived from the account, so possession is
+   * the authorisation, the same way an unlisted document link works. Nothing
+   * writable is reachable through MCP either way.
+   */
+  readonly contextFor?: (collection: string) => ToolContext;
   /** Called once per rejected request. Never called with a header value. */
   readonly log?: (line: string) => void;
   /**
@@ -112,9 +124,19 @@ export function createMcpListener(
   const log = options.log ?? ((): void => {});
 
   return (req, res) => {
-    void handle(req, res, options.context, log, options.allowAnyOrigin === true);
+    const wanted = header(req, 'x-lacuna-workspace');
+    const scoped = wanted !== undefined && COLLECTION_SHAPE.test(wanted) && options.contextFor !== undefined
+      ? options.contextFor(wanted)
+      : options.context;
+    void handle(req, res, scoped, log, options.allowAnyOrigin === true);
   };
 }
+
+/**
+ * What a workspace handle looks like. Anything else is ignored rather than
+ * refused, so a stray header cannot turn a public read into an error.
+ */
+const COLLECTION_SHAPE = /^lacuna-ws-[0-9a-f]{32}$/;
 
 async function handle(
   req: IncomingMessage,

@@ -386,6 +386,8 @@ export function Judge() {
           )}
         </header>
 
+        <AskYourOwn />
+
         {failed && (
           <p style={{ color: '#9A9A9A' }}>
             The context store did not answer. Nothing on this page is drawn from a recording, so
@@ -464,4 +466,101 @@ export function Judge() {
       </div>
     </main>
   );
+}
+
+/**
+ * The seventh question, which is whichever one the reader wants to ask.
+ *
+ * Six precomputed rows prove the product answers. They cannot prove it answers
+ * anything that was not chosen in advance, and a reader who suspects the six
+ * were picked to flatter it is right to suspect that. So this box exists, it
+ * posts to the same endpoint, and it is deliberately placed above the six
+ * rather than below them.
+ *
+ * The reading is shown for the same reason it is shown everywhere else: the
+ * question is parsed before it is answered, and a parser that guessed wrong
+ * would otherwise produce a fully evidenced answer to a different question.
+ */
+function AskYourOwn() {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [reply, setReply] = useState<PlannedReply | null>(null);
+
+  async function go() {
+    if (text.trim() === '') return;
+    setBusy(true);
+    setReply(null);
+    const planned = await postFor<PlannedReply>('/api/explore/query', { question: text.trim() });
+    setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null });
+    setBusy(false);
+  }
+
+  const answer = reply?.answer ?? null;
+
+  return (
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <span style={{ ...label, color: '#8052FF' }}>ASK YOUR OWN</span>
+      <span style={{ color: '#BDBDBD', fontSize: '15px' }}>
+        The six below were chosen. This one is not. Same endpoint, same resolver.
+      </span>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', border: '1px solid rgba(128,82,255,0.42)', borderRadius: '9px', padding: '11px 14px' }}>
+        <input
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') void go(); }}
+          placeholder="who owns token-forge? when does Lowbank launch?"
+          aria-label="Ask your own question"
+          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '15px', outline: 'none' }}
+        />
+        <button
+          onClick={() => void go()}
+          disabled={busy}
+          style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: busy ? 'default' : 'pointer', ...mono, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '8px 13px' }}
+        >{busy ? 'ASKING…' : 'ASK'}</button>
+      </div>
+
+      {reply === null ? null : reply.reading !== null && answer !== null ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ ...mono, fontSize: '11px', color: '#7A7A7A', letterSpacing: '0.14em' }}>
+            READ AS {reply.reading.subject} · {reply.reading.predicate.replace(/_/g, ' ')}
+            {reply.reading.via === null ? '' : ` · via ${reply.reading.via}`}
+          </span>
+          <span style={{ ...mono, fontSize: '11px', letterSpacing: '0.16em', color: answer.status === 'ANSWERED' ? '#8052FF' : '#FFB829' }}>
+            {answer.status.replace(/_/g, ' ')}
+          </span>
+          <span style={{ fontSize: '17px', color: '#FFFFFF', lineHeight: 1.5 }}>
+            {answer.answer ?? NO_ANSWER[answer.abstain_reason ?? ''] ?? 'Nothing in this workspace answers that.'}
+          </span>
+          {answer.evidence.slice(0, 3).map((item, at) => (
+            <span key={at} style={{ fontSize: '13.5px', color: '#9A9A9A', lineHeight: 1.6 }}>
+              {item.source} · {item.meta} · {item.standing.replace(/_/g, ' ')}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span style={{ fontSize: '15px', color: '#FFB829', lineHeight: 1.6, maxWidth: '66ch' }}>
+          {reply.unread === 'no_subject'
+            ? `Nothing in that names something this workspace holds. It holds ${reply.knownSubjects.slice(0, 6).join(', ')}.`
+            : reply.unread === 'no_predicate'
+              ? `That names something it holds but asks for a property it has no word for. Try ownership, dependencies, launch date, region, pool size or beta partner.`
+              : 'The question did not reach the context store.'}
+        </span>
+      )}
+    </section>
+  );
+}
+
+/** What an abstention means, in the reader's language rather than the enum's. */
+const NO_ANSWER: Readonly<Record<string, string>> = {
+  never_stated: 'Nothing in this workspace ever stated that. It is absent, not unknown.',
+  contradicted: 'Two sources disagree and nothing has resolved it. Both stay visible.',
+  retracted: 'It was stated and then taken back, so there is no current value.',
+};
+
+interface PlannedReply {
+  readonly reading: { readonly subject: string; readonly predicate: string; readonly via: string | null } | null;
+  readonly unread: string | null;
+  readonly knownSubjects: readonly string[];
+  readonly available: readonly string[];
+  readonly answer: Envelope | null;
 }

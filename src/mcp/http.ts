@@ -112,11 +112,35 @@ export interface HttpOptions {
 }
 
 /**
+ * The headers a browser needs before it will make the request at all.
+ *
+ * A hosted client that connects from a page rather than from its own backend
+ * sends a preflight first, and a 405 there means the real request is never
+ * attempted: the endpoint looks broken while working perfectly for curl. That
+ * was the state this was in.
+ *
+ * Any origin, and deliberately no credentials. Every tool is a read, the
+ * default context is the corpus anybody can fetch without an account, and a
+ * workspace read needs a handle that is unguessable and carried in a header
+ * rather than in a cookie. Nothing here is protected by the browser refusing
+ * to send the request, so refusing it bought nothing and cost the connection.
+ */
+const CORS: Readonly<Record<string, string>> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-allow-headers': 'content-type, accept, authorization, mcp-protocol-version, mcp-session-id, last-event-id, x-lacuna-workspace',
+  'access-control-expose-headers': 'mcp-session-id, mcp-protocol-version',
+  'access-control-max-age': '86400',
+};
+
+/**
  * A request listener for the MCP endpoint.
  *
- * Only POST is served. In stateless mode the GET stream carries nothing, since
- * this server never sends an unsolicited notification, and answering 405 is
- * more honest than holding a stream open that will stay empty.
+ * Only POST is served, plus the OPTIONS a browser sends before it. In stateless
+ * mode the GET stream carries nothing, since this server never sends an
+ * unsolicited notification, and answering 405 is more honest than holding a
+ * stream open that will stay empty. The specification allows exactly that and
+ * requires clients to accept it.
  */
 export function createMcpListener(
   options: HttpOptions,
@@ -152,10 +176,27 @@ async function handle(
     return;
   }
 
+  // Answered before the origin check, because a preflight is the request that
+  // asks whether the origin is acceptable. Refusing it with a 403 tells the
+  // browser nothing except that the endpoint is broken.
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, allowAnyOrigin ? { ...CORS, 'content-length': '0' } : { allow: 'POST', 'content-length': '0' });
+    res.end();
+    return;
+  }
+
   if (req.method !== 'POST') {
-    res.writeHead(405, { 'content-type': 'application/json', allow: 'POST' });
+    res.writeHead(405, {
+      'content-type': 'application/json',
+      allow: 'POST, OPTIONS',
+      ...(allowAnyOrigin ? CORS : {}),
+    });
     res.end(JSON.stringify({ error: 'the MCP endpoint accepts POST' }));
     return;
+  }
+
+  if (allowAnyOrigin) {
+    for (const [name, value] of Object.entries(CORS)) res.setHeader(name, value);
   }
 
   if (!allowAnyOrigin && !isLoopbackOrigin(header(req, 'origin'))) {

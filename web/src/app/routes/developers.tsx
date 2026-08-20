@@ -29,6 +29,7 @@ const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', col
  */
 export function Mcp() {
   const [probe, setProbe] = useState<'idle' | 'running' | string>('idle');
+  const [copied, setCopied] = useState(false);
   const endpoint = `${window.location.origin}/mcp`;
 
   const config = `{
@@ -72,8 +73,33 @@ export function Mcp() {
         handle the ingest report shows; the handle is unguessable and read only.
       </p>
 
+      {/*
+        The web app connects from a browser, so it sends a preflight before it
+        sends anything else. That preflight used to be answered 405 and the
+        connection was never attempted: the endpoint looked broken while working
+        perfectly from a terminal. It answers now, which is the whole reason
+        these instructions can exist.
+      */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', border: '1px solid rgba(128,82,255,0.32)', borderRadius: '10px', padding: '16px 18px' }}>
+        <span style={{ ...note, letterSpacing: '0.2em', color: '#B79BFF' }}>ADD IT TO CLAUDE</span>
+        <p style={{ fontSize: '14.5px', color: '#BDBDBD', margin: 0, lineHeight: 1.7, maxWidth: '70ch' }}>
+          In Claude, open Settings, then Connectors, then Add custom connector, and paste the URL
+          above. There is no key and no OAuth step: every tool is a read against the public
+          workspace. Claude will list five tools once it connects.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', paddingTop: '4px' }}>
+          <code style={{ fontFamily: MONO, fontSize: '12px', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '7px 11px' }}>{endpoint}</code>
+          <button
+            className="hv-text"
+            type="button"
+            onClick={() => { void navigator.clipboard.writeText(endpoint).then(() => setCopied(true)).catch(() => setCopied(false)); }}
+            style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '8px 13px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', border: '1px solid rgba(255,255,255,0.18)', color: '#BDBDBD' }}
+          >{copied ? 'COPIED' : 'COPY URL'}</button>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span style={{ ...note, letterSpacing: '0.2em' }}>CLIENT CONFIG</span>
+        <span style={{ ...note, letterSpacing: '0.2em' }}>CLAUDE CODE, CURSOR AND OTHER LOCAL CLIENTS</span>
         <pre style={{ margin: 0, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', overflowX: 'auto', fontFamily: MONO, fontSize: '12px', color: '#BDBDBD', lineHeight: 1.7 }}>{config}</pre>
       </div>
 

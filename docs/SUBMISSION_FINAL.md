@@ -9,7 +9,7 @@ Everything the form asks for, with the state of each item.
 | Repository | https://github.com/vaibhav4046/lacuna | public, MIT |
 | Deployed | https://lacuna-five.vercel.app | live, no account needed |
 | Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six questions computed on load |
-| Whole product, read only | https://lacuna-five.vercel.app/demo/dash | all eighteen screens |
+| Whole product, read only | https://lacuna-five.vercel.app/explore/dash | all eighteen screens |
 | Video | `video/hyperframes/renders/lacuna-demo-master.mp4`, 131s | rendered, **not uploaded** |
 | Captions | `video/hyperframes/renders/lacuna-demo.srt` | rendered |
 

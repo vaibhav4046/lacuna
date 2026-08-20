@@ -23,7 +23,7 @@ The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
 **The clearest evidence is on one screen.** HydraDB Cloud builds its own graph
-out of the same transcripts, and [/demo/hydra](https://lacuna-five.vercel.app/demo/hydra)
+out of the same transcripts, and [/demo/hydra](https://lacuna-five.vercel.app/explore/hydra)
 walks it live and sets every edge beside what Lacuna's claim graph says of the
 same pair. For the one subject the transcripts correct, the store reaches 21
 edges: 6 that stand, 2 the transcripts replaced, 3 disputed, and 10 that are not
@@ -49,7 +49,7 @@ whether a sentence is a statement, a plan, a question or a reported change, and
 files anything that is not a statement onto a slot the resolver structurally
 cannot answer from. That is what makes an unadopted proposal, and a forged
 `SYSTEM:` line telling it what to record, unable to become an answer. It is on
-[the memory screen](https://lacuna-five.vercel.app/demo/memory) with a box to
+[the memory screen](https://lacuna-five.vercel.app/explore/memory) with a box to
 paste your own text into.
 
 The ceiling is the frame table: eleven connective phrases covering storage,

@@ -94,7 +94,7 @@ sessions disagree about. Each is decided by the shape of the graph, not by a
 score falling under a threshold, and the panel shows which one applied and what
 was searched.
 
-Prose becomes claims, and you can watch it happen. /demo/memory has a box: paste
+Prose becomes claims, and you can watch it happen. /explore/memory has a box: paste
 a transcript and the extractor shows which sentence became a claim, the reading
 it took it under, and which earlier claim it replaced. A suggestion, a question
 and a plan file onto slots the resolver structurally cannot answer from, which
@@ -128,7 +128,7 @@ https://lacuna-five.vercel.app
 
 It answers live from HydraDB Cloud, as one serverless function. Every reply
 carries source_state: live and a measured round trip, /api/health names the
-database and collection it read, and /demo/hydra shows the store's own relation
+database and collection it read, and /explore/hydra shows the store's own relation
 graph beside the claim graph this project builds. /judge asks six questions on
 load, with no account, and reaches six different outcomes including three
 different refusals.
@@ -209,7 +209,7 @@ the stronger claim standing.
 The service also builds a graph of its own, and the product shows it rather
 than hiding behind its own one. Handed the raw transcripts, HydraDB Cloud
 extracts typed entities and canonical predicates with per-edge provenance, and
-answers POST /query with graph_context by traversing them. /demo/hydra calls it
+answers POST /query with graph_context by traversing them. /explore/hydra calls it
 live and sets every edge it reaches beside what Lacuna's claim graph says of the
 same pair.
 

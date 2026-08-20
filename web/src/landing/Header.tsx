@@ -20,7 +20,7 @@ const textButton = { background: 'none', border: 'none', cursor: 'pointer', colo
  * The sheet is a `<details>` element. It opens on tap and closes on tap, it is
  * reachable by keyboard and announced as a disclosure without a single line of
  * script, and it cannot get stuck open in a state React and the DOM disagree
- * about. Sign in and the live demo join it there so that one filled action,
+ * about. Sign in and the proof board join it there so that one filled action,
  * Get started, is the only button left competing at that width.
  */
 export function Header() {
@@ -39,7 +39,7 @@ export function Header() {
         <a href="#faq" style={link}>FAQ</a>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
-        <button data-navwide="1" className="hv-text" onClick={() => go('/judge')} style={textButton}>Live demo</button>
+        <button data-navwide="1" className="hv-text" onClick={() => go('/judge')} style={textButton}>See it answer</button>
         <button data-navwide="1" className="hv-text" onClick={() => go('/signin')} style={textButton}>Sign in</button>
         <button className="hv-violet" onClick={() => go('/signup')} style={{ background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '14px', fontWeight: 500, padding: '9px 18px', borderRadius: '8px' }}>Get started</button>
         <details data-navmenu="1" style={{ position: 'relative' }}>
@@ -51,7 +51,7 @@ export function Header() {
             <a href="#evals" style={sheetLink}>Benchmarks</a>
             <a href="#faq" style={sheetLink}>FAQ</a>
             <span style={{ height: '1px', background: 'rgba(255,255,255,0.12)', margin: '8px 0' }} />
-            <button className="hv-text" onClick={() => go('/judge')} style={{ ...textButton, textAlign: 'left', padding: '13px 4px' }}>Live demo</button>
+            <button className="hv-text" onClick={() => go('/judge')} style={{ ...textButton, textAlign: 'left', padding: '13px 4px' }}>See it answer</button>
             <button className="hv-text" onClick={() => go('/signin')} style={{ ...textButton, textAlign: 'left', padding: '13px 4px' }}>Sign in</button>
           </div>
         </details>

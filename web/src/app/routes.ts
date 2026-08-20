@@ -35,8 +35,7 @@ export const DEFAULT_ROUTE: RouteKey = 'dash';
 export const NAV_GROUPS = [
   { h: 'OVERVIEW', items: [['DASHBOARD', 'dash'], ['ASK', 'ask']] },
   { h: 'CONTEXT', items: [['MEMORY', 'memory'], ['TIMELINE', 'timeline'], ['GRAPH', 'graph'], ['HEALTH', 'health']] },
-  { h: 'AGENTS', items: [['AGENTS', 'agents']] },
-  { h: 'MODELS', items: [['MODELS', 'models']] },
+  { h: 'RUNTIME', items: [['AGENTS', 'agents'], ['MODELS', 'models']] },
   { h: 'DEVELOPERS', items: [['MCP', 'mcp'], ['SDK · API', 'sdk'], ['CLI', 'cli'], ['CONNECTORS', 'conn']] },
   { h: 'PROOF', items: [['EVALUATIONS', 'evals'], ['HYDRADB', 'hydra']] },
   { h: 'SYSTEM', items: [['SETTINGS', 'settings']] }

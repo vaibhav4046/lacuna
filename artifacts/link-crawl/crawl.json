@@ -1,9 +1,10 @@
 {
-  "crawledAt": "2026-08-20T02:10:42.749Z",
+  "crawledAt": "2026-08-20T02:36:47.709Z",
   "base": "https://lacuna-five.vercel.app",
   "routesVisited": [
     "/",
     "/demo/hydra",
+    "/explore/agents",
     "/explore/ask",
     "/explore/cli",
     "/explore/conn",

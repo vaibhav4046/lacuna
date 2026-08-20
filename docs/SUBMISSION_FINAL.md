@@ -9,15 +9,20 @@ Everything the form asks for, with the state of each item.
 | Repository | https://github.com/vaibhav4046/lacuna | public, MIT |
 | Deployed | https://lacuna-five.vercel.app | live, no account needed |
 | Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six questions computed on load |
-| Whole product, read only | https://lacuna-five.vercel.app/explore/dash | all eighteen screens |
-| Video | `video/hyperframes/renders/lacuna-demo-master.mp4`, 131s | rendered, **not uploaded** |
+| Whole product, read only | https://lacuna-five.vercel.app/explore/dash | fifteen screens, all real |
+| Video | `video/hyperframes/renders/lacuna-demo-master.mp4`, 131s | rendered 19 Aug, **stale**, see below |
 | Captions | `video/hyperframes/renders/lacuna-demo.srt` | rendered |
 
 ## What is left, and why it is left
 
-**Uploading the video.** It needs a signed-in YouTube session. The file, its
-captions and its metadata are in the repository; the upload is one action in a
-browser that is signed in as you.
+**The video is out of date and I would not submit it as it stands.** It was
+rendered on 19 August, before the product stopped calling itself a demo and
+before the Agents screen existed. Nothing in it is false and none of its links
+are dead, because `/demo/*` redirects to `/explore/*`, but it shows the old
+name in the URL bar and it does not show the agent run, which is the strongest
+thing on the site. Either recapture it against the current deployment with
+`npx tsx scripts/film-shots.ts`, or submit without it if the form allows.
+Uploading whichever version you choose needs a signed-in YouTube session.
 
 **Submitting the form.** Same reason. Every field it asks for is in this file.
 

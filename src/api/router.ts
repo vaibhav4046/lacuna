@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { hashPassword, MAX_PASSWORD_CHARS, MIN_PASSWORD_CHARS, verifyPassword } from '../auth/password.js';
+import { canonicalRecoveryCode, newRecoveryCode, normaliseRecoveryCode } from '../auth/recovery.js';
 import {
   BodyTooLarge,
   CSRF_COOKIE,
@@ -65,6 +66,16 @@ const EXTRACT_BODY_BYTES = 16_384;
 
 /** Sign up is rarer and more expensive, so it is tighter. */
 const SIGNUP_LIMIT = { limit: 3, windowMs: 60_000, maxKeys: 4_096 };
+/**
+ * Recovery gets its own budget rather than sharing sign in's.
+ *
+ * Sharing meant a few failed sign ins used up the attempts of somebody trying
+ * to get back into their account, which is exactly the person least able to
+ * afford it. Tighter than sign in because a code is a credential that resets a
+ * password: six a minute is generous for a person typing one off a note and
+ * nowhere near enough to search a hundred bit space.
+ */
+const RECOVER_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 
 /**
  * The public endpoints that cost real work, and what one address may spend.
@@ -342,6 +353,7 @@ export class ApiRouter {
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
+  readonly #recoverLimit = new FixedWindow(RECOVER_LIMIT);
   readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
   readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
   readonly #runLimit = new FixedWindow(PUBLIC_RUN_LIMIT);
@@ -511,9 +523,65 @@ export class ApiRouter {
       }
 
       if (path === '/api/auth/reset') {
-        // No mail transport is configured. Saying so is the whole point: a 204
-        // here would report that a link was sent when nothing sends one.
+        // Still no mail transport, and still refusing to report a link nobody
+        // sent. `/api/auth/recover` is the way back now: it needs the recovery
+        // code issued when the account was created, which is a channel this
+        // deployment actually has.
         send(response, 501, { error: 'mail' });
+        return HANDLED;
+      }
+
+      /**
+       * A new password, proved by the code issued when the account was made.
+       *
+       * The checks are deliberately in this order and all of them are timed the
+       * same way from outside: an unknown email, an account with no code, and a
+       * wrong code all take one password verification and all answer 401 with
+       * the same body. Any of those distinctions leaking would turn this into
+       * an oracle for which addresses have accounts.
+       */
+      if (path === '/api/auth/recover') {
+        const verdict = this.#recoverLimit.check(sourceKey(request), this.#now());
+        if (!verdict.allowed) {
+          send(response, 429, { error: 'rate' });
+          return HANDLED;
+        }
+        const code = normaliseRecoveryCode(body?.['code']);
+        const next = body?.['password'];
+        if (typeof next !== 'string' || next.length < MIN_PASSWORD_CHARS || next.length > MAX_PASSWORD_CHARS) {
+          send(response, 422, { error: 'password' });
+          return HANDLED;
+        }
+
+        try {
+          const account = await this.#store.find(email);
+          const stored = account?.recoveryHash ?? null;
+          // Verified even when there is nothing to verify against, so that a
+          // missing account costs the same time as a wrong code.
+          const ok = await verifyPassword(code ?? 'not-a-code', stored ?? await decoy());
+          if (account === null || stored === null || code === null || !ok) {
+            send(response, 401, { error: 'recovery' });
+            return HANDLED;
+          }
+
+          /**
+           * The code is spent. A new one is issued in the same breath.
+           *
+           * Rotating rather than keeping it means a code that was written on a
+           * shared note cannot be used twice, and issuing the replacement here
+           * means nobody is left without a way back after using theirs.
+           */
+          const replacement = newRecoveryCode();
+          await this.#store.update({
+            ...account,
+            passwordHash: await hashPassword(next),
+            recoveryHash: await hashPassword(canonicalRecoveryCode(replacement)),
+          });
+          const token = await this.#store.startSession(email, this.#now());
+          send(response, 200, { signedIn: true, recoveryCode: replacement }, [this.#sessionCookie(token)]);
+        } catch (error) {
+          send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+        }
         return HANDLED;
       }
 
@@ -1169,19 +1237,29 @@ export class ApiRouter {
 
     const now = this.#now();
     try {
+      /**
+       * The code is generated here and returned exactly once.
+       *
+       * Only its hash is stored, so this response is the only moment it exists
+       * anywhere it can be read. That is the point and it is what the screen
+       * has to say: nothing here can send it again, because nothing here can
+       * recover it either.
+       */
+      const recovery = newRecoveryCode();
       const created = await this.#store.create({
         email,
         passwordHash: await hashPassword(password),
         createdAt: new Date(now).toISOString(),
         workspace: null,
         onboarded: false,
+        recoveryHash: await hashPassword(canonicalRecoveryCode(recovery)),
       });
       if (created === null) {
         send(response, 409, { error: 'exists' });
         return HANDLED;
       }
       const token = await this.#store.startSession(email, now);
-      send(response, 201, { signedIn: true }, [this.#sessionCookie(token)]);
+      send(response, 201, { signedIn: true, recoveryCode: recovery }, [this.#sessionCookie(token)]);
     } catch (error) {
       send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
     }

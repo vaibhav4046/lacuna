@@ -280,3 +280,110 @@ describe('the account store', () => {
     expect(JSON.stringify([...Object.values(reopened)])).not.toContain(token);
   });
 });
+
+/**
+ * The way back into an account, for a deployment with nowhere to send email.
+ *
+ * The reset route still answers 501 and still should: nothing sends mail, and a
+ * 204 there would report a link that was never sent. What is new is that 501 is
+ * no longer the end of the road.
+ *
+ * What matters most here is what recovery refuses. It is a credential that
+ * resets a password without a second channel, so an unknown address, an account
+ * with no code, and a wrong code all have to look identical from outside, or it
+ * becomes a way to ask which addresses have accounts.
+ */
+describe('recovery codes', () => {
+  const EMAIL = 'recover@example.com';
+  const NEXT = 'a-completely-different-password';
+  let code = '';
+
+  it('are issued once when the account is created', async () => {
+    const jar = await primed();
+    const response = await post(jar, '/api/auth/signup', { email: EMAIL, password: PASSWORD });
+    expect(response.status).toBe(201);
+
+    const body = await response.json() as { signedIn: boolean; recoveryCode?: string };
+    expect(body.signedIn).toBe(true);
+    expect(typeof body.recoveryCode).toBe('string');
+    // Twenty characters in four groups of five, which is what the screen shows.
+    expect(body.recoveryCode).toMatch(/^[0-9A-Z]{5}(-[0-9A-Z]{5}){3}$/);
+    code = body.recoveryCode ?? '';
+  });
+
+  it('are never returned again', async () => {
+    const jar = await primed();
+    await post(jar, '/api/auth/signin', { email: EMAIL, password: PASSWORD });
+    const response = await session(jar);
+    expect(JSON.stringify(await response.json())).not.toContain(code.slice(0, 5));
+  });
+
+  it('still refuse to pretend an email was sent', async () => {
+    const jar = await primed();
+    const response = await post(jar, '/api/auth/reset', { email: EMAIL });
+    expect(response.status).toBe(501);
+  });
+
+  it('refuse a wrong code', async () => {
+    const jar = await primed();
+    const response = await post(jar, '/api/auth/recover', {
+      email: EMAIL, code: 'ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ', password: NEXT,
+    });
+    expect(response.status).toBe(401);
+  });
+
+  it('answer an unknown address exactly as they answer a wrong code', async () => {
+    const jar = await primed();
+    const wrongCode = await post(jar, '/api/auth/recover', {
+      email: EMAIL, code: 'ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ', password: NEXT,
+    });
+    const noAccount = await post(jar, '/api/auth/recover', {
+      email: 'nobody-at-all@example.com', code: 'ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ', password: NEXT,
+    });
+    // Same status and same body. A difference here is a way to ask which
+    // addresses have accounts.
+    expect(noAccount.status).toBe(wrongCode.status);
+    expect(await noAccount.json()).toEqual(await wrongCode.json());
+  });
+
+  it('refuse a new password that is too short, before checking the code', async () => {
+    const jar = await primed();
+    const response = await post(jar, '/api/auth/recover', {
+      email: EMAIL, code, password: 'eleven chr',
+    });
+    expect(response.status).toBe(422);
+  });
+
+  it('accept the code however it was written down', async () => {
+    const jar = await primed();
+    // Lower case, spaces instead of dashes. Somebody copied it off a note.
+    const written = code.toLowerCase().replace(/-/g, ' ');
+    const response = await post(jar, '/api/auth/recover', { email: EMAIL, code: written, password: NEXT });
+    expect(response.status).toBe(200);
+
+    const body = await response.json() as { signedIn: boolean; recoveryCode?: string };
+    expect(body.signedIn).toBe(true);
+    // Spent, and replaced in the same breath, so nobody is left without one.
+    expect(typeof body.recoveryCode).toBe('string');
+    expect(body.recoveryCode).not.toBe(code);
+    code = body.recoveryCode ?? '';
+  });
+
+  it('changed the password, rather than only saying so', async () => {
+    const stale = await primed();
+    expect((await post(stale, '/api/auth/signin', { email: EMAIL, password: PASSWORD })).status).toBe(401);
+
+    const fresh = await primed();
+    expect((await post(fresh, '/api/auth/signin', { email: EMAIL, password: NEXT })).status).toBe(200);
+  });
+
+  it('refuse a code that has already been spent', async () => {
+    const jar = await primed();
+    // The one used above. Reusing it must not work, which is the whole reason
+    // it is rotated rather than kept.
+    const response = await post(jar, '/api/auth/recover', {
+      email: EMAIL, code: 'ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ', password: 'another-new-password-here',
+    });
+    expect(response.status).toBe(401);
+  });
+});

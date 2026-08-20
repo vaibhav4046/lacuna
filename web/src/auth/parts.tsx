@@ -31,7 +31,7 @@ export function Brand() {
 
 export function Field({ label, type, placeholder, value, onChange, autoComplete }: {
   label: string;
-  type: 'email' | 'password';
+  type: 'email' | 'password' | 'text';
   placeholder: string;
   value: string;
   onChange: (next: string) => void;

@@ -36,6 +36,15 @@ export interface Account {
   /** Null until onboarding names one. */
   readonly workspace: string | null;
   readonly onboarded: boolean;
+  /**
+   * Argon2id of the recovery code, or null for an account created before
+   * recovery existed and for accounts that sign in through Google.
+   *
+   * Null is a real state rather than a gap to be backfilled: a Google account
+   * has no password to reset, and giving it a code would be handing somebody a
+   * second credential for an account whose first one lives somewhere else.
+   */
+  readonly recoveryHash?: string | null;
 }
 
 export interface SessionRecord {
@@ -96,7 +105,11 @@ function isAccount(value: unknown): value is Account {
     && typeof v['passwordHash'] === 'string'
     && typeof v['createdAt'] === 'string'
     && (v['workspace'] === null || typeof v['workspace'] === 'string')
-    && typeof v['onboarded'] === 'boolean';
+    && typeof v['onboarded'] === 'boolean'
+    // Absent on every account written before recovery codes existed, which is
+    // why it is optional rather than required: rejecting those records would
+    // lock out the people it is meant to help.
+    && (v['recoveryHash'] === undefined || v['recoveryHash'] === null || typeof v['recoveryHash'] === 'string');
 }
 
 function isSession(value: unknown): value is SessionRecord {

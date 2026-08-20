@@ -90,6 +90,16 @@ function csrfToken(): string {
 export interface PostResult {
   readonly ok: boolean;
   readonly status: number;
+  /**
+   * The parsed response, when there was one.
+   *
+   * Deliberately not used for messages: every sentence a person can see comes
+   * from a fixed table keyed on the status, so a server that has been made to
+   * echo something cannot put that something on the page. It is here for values
+   * that have nowhere else to come from, like the recovery code that exists in
+   * exactly one response and nowhere else ever again.
+   */
+  readonly body: unknown;
 }
 
 /**
@@ -99,16 +109,44 @@ export interface PostResult {
  * response body can never become copy.
  */
 export async function postJson(path: string, body: unknown): Promise<PostResult> {
+  const send = async (): Promise<Response> => fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+    body: JSON.stringify(body),
+  });
+
   try {
-    const response = await fetch(path, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
-      body: JSON.stringify(body),
-    });
-    return { ok: response.ok, status: response.status };
+    let response = await send();
+
+    /**
+     * One retry, and only for the first request a visitor ever makes.
+     *
+     * The CSRF cookie is minted by the server on the request that fails without
+     * one, so somebody arriving at the sign up page with a clean browser had
+     * their very first submission rejected every time. They saw "Permission
+     * required" on a form that was perfectly valid, and creating an account
+     * appeared to be broken until they happened to press the button twice.
+     *
+     * Retrying once, only on 403, and only when the cookie has appeared since
+     * the first attempt, fixes that without turning a real refusal into a loop:
+     * if the token is still missing the second attempt is not made.
+     */
+    if (response.status === 403 && csrfToken() !== '') {
+      response = await send();
+    }
+
+    // A 204 has no body and neither does a failure worth reading. Parsing is
+    // best effort because the status is what decides everything a user sees.
+    let parsed: unknown = null;
+    try {
+      parsed = response.status === 204 ? null : await response.json();
+    } catch {
+      parsed = null;
+    }
+    return { ok: response.ok, status: response.status, body: parsed };
   } catch {
-    return { ok: false, status: 0 };
+    return { ok: false, status: 0, body: null };
   }
 }
 

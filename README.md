@@ -23,7 +23,7 @@ The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
 **The clearest evidence is on one screen.** HydraDB Cloud builds its own graph
-out of the same transcripts, and [/demo/hydra](https://lacuna-five.vercel.app/explore/hydra)
+out of the same transcripts, and [/explore/hydra](https://lacuna-five.vercel.app/explore/hydra)
 walks it live and sets every edge beside what Lacuna's claim graph says of the
 same pair. For the one subject the transcripts correct, the store reaches 21
 edges: 6 that stand, 2 the transcripts replaced, 3 disputed, and 10 that are not

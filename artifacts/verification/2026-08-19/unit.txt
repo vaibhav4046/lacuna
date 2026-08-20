@@ -15,6 +15,6 @@ request failed: HydraQueryError: HydraDB returned 403: principal bearer principa
 
  Test Files  59 passed (59)
       Tests  1208 passed (1208)
-   Start at  18:41:39
-   Duration  22.90s (transform 1.79s, setup 0ms, import 5.97s, tests 6.49s, environment 4ms)
+   Start at  02:03:07
+   Duration  32.12s (transform 1.55s, setup 0ms, import 7.60s, tests 8.65s, environment 7ms)
 

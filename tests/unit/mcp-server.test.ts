@@ -8,7 +8,7 @@ import { HydraClient } from '../../src/hydra/client.js';
 import type { HydraConfig } from '../../src/hydra/config.js';
 import { createMcpServer, callTool, type ToolContext } from '../../src/mcp/server.js';
 import { describeNode } from '../../src/mcp/result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, FETCH_TOOL, HEALTH_TOOL, READ_TOOL, SEARCH_TOOL, TIMELINE_TOOL, TOOLS } from '../../src/mcp/tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, FETCH_TOOL, HEALTH_TOOL, READ_TOOL, REMEMBER_TOOL, SEARCH_TOOL, TIMELINE_TOOL, TOOLS, toolsFor } from '../../src/mcp/tools.js';
 
 /**
  * The tool list, and dispatch, without a node.
@@ -89,7 +89,7 @@ function structuredOf(result: CallToolResult): Record<string, unknown> {
 }
 
 describe('the advertised tools', () => {
-  it('are the seven this release ships', () => {
+  it('are the eight this release ships, of which seven are ever public', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual([
       ASK_TOOL,
       EXPLAIN_TOOL,
@@ -97,8 +97,13 @@ describe('the advertised tools', () => {
       READ_TOOL,
       SEARCH_TOOL,
       FETCH_TOOL,
+      REMEMBER_TOOL,
       HEALTH_TOOL,
     ]);
+    // A connection with nowhere to write is never offered the write.
+    expect(toolsFor(false).map((tool) => tool.name)).not.toContain(REMEMBER_TOOL);
+    expect(toolsFor(false)).toHaveLength(TOOLS.length - 1);
+    expect(toolsFor(true)).toHaveLength(TOOLS.length);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
   });
 
@@ -132,10 +137,21 @@ describe('the advertised tools', () => {
   });
 
   it('say they are read-only, in the annotation a client acts on', () => {
-    for (const tool of TOOLS) {
+    // Every tool a public connection is offered. `lacuna_remember` is the one
+    // that writes and it says so, because a write annotated read-only is how a
+    // client decides it does not need to ask.
+    for (const tool of toolsFor(false)) {
       expect(tool.annotations?.readOnlyHint).toBe(true);
       expect(tool.annotations?.destructiveHint).toBe(false);
     }
+  });
+
+  it('mark the one that writes as writing, and still not as destructive', () => {
+    const write = TOOLS.find((tool) => tool.name === REMEMBER_TOOL);
+    expect(write?.annotations?.readOnlyHint).toBe(false);
+    // Nothing it does removes anything: a correction supersedes and the
+    // superseded claim stays queryable, which is the point of the store.
+    expect(write?.annotations?.destructiveHint).toBe(false);
   });
 
   it('carry an input schema and an output schema', () => {
@@ -463,5 +479,40 @@ describe('search and fetch', () => {
     // `text` is the whole point: it is what gets quoted.
     expect(required).toContain('text');
     expect(required).toContain('url');
+  });
+});
+
+/**
+ * Writing, and the connection that cannot.
+ *
+ * The public URL is fetchable by anybody, so the only thing standing between it
+ * and an open write endpoint is that a context without a workspace has no
+ * writer. Hiding the tool is not the boundary on its own, which is why the
+ * refusal is checked as well as the listing.
+ */
+describe('remembering', () => {
+  it('is refused outright on a connection with nowhere to write', async () => {
+    await expect(
+      callTool(REMEMBER_TOOL, { text: 'Checkout is owned by Dana.' }, silentNode()),
+    ).rejects.toThrow(/read only/);
+  });
+
+  it('takes prose rather than a subject and a value', () => {
+    const write = TOOLS.find((tool) => tool.name === REMEMBER_TOOL);
+    const schema = write?.inputSchema as { required?: string[]; properties?: Record<string, unknown> };
+    // A tool that accepted a predicate and a value would be a model asserting a
+    // fact straight into the memory, which is the thing this project argues
+    // against. It takes text and the extractor decides what that means.
+    expect(schema.required).toEqual(['text']);
+    expect(Object.keys(schema.properties ?? {})).toEqual(['text', 'title']);
+  });
+
+  it('reports what landed rather than acknowledging the write', () => {
+    const write = TOOLS.find((tool) => tool.name === REMEMBER_TOOL);
+    const schema = write?.outputSchema as { properties?: Record<string, unknown> };
+    // "remembered: true" for prose the extractor read nothing in is the kind of
+    // false success that makes a memory worthless, so the count comes back too.
+    expect(Object.keys(schema.properties ?? {})).toContain('claims');
+    expect(Object.keys(schema.properties ?? {})).toContain('stored');
   });
 });

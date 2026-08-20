@@ -262,6 +262,7 @@ export const READ_TOOL = `${PREFIX}read_question` as const;
  * They are unprefixed because the contract is on the name. Everything else here
  * keeps `lacuna_`.
  */
+export const REMEMBER_TOOL = `${PREFIX}remember` as const;
 export const SEARCH_TOOL = 'search' as const;
 export const FETCH_TOOL = 'fetch' as const;
 
@@ -429,6 +430,50 @@ export const TOOLS: readonly Tool[] = [
     annotations: READ_ONLY,
   },
   {
+    name: REMEMBER_TOOL,
+    title: 'Remember this in Lacuna',
+    description:
+      'Write something into this workspace so any other client pointed at it can read it back. '
+      + 'Takes prose, not a subject and a value: the extractor decides what becomes a claim, so a '
+      + 'correction supersedes what it corrects, a proposal stays a proposal, and a sentence '
+      + 'saying nothing happened stores nothing. Write plain statements about named things, for '
+      + 'example "Checkout is owned by Dana." The reply says what actually became a claim rather '
+      + 'than acknowledging the write. '
+      + 'Only offered when this connection names a workspace; the public corpus is read only.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: {
+          type: 'string',
+          description: 'What to remember, as sentences. Statements about things you can name.',
+          minLength: 1,
+          maxLength: 20_000,
+        },
+        title: {
+          type: 'string',
+          description: 'Where this came from, shown as the source on every claim it produces.',
+          maxLength: 120,
+        },
+      },
+      required: ['text'],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        remembered: { type: 'boolean' },
+        claims: { type: 'number', description: 'How many claims the extractor read out of it.' },
+        entities: { type: 'number' },
+        turns: { type: 'number' },
+        stored: { type: 'number', description: 'Records the store accepted.' },
+        reason: { type: ['string', 'null'] },
+        note: { type: 'string' },
+      },
+      required: ['remembered'],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: HEALTH_TOOL,
     title: 'Lacuna node health',
     description:
@@ -440,3 +485,17 @@ export const TOOLS: readonly Tool[] = [
     annotations: READ_ONLY,
   },
 ];
+
+/**
+ * The tools this connection actually has.
+ *
+ * `lacuna_remember` is advertised only when the connection names a workspace to
+ * write into. That is what keeps the write off the public URL: no header, no
+ * writer, no tool in the list, and a client that never sees a tool cannot be
+ * argued into calling it. Hiding it is not the security boundary on its own —
+ * `callTool` refuses it too — but a tool nobody is offered is one nobody spends
+ * a turn discovering they cannot use.
+ */
+export function toolsFor(canWrite: boolean): readonly Tool[] {
+  return canWrite ? TOOLS : TOOLS.filter((tool) => tool.name !== REMEMBER_TOOL);
+}

@@ -251,6 +251,29 @@ const mcp = cloud === null ? null : createMcpListener({
     source: new CloudSource(cloud.withCollection(collection)),
     node: { namespace: cloud.database, graph: collection, cell: 'cloud' },
     store: 'cloud',
+    /**
+     * The write, and the reason it exists only here.
+     *
+     * A connection that names a workspace can put something into it, so a
+     * thing learned in one assistant is readable in another. The public
+     * connection has no writer at all, which is what keeps a URL anybody can
+     * fetch from being a URL anybody can fill.
+     *
+     * It takes prose rather than a subject and a value on purpose: the
+     * extractor decides what becomes a claim, so two assistants writing to one
+     * memory cannot quietly overwrite each other, and a correction supersedes
+     * rather than replaces.
+     */
+    remember: async (title: string, text: string) => {
+      const report = await ingestSource(cloud, collection, title, text);
+      return typeof report === 'string' ? report : {
+        claims: report.claims,
+        entities: report.entities,
+        turns: report.turns,
+        accepted: report.accepted,
+        collection: report.collection,
+      };
+    },
   }),
 });
 

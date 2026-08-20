@@ -19,7 +19,7 @@ import {
   renderJson,
   timelineResult,
 } from './result.js';
-import { ASK_TOOL, EXPLAIN_TOOL, FETCH_TOOL, HEALTH_TOOL, READ_TOOL, SEARCH_TOOL, TOOLS } from './tools.js';
+import { ASK_TOOL, EXPLAIN_TOOL, FETCH_TOOL, HEALTH_TOOL, READ_TOOL, REMEMBER_TOOL, SEARCH_TOOL, toolsFor } from './tools.js';
 import { UNDERSTOOD_PREDICATES, predicateIn, subjectsIn } from '../retrieval/plan.js';
 import { askCore } from '../contract/result.js';
 
@@ -45,6 +45,23 @@ import { askCore } from '../contract/result.js';
 
 export const SERVER_NAME = 'lacuna';
 export const SERVER_VERSION = '0.1.0';
+
+/**
+ * The mark, for a client that shows one.
+ *
+ * A connector list that has no icon draws the first letter of the name in a
+ * square, which is what both of the hosted clients did. This is the same
+ * drawing as the favicon and the terminal splash, rendered once by
+ * `scripts/mark-png.ts` from the SVG that already ships, so the three cannot
+ * drift into three different logos that happen to share a name.
+ *
+ * Absolute because a connector directory has no page to resolve a relative path
+ * against.
+ */
+export const SERVER_ICONS = [
+  { src: 'https://lacuna-five.vercel.app/mark-256.png', mimeType: 'image/png', sizes: ['256x256'] },
+  { src: 'https://lacuna-five.vercel.app/favicon.svg', mimeType: 'image/svg+xml', sizes: ['any'] },
+] as const;
 
 /**
  * How long one tool call may take, end to end.
@@ -84,6 +101,20 @@ export interface ToolContext {
   readonly node: NodeIdentity;
   /** Which store answered, said plainly rather than inferred from the names. */
   readonly store: 'node' | 'cloud';
+  /**
+   * Writes prose into this workspace, when there is one to write into.
+   *
+   * Absent for the public corpus, which is how the write tool stays off a URL
+   * anybody can fetch: no workspace header, no writer, no tool advertised. A
+   * client that never sees the tool cannot be talked into calling it.
+   */
+  readonly remember?: (title: string, text: string) => Promise<{
+    readonly claims: number;
+    readonly entities: number;
+    readonly turns: number;
+    readonly accepted: number;
+    readonly collection: string;
+  } | 'nothing_extracted' | 'text_required' | 'title_required' | 'text_too_long'>;
   /** Deadline for one whole call. Defaults to `TOOL_TIMEOUT_MS`. */
   readonly timeoutMs?: number;
 }
@@ -308,7 +339,22 @@ export async function callTool(
 ): Promise<CallToolResult> {
   const timeoutMs = context.timeoutMs ?? TOOL_TIMEOUT_MS;
 
-  const tool = TOOLS.find((one) => one.name === name);
+  /**
+   * Asked for the write on a connection that has none.
+   *
+   * Answered before the lookup so the refusal says what to do about it.
+   * Falling through would report "unknown tool", which is true and tells
+   * somebody configuring this nothing, and the message gives away nothing that
+   * is not already in the tool's own description.
+   */
+  if (name === REMEMBER_TOOL && context.remember === undefined) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      'this connection is read only. Send the x-lacuna-workspace header naming a workspace to write into one.',
+    );
+  }
+
+  const tool = toolsFor(context.remember !== undefined).find((one) => one.name === name);
   if (tool === undefined) {
     throw new McpError(ErrorCode.MethodNotFound, `unknown tool "${name}"`);
   }
@@ -320,6 +366,10 @@ export async function callTool(
 
   if (name === READ_TOOL) {
     return await readQuestionTool(args, context, timeoutMs);
+  }
+
+  if (name === REMEMBER_TOOL) {
+    return await rememberTool(args, context);
   }
 
   if (name === SEARCH_TOOL) {
@@ -589,6 +639,75 @@ async function fetchTool(
 }
 
 /**
+ * Something learned in one assistant, written where the other can read it.
+ *
+ * The obvious way to build this is a tool that takes a subject, a predicate and
+ * a value, and it is the wrong way. That is a model asserting a fact directly
+ * into a memory, and the whole argument of this project is that what is true
+ * gets decided by a resolver with evidence rather than by something that
+ * predicts plausible text.
+ *
+ * So this takes prose. Whatever the assistant writes goes through the same
+ * extractor the benchmarks use: it decides what may become a claim, what mode
+ * each sentence is in, and what to refuse. A proposal stays a proposal, a
+ * correction supersedes what it corrects, and a sentence saying nothing
+ * happened produces nothing. The assistant supplies the text and Lacuna decides
+ * what it means, which is the only arrangement where two assistants writing to
+ * one memory cannot quietly overwrite each other.
+ *
+ * The report says what actually landed rather than acknowledging the write,
+ * because "remembered" for prose the extractor read nothing in is the kind of
+ * false success that makes a memory useless.
+ */
+async function rememberTool(
+  args: unknown,
+  context: ToolContext,
+): Promise<CallToolResult> {
+  const write = context.remember;
+  if (write === undefined) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      'this connection is read only. Point it at a workspace to write into one.',
+    );
+  }
+
+  const body = args as { text?: unknown; title?: unknown } | null;
+  const text = body?.text;
+  const title = typeof body?.title === 'string' && body.title.trim() !== ''
+    ? body.title.trim()
+    : 'Remembered by an assistant';
+
+  if (typeof text !== 'string' || text.trim() === '') {
+    throw new McpError(ErrorCode.InvalidParams, 'text must be a non-empty string');
+  }
+
+  try {
+    const report = await write(title, text);
+    if (typeof report === 'string') {
+      return toolResult({
+        remembered: false,
+        reason: report,
+        note: report === 'nothing_extracted'
+          ? 'Nothing in that became a claim. The extractor reads statements about things it can name; a summary, a question or a plan produces nothing on purpose.'
+          : 'That could not be read.',
+      });
+    }
+    return toolResult({
+      remembered: true,
+      claims: report.claims,
+      entities: report.entities,
+      turns: report.turns,
+      stored: report.accepted,
+      note: 'Stored as claims with the sentences they came from. Ask for them back in any client pointed at this workspace.',
+    });
+  } catch (error) {
+    const mcpError = toMcpError(error);
+    if (mcpError.code === ErrorCode.InvalidParams) throw mcpError;
+    return failedResult(mcpError);
+  }
+}
+
+/**
  * A server bound to one graph connection.
  *
  * A fresh instance per stdio process, and a fresh instance per HTTP request in
@@ -598,11 +717,18 @@ async function fetchTool(
  */
 export function createMcpServer(context: ToolContext): Server {
   const server = new Server(
-    { name: SERVER_NAME, version: SERVER_VERSION },
+    {
+      name: SERVER_NAME,
+      version: SERVER_VERSION,
+      title: 'Lacuna',
+      icons: SERVER_ICONS.map((icon) => ({ ...icon, sizes: [...icon.sizes] })),
+    },
     { capabilities: { tools: {} }, instructions: INSTRUCTIONS },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [...TOOLS] }));
+  server.setRequestHandler(ListToolsRequestSchema, () => ({
+    tools: [...toolsFor(context.remember !== undefined)],
+  }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => (
     callTool(request.params.name, request.params.arguments, context)

@@ -60,6 +60,8 @@ import {
 import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } from './voice.js';
 import { VOICE_ROUTES } from '../voice/operations.js';
 import { MAX_VOICE_TRANSCRIPT_CHARS, type VoiceIntentPlan, type VoiceScope } from '../voice/intent.js';
+import { catalogue, mergeConnectorState } from '../connectors/catalog.js';
+import type { ConnectorDescriptor, ConnectorStore } from '../connectors/types.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -308,6 +310,10 @@ export interface ApiOptions {
   readonly allowPasswordSignup?: boolean;
   /** Random, revocable capabilities used to authorize private MCP access. */
   readonly mcpCapabilities?: McpCapabilities;
+  /** Durable non-secret connector observations, separate from workspace memory. */
+  readonly connectorStore?: ConnectorStore;
+  /** Deployment-specific availability over the closed server catalogue. */
+  readonly connectorCatalog?: () => readonly ConnectorDescriptor[];
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -663,6 +669,8 @@ export class ApiRouter {
   readonly #store: Accounts;
   readonly #allowPasswordSignup: boolean;
   readonly #mcpCapabilities: McpCapabilities | undefined;
+  readonly #connectorStore: ConnectorStore | undefined;
+  readonly #connectorCatalog: () => readonly ConnectorDescriptor[];
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: ((collection?: string) => HydraSource) | undefined;
@@ -702,6 +710,8 @@ export class ApiRouter {
     this.#store = options.store;
     this.#allowPasswordSignup = options.allowPasswordSignup ?? true;
     this.#mcpCapabilities = options.mcpCapabilities;
+    this.#connectorStore = options.connectorStore;
+    this.#connectorCatalog = options.connectorCatalog ?? (() => catalogue());
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
@@ -819,6 +829,23 @@ export class ApiRouter {
 
     const cookies = parseCookies(request.headers.cookie);
     const method = request.method ?? 'GET';
+
+    if (path === '/api/workspace/connectors' && method === 'GET') {
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      try {
+        const observed = this.#connectorStore === undefined
+          ? {}
+          : await this.#connectorStore.get(workspaceCollection(account.email));
+        send(response, 200, { connectors: mergeConnectorState(this.#connectorCatalog(), observed) });
+      } catch {
+        send(response, 503, { error: 'connector_state_unavailable' });
+      }
+      return HANDLED;
+    }
 
     if (path === '/api/cron/agents/daily' && method === 'GET') {
       const authorization = firstHeader(request.headers.authorization);

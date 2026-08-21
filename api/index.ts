@@ -44,6 +44,8 @@ import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 import { PREDICATE_NAMES } from '../src/corpus/types.js';
 import { planVoiceIntent } from '../src/voice/intent.js';
+import { catalogue } from '../src/connectors/catalog.js';
+import { CloudConnectorStore } from '../src/connectors/store.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -119,6 +121,7 @@ const store = cloud === null
   ? new FileAccounts(new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '/tmp/lacuna-store'))
   : new CloudAccounts(cloud);
 const mcpCapabilities = cloud === null ? null : new CloudMcpCapabilities(cloud);
+const connectorStore = cloud === null ? null : new CloudConnectorStore(cloud);
 
 async function cloudHealth(): Promise<unknown> {
   if (cloud === null) {
@@ -180,6 +183,8 @@ const api = new ApiRouter({
   // moves behind a unique transactional constraint.
   allowPasswordSignup: false,
   ...(mcpCapabilities === null ? {} : { mcpCapabilities }),
+  ...(connectorStore === null ? {} : { connectorStore }),
+  connectorCatalog: () => catalogue({ webhookKey: process.env['LACUNA_WEBHOOK_KEY'] }),
   secure: true,
   health: cloudHealth,
   voice,

@@ -1,12 +1,12 @@
 import type { PreparedConnectorDocument } from './normalize.js';
+import { isCanonicalGitHubRepositoryRoot } from './github-repository.js';
 
-const GITHUB_REPOSITORY = /^https:\/\/github\.com\/[a-z0-9-]+\/[a-z0-9_.-]+$/u;
 const GITHUB_SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const GITHUB_PATH_PART = /^[A-Za-z0-9._@+~()' -]+$/u;
 const EVIDENCE_KEYS = new Set([
   'schemaVersion', 'connectorId', 'repositoryUrl', 'commitSha', 'path', 'blobSha',
-  'rawDigest', 'contentDigest', 'parserVersion',
+  'retrievedAt', 'rawDigest', 'contentDigest', 'parserVersion',
 ]);
 
 /**
@@ -28,6 +28,7 @@ export interface PersistedGitHubConnectorEvidenceV1 {
   readonly commitSha: string;
   readonly path: string;
   readonly blobSha: string;
+  readonly retrievedAt: string;
   readonly rawDigest: string;
   readonly contentDigest: string;
   readonly parserVersion: 'github-v1';
@@ -44,14 +45,21 @@ function exactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>
   return keys.length === expected.size && keys.every((key) => expected.has(key));
 }
 
+function isCanonicalInstant(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
+}
+
 /** A closed decoder: missing evidence is legacy; any present unknown shape is invalid. */
 export function decodePersistedConnectorEvidence(value: unknown): PersistedConnectorEvidence | null {
   if (!isRecord(value) || !exactKeys(value, EVIDENCE_KEYS)
     || value['schemaVersion'] !== 1 || value['connectorId'] !== 'github'
-    || typeof value['repositoryUrl'] !== 'string' || !GITHUB_REPOSITORY.test(value['repositoryUrl'])
+    || !isCanonicalGitHubRepositoryRoot(value['repositoryUrl'])
     || typeof value['commitSha'] !== 'string' || !GITHUB_SHA.test(value['commitSha'])
     || !isCanonicalGitHubPath(value['path'])
     || typeof value['blobSha'] !== 'string' || !GITHUB_SHA.test(value['blobSha'])
+    || !isCanonicalInstant(value['retrievedAt'])
     || typeof value['rawDigest'] !== 'string' || !SHA256.test(value['rawDigest'])
     || typeof value['contentDigest'] !== 'string' || !SHA256.test(value['contentDigest'])
     || value['parserVersion'] !== 'github-v1') return null;
@@ -62,6 +70,7 @@ export function decodePersistedConnectorEvidence(value: unknown): PersistedConne
     commitSha: value['commitSha'],
     path: value['path'],
     blobSha: value['blobSha'],
+    retrievedAt: value['retrievedAt'],
     rawDigest: value['rawDigest'],
     contentDigest: value['contentDigest'],
     parserVersion: 'github-v1',
@@ -81,6 +90,7 @@ export function persistedEvidenceFor(
     commitSha: github.commitSha,
     path: github.path,
     blobSha: github.blobSha,
+    retrievedAt: github.retrievedAt,
     rawDigest: github.rawDigest,
     contentDigest: prepared.contentDigest,
     parserVersion: github.parserVersion,
@@ -100,6 +110,7 @@ export function connectorEvidenceMetadata(
     lacuna_github_commit_sha: evidence.commitSha,
     lacuna_github_path: evidence.path,
     lacuna_github_blob_sha: evidence.blobSha,
+    lacuna_github_retrieved_at: evidence.retrievedAt,
     lacuna_github_raw_sha256: evidence.rawDigest,
     lacuna_content_sha256: evidence.contentDigest,
     lacuna_connector_parser_version: evidence.parserVersion,

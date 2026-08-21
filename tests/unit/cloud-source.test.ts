@@ -190,6 +190,34 @@ describe('reading one entity', () => {
       value: expect.arrayContaining([expect.not.objectContaining({ connector: expect.anything() })]),
     });
   });
+
+  it('fails closed on stored GitHub evidence with a noncanonical repository root', async () => {
+    const id = entityRecordId(withClaims.name);
+    const held = records.get(id);
+    if (held === undefined) throw new Error('missing entity fixture');
+    const parsed = JSON.parse(held.text) as {
+      evidence: Record<string, { connector?: unknown }[]>;
+    };
+    const first = Object.values(parsed.evidence).find((entries) => entries.length > 0)?.[0];
+    if (first === undefined) throw new Error('missing evidence fixture');
+    first.connector = {
+      schemaVersion: 1,
+      connectorId: 'github',
+      repositoryUrl: `https://github.com/${'a'.repeat(40)}/atlas`,
+      commitSha: 'a'.repeat(40),
+      path: 'README.md',
+      blobSha: 'b'.repeat(40),
+      retrievedAt: '2026-08-21T10:00:00.000Z',
+      rawDigest: 'c'.repeat(64),
+      contentDigest: 'd'.repeat(64),
+      parserVersion: 'github-v1',
+    };
+    const broken = new Map(records);
+    broken.set(id, { ...held, text: JSON.stringify(parsed) });
+
+    await expect(new CloudSource(serving(broken).cloud).subject(withClaims.name, 5_000))
+      .rejects.toBeInstanceOf(RetrievalDecodeError);
+  });
 });
 
 describe('citations', () => {

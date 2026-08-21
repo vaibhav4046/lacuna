@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { MAX_SOURCE_CHARS } from '../api/ingest.js';
 import { isCanonicalGitHubPath } from './evidence.js';
+import { canonicalizeGitHubRepositoryRoot } from './github-repository.js';
 import {
   prepareConnectorBatch,
   type ConnectorDocumentInput,
@@ -11,7 +12,6 @@ import {
 export const GITHUB_PARSER_VERSION = 'github-v1';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
-const GITHUB_WEB_PREFIX = 'https://github.com/';
 const DEFAULT_DEADLINE_MS = 20_000;
 const DEFAULT_MAX_REQUESTS = 33;
 const DEFAULT_MAX_TREE_ENTRIES = 100;
@@ -24,8 +24,6 @@ const TREE_RESPONSE_BYTES = 512 * 1024;
 const BLOB_RESPONSE_BYTES = 768 * 1024;
 const SHA1 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
-const OWNER = /^(?!-)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/u;
-const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}$/u;
 const BRANCH = /^[A-Za-z0-9._/-]{1,255}$/u;
 const BINARY_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
 const EXCLUDED_DIRECTORIES = new Set([
@@ -207,38 +205,13 @@ function bounded(value: number | undefined, fallback: number): number {
 }
 
 function repositoryIdentity(value: string): RepositoryIdentity {
-  if (typeof value !== 'string' || value.length > 2_048 || !value.startsWith(GITHUB_WEB_PREFIX)) {
-    throw new GitHubImportError('invalid_repository_url');
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    throw new GitHubImportError('invalid_repository_url');
-  }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || parsed.port !== ''
-    || parsed.username !== '' || parsed.password !== '' || parsed.search !== '' || parsed.hash !== '') {
-    throw new GitHubImportError('invalid_repository_url');
-  }
-  const raw = value.slice(GITHUB_WEB_PREFIX.length);
-  const segments = raw.split('/');
-  if (segments.length !== 2) throw new GitHubImportError('invalid_repository_url');
-  const owner = segments[0] ?? '';
-  const suppliedRepository = segments[1] ?? '';
-  const repository = suppliedRepository.toLowerCase().endsWith('.git')
-    ? suppliedRepository.slice(0, -4)
-    : suppliedRepository;
-  if (!OWNER.test(owner) || !REPOSITORY.test(repository)
-    || repository === '.' || repository === '..' || repository.toLowerCase().endsWith('.git')) {
-    throw new GitHubImportError('invalid_repository_url');
-  }
-  const canonicalOwner = owner.toLowerCase();
-  const canonicalRepository = repository.toLowerCase();
+  const canonical = canonicalizeGitHubRepositoryRoot(value);
+  if (canonical === null) throw new GitHubImportError('invalid_repository_url');
   return {
-    owner: canonicalOwner,
-    repository: canonicalRepository,
-    repositoryUrl: `${GITHUB_WEB_PREFIX}${canonicalOwner}/${canonicalRepository}`,
-    apiRoot: `${GITHUB_API_ORIGIN}/repos/${canonicalOwner}/${canonicalRepository}`,
+    owner: canonical.owner,
+    repository: canonical.repository,
+    repositoryUrl: canonical.repositoryUrl,
+    apiRoot: `${GITHUB_API_ORIGIN}/repos/${canonical.owner}/${canonical.repository}`,
   };
 }
 

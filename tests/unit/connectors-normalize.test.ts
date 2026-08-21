@@ -73,6 +73,34 @@ describe('connector document normalization', () => {
     expect(observedLater.contentDigest).toBe(first.contentDigest);
     expect(observedLater.provenanceKey).toBe(first.provenanceKey);
   });
+
+  it.each([
+    `https://github.com/${'a'.repeat(40)}/atlas`,
+    'https://github.com/acme--labs/atlas',
+    `https://github.com/acme/${'a'.repeat(101)}`,
+    'https://github.com/acme/atlas.git',
+  ])('rejects a noncanonical persisted GitHub repository root: %s', (repositoryUrl) => {
+    const commitSha = 'a'.repeat(40);
+    expect(() => prepareConnectorDocument({
+      title: 'README.md',
+      text: 'a: Atlas is owned by Priya.',
+      provenance: {
+        connectorId: 'github',
+        sourceUrl: `${repositoryUrl}/blob/${commitSha}/README.md`,
+        mediaType: 'text/markdown',
+        observedAt: '2026-08-21T10:00:00.000Z',
+        github: {
+          repositoryUrl,
+          commitSha,
+          path: 'README.md',
+          blobSha: 'b'.repeat(40),
+          retrievedAt: '2026-08-21T10:00:00.000Z',
+          rawDigest: 'c'.repeat(64),
+          parserVersion: 'github-v1',
+        },
+      },
+    })).toThrowError(new ConnectorNormalizationError('invalid_provenance'));
+  });
 });
 
 describe('connector batch normalization', () => {

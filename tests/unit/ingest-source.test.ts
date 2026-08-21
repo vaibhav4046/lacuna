@@ -475,7 +475,7 @@ describe('prepared connector ingestion', () => {
     const workspace = workspaceCollection('github-evidence@example.com');
     const document = prepareConnectorDocument({
       title: 'docs/README.md',
-      text: 'a: Atlas is owned by Priya.',
+      text: '[2025-01-02T03:04:05.000Z] a: Atlas is owned by Priya.',
       provenance: {
         connectorId: 'github',
         sourceUrl: `https://github.com/acme/atlas/blob/${'a'.repeat(40)}/docs/README.md`,
@@ -507,6 +507,7 @@ describe('prepared connector ingestion', () => {
     const evidence = await source.evidence(claim.id, 5_000);
 
     expect(evidence.value).toHaveLength(1);
+    expect(evidence.value[0]?.ts).toBe('2025-01-02T03:04:05.000Z');
     expect(evidence.value[0]?.connector).toEqual({
       schemaVersion: 1,
       connectorId: 'github',
@@ -514,6 +515,7 @@ describe('prepared connector ingestion', () => {
       commitSha: 'a'.repeat(40),
       path: 'docs/README.md',
       blobSha: 'b'.repeat(40),
+      retrievedAt: '2026-08-21T10:00:00.000Z',
       rawDigest: 'c'.repeat(64),
       contentDigest: document.contentDigest,
       parserVersion: 'github-v1',
@@ -528,6 +530,7 @@ describe('prepared connector ingestion', () => {
       lacuna_github_commit_sha: 'a'.repeat(40),
       lacuna_github_path: 'docs/README.md',
       lacuna_github_blob_sha: 'b'.repeat(40),
+      lacuna_github_retrieved_at: '2026-08-21T10:00:00.000Z',
       lacuna_github_raw_sha256: 'c'.repeat(64),
       lacuna_content_sha256: document.contentDigest,
       lacuna_connector_parser_version: 'github-v1',

@@ -159,6 +159,52 @@ describe('ConnectorRunner', () => {
     });
   });
 
+  it('preserves a completed searchable document when a sibling is cancelled after accepted receipts', async () => {
+    const controller = new AbortController();
+    const store = new MemoryStore();
+    let markFirstReturned: (() => void) | undefined;
+    const firstReturned = new Promise<void>((resolve) => { markFirstReturned = resolve; });
+    let markSecondStarted: (() => void) | undefined;
+    const secondStarted = new Promise<void>((resolve) => { markSecondStarted = resolve; });
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared, options) => {
+        if (prepared.title === 'A') {
+          markFirstReturned?.();
+          return report(prepared.sourceKey);
+        }
+        markSecondStarted?.();
+        return new Promise<never>((_resolve, reject) => {
+          const cancelled = () => reject(new IngestReadinessError('failed', 4, 0));
+          if (options.signal?.aborted === true) cancelled();
+          else options.signal?.addEventListener('abort', cancelled, { once: true });
+        });
+      },
+    });
+
+    const running = runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('A'), document('B')], awaitSearchable: true,
+    }, { signal: controller.signal });
+    await Promise.all([firstReturned, secondStarted]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    controller.abort();
+
+    await expect(running).resolves.toMatchObject({
+      acceptedDocuments: 2,
+      acceptedRecords: 8,
+      searchableDocuments: 1,
+      failedDocuments: 1,
+      failure: 'readiness_failed',
+      observationWrite: 'stored',
+    });
+    expect(store.writes[0]?.next).toMatchObject({
+      importedDocuments: 2,
+      lastSuccessAt: expect.any(String),
+      lastFailure: 'readiness_failed',
+    });
+  });
+
   it('normalizes and deduplicates before running at most two document jobs', async () => {
     const store = new MemoryStore('stored', {
       text: {

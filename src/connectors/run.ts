@@ -286,14 +286,7 @@ export class ConnectorRunner {
       if (outcomes.some((outcome) => outcome.cancelled === true) && !acceptedBeforeCancellation) {
         throw new ConnectorRunCancelledError();
       }
-      if (isAborted(options.signal)) {
-        if (!acceptedBeforeCancellation) throw new ConnectorRunCancelledError();
-        outcomes = outcomes.map((outcome) => ({
-          ...outcome,
-          searchable: false,
-          failure: outcome.failure ?? 'readiness_failed',
-        }));
-      }
+      if (isAborted(options.signal) && !acceptedBeforeCancellation) throw new ConnectorRunCancelledError();
       failure = outcomes.find((outcome) => outcome.failure !== null)?.failure ?? null;
     } catch (error) {
       if (error instanceof ConnectorRunCancelledError || error instanceof IngestCancelledError) {

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { isCanonicalGitHubPath } from './evidence.js';
+import { isCanonicalGitHubRepositoryRoot } from './github-repository.js';
 import type { ConnectorId } from './types.js';
 
 export const MAX_CONNECTOR_DOCUMENTS = 30;
@@ -22,7 +23,6 @@ const GITHUB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'github']);
 const GITHUB_EVIDENCE_KEYS = new Set([
   'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
-const GITHUB_REPOSITORY = /^https:\/\/github\.com\/[a-z0-9-]+\/[a-z0-9_.-]+$/u;
 const GITHUB_SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 
@@ -151,7 +151,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     const evidence = value['github'];
     if (!isRecord(evidence) || !hasExactKeys(evidence, GITHUB_EVIDENCE_KEYS)
       || typeof evidence['repositoryUrl'] !== 'string'
-      || !GITHUB_REPOSITORY.test(evidence['repositoryUrl'])
+      || !isCanonicalGitHubRepositoryRoot(evidence['repositoryUrl'])
       || typeof evidence['commitSha'] !== 'string' || !GITHUB_SHA.test(evidence['commitSha'])
       || typeof evidence['blobSha'] !== 'string' || !GITHUB_SHA.test(evidence['blobSha'])
       || !isCanonicalGitHubPath(evidence['path'])

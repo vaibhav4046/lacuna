@@ -578,7 +578,10 @@ export class WebhookService {
       index.endpointId,
       storeControl(storeDeadline(deadlineMs, this.#now), this.#now),
     );
-    if (rawEndpoint === null) throw new Error('invalid webhook state');
+    // Endpoint-first issuance can leave a valid pointer whose endpoint was
+    // subsequently lost. Exact absence is inert; a present malformed record
+    // still fails closed below.
+    if (rawEndpoint === null) return null;
     const endpoint = endpointRecord(rawEndpoint, index.endpointId, this.#keyFingerprint);
     if (endpoint === null || endpoint.ownerDigest !== ownerDigest
       || decryptWorkspace(this.#master, endpoint) !== workspace) throw new Error('invalid webhook state');
@@ -904,8 +907,11 @@ export class WebhookBodyReader {
     this.#now = options.now ?? Date.now;
   }
 
-  async read(request: IncomingMessage, control: WebhookRequestControl): Promise<Buffer> {
-    const framing = framingHeaders(request.rawHeaders);
+  async read(
+    request: IncomingMessage,
+    control: WebhookRequestControl,
+    admission?: () => void,
+  ): Promise<Buffer> {
     const deadlineMs = Math.min(control.startedAtMs + BODY_TIMEOUT_MS, control.settlementDeadlineMs);
     let release: (() => void) | undefined;
     try {
@@ -915,7 +921,6 @@ export class WebhookBodyReader {
         await new Promise<void>((resolve) => {
           request.once('close', resolve);
           if (!request.destroyed) request.destroy();
-          if (request.closed) resolve();
         });
       }
       throw error;
@@ -926,8 +931,9 @@ export class WebhookBodyReader {
         let bytes = 0;
         let settled = false;
         let ended = false;
-        let terminalFailure: WebhookBodyError | undefined;
-        const finish = (error?: WebhookBodyError) => {
+        let framing: ReturnType<typeof framingHeaders> | undefined;
+        let terminalFailure: Error | undefined;
+        const finish = (error?: Error) => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
@@ -940,7 +946,7 @@ export class WebhookBodyReader {
           if (error !== undefined) reject(error);
           else resolve(Buffer.concat(chunks, bytes));
         };
-        const failAndClose = (error: WebhookBodyError) => {
+        const failAndClose = (error: Error) => {
           if (settled) return;
           terminalFailure ??= error;
           if (request.closed) {
@@ -948,10 +954,9 @@ export class WebhookBodyReader {
             return;
           }
           if (!request.destroyed) request.destroy();
-          if (request.closed) finish(terminalFailure);
         };
         const onData = (chunk: Buffer | string) => {
-          if (terminalFailure !== undefined) return;
+          if (terminalFailure !== undefined || framing === undefined) return;
           const held = typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.from(chunk);
           bytes += held.byteLength;
           if (bytes > MAX_BODY_BYTES || (framing.length !== null && bytes > framing.length)) {
@@ -962,7 +967,7 @@ export class WebhookBodyReader {
         };
         const onEnd = () => {
           ended = true;
-          if (terminalFailure !== undefined) return;
+          if (terminalFailure !== undefined || framing === undefined) return;
           const trailers = request.rawTrailers.length > 0 || Object.keys(request.trailers).length > 0;
           if (request.complete !== true || trailers || (framing.length !== null && bytes !== framing.length)) {
             finish(new WebhookBodyError());
@@ -982,11 +987,26 @@ export class WebhookBodyReader {
         };
         const timer = setTimeout(() => failAndClose(new WebhookBodyError()), Math.max(1, deadlineMs - this.#now()));
         control.requestSignal.addEventListener('abort', onAbort, { once: true });
-        request.on('data', onData);
-        request.once('end', onEnd);
         request.once('error', onError);
         request.once('aborted', onAbort);
         request.once('close', onClose);
+        if (control.requestSignal.aborted) {
+          onAbort();
+          return;
+        }
+        if (request.closed) {
+          onClose();
+          return;
+        }
+        try {
+          admission?.();
+          framing = framingHeaders(request.rawHeaders);
+        } catch (error) {
+          failAndClose(error instanceof Error ? error : new WebhookBodyError());
+          return;
+        }
+        request.on('data', onData);
+        request.once('end', onEnd);
       });
     } finally {
       release();

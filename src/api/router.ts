@@ -1015,8 +1015,11 @@ export class ApiRouter {
       deadline.unref?.();
       try {
         const control = { requestSignal: controller.signal, startedAtMs, settlementDeadlineMs };
-        service.admit(publicWebhook[1]!, request.rawHeaders);
-        const rawBody = await this.#webhookBodyReader.read(request, control);
+        const rawBody = await this.#webhookBodyReader.read(
+          request,
+          control,
+          () => service.admit(publicWebhook[1]!, request.rawHeaders),
+        );
         const receipt = await service.accept(publicWebhook[1]!, request.rawHeaders, rawBody, control);
         if (!response.destroyed && !response.writableEnded) send(response, 200, {
           state: receipt.state,

@@ -264,6 +264,112 @@ describe('CloudConnectorStore', () => {
     await expect(fastStore(new RecordCloud()).get(WORKSPACE)).resolves.toEqual({});
   });
 
+  it('aborts sibling observation reads and drains every one before rejecting', async () => {
+    let started = 0;
+    let active = 0;
+    let markAllStarted!: () => void;
+    const allStarted = new Promise<void>((resolve) => { markAllStarted = resolve; });
+    let releaseDeferred!: () => void;
+    const deferred = new Promise<void>((resolve) => { releaseDeferred = resolve; });
+    let siblingAborted = false;
+    const cloud = {
+      inspect: async (id: string, _timeoutMs: number, _collection: string, signal?: AbortSignal) => {
+        started += 1;
+        active += 1;
+        if (started === 7) markAllStarted();
+        try {
+          await allStarted;
+          if (id.endsWith(':github')) throw new Error('first observation read failed');
+          if (id.endsWith(':markdown')) {
+            const onAbort = () => { siblingAborted = true; };
+            signal?.addEventListener('abort', onAbort, { once: true });
+            try {
+              await deferred;
+            } finally {
+              signal?.removeEventListener('abort', onAbort);
+            }
+          }
+          return null;
+        } finally {
+          active -= 1;
+        }
+      },
+    } as unknown as HydraCloud;
+    const reading = new CloudConnectorStore(cloud).get(WORKSPACE);
+    const observed = reading.then(
+      () => ({ kind: 'resolved' as const }),
+      (error: unknown) => ({ kind: 'rejected' as const, error }),
+    );
+
+    await allStarted;
+    const early = await Promise.race([
+      observed,
+      new Promise<{ kind: 'pending' }>((resolve) => setTimeout(() => resolve({ kind: 'pending' }), 30)),
+    ]);
+    releaseDeferred();
+    const final = await observed;
+
+    expect(early).toEqual({ kind: 'pending' });
+    expect(siblingAborted).toBe(true);
+    expect(final).toMatchObject({ kind: 'rejected', error: { message: 'first observation read failed' } });
+    expect(active).toBe(0);
+  });
+
+  it('drains a deferred observation read after caller cancellation before reporting the deadline', async () => {
+    let started = 0;
+    let active = 0;
+    let markAllStarted!: () => void;
+    const allStarted = new Promise<void>((resolve) => { markAllStarted = resolve; });
+    let releaseDeferred!: () => void;
+    const deferred = new Promise<void>((resolve) => { releaseDeferred = resolve; });
+    let siblingAborted = false;
+    const cloud = {
+      inspect: async (id: string, _timeoutMs: number, _collection: string, signal?: AbortSignal) => {
+        started += 1;
+        active += 1;
+        if (started === 7) markAllStarted();
+        try {
+          await allStarted;
+          if (id.endsWith(':markdown')) {
+            const onAbort = () => { siblingAborted = true; };
+            signal?.addEventListener('abort', onAbort, { once: true });
+            try {
+              await deferred;
+            } finally {
+              signal?.removeEventListener('abort', onAbort);
+            }
+          }
+          return null;
+        } finally {
+          active -= 1;
+        }
+      },
+    } as unknown as HydraCloud;
+    const controller = new AbortController();
+    const reading = new CloudConnectorStore(cloud).get(WORKSPACE, {
+      signal: controller.signal,
+      deadlineMs: Date.now() + 5_000,
+    });
+    const observed = reading.then(
+      () => ({ kind: 'resolved' as const }),
+      (error: unknown) => ({ kind: 'rejected' as const, error }),
+    );
+
+    await allStarted;
+    controller.abort();
+    const early = await Promise.race([
+      observed,
+      new Promise<{ kind: 'pending' }>((resolve) => setTimeout(() => resolve({ kind: 'pending' }), 30)),
+    ]);
+    releaseDeferred();
+    const final = await observed;
+
+    expect(early).toEqual({ kind: 'pending' });
+    expect(siblingAborted).toBe(true);
+    expect(final).toMatchObject({ kind: 'rejected', error: { name: 'ConnectorStoreError' } });
+    expect(active).toBe(0);
+  });
+
   it('throws for every present wrong-id, malformed, foreign, extra, or unbounded record', async () => {
     const cases: readonly unknown[] = [
       { version: 2, workspaceDigest: DIGEST, connectorId: 'github', observation: GITHUB },

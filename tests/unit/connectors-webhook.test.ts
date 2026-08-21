@@ -293,6 +293,20 @@ describe('webhook master key and sealed registry', () => {
     expect(fixture.store.endpoints.size).toBe(1);
   });
 
+  it('treats an exactly missing endpoint behind a valid pointer as inert and permits reissue', async () => {
+    const fixture = await issued();
+    fixture.store.endpoints.delete(ENDPOINT_ID);
+
+    await expect(fixture.service.state(WORKSPACE)).resolves.toEqual({
+      configured: false, endpointId: null, endpoint: null, configuredAt: null,
+    });
+    const reissued = await fixture.service.issue(WORKSPACE);
+
+    expect(reissued).toMatchObject({ created: true, secret: expect.any(String) });
+    expect(reissued.endpointId).not.toBe(ENDPOINT_ID);
+    expect(fixture.store.endpoints.has(reissued.endpointId)).toBe(true);
+  });
+
   it('revokes monotonically, leaves a stale index inert, and permits an explicit reissue', async () => {
     const { service: webhook, store } = await issued();
     expect(await webhook.revoke(WORKSPACE, ENDPOINT_ID)).toBe(true);
@@ -610,6 +624,15 @@ function bodyRequest(
   return stream as unknown as IncomingMessage;
 }
 
+function slowBodyRequest(rawHeaders: readonly string[]): IncomingMessage {
+  const stream = new PassThrough({ autoDestroy: false }) as PassThrough & Partial<IncomingMessage>;
+  stream.rawHeaders = [...rawHeaders];
+  stream.rawTrailers = [];
+  stream.trailers = {};
+  stream.complete = false;
+  return stream as unknown as IncomingMessage;
+}
+
 describe('strict raw webhook body reader', () => {
   const body = rawBody();
   const baseHeaders = [
@@ -668,5 +691,91 @@ describe('strict raw webhook body reader', () => {
     request.once('close', () => { closed = true; });
     await expect(reader.read(request, control())).rejects.toMatchObject({ status: 413 });
     expect(closed).toBe(true);
+  });
+
+  it.each([
+    ['stale authentication', signedHeaders(body, 'event_1234567890', String((NOW / 1_000) - 301))],
+    ['malformed authentication', [
+      'X-Lacuna-Timestamp', String(NOW / 1_000),
+      'X-Lacuna-Event-Id', 'event.with.a.dot',
+      'X-Lacuna-Signature', `v1=${'0'.repeat(64)}`,
+    ]],
+    ['missing authentication', [
+      'X-Lacuna-Timestamp', String(NOW / 1_000),
+      'X-Lacuna-Event-Id', 'event_1234567890',
+    ]],
+  ])('owns and closes a slow request before settling %s', async (_label, authentication) => {
+    const webhook = service().service;
+    const reader = new WebhookBodyReader({ now: () => NOW });
+    const headers = ['Content-Type', 'application/json', 'Transfer-Encoding', 'chunked', ...authentication];
+    const request = slowBodyRequest(headers);
+    let closed = false;
+    request.once('close', () => { closed = true; });
+
+    await expect(reader.read(request, {
+      ...control(), settlementDeadlineMs: NOW + 50,
+    }, () => webhook.admit(ENDPOINT_ID, headers))).rejects.toBeInstanceOf(WebhookRejectedError);
+    expect(closed).toBe(true);
+  });
+
+  it.each([
+    ['missing framing', ['Content-Type', 'application/json', ...signedHeaders(body)]],
+    ['duplicate framing', [
+      'Content-Type', 'application/json',
+      'Content-Length', String(body.byteLength),
+      'content-length', String(body.byteLength),
+      ...signedHeaders(body),
+    ]],
+    ['invalid framing', [
+      'Content-Type', 'application/json',
+      'Transfer-Encoding', 'gzip',
+      ...signedHeaders(body),
+    ]],
+  ])('owns and closes a slow request before settling %s', async (_label, headers) => {
+    const reader = new WebhookBodyReader({ now: () => NOW });
+    const request = slowBodyRequest(headers);
+    let closed = false;
+    request.once('close', () => { closed = true; });
+
+    await expect(reader.read(request, control())).rejects.toBeInstanceOf(WebhookBodyError);
+    expect(closed).toBe(true);
+  });
+
+  it('queues early rejection behind the maximum three body leases and releases every lease', async () => {
+    const reader = new WebhookBodyReader({ now: () => NOW });
+    const authentication = signedHeaders(body);
+    const validHeaders = ['Content-Type', 'application/json', 'Transfer-Encoding', 'chunked', ...authentication];
+    const active = Array.from({ length: 3 }, () => slowBodyRequest(validHeaders));
+    const activeReads = active.map((request) => reader.read(request, control()));
+    const staleHeaders = [
+      'Content-Type', 'application/json', 'Transfer-Encoding', 'chunked',
+      ...signedHeaders(body, 'event_1234567890', String((NOW / 1_000) - 301)),
+    ];
+    const queued = slowBodyRequest(staleHeaders);
+    let queuedClosed = false;
+    queued.once('close', () => { queuedClosed = true; });
+    const queuedRead = reader.read(queued, {
+      ...control(), settlementDeadlineMs: NOW + 200,
+    }, () => service().service.admit(ENDPOINT_ID, staleHeaders));
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(queuedClosed).toBe(false);
+    active[0]!.destroy();
+    await expect(activeReads[0]).rejects.toBeInstanceOf(WebhookBodyError);
+    await expect(queuedRead).rejects.toBeInstanceOf(WebhookRejectedError);
+    expect(queuedClosed).toBe(true);
+
+    active[1]!.destroy();
+    active[2]!.destroy();
+    await Promise.all(activeReads.slice(1).map(async (read) => {
+      await expect(read).rejects.toBeInstanceOf(WebhookBodyError);
+    }));
+
+    const after = Array.from({ length: 3 }, () => slowBodyRequest(validHeaders));
+    const afterReads = after.map((request) => reader.read(request, control()));
+    after.forEach((request) => request.destroy());
+    await Promise.all(afterReads.map(async (read) => {
+      await expect(read).rejects.toBeInstanceOf(WebhookBodyError);
+    }));
   });
 });

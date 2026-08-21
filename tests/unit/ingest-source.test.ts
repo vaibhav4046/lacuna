@@ -880,6 +880,82 @@ describe('read-before-write merge failures', () => {
     expect(sent).toEqual([]);
   });
 
+  it('aborts and drains every entity inspection before rejecting or releasing the workspace lock', async () => {
+    let entityStarted = 0;
+    let active = 0;
+    let markTwoStarted!: () => void;
+    const twoStarted = new Promise<void>((resolve) => { markTwoStarted = resolve; });
+    let releaseDeferred!: () => void;
+    const deferred = new Promise<void>((resolve) => { releaseDeferred = resolve; });
+    let siblingAborted = false;
+    let writes = 0;
+    const cloud = {
+      collection: workspaceCollection('drained-entities@example.com'),
+      withCollection() { return this; },
+      inspect: async (id: string, _timeoutMs: number, _collection: string, signal?: AbortSignal) => {
+        if (id === INDEX_ID) return null;
+        const ordinal = entityStarted + 1;
+        entityStarted = ordinal;
+        active += 1;
+        if (entityStarted === 2) markTwoStarted();
+        try {
+          await twoStarted;
+          if (ordinal === 1) {
+            throw new HydraQueryError(503, 'controlled entity failure');
+          }
+          if (ordinal === 2) {
+            const onAbort = () => { siblingAborted = true; };
+            signal?.addEventListener('abort', onAbort, { once: true });
+            try {
+              await deferred;
+            } finally {
+              signal?.removeEventListener('abort', onAbort);
+            }
+          }
+          return null;
+        } finally {
+          active -= 1;
+        }
+      },
+      ingestApp: async () => {
+        writes += 1;
+        return [];
+      },
+    } as unknown as HydraCloud;
+    const running = ingestPreparedSource(
+      cloud,
+      cloud.collection,
+      prepareConnectorDocument({
+        title: 'Two entities',
+        text: 'a: Atlas is owned by Priya.\nb: Billing is owned by Dana.',
+        provenance: {
+          connectorId: 'text',
+          sourceUrl: 'https://example.com/drained-entities',
+          mediaType: 'text/plain',
+          observedAt: '2026-08-21T10:00:00.000Z',
+        },
+      }),
+      { awaitSearchable: false },
+    );
+    const observed = running.then(
+      () => ({ kind: 'resolved' as const }),
+      (error: unknown) => ({ kind: 'rejected' as const, error }),
+    );
+
+    await twoStarted;
+    const early = await Promise.race([
+      observed,
+      new Promise<{ kind: 'pending' }>((resolve) => setTimeout(() => resolve({ kind: 'pending' }), 30)),
+    ]);
+    releaseDeferred();
+    const final = await observed;
+
+    expect(early).toEqual({ kind: 'pending' });
+    expect(siblingAborted).toBe(true);
+    expect(final).toMatchObject({ kind: 'rejected', error: { name: 'HydraQueryError' } });
+    expect({ active, writes }).toEqual({ active: 0, writes: 0 });
+  });
+
   it('does not reinterpret an unrelated 400 response as a missing index', async () => {
     const sent: Sent[] = [];
 

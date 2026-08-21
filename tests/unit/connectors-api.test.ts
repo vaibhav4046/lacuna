@@ -29,11 +29,12 @@ import {
 import { prepareConnectorBatch, prepareConnectorDocument } from '../../src/connectors/normalize.js';
 import { FilePreviewTokenService } from '../../src/connectors/preview-token.js';
 import { ConnectorRunner } from '../../src/connectors/run.js';
-import type {
-  IssuedWebhook,
-  WebhookReceipt,
-  WebhookRequestControl,
-  WebhookState,
+import {
+  WebhookRejectedError,
+  type IssuedWebhook,
+  type WebhookReceipt,
+  type WebhookRequestControl,
+  type WebhookState,
 } from '../../src/connectors/webhook.js';
 import type {
   ConnectorId,
@@ -135,6 +136,7 @@ let webhookCalls: {
   readonly control?: WebhookRequestControl;
 }[];
 let webhookConfiguredAt: string | null;
+let webhookAdmissionFailure: Error | null;
 
 const SITE_ORIGIN = 'https://app.example.test';
 
@@ -263,6 +265,45 @@ async function mutateWebhook(
   });
   jar.absorb(response);
   return response;
+}
+
+async function slowRejectedWebhookRequest(): Promise<{
+  readonly closed: boolean;
+  readonly responded: boolean;
+}> {
+  const target = new URL(base);
+  return new Promise((resolve, reject) => {
+    let responded = false;
+    const request = httpRequest({
+      hostname: target.hostname,
+      port: target.port,
+      path: '/api/connectors/webhook/AAECAwQFBgcICQoLDA0ODw',
+      method: 'POST',
+      agent: false,
+      headers: {
+        'content-type': 'application/json',
+        'transfer-encoding': 'chunked',
+        'x-lacuna-timestamp': String(now / 1_000),
+        'x-lacuna-event-id': 'event_1234567890',
+        'x-lacuna-signature': `v1=${'0'.repeat(64)}`,
+      },
+    });
+    const timer = setTimeout(() => {
+      request.destroy();
+      reject(new Error('slow rejected webhook did not terminate'));
+    }, 500);
+    request.once('response', (response) => {
+      responded = true;
+      response.resume();
+    });
+    request.once('error', () => undefined);
+    request.once('close', () => {
+      clearTimeout(timer);
+      resolve({ closed: true, responded });
+    });
+    request.flushHeaders();
+    request.write('{"title":');
+  });
 }
 
 function disconnectableGitHubRequest(jar: Jar): {
@@ -459,6 +500,7 @@ beforeEach(async () => {
   now = Date.parse('2026-08-21T12:00:00.000Z');
   webhookCalls = [];
   webhookConfiguredAt = null;
+  webhookAdmissionFailure = null;
   const runner = new ConnectorRunner({
     store: connectorStore,
     now: () => now,
@@ -560,7 +602,9 @@ beforeEach(async () => {
     httpsReader,
     connectorRunner: runner,
     webhookService: {
-      admit: () => undefined,
+      admit: () => {
+        if (webhookAdmissionFailure !== null) throw webhookAdmissionFailure;
+      },
       issue: async (workspace): Promise<IssuedWebhook> => {
         webhookCalls.push({ operation: 'issue', workspace });
         return {
@@ -679,6 +723,13 @@ describe('signed webhook lifecycle and public receiver API', () => {
     expect(call).toMatchObject({ operation: 'accept', endpointId: 'AAECAwQFBgcICQoLDA0ODw' });
     expect(call?.body).toEqual(body);
     expect(call?.control).toMatchObject({ startedAtMs: now, settlementDeadlineMs: now + 240_000 });
+  });
+
+  it('terminally closes a slow unread public request before settling an admission rejection', async () => {
+    webhookAdmissionFailure = new WebhookRejectedError();
+
+    await expect(slowRejectedWebhookRequest()).resolves.toEqual({ closed: true, responded: false });
+    expect(webhookCalls).toEqual([]);
   });
 });
 

@@ -15,6 +15,7 @@ import {
   type PreparedConnectorDocument,
 } from '../connectors/normalize.js';
 import { decodePersistedConnectorEvidence, persistedEvidenceFor } from '../connectors/evidence.js';
+import { abortAndDrain } from '../connectors/abort-drain.js';
 
 /**
  * A transcript somebody pasted, turned into memory they can then ask about.
@@ -274,8 +275,15 @@ async function mergeEntities(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<BuiltGraph> {
-  const merged = await Promise.all(graph.entities.map(async (entity): Promise<EntityRecord> => {
-    const source = await scoped.inspect(entityRecordId(entity.name), timeoutMs, scoped.collection, signal);
+  const merged = await abortAndDrain(graph.entities.map((entity) => async (
+    operationSignal: AbortSignal,
+  ): Promise<EntityRecord> => {
+    const source = await scoped.inspect(
+      entityRecordId(entity.name),
+      timeoutMs,
+      scoped.collection,
+      operationSignal,
+    );
     const text = storedText(source, 'entity');
     const held = text === null ? null : storedEntity(text);
     if (held === null) return entity;
@@ -317,7 +325,8 @@ async function mergeEntities(
       dependents: [...held.dependents, ...entity.dependents],
       evidence: { ...held.evidence, ...entity.evidence },
     };
-  }));
+  }), signal);
+  if (signal?.aborted === true) throw new IngestCancelledError();
 
   return { ...graph, entities: merged };
 }

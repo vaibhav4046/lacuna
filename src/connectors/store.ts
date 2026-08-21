@@ -10,6 +10,7 @@ import type {
   ConnectorStoreControl,
   ConnectorWorkspaceState,
 } from './types.js';
+import { abortAndDrain } from './abort-drain.js';
 
 const WORKSPACE_SHAPE = /^lacuna-ws-[0-9a-f]{32}$/u;
 const DIGEST_SHAPE = /^[0-9a-f]{32}$/u;
@@ -267,9 +268,20 @@ export class CloudConnectorStore implements ConnectorStore {
   async get(workspace: string, control?: ConnectorStoreControl): Promise<ConnectorWorkspaceState> {
     const digest = workspaceDigest(workspace);
     const result: Partial<Record<ConnectorId, ConnectorObservation>> = {};
-    const states = await Promise.all(CONNECTOR_IDS.map(
-      (connectorId) => this.#readOne(digest, connectorId, control),
-    ));
+    let states: readonly (StoredConnectorState | null)[];
+    try {
+      states = await abortAndDrain(CONNECTOR_IDS.map((connectorId) => async (signal) => (
+        this.#readOne(digest, connectorId, { ...control, signal })
+      )), control?.signal);
+    } catch (error) {
+      if (control?.signal?.aborted === true) {
+        throw new ConnectorStoreError('connector state deadline');
+      }
+      throw error;
+    }
+    if (control?.signal?.aborted === true) {
+      throw new ConnectorStoreError('connector state deadline');
+    }
     for (let index = 0; index < CONNECTOR_IDS.length; index += 1) {
       const connectorId = CONNECTOR_IDS[index];
       const state = states[index];

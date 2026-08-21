@@ -456,51 +456,145 @@ git commit -m "feat(connectors): accept signed at-least-once webhooks"
 ### Task 7: Real connector product surface
 
 **Files:**
+- Modify: `src/api/router.ts`
+- Modify: `src/auth/voice-binding.ts` only if the existing exact-session primitive needs a connector-safe export
 - Create: `web/src/app/routes/connectors.tsx`
 - Modify: `web/src/app/routes/developers.tsx`
+- Modify: `web/src/app/RouteBody.tsx`
+- Modify: `web/src/app/routes.ts`
+- Modify: `web/src/app/Shell.tsx`
+- Modify: `web/src/app/product-contracts.ts`
 - Modify: `web/src/design/connectors.ts`
+- Modify: `web/src/landing/Conn.tsx`
+- Modify: `web/src/app/routes/context.tsx`
+- Modify: `web/src/onboarding/Onboarding.tsx`
 - Modify: `web/src/app/routes/Dashboard.tsx`
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/api/connectors.ts`
+- Modify: `web/src/styles.css`
 - Test: `tests/unit/web-connectors.test.ts`
+- Test: `tests/unit/web-connectors-client.test.ts`
 - Test: `tests/unit/web-product-contracts.test.ts`
+- Test: `tests/unit/connectors-api.test.ts`
 
 **Interfaces:**
-- Consumes: all private connector routes
+- Consumes: all private connector routes with the current non-secret exact-session binding
 - Produces: real forms for file, GitHub, HTTPS API, and webhook setup/revocation
+- Produces: closed client outcomes `receipt | known_refusal | indeterminate | discarded`
 
 - [ ] **Step 1: Write product-contract tests**
 
-Require the private route to fetch observed catalogue state, expose bounded forms for each implemented connector, display last success/failure/searchability, require an explicit confirmation before import, and show `planned` integrations as disabled with no fake connect buttons. Forbid source bodies, collection ids, secret redisplay, `OAuth`, `syncing` from persisted state, and any status derived from a timer.
+Require every private connector GET/POST/DELETE to carry the current non-secret
+exact-session binding and prove mismatch before catalogue/store/importer/runner
+work. Key client state by `session.binding + workspace`, generation-guard every
+response, and test A request followed by cookie/session B: the server returns
+`401` with zero work and a delayed A response can neither render nor authorize a
+B revoke. On any epoch change synchronously clear/abort files, preview tokens,
+URLs, receipts, errors, endpoint ids, and secrets.
+
+Require hash-preserving `/app/connectors -> /app/conn` and
+`/explore/connectors -> /explore/conn` aliases with only `#file`, `#github`,
+`#https-api`, and `#webhook`. Private and public-read-only components are
+structurally separate; Explore performs zero `/api/workspace/*` requests, and
+direct refresh of every alias/hash resolves correctly.
+
+Require strict catalogue, receipt, and webhook-state decoders plus exactly one
+fetch/no retry. Test file select -> preview -> review -> distinct confirm with
+the identical `File`/token; file/epoch/unmount/409 invalidation; GitHub/HTTPS
+review then one confirmed POST; query redaction; accepted 1/searchable 0;
+accepted with failed/stale observation write; duplicate-only; known refusal;
+invalid 2xx; timeout/lost response after dispatch; refresh and concurrent newer
+catalogue observation. Missing/invalid/lost mutation responses are
+`indeterminate`, never zero/failed and never automatically retried.
+
+Test webhook authoritative-state load, issue-response loss followed by refetch,
+configured-without-secret recovery through explicit revoke then issue,
+acknowledgement, revoke-response loss/refetch, and reissue. Planned controls are
+absent/inert. Test focus containment/return, concise secret-free live regions,
+secret absence from attributes/storage/history/analytics/console, listener/timer
+cleanup, and the 320px card/no-overflow/VoiceDock-clearance contract. Forbid
+source bodies, collection ids, secret redisplay, `OAuth`, persisted `syncing`,
+or any durable status derived from a timer.
 
 - [ ] **Step 2: Run UI tests and verify RED**
 
-Run: `npx vitest run tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
 
 Expected: the current developers page is a static list and has no real route/forms.
 
 - [ ] **Step 3: Build the route from server state**
 
-Move the connector panel into `connectors.tsx`, preserve the visual language, and render state from `GET /api/workspace/connectors`. GitHub and HTTPS forms show exact supported boundaries. File flow previews before import. Webhook setup shows the endpoint and raw secret exactly once with `COPY` controls, then requires acknowledgement before leaving; later visits show only configured/revoke state.
+Build a generation-bound coordinator with two separate models. The durable
+catalogue comes from no-store `GET /api/workspace/connectors`; label
+`lastSuccessAt` as `LAST IMPORT ACCEPTED`, show cumulative accepted documents
+and last failure, and never reconstruct searchable counts after refresh. The
+in-memory validated operation receipt alone shows exact accepted/searchable/
+duplicate/failed counts and a safe digest/reference; accepted truth survives
+readiness or observation-write failure/staleness. Every settled mutation causes
+an authoritative no-store refetch without overwriting its validated receipt.
+
+Use dedicated closed connector clients, not generic retrying `postJson`. Every
+request has a hardwired same-origin path, credentials, `Accept`, exact-session
+binding, CSRF for mutations, caller signal, endpoint-aware timeout, and exactly
+one fetch. External URLs appear only in exact JSON bodies. Invalid successful
+mutation responses are indeterminate. The webhook endpoint is text/copy only,
+never a response-controlled link.
+
+Implement explicit state machines. File: select exact object -> preview ->
+review -> distinct confirm reusing object/token; any file event, epoch change,
+unmount, or server replay refusal clears preview/token. Expiry is server-decided;
+no countdown, auto-preview, import, or retry. GitHub/HTTPS: local review then one
+distinct confirmed POST; never repeat/redeliver an HTTPS query. A lost import
+response clears consumed credentials and shows indeterminate/check-memory
+guidance. Webhook loads both catalogue and authoritative dedicated state. A lost
+issue response refetches; configured-without-secret requires explicit revoke then
+issue. Lost revoke refetches and never retries automatically.
+
+Show the one-time webhook endpoint and secret in a portalled modal with separate
+COPY controls and explicit acknowledgement. Contain focus; make Shell navigation
+and voice launcher inert; do not allow backdrop/Escape dismissal before
+acknowledgement; restore focus exactly; keep the secret out of attributes/live
+regions/storage/history/logs. Best-effort navigation/beforeunload protection is
+allowed, but forced close is truthfully recovered as configured-without-secret.
 
 - [ ] **Step 4: Keep signed-out and planned catalogue truthful**
 
-Change `web/src/design/connectors.ts` to own presentation metadata only. Its availability copy must match server catalogue through a test mapping, while runtime connection state is never hard-coded. Keep GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, and database source disabled/planned.
+Change `web/src/design/connectors.ts` to presentation metadata only and define
+one exact final server-id mapping. Four file ids remain four observations inside
+one file workflow; do not aggregate their durable counts. Runtime availability
+or connection state is never hard-coded, and only authoritative active webhook
+state may say `CONNECTED`. Keep every unimplemented integration disabled,
+`PLANNED`, noninteractive, and handler-free.
+
+Render structurally separate private and Explore read-only surfaces. Update
+landing, onboarding, Memory/context, Dashboard, RouteBody, and deep links so no
+copy still calls implemented GitHub/HTTPS/file/webhook planned, and no public
+page renders a private form. Planned/presentation copy remains truthful to the
+server mapping. Preserve explicit limits: manual public one-off GitHub/HTTPS,
+bounded at-least-once webhook with process-local limits, and process-local file
+preview replay protection. Do not say live-verified before disposable deployed
+smoke evidence exists.
 
 - [ ] **Step 5: Run UI, accessibility, and build gates**
 
-Run: `npx vitest run tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts --maxWorkers=1`
 
 Run: `npm --prefix web run typecheck`
 
 Run: `npm --prefix web run build`
 
-Expected: tests/build pass; every input has a label, status is text as well as colour, focus remains visible, and secrets are not retained in browser storage.
+Expected: tests/build pass; every input has a label/error association, status is
+text as well as colour, result/error focus transfer and modal focus return are
+exact, reduced motion is honored, listeners/timers are cleaned up, and no secret
+or query reaches local/session storage, history, analytics, console, attributes,
+or a live region. At 320px use labelled cards, `minmax(0,1fr)`, wrapping safe
+filenames/digests/endpoint text, 44px controls, and enough bottom clearance for
+VoiceDock with no horizontal overflow.
 
 - [ ] **Step 6: Commit the real connector UI**
 
 ```bash
-git add web/src/app/routes/connectors.tsx web/src/app/routes/developers.tsx web/src/design/connectors.ts web/src/app/routes/Dashboard.tsx web/src/App.tsx web/src/api/connectors.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts
+git add src/api/router.ts src/auth/voice-binding.ts web/src/app/routes/connectors.tsx web/src/app/routes/developers.tsx web/src/app/RouteBody.tsx web/src/app/routes.ts web/src/app/Shell.tsx web/src/app/product-contracts.ts web/src/design/connectors.ts web/src/landing/Conn.tsx web/src/app/routes/context.tsx web/src/onboarding/Onboarding.tsx web/src/app/routes/Dashboard.tsx web/src/App.tsx web/src/api/connectors.ts web/src/styles.css tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts
 git commit -m "feat(connectors): expose truthful private import workflows"
 ```
 

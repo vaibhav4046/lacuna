@@ -32,6 +32,7 @@ import {
   connectorCataloguePresentation,
   connectorOutcomeMessage as outcomeMessage,
   connectorReceiptPresentation,
+  commitAndRestoreWebhookTrigger,
   containVoiceModalBackground,
   copyConnectorSecret,
   fileSelectionProblem,
@@ -214,7 +215,10 @@ export function WebhookLifecycleControl({
 }) {
   const availabilityReady = catalogueState === 'ready';
   const available = availabilityReady && connector?.availability === 'available';
-  const retainedTrigger = connector?.availability === 'available' && (webhook !== null || pending === 'webhook');
+  const webhookPending = pending === 'webhook' || pending === 'webhook-revoke' || pending === 'webhook-state';
+  const retainedTrigger = connector?.availability === 'available'
+    && (webhook !== null || webhookPending || needsRefresh);
+  const triggerGuarded = !availabilityReady || pending !== null || needsRefresh;
   const confirmationMatches = confirmRevoke !== null && webhook?.configured === true
     && confirmRevoke.endpointId === webhook.endpointId;
   return (
@@ -229,21 +233,23 @@ export function WebhookLifecycleControl({
       ) : webhook.configured ? (
         <div className="connector-review"><strong>CONNECTED</strong><p>Endpoint configured {new Date(webhook.configuredAt).toLocaleString()}. Signing secret unavailable.</p><code>{webhook.endpoint}</code></div>
       ) : <p>No endpoint is configured for this workspace.</p>}
-      {(available && (webhook !== null || pending === 'webhook')) || (!availabilityReady && retainedTrigger) ? (
+      {(available && retainedTrigger) || (!availabilityReady && retainedTrigger) ? (
         <button
           ref={triggerRef}
           data-webhook-lifecycle-trigger="1"
           className={webhook?.configured === true ? 'connector-danger' : 'connector-primary'}
           type="button"
-          disabled={pending !== null}
-          aria-disabled={availabilityReady ? undefined : true}
+          aria-disabled={triggerGuarded ? true : undefined}
           onClick={() => {
-            if (!availabilityReady) return;
+            if (triggerGuarded) return;
             if (webhook?.configured === true) onRequestRevoke();
             else onSetup();
           }}
         >
-          {pending === 'webhook' ? 'VERIFYING…' : webhook?.configured === true ? 'REVOKE WEBHOOK' : 'ISSUE ENDPOINT + SECRET'}
+          {pending === 'webhook-revoke' ? 'REVOKING…'
+            : pending === 'webhook' || pending === 'webhook-state' ? 'VERIFYING…'
+              : needsRefresh ? 'WEBHOOK STATE UNVERIFIED'
+                : webhook?.configured === true ? 'REVOKE WEBHOOK' : 'ISSUE ENDPOINT + SECRET'}
         </button>
       ) : null}
       {available && confirmationMatches ? (
@@ -422,7 +428,9 @@ export function PrivateConnectors() {
   }, [arbiter, control, refreshCatalogue]);
 
   useEffect(() => {
-    if (problem !== null) document.getElementById(`connector-${problem.source}-error`)?.focus();
+    if (problem !== null && problem.source !== 'webhook') {
+      document.getElementById(`connector-${problem.source}-error`)?.focus();
+    }
   }, [problem]);
 
   if (session === null || context === null) return <p role="status">Checking the exact session.</p>;
@@ -501,14 +509,29 @@ export function PrivateConnectors() {
 
   async function removeWebhook() {
     const confirmation = confirmRevoke;
-    setConfirmRevoke(null); setPending('webhook-revoke'); setProblem(null); setSecret(null);
+    commitAndRestoreWebhookTrigger(() => {
+      setConfirmRevoke(null); setPending('webhook-revoke'); setProblem(null); setSecret(null);
+    }, flushSync, webhookTrigger.current);
     const result = await arbiter!.revoke(confirmation);
-    setPending(null);
-    if (typeof result === 'object') {
-      if (!result.reconciled) setWebhookNeedsRefresh(true);
-      setProblem({ source: 'webhook', message: outcomeMessage(result) ?? 'Webhook revocation was safely refused.' });
-    } else if (result === 'indeterminate') { setWebhookNeedsRefresh(true); setProblem({ source: 'webhook', message: 'Revocation could not be confirmed. Authoritative state was checked once; do not retry automatically.' }); }
+    commitAndRestoreWebhookTrigger(() => {
+      setPending(null);
+      if (typeof result === 'object') {
+        if (!result.reconciled) setWebhookNeedsRefresh(true);
+        setProblem({ source: 'webhook', message: outcomeMessage(result) ?? 'Webhook revocation was safely refused.' });
+      } else if (result === 'indeterminate') {
+        setWebhookNeedsRefresh(true);
+        setProblem({ source: 'webhook', message: 'Revocation could not be confirmed. Authoritative state was checked once; do not retry automatically.' });
+      }
+    }, flushSync, webhookTrigger.current);
     await refreshCatalogue();
+  }
+
+  function cancelWebhookRevoke() {
+    commitAndRestoreWebhookTrigger(
+      () => setConfirmRevoke(null),
+      flushSync,
+      webhookTrigger.current,
+    );
   }
 
   async function refreshWebhookExplicitly() {
@@ -520,7 +543,7 @@ export function PrivateConnectors() {
 
   return (
     <div className="connectors-page">
-      <header className="connectors-hero"><span>PRIVATE IMPORTS</span><h1>Bring bounded context into this workspace.</h1><p>Every source is reviewed before one import. Current operation receipts remain exact; recorded observations are separate and may lag.</p></header>
+      <header className="connectors-hero"><span>PRIVATE IMPORTS</span><h1>Bring bounded context into this workspace.</h1><p>Files, public GitHub snapshots, and public HTTPS reads are reviewed one-off imports. Configured signed webhooks accept bounded at-least-once deliveries without per-delivery manual review. Current operation receipts remain exact; recorded observations are separate and may lag.</p></header>
       {problemFor('catalogue') === null ? null : <div id="connector-catalogue-error" className="connector-alert" role="alert" tabIndex={-1}>{problemFor('catalogue')}</div>}
       {receiptPresentation === null ? null : <Receipt receipt={receiptPresentation.receipt} reference={receiptPresentation.reference} />}
       <Observation catalogue={catalogue} catalogueState={catalogueState} />
@@ -555,8 +578,8 @@ export function PrivateConnectors() {
 
         <section id="webhook" className="connector-card" aria-labelledby="webhook-heading" tabIndex={-1}>
           <span className="connector-kicker">DATA · SIGNED DELIVERY</span><h2 id="webhook-heading">Signed webhook</h2>
-          <p>At-least-once delivery with a one-time signing secret. Setup and revocation are process-local bounded operations, not globally linearizable.</p>
-          <WebhookLifecycleControl connector={status('webhook')} catalogueState={catalogueState} webhook={webhook} pending={pending} needsRefresh={webhookNeedsRefresh} confirmRevoke={confirmRevoke} triggerRef={webhookTrigger} problem={problemFor('webhook')} onSetup={() => void setupWebhook()} onRequestRevoke={() => setConfirmRevoke(arbiter!.captureRevoke())} onConfirmRevoke={() => void removeWebhook()} onCancelRevoke={() => setConfirmRevoke(null)} onRefresh={() => void refreshWebhookExplicitly()} />
+          <p>At-least-once delivery with a one-time signing secret. Each valid signed event is a bounded at-least-once delivery, not a manually reviewed one-off import. Setup and revocation are process-local bounded operations, not globally linearizable.</p>
+          <WebhookLifecycleControl connector={status('webhook')} catalogueState={catalogueState} webhook={webhook} pending={pending} needsRefresh={webhookNeedsRefresh} confirmRevoke={confirmRevoke} triggerRef={webhookTrigger} problem={problemFor('webhook')} onSetup={() => void setupWebhook()} onRequestRevoke={() => setConfirmRevoke(arbiter!.captureRevoke())} onConfirmRevoke={() => void removeWebhook()} onCancelRevoke={cancelWebhookRevoke} onRefresh={() => void refreshWebhookExplicitly()} />
         </section>
       </div>
 
@@ -573,7 +596,7 @@ export function ExploreConnectors() {
   const workflow = (name: 'github' | 'https' | 'webhook') => CONNECTOR_PRESENTATION.find((item) => item.workflow === name);
   return (
     <div className="connectors-page connectors-explore">
-      <header className="connectors-hero"><span>EXPLORE · READ ONLY</span><h1>Import workflows, without private controls.</h1><p>Sign in to check deployment availability and review a source. This public page does not request workspace state.</p></header>
+      <header className="connectors-hero"><span>EXPLORE · READ ONLY</span><h1>Import workflows, without private controls.</h1><p>Sign in to check deployment availability and use the appropriate reviewed one-off import or signed-delivery setup. This public page does not request workspace state.</p></header>
       <section id="file" tabIndex={-1} aria-labelledby="explore-file-heading"><h2 id="explore-file-heading">Reviewed files</h2><div className="connector-observation-grid">{CONNECTOR_PRESENTATION.filter((item) => item.workflow === 'file').map(card)}</div></section>
       {(['github', 'https', 'webhook'] as const).map((name) => {
         const item = workflow(name);

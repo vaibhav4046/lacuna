@@ -8,7 +8,7 @@ import { GoogleButton, googleProblem } from './google';
 
 export default function SignIn() {
   const go = useNavigate();
-  const { loaded, refresh } = useSession();
+  const { loaded, refreshAfterMutation } = useSession();
   const account = landingAccountActions(loaded);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +22,7 @@ export default function SignIn() {
     const failure = await signIn(email, password);
     setBusy(false);
     if (failure !== null) { setProblem(failure); return; }
-    await refresh();
+    await refreshAfterMutation();
     go('/app/dash');
   }
 

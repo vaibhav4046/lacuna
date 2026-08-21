@@ -28,7 +28,7 @@ const MIN_PASSWORD = 12;
 
 export default function Forgot() {
   const go = useNavigate();
-  const { refresh } = useSession();
+  const { refreshAfterMutation } = useSession();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +54,7 @@ export default function Forgot() {
     const result = await recover(email, code, password);
     setBusy(false);
     if ('problem' in result) { setProblem(result.problem); return; }
-    await refresh();
+    await refreshAfterMutation();
     setIssued(result.recoveryCode);
   }
 

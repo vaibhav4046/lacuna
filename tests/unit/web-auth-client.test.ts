@@ -199,6 +199,102 @@ describe('the browser auth client', () => {
     coordinator.dispose();
   });
 
+  it('publishes one mutation epoch after synchronous teardown and destroys an old-tab secret before stalled or failed validation', async () => {
+    type Listener = (event: { readonly data?: unknown }) => void;
+    const remoteListeners = new Set<Listener>();
+    const posted: unknown[] = [];
+    const stored: string[] = [];
+    const order: string[] = [];
+    let localPrivateTree = true;
+    let remoteSecret = true;
+    let localReads = 0;
+    let remoteReads = 0;
+    let duplicateValidatedBroadcasts = 0;
+
+    const remoteCoordinator = new SessionReadCoordinator({
+      read: async (signal) => {
+        remoteReads += 1;
+        order.push('remote-read-stalled');
+        return await new Promise<SessionState>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+        });
+      },
+      onLoading: () => { remoteSecret = false; order.push('remote-secret-destroyed'); },
+      onReady: () => { throw new Error('unexpected remote readiness'); },
+      onFailed: () => { throw new Error('unexpected remote failure'); },
+      onValidatedTransition: () => { duplicateValidatedBroadcasts += 1; },
+    });
+    const remoteBus = new SessionEpochBus({
+      channel: {
+        postMessage: () => undefined,
+        addEventListener: (_type, listener) => remoteListeners.add(listener),
+        removeEventListener: (_type, listener) => remoteListeners.delete(listener),
+        close: () => undefined,
+      },
+      storage: { setItem: () => undefined },
+      addStorageListener: () => undefined,
+      removeStorageListener: () => undefined,
+    }, () => { void remoteCoordinator.refresh('remote'); });
+
+    const localBus = new SessionEpochBus({
+      channel: {
+        postMessage: (value) => {
+          posted.push(value);
+          remoteListeners.forEach((listener) => listener({ data: value }));
+        },
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        close: () => undefined,
+      },
+      storage: { setItem: (_key, value) => stored.push(value) },
+      addStorageListener: () => undefined,
+      removeStorageListener: () => undefined,
+      randomValues: (bytes) => { bytes.fill(0x12); return bytes; },
+    }, () => undefined);
+    const localCoordinator = new SessionReadCoordinator({
+      read: async () => {
+        localReads += 1;
+        order.push('local-read-failed');
+        throw new Error('session validation failed');
+      },
+      onLoading: () => { localPrivateTree = false; order.push('local-tree-destroyed'); },
+      onReady: () => { throw new Error('unexpected local readiness'); },
+      onFailed: () => order.push('local-failed'),
+      onValidatedTransition: () => { duplicateValidatedBroadcasts += 1; },
+    });
+
+    const refreshAfterMutation = Reflect.get(localCoordinator, 'refreshAfterMutation');
+    expect(refreshAfterMutation).toBeTypeOf('function');
+    if (typeof refreshAfterMutation !== 'function') {
+      localCoordinator.dispose();
+      remoteCoordinator.dispose();
+      localBus.dispose();
+      remoteBus.dispose();
+      return;
+    }
+    const mutationRefresh = refreshAfterMutation.call(localCoordinator, () => {
+      order.push('epoch-published');
+      localBus.publish();
+    });
+    expect({ localPrivateTree, remoteSecret, localReads, remoteReads }).toEqual({
+      localPrivateTree: false, remoteSecret: false, localReads: 1, remoteReads: 1,
+    });
+    expect(order.slice(0, 5)).toEqual([
+      'local-tree-destroyed', 'epoch-published', 'remote-secret-destroyed',
+      'remote-read-stalled', 'local-read-failed',
+    ]);
+    await mutationRefresh;
+    expect(posted).toHaveLength(1);
+    expect(stored).toHaveLength(1);
+    expect(duplicateValidatedBroadcasts).toBe(0);
+    expect(order.at(-1)).toBe('local-failed');
+
+    localCoordinator.dispose();
+    remoteCoordinator.dispose();
+    localBus.dispose();
+    remoteBus.dispose();
+  });
+
   it('does not promise recovery to an unbound legacy account that may not have a recovery code', () => {
     const problem = googleProblem('?google=legacy_unbound') ?? '';
 

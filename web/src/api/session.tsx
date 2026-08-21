@@ -20,6 +20,8 @@ interface SessionContextValue {
   readonly identity: string | null;
   /** Resolves only after the newest read, including a superseding tab/focus read, settles. */
   readonly refresh: () => Promise<void>;
+  /** After a successful cookie/session mutation: teardown and publish before validating once. */
+  readonly refreshAfterMutation: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -66,6 +68,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<Loaded<SessionState>>({ state: 'loading' });
   const [epoch, setEpoch] = useState(0);
   const coordinatorRef = useRef<SessionReadCoordinator | null>(null);
+  const busRef = useRef<SessionEpochBus | null>(null);
 
   useEffect(() => {
     let bus: SessionEpochBus | null = null;
@@ -84,6 +87,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       onValidatedTransition: () => { try { bus?.publish(); } catch { /* local invalidation remains complete */ } },
     });
     bus = browserEpochBus(() => { void coordinator.refresh('remote'); });
+    busRef.current = bus;
     coordinatorRef.current = coordinator;
 
     const onFocus = () => { void coordinator.refresh('focus'); };
@@ -93,6 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     void coordinator.refresh('initial');
     return () => {
       coordinatorRef.current = null;
+      busRef.current = null;
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('pageshow', onPageShow);
       bus?.dispose();
@@ -103,9 +108,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     await coordinatorRef.current?.refresh('refresh');
   }, []);
+  const refreshAfterMutation = useCallback(async () => {
+    const coordinator = coordinatorRef.current;
+    if (coordinator === null) return;
+    await coordinator.refreshAfterMutation(() => {
+      try { busRef.current?.publish(); } catch { /* local teardown and validation still complete */ }
+    });
+  }, []);
   const identity = loaded.state === 'ready' ? sessionIdentity(loaded.value) : null;
 
-  return <SessionContext.Provider value={{ loaded, epoch, identity, refresh }}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={{ loaded, epoch, identity, refresh, refreshAfterMutation }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): SessionContextValue {

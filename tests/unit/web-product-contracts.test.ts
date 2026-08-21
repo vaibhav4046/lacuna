@@ -70,6 +70,7 @@ describe('web product contracts', () => {
     expect(route).toContain('[data-voice-modal-backdrop],[data-voice-dialog]');
     expect(route).toContain('revealExclusiveSecret(');
     expect(route).toContain('returnTarget={webhookTrigger}');
+    expect(route.match(/commitAndRestoreWebhookTrigger\(/gu)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(route).toContain("if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); return; }");
     expect(route).not.toContain('href={webhook.endpoint}');
     expect(route).not.toMatch(/console\.|localStorage|sessionStorage|history\./u);
@@ -100,6 +101,34 @@ describe('web product contracts', () => {
     expect(shell).toContain("key={scope.demo ? 'explore' : identity ?? 'unvalidated'}");
   });
 
+  it('invalidates every cookie-changing client mutation before its one validation read', () => {
+    const provider = readFileSync(new URL('../../web/src/api/session.tsx', import.meta.url), 'utf8');
+    const signIn = readFileSync(new URL('../../web/src/auth/SignIn.tsx', import.meta.url), 'utf8');
+    const forgot = readFileSync(new URL('../../web/src/auth/Forgot.tsx', import.meta.url), 'utf8');
+    const system = readFileSync(new URL('../../web/src/app/routes/system.tsx', import.meta.url), 'utf8');
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+
+    expect(provider).toContain('readonly refreshAfterMutation: () => Promise<void>;');
+    expect(provider).toContain('coordinator.refreshAfterMutation');
+    for (const client of [signIn, forgot, system, onboarding]) {
+      expect(client).toContain('refreshAfterMutation');
+      expect(client).not.toContain('await refresh();');
+    }
+    expect(system).toContain('if (!await signOut()) return;');
+  });
+
+  it('distinguishes reviewed one-off imports from configured at-least-once webhook delivery', () => {
+    const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+
+    expect(route).toContain('Files, public GitHub snapshots, and public HTTPS reads are reviewed one-off imports.');
+    expect(route).toContain('Configured signed webhooks accept bounded at-least-once deliveries without per-delivery manual review.');
+    expect(route).toContain('Each valid signed event is a bounded at-least-once delivery, not a manually reviewed one-off import.');
+    expect(route).not.toContain('Every source is reviewed before one import.');
+    expect(onboarding).toContain('review a one-off file, public GitHub snapshot, or public HTTPS source; or configure signed bounded at-least-once webhook delivery');
+    expect(onboarding).not.toContain('review a file, public GitHub snapshot, public HTTPS source, or signed webhook');
+  });
+
   it('sends transcript writers to sign in instead of the read-only public memory', () => {
     const judge = readFileSync(new URL('../../web/src/pages/Judge.tsx', import.meta.url), 'utf8');
     expect(judge).toContain('<Link to="/signin" style={{ ...label, color: \'#9A9A9A\', textDecoration: \'none\' }}>SIGN IN TO PASTE A TRANSCRIPT</Link>');
@@ -108,7 +137,7 @@ describe('web product contracts', () => {
 
   it('does not claim onboarding ingests a source before the Memory form is open', () => {
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
-    expect(onboarding).toContain("b: 'After setup, paste a note in Memory or review a file, public GitHub snapshot, public HTTPS source, or signed webhook.'");
+    expect(onboarding).toContain("b: 'After setup, paste a note in Memory; review a one-off file, public GitHub snapshot, or public HTTPS source; or configure signed bounded at-least-once webhook delivery.'");
     expect(onboarding).not.toContain("b: 'Paste a note or transcript now. More connectors are planned.'");
   });
 

@@ -384,6 +384,16 @@ export function restoreExactModalFocus(target: ExactModalFocusTarget | null): bo
   return true;
 }
 
+/** Commit away a revoke confirmation/result before returning to its stable trigger. */
+export function commitAndRestoreWebhookTrigger(
+  commit: () => void,
+  flush: (commit: () => void) => void,
+  target: ExactModalFocusTarget | null,
+): boolean {
+  flush(commit);
+  return restoreExactModalFocus(target);
+}
+
 export function fileSelectionProblem(file: Pick<File, 'name' | 'size'> | null): string | null {
   if (file === null) return null;
   const supported = /\.(?:txt|md|pdf|docx)$/iu.test(file.name);

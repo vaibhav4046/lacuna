@@ -164,7 +164,7 @@ export class SessionEpochBus {
   }
 }
 
-export type SessionReadCause = 'initial' | 'refresh' | 'remote' | 'focus' | 'pageshow';
+export type SessionReadCause = 'initial' | 'refresh' | 'remote' | 'focus' | 'pageshow' | 'mutation';
 
 export interface SessionReadCoordinatorOptions {
   readonly read: (signal: AbortSignal) => Promise<SessionState>;
@@ -196,6 +196,15 @@ export class SessionReadCoordinator {
   }
 
   refresh(cause: SessionReadCause): Promise<void> {
+    return this.#start(cause);
+  }
+
+  /** Teardown, publish one nonce, then begin the sole post-mutation validation read. */
+  refreshAfterMutation(publish: () => void): Promise<void> {
+    return this.#start('mutation', publish);
+  }
+
+  #start(cause: SessionReadCause, beforeRead?: () => void): Promise<void> {
     if (this.#disposed) return Promise.resolve();
     const generation = this.#generation + 1;
     this.#generation = generation;
@@ -203,6 +212,9 @@ export class SessionReadCoordinator {
     const control = new AbortController();
     this.#active = control;
     this.#options.onLoading(cause);
+    if (beforeRead !== undefined) {
+      try { beforeRead(); } catch { /* local teardown remains authoritative; validation still runs */ }
+    }
     const caller = new Promise<void>((resolve) => this.#waiters.push({ generation, resolve }));
     void this.#run(generation, cause, control);
     return caller;
@@ -216,7 +228,7 @@ export class SessionReadCoordinator {
       const changed = identity !== this.#lastValidated;
       this.#lastValidated = identity;
       this.#options.onReady(value);
-      if (changed && cause !== 'remote') this.#options.onValidatedTransition(identity);
+      if (changed && cause !== 'remote' && cause !== 'mutation') this.#options.onValidatedTransition(identity);
     } catch {
       if (!this.#disposed && generation === this.#generation && !control.signal.aborted) {
         this.#options.onFailed();

@@ -23,7 +23,7 @@ const note = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', colo
 
 export function Settings() {
   const go = useNavigate();
-  const { loaded, refresh } = useSession();
+  const { loaded, refreshAfterMutation } = useSession();
   const health = useHealth();
   const model = useModelLabel();
   const scope = useScope();
@@ -43,8 +43,8 @@ export function Settings() {
   ];
 
   async function leave() {
-    await signOut();
-    await refresh();
+    if (!await signOut()) return;
+    await refreshAfterMutation();
     go('/');
   }
 

@@ -18,7 +18,7 @@ const STEPS = [
   { l: 'CREATE WORKSPACE', t: 'Name your workspace.', b: 'One workspace holds the memory for a project or a team.' },
   { l: 'CHECK STORAGE', t: 'Check memory storage.', b: 'Lacuna checks that HydraDB is ready to store your project memory.' },
   { l: 'MODEL SETUP', t: 'Check model setup.', b: 'The server chooses the model for now. Switching models per workspace is planned.' },
-  { l: 'ADD MEMORY', t: 'Add memory after setup.', b: 'After setup, paste a note in Memory or review a file, public GitHub snapshot, public HTTPS source, or signed webhook.' },
+  { l: 'ADD MEMORY', t: 'Add memory after setup.', b: 'After setup, paste a note in Memory; review a one-off file, public GitHub snapshot, or public HTTPS source; or configure signed bounded at-least-once webhook delivery.' },
   { l: 'ASK SOMETHING', t: 'Ask something.', b: 'Ask a question and see the answer, its source, and any disagreements.' },
 ] as const;
 
@@ -27,7 +27,7 @@ const chip = { border: '1px solid rgba(255,255,255,0.16)', borderRadius: '7px', 
 
 export default function Onboarding() {
   const go = useNavigate();
-  const { refresh } = useSession();
+  const { refreshAfterMutation } = useSession();
   const health = useHealth();
   const [step, setStep] = useState(0);
   const [workspace, setWorkspace] = useState('');
@@ -44,7 +44,7 @@ export default function Onboarding() {
     const result = await postJson('/api/workspace', { workspace: workspace.trim() === '' ? 'workspace' : workspace.trim() });
     setBusy(false);
     if (!result.ok) { setProblem('Connection failed.'); return; }
-    await refresh();
+    await refreshAfterMutation();
     go('/app/dash');
     window.scrollTo(0, 0);
   }

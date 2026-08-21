@@ -329,20 +329,56 @@ describe('private connector workflow contracts', () => {
     expect(html).not.toContain('one-time token');
   });
 
-  it('keeps the exact webhook issue trigger mounted and disabled until secret readback settles', async () => {
-    const html = await renderConnectorComponent('WebhookLifecycleControl', {
-      connector: {
-        id: 'webhook', label: 'Webhook', group: 'DATA', availability: 'available', reason: null,
-        configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
-        importedDocuments: 0, state: 'idle',
-      },
-      webhook: null, pending: 'webhook', needsRefresh: false, confirmRevoke: null,
-      triggerRef: { current: null }, onSetup: () => undefined, onRequestRevoke: () => undefined,
-      onConfirmRevoke: () => undefined, onCancelRevoke: () => undefined, onRefresh: () => undefined,
-    });
-    expect(html).toContain('data-webhook-lifecycle-trigger="1"');
-    expect(html).toContain('disabled=""');
-    expect(html).toContain('VERIFYING…');
+  it('keeps one focusable guarded webhook trigger through issue, revoke, readback, and lost-response states', async () => {
+    const connector = {
+      id: 'webhook', label: 'Webhook', group: 'DATA', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    } satisfies ConnectorStatus;
+    const configured = {
+      configured: true, endpointId: 'A'.repeat(22),
+      endpoint: `https://app.example.test/api/connectors/webhook/${'A'.repeat(22)}`,
+      configuredAt: '2026-08-21T12:00:00.000Z',
+    } satisfies WebhookState;
+    for (const state of [
+      { pending: 'webhook', webhook: null, needsRefresh: false },
+      { pending: 'webhook-revoke', webhook: configured, needsRefresh: false },
+      { pending: 'webhook-state', webhook: null, needsRefresh: false },
+      { pending: null, webhook: null, needsRefresh: true },
+    ] as const) {
+      const html = await renderConnectorComponent('WebhookLifecycleControl', {
+        connector, ...state, confirmRevoke: null,
+        triggerRef: { current: null }, onSetup: () => undefined, onRequestRevoke: () => undefined,
+        onConfirmRevoke: () => undefined, onCancelRevoke: () => undefined, onRefresh: () => undefined,
+      });
+      expect(html.match(/data-webhook-lifecycle-trigger="1"/gu)).toHaveLength(1);
+      expect(html).toContain('aria-disabled="true"');
+      expect(html).not.toContain('disabled=""');
+    }
+  });
+
+  it('commits cancel, confirm, success, and indeterminate transitions before refocusing the exact trigger', () => {
+    const commitAndFocus = Reflect.get(browserContracts, 'commitAndRestoreWebhookTrigger');
+    expect(commitAndFocus).toBeTypeOf('function');
+    if (typeof commitAndFocus !== 'function') return;
+    const order: string[] = [];
+    const trigger = {
+      isConnected: true,
+      focus: () => { order.push('focus'); },
+    };
+    for (const transition of ['cancel', 'confirm', 'success', 'indeterminate']) {
+      expect(commitAndFocus(
+        () => { order.push(`${transition}-commit`); },
+        (commit: () => void) => commit(),
+        trigger,
+      )).toBe(true);
+    }
+    expect(order).toEqual([
+      'cancel-commit', 'focus',
+      'confirm-commit', 'focus',
+      'success-commit', 'focus',
+      'indeterminate-commit', 'focus',
+    ]);
   });
 
   it('retains the exact issue trigger through post-reveal catalogue refresh and restores it on acknowledge', async () => {

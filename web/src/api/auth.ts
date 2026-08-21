@@ -88,6 +88,6 @@ export async function requestReset(email: string): Promise<string | null> {
   return result.ok ? null : messageFor(result.status);
 }
 
-export async function signOut(): Promise<void> {
-  await postJson('/api/auth/signout', {});
+export async function signOut(): Promise<boolean> {
+  return (await postJson('/api/auth/signout', {})).ok;
 }

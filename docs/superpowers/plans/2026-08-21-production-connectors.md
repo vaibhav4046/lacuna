@@ -619,13 +619,18 @@ git commit -m "feat(hydra): scope native graph impact to private memory"
 
 **Files:**
 - Create: `scripts/smoke-connectors.ts`
+- Create: `scripts/soak-product.ts`
 - Modify: `package.json`
+- Create: `tests/unit/product-soak.test.ts`
 - Modify only after proof: `docs/V10_RELEASE_STATUS.md`
 - Create only after proof: `artifacts/verification/2026-08-21-convergence/connectors.json`
+- Create only after proof: `artifacts/verification/2026-08-21-convergence/soak.json`
 
 **Interfaces:**
 - Produces: `npm run smoke:connectors`
+- Produces: `npm run soak:product`
 - Produces: redacted evidence for ingestion receipt, completed indexing, private retrieval, provenance, graph/temporal evidence, state persistence, and negative security cases
+- Produces: bounded long-session latency/error/session-persistence evidence without unbounded writes
 
 - [ ] **Step 1: Add a serial, redacted smoke runner**
 
@@ -639,6 +644,10 @@ failure codes; redact cookies, CSRF, email, workspace id, webhook
 secret/signature, query strings, and provider bodies.
 
 Add `"smoke:connectors": "tsx scripts/smoke-connectors.ts"` to `package.json`.
+Add `"soak:product": "tsx scripts/soak-product.ts"` to `package.json`. Both
+scripts require an explicit immutable preview origin, disposable test-session
+inputs, and unique run id; refuse production aliases, missing caps, owner-data
+credentials, or an origin that redirects. Never print credentials or full URLs.
 
 - [ ] **Step 2: Run the complete local gate with one worker**
 
@@ -650,7 +659,7 @@ Run: `npm run build`
 
 Run: `npm run copy:lint`
 
-Run: `npx vitest run tests/unit/connectors-catalog.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-run.test.ts tests/unit/connectors-files.test.ts tests/unit/connectors-github.test.ts tests/unit/connectors-https.test.ts tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts tests/unit/web-connectors.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/connectors-catalog.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-run.test.ts tests/unit/connectors-files.test.ts tests/unit/connectors-github.test.ts tests/unit/connectors-https.test.ts tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts tests/unit/web-connectors.test.ts tests/unit/product-soak.test.ts --maxWorkers=1`
 
 Expected: every command exits zero with no connector test skipped.
 
@@ -673,6 +682,35 @@ second live fact. Re-read connector and impact state in a fresh authenticated
 session to prove durability. Do not call a successful one-off import
 `connected`, and do not claim exactly-once delivery.
 
-- [ ] **Step 5: Commit verified evidence with the combined release**
+- [ ] **Step 5: Run a bounded long-lived product session**
 
-Stage only redacted generated evidence and status claims supported by the immutable deployment. Use commit subject `docs: record converged production evidence` in the final release task rather than a connector-only evidence commit.
+Against the same immutable preview and a disposable account/namespace, run at
+least 30 minutes of serial low-rate mixed work with an explicit maximum of 300
+HTTP operations, 25 governed source writes, three concurrent requests in any
+burst, and one active webhook. Mix catalogue/state reads, question/Ask/evidence,
+connector refresh, repeated idempotent imports, graph impact, webhook accepted
+delivery/duplicate convergence/revocation, page/session refresh, and deliberate
+bad-CSRF/stale-session probes. Re-fetch CSRF through the supported flow; never
+reuse a token across an account change. At the midpoint, create a fresh browser
+session for the same disposable identity and prove private state survives; if a
+second disposable identity is supplied, prove it sees none of the first run's
+memory or connector state.
+
+The harness uses a monotonic clock, per-operation deadlines, bounded response
+bytes, one client-side concurrency pool, and fail-fast safety thresholds. It
+records only operation class, status/failure code, accepted/searchable counts,
+latency histogram, bounded retry count, session-refresh result, and redacted
+digests. Any unhandled rejection, timeout without an explicit indeterminate
+result, auth loop, cross-account observation, growing listener/timer/queue count,
+or operation beyond the declared caps fails the soak. It always attempts hook
+revocation in `finally`, but never deletes or mutates unrelated owner data.
+
+Run a separate deterministic local stress case with fake Hydra/network clocks to
+exercise at least 10,000 queue/normalization/replay operations without network or
+multiple workers. Assert semaphore/lock/waiter maps return to baseline and memory
+growth stabilizes after forced idle/GC when the runtime exposes it; do not turn a
+missing GC metric into a pass claim.
+
+- [ ] **Step 6: Commit verified evidence with the combined release**
+
+Stage only redacted generated evidence and status claims supported by the immutable deployment. The soak artifact includes exact preview deployment id/commit, start/end/duration, declared caps, actual counts, latency summary, failure counts, session/isolation assertions, cleanup result, and a SHA-256 digest of the full locally retained report—not cookies, emails, workspace ids, bodies, URLs, secrets, or signatures. Use commit subject `docs: record converged production evidence` in the final release task rather than a connector-only evidence commit.

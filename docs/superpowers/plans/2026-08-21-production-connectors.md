@@ -464,23 +464,29 @@ git commit -m "feat(connectors): accept signed at-least-once webhooks"
 - Modify: `web/src/app/routes.ts`
 - Modify: `web/src/app/Shell.tsx`
 - Modify: `web/src/app/product-contracts.ts`
+- Modify: `web/src/api/session-state.ts`
+- Modify: `web/src/api/session.tsx`
+- Modify: `web/src/api/auth.ts`
 - Modify: `web/src/design/connectors.ts`
 - Modify: `web/src/landing/Conn.tsx`
 - Modify: `web/src/app/routes/context.tsx`
 - Modify: `web/src/onboarding/Onboarding.tsx`
 - Modify: `web/src/app/routes/Dashboard.tsx`
+- Modify: `web/src/app/routes/system.tsx`
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/api/connectors.ts`
 - Modify: `web/src/styles.css`
 - Test: `tests/unit/web-connectors.test.ts`
 - Test: `tests/unit/web-connectors-client.test.ts`
 - Test: `tests/unit/web-product-contracts.test.ts`
+- Test: `tests/unit/web-auth-client.test.ts`
 - Test: `tests/unit/connectors-api.test.ts`
 
 **Interfaces:**
 - Consumes: all private connector routes with the current non-secret exact-session binding
 - Produces: real forms for file, GitHub, HTTPS API, and webhook setup/revocation
 - Produces: closed client outcomes `receipt | known_refusal | indeterminate | discarded`
+- Produces: one generation-monotonic, cross-tab session invalidation epoch that unmounts private connector state before revalidation
 
 - [ ] **Step 1: Write product-contract tests**
 
@@ -491,6 +497,35 @@ response, and test A request followed by cookie/session B: the server returns
 `401` with zero work and a delayed A response can neither render nor authorize a
 B revoke. On any epoch change synchronously clear/abort files, preview tokens,
 URLs, receipts, errors, endpoint ids, and secrets.
+
+Make that epoch executable across the whole browser, not only inside the
+connector component. Test `SessionProvider` with overlapping reads whose A
+response settles after B: latest-started wins, an older generation never enters
+context, and a superseded `refresh()` does not release its caller before the
+current generation settles. Use one versioned, non-sensitive cross-tab
+invalidation message containing only a fresh random nonce—never email,
+workspace, binding, cookie, token, endpoint, receipt, or secret—over both
+`BroadcastChannel('lacuna-session-epoch-v1')` and the
+`lacuna_session_epoch_v1` storage-event fallback; the message is exactly
+`{ version: 1, nonce: <32 lowercase hex> }`, with the nonce generated from 16
+bytes of `crypto.getRandomValues`. Accept only that closed object (no extra
+keys), ignore malformed or already-seen messages, and never let an invalid
+message start a session read. Successful sign-in, sign-up,
+recovery, sign-out, and every newly observed validated session/binding/workspace
+transition publish once. Retain the last validated signed-out or binding/workspace
+tuple across the temporary `loading` state: a remote-event revalidation never
+rebroadcasts, and a focus/pageshow revalidation publishes only if that retained
+tuple actually changed. Deduplicate the same nonce across both transports and
+record the trigger cause so no receive/revalidate path can form a new-nonce
+loop. A remote event, `pageshow`, or window focus must synchronously increment
+the local generation, abort the active session read, set session state to
+`loading` so `RequireSession` unmounts the private Shell/portal, and only then
+start one no-store `/api/session` revalidation. The Shell keys its private route
+body by the exact validated binding/workspace tuple, so applying B cannot render
+one frame of A component state. Close channels and remove storage/pageshow/focus
+listeners on cleanup. Cover two-tab sign-out/sign-in and account swap while the
+one-time webhook modal is open: A's portal/secret disappear before B renders and
+no A request/result is reused.
 
 Require hash-preserving `/app/connectors -> /app/conn` and
 `/explore/connectors -> /explore/conn` aliases with only `#file`, `#github`,
@@ -507,6 +542,16 @@ invalid 2xx; timeout/lost response after dispatch; refresh and concurrent newer
 catalogue observation. Missing/invalid/lost mutation responses are
 `indeterminate`, never zero/failed and never automatically retried.
 
+The catalogue is a durable recorded observation, not an authoritative inventory
+or cross-instance counter. Add two independent-instance regressions in which
+both runs read the same prior observation and one accepted-document delta is
+lost, plus an accepted receipt whose observation write is `failed` followed by
+refresh. In both cases the in-memory receipt preserves the exact acceptance,
+while refreshed catalogue copy uses exactly `RECORDED ACCEPTED DOCUMENTS` and
+`LAST RECORDED ACCEPTANCE`, explicitly says the observation may lag because it
+was stale, concurrent, or failed to persist, and never says cumulative, total,
+latest, or reconstructs the missing acceptance.
+
 Test webhook authoritative-state load, issue-response loss followed by refetch,
 configured-without-secret recovery through explicit revoke then issue,
 acknowledgement, revoke-response loss/refetch, and reissue. Planned controls are
@@ -516,9 +561,29 @@ cleanup, and the 320px card/no-overflow/VoiceDock-clearance contract. Forbid
 source bodies, collection ids, secret redisplay, `OAuth`, persisted `syncing`,
 or any durable status derived from a timer.
 
+Pin the webhook lifecycle wire contract in those tests. Issue is exactly one
+`POST /api/workspace/connectors/webhook` with no request body and no
+`Content-Type`; a valid new issue is status `201` with the exact closed shape
+`{ created: true, endpointId, endpoint, secret, configuredAt }`, while an
+already-configured result is status `200` with the same keys, `created: false`,
+and `secret: null`. The id is exactly 22 canonical base64url characters and a
+created secret exactly 43 canonical base64url characters. Any other status/body
+pairing or extra/missing field is
+invalid. Before revealing a `201` secret, perform one authoritative no-store
+`GET /api/workspace/connectors/webhook` and require strict configured-state
+agreement on endpoint id, same-origin endpoint path, and canonical configured
+time. If E1's issue response arrives after another instance makes E2 active,
+discard E1's secret before it reaches the DOM/clipboard and render E2 as
+configured with secret unavailable. Unavailable/invalid readback is
+`indeterminate`, clears the secret, and never claims connected. Revoke captures
+only the latest generation's validated authoritative id; `200 { revoked: true }`
+is the sole valid success, and `404`, loss, or invalid response triggers one GET
+without retrying DELETE. Test E1-late/E2-active, readback mismatch/unavailability,
+and a stale confirmation that cannot revoke E2.
+
 - [ ] **Step 2: Run UI tests and verify RED**
 
-Run: `npx vitest run tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts --maxWorkers=1`
 
 Expected: the current developers page is a static list and has no real route/forms.
 
@@ -526,8 +591,11 @@ Expected: the current developers page is a static list and has no real route/for
 
 Build a generation-bound coordinator with two separate models. The durable
 catalogue comes from no-store `GET /api/workspace/connectors`; label
-`lastSuccessAt` as `LAST IMPORT ACCEPTED`, show cumulative accepted documents
-and last failure, and never reconstruct searchable counts after refresh. The
+`lastSuccessAt` as `LAST RECORDED ACCEPTANCE`, show `RECORDED ACCEPTED DOCUMENTS`
+and last failure, and place stable copy beside those fields that they may lag
+when a concurrent/stale update wins or observation persistence fails. Never call
+them cumulative, total, latest, or an authoritative inventory, and never
+reconstruct searchable counts after refresh. The
 in-memory validated operation receipt alone shows exact accepted/searchable/
 duplicate/failed counts and a safe digest/reference; accepted truth survives
 readiness or observation-write failure/staleness. Every settled mutation causes
@@ -540,6 +608,16 @@ one fetch. External URLs appear only in exact JSON bodies. Invalid successful
 mutation responses are indeterminate. The webhook endpoint is text/copy only,
 never a response-controlled link.
 
+Webhook issue is the one non-JSON mutation request: send no body and no
+`Content-Type`. Decode the exact `201 created:true + secret` and
+`200 created:false + null` shapes above, and decode state as either exact
+`configured:false` with all nullable fields null or exact `configured:true` with
+a 22-character id, canonical instant, and endpoint equal to
+`window.location.origin + '/api/connectors/webhook/' + endpointId`. The state
+GET, not an issuance response, selects the active id. An exact import operation
+receipt remains visible across ordinary catalogue refresh, but a lifecycle
+response may never override a newer authoritative webhook pointer.
+
 Implement explicit state machines. File: select exact object -> preview ->
 review -> distinct confirm reusing object/token; any file event, epoch change,
 unmount, or server replay refusal clears preview/token. Expiry is server-decided;
@@ -549,6 +627,14 @@ response clears consumed credentials and shows indeterminate/check-memory
 guidance. Webhook loads both catalogue and authoritative dedicated state. A lost
 issue response refetches; configured-without-secret requires explicit revoke then
 issue. Lost revoke refetches and never retries automatically.
+
+For issue, hold the decoded secret in a non-rendered provisional local until the
+one mandatory state GET confirms the exact same id/endpoint/configured time;
+only then open the acknowledgement modal. A different active pointer wins and
+destroys the provisional secret. A state error destroys it and renders
+indeterminate guidance. This is point-in-time visible-state arbitration only:
+copy must retain Task 6's truthful process-local issuance/revocation limits and
+must not imply globally linearizable setup.
 
 Show the one-time webhook endpoint and secret in a portalled modal with separate
 COPY controls and explicit acknowledgement. Contain focus; make Shell navigation
@@ -594,7 +680,7 @@ VoiceDock with no horizontal overflow.
 - [ ] **Step 6: Commit the real connector UI**
 
 ```bash
-git add src/api/router.ts src/auth/voice-binding.ts web/src/app/routes/connectors.tsx web/src/app/routes/developers.tsx web/src/app/RouteBody.tsx web/src/app/routes.ts web/src/app/Shell.tsx web/src/app/product-contracts.ts web/src/design/connectors.ts web/src/landing/Conn.tsx web/src/app/routes/context.tsx web/src/onboarding/Onboarding.tsx web/src/app/routes/Dashboard.tsx web/src/App.tsx web/src/api/connectors.ts web/src/styles.css tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts
+git add src/api/router.ts src/auth/voice-binding.ts web/src/app/routes/connectors.tsx web/src/app/routes/developers.tsx web/src/app/RouteBody.tsx web/src/app/routes.ts web/src/app/Shell.tsx web/src/app/product-contracts.ts web/src/api/session-state.ts web/src/api/session.tsx web/src/api/auth.ts web/src/design/connectors.ts web/src/landing/Conn.tsx web/src/app/routes/context.tsx web/src/onboarding/Onboarding.tsx web/src/app/routes/Dashboard.tsx web/src/app/routes/system.tsx web/src/App.tsx web/src/api/connectors.ts web/src/styles.css tests/unit/connectors-api.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-connectors.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts
 git commit -m "feat(connectors): expose truthful private import workflows"
 ```
 

@@ -4,7 +4,7 @@
 
 **Goal:** Let a newly authenticated user create a workspace, preview and store a real first source, and execute a suggested private question with evidence before entering the main shell.
 
-**Architecture:** A pure onboarding state machine derives its resume phase from the durable session and real workspace question index. A new authenticated preview route shares normalization and extraction with private ingest but never writes. The onboarding UI reuses the connector file-preparation path and the existing private question/Ask APIs rather than creating a second memory system.
+**Architecture:** A pure onboarding state machine derives its resume phase from a durable account completion bit and a real workspace question index. A new authenticated preview route shares normalization and extraction with private ingest but never writes, then issues a short-lived session/workspace/input-bound token that the store route must consume. Authenticated reads always use `workspaceCollection(account.email)`; the user-chosen workspace label is presentation only, and only explicit `/api/explore/*` routes may access the public corpus. The onboarding UI reuses the connector file-preparation path and explicit private question/Ask APIs rather than creating a second memory system.
 
 **Tech Stack:** TypeScript, React, HydraDB Cloud, existing JSON/CSRF client, Vitest.
 
@@ -13,11 +13,14 @@
 ## Global Constraints
 
 - Workspace identity comes only from the authenticated account.
+- A workspace label never selects data. Authenticated reads/writes always use the current account collection; only `/api/explore/*` may use bundled/public data.
 - Workspace creation, preview, ingest, and Ask are separate durable operations.
+- Workspace creation does not complete onboarding. Completion is an exact-readback account mutation after a terminal private Ask or explicit Skip; guards use `session.onboarded`.
 - No sample fact is stored without an explicit `Use an example` and `Store` action.
-- Preview and store must share title/text normalization.
+- Preview and store share title/text normalization and a short-lived token bound to the current session binding, workspace digest, normalized input digest, version, and nonce. It is process-locally consumed and cross-instance retries rely only on deterministic upsert convergence; no global one-time claim is made.
 - A timed-out write is reported as ambiguous, not as definitely absent.
-- Existing accounts with a workspace must not be forced through onboarding again.
+- Existing legacy accounts already marked `onboarded: true` must not be forced through onboarding again.
+- Session/account-binding changes abort and discard every pending preview, ingest, file, question, and answer result before it can update UI or write.
 - Heavy verification runs with one worker.
 
 ---
@@ -26,16 +29,31 @@
 
 **Files:**
 - Create: `src/api/extraction-preview.ts`
+- Create: `src/api/onboarding-preview-token.ts`
 - Modify: `src/api/ingest.ts`
+- Modify: `src/api/workspace.ts`
 - Modify: `src/api/router.ts`
+- Modify: `api/index.ts`
 - Test: `tests/unit/onboarding-api.test.ts`
 - Test: `tests/unit/ingest-source.test.ts`
+- Create: `tests/unit/workspace-api.test.ts`
 
 **Interfaces:**
 - Produces: `prepareSourceInput(title, rawText): PreparedSourceInput | IngestFailure`
 - Produces: `previewSource(prepared): ExtractionPreview`
 - Adds: `POST /api/workspace/ingest/preview`
-- Reuses: `workspaceCollection(account.email)` and existing CSRF/session checks
+- Adds: a dedicated onboarding preview-token service derived with exact domain `lacuna:onboarding-preview:v1\0`
+- Reuses: `workspaceCollection(account.email)` plus exact Origin/CSRF/current-session/session-binding checks
+
+- [ ] **Step 0: Write and fix the private/public isolation regression**
+
+Prove an authenticated account whose presentation label is literally
+`acme / backend` still reads only `workspaceCollection(account.email)`. Prove an
+expired session and an account swap can never return public/demo questions,
+answers, evidence, or source rows through a private route. Remove every
+label-based data branch from `ApiRouter.#viewFor` and `src/api/workspace.ts`; a
+missing private session returns `401`, not an empty view or public fallback.
+Keep public data reachable only through explicit `/api/explore/*` routes.
 
 - [ ] **Step 1: Write source-normalization parity tests**
 
@@ -52,11 +70,18 @@ Cover empty title/text, title truncation, source truncation, CRLF normalization,
 
 - [ ] **Step 2: Write authenticated preview route tests**
 
-Require `401` without a session, `403` without valid CSRF, `400` for malformed input, and `200` for a real statement. Inject an ingest spy and assert the preview route never invokes it. Assert any request body field named `workspace` or `collection` is ignored and absent from the response.
+Require exact configured Origin, valid CSRF, current session, and session binding
+before body/extraction: `401` without/currently-invalid session, `403` for wrong
+Origin/CSRF/binding, `400` for malformed input, `429` for a dedicated
+workspace-keyed preview quota, `503` when the complete token service is absent,
+and `200` for a real statement. Inject extraction,
+quota, and ingest spies to prove every refusal performs zero extraction/write.
+Reject—not ignore—`workspace`, `collection`, and every unknown body field. An
+account swap during extraction discards the response.
 
 - [ ] **Step 3: Run the preview tests and verify RED**
 
-Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/ingest-source.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts --maxWorkers=1`
 
 Expected: missing module and route failures.
 
@@ -74,24 +99,47 @@ interface ExtractionPreview {
   }[];
   readonly unread: readonly { quote: string; reason: string }[];
 }
+
+interface AuthenticatedExtractionPreview extends ExtractionPreview {
+  readonly previewToken: string;
+  readonly expiresAt: string;
+}
 ```
 
-The preview route uses the same body limit as private ingest, applies the existing private read limiter rather than the write quota, and returns `Cache-Control: no-store`.
+`previewSource` remains pure and returns `ExtractionPreview`; the authenticated
+route wraps it as `AuthenticatedExtractionPreview`. The token is an
+authenticated, expiring capability bound to the current session
+token hash, server-derived workspace digest, normalized title/text digest,
+schema version, and a random nonce. Derive its signing subkey from the validated
+file-preview root key with the exact domain above; never reuse the file-token
+MAC domain or fall back to Hydra/session/OAuth material. Its replay cache is
+explicitly bounded/process-local; a cross-instance
+retry is not globally prevented and must converge through deterministic upsert.
+Never store it in browser persistence or logs. The route uses the same
+body limit as private ingest, a new bounded workspace-keyed preview quota (not
+the public address limiter), and returns `Cache-Control: no-store` plus `nosniff`.
 
 - [ ] **Step 5: Make ingest consume `PreparedSourceInput`**
 
-Keep the exported `ingestSource` signature compatible, but have it call `prepareSourceInput` before extraction. Add an internal `ingestPreparedSource` function so connector and onboarding code can prove preview/store digest parity without duplicating normalization.
+Keep the exported `ingestSource` signature compatible, but have it call
+`prepareSourceInput` before extraction. Add an internal `ingestPreparedSource`
+function so connector and onboarding code can prove preview/store digest parity
+without duplicating normalization. The private store route accepts exact
+`{ title, text, previewToken, awaitSearchable: true }`, reparses/reprepares the
+input, verifies the current session/workspace/digest/expiry/nonce binding, then
+acquires the private write quota and revalidates the session immediately before
+the first durable write. A used/replayed/foreign/stale token performs zero writes.
 
 - [ ] **Step 6: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/ingest-source.test.ts tests/unit/extract.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts tests/unit/extract.test.ts --maxWorkers=1`
 
 Expected: all focused tests pass.
 
 - [ ] **Step 7: Commit the preview boundary**
 
 ```bash
-git add src/api/extraction-preview.ts src/api/ingest.ts src/api/router.ts tests/unit/onboarding-api.test.ts tests/unit/ingest-source.test.ts
+git add src/api/extraction-preview.ts src/api/onboarding-preview-token.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts api/index.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts
 git commit -m "feat(onboarding): preview private memory before ingest"
 ```
 
@@ -101,44 +149,78 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 
 **Files:**
 - Modify: `src/api/ingest.ts`
+- Modify: `src/api/workspace.ts`
 - Modify: `src/api/router.ts`
+- Modify: `api/index.ts`
+- Modify: `web/src/api/client.ts`
 - Test: `tests/unit/ingest-source.test.ts`
 - Test: `tests/unit/onboarding-api.test.ts`
+- Test: `tests/unit/workspace-api.test.ts`
 
 **Interfaces:**
-- Adds: `IngestOptions.awaitSearchable?: boolean`
-- Adds: `IngestReport.searchable: boolean`
-- Adds: `IngestReport.indexing: readonly { id: string; status: string }[]`
-- Consumes: `HydraCloud.waitForIndexing(ids, options)`
+- Extends: existing `IngestPreparedOptions` with one absolute deadline and `maxRecords: 25`
+- Reuses: aggregate `IngestPreparedReport.searchable` / `indexing` without exposing Hydra ids
+- Adds: `GET /api/workspace/questions` backed by bounded live workspace claims
+- Consumes: `HydraCloud.waitForIndexing(ids, options)` under the same settlement deadline
 
 - [ ] **Step 1: Add a queued-receipt readiness regression**
 
-Use a fake cloud that returns accepted `queued` receipts and later terminal `completed` statuses. Assert `awaitSearchable: true` polls and reports `searchable: true`. Add a deadline case that reports `searchable: false` without claiming the write failed.
+Use a fake cloud that returns accepted `queued` receipts and later terminal
+`completed` statuses. Assert `awaitSearchable: true` polls and reports
+`searchable: true`. Add an accepted-but-readiness-deadline case that reports
+`searchable: false` without claiming the write failed, and a submitted-write
+transport-loss case that reports `indeterminate` rather than known zero. Prove
+graph output above 25 records refuses before any write and every local queue or
+Hydra call ends by the absolute deadline.
 
 - [ ] **Step 2: Add an API regression for delayed suggestions**
 
-After a private ingest whose searchability deadline expires, assert the response is successful with `searchable: false` and the UI-facing message can say indexing continues. After terminal completion, assert `GET /api/workspace/questions` returns real subject/predicate entries and private Ask returns evidence.
+After a private ingest whose searchability deadline expires, assert the response
+preserves accepted counts with `searchable: false` and UI-safe reconciliation
+state. A submitted write with no exact receipt returns an explicit ambiguous
+state. In either case the client disables Store for that digest and never
+automatically resubmits. After terminal completion, assert
+`GET /api/workspace/questions` returns at most three deterministic suggestions
+from real live non-slot claims. Distinguish `401` session loss,
+`503` provider/indexing uncertainty, and an honest `200 []`; never turn failure
+into empty. Private Ask must return evidence only through the authenticated
+workspace route.
 
 - [ ] **Step 3: Run focused tests and verify RED**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts --maxWorkers=1`
 
 Expected: missing options/report fields.
 
 - [ ] **Step 4: Implement bounded indexing readiness**
 
-Collect accepted record ids already validated by `assertCompleteReceipts`. When `awaitSearchable` is true, call `waitForIndexing` with a 45-second deadline and 1-second interval. Mark `searchable` only when every accepted id has terminal status `completed`; keep queued/time-limited writes successful but not searchable. Never return internal collection names in the router JSON.
+Capture one server settlement deadline before body acquisition. Allocate at most
+10 seconds to body/token/quota/preparation, 20 seconds to the bounded workspace
+queue and pre-write index/entity reads, 120 seconds to the one Hydra POST, and
+30 seconds to readiness; hard-stop the route by 180 seconds. Pass the remaining
+budget/signal through production composition in `api/index.ts`. Set the browser
+mutation timeout above the complete server budget (195 seconds), while keeping
+abort/account-swap cancellation distinct from a server-side indeterminate
+receipt. Collect accepted record ids only internally and validate complete
+receipts. Mark `searchable` only when every accepted id reaches `completed`;
+keep confirmed queued/time-limited writes accepted but not searchable. Return
+only aggregate counts/state—never Hydra ids or collection names.
+
+Implement the question index in `src/api/workspace.ts` from the exact
+workspace-scoped current claim views used by Ask. Exclude slot/synthetic,
+historical, retracted, contradicted, malformed, and missing-evidence claims;
+stable-sort and cap the provider reads and serialized response at three items.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
 
 Expected: all tests pass and private context failures remain fail-closed.
 
 - [ ] **Step 6: Commit searchability readiness**
 
 ```bash
-git add src/api/ingest.ts src/api/router.ts tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts
+git add src/api/ingest.ts src/api/workspace.ts src/api/router.ts api/index.ts web/src/api/client.ts tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts
 git commit -m "feat(onboarding): wait for first memory to become searchable"
 ```
 
@@ -147,40 +229,56 @@ git commit -m "feat(onboarding): wait for first memory to become searchable"
 ### Task 3: Resumable three-phase onboarding state machine
 
 **Files:**
+- Modify: `src/auth/accounts.ts`
+- Modify: `src/auth/store.ts`
+- Modify: `src/api/router.ts`
 - Create: `web/src/onboarding/state.ts`
 - Modify: `web/src/onboarding/Onboarding.tsx`
 - Modify: `web/src/api/session.tsx`
+- Modify: `web/src/landing/account-actions.ts`
 - Test: `tests/unit/onboarding-state.test.ts`
 - Test: `tests/unit/web-product-contracts.test.ts`
+- Test: `tests/unit/landing-session.test.ts`
+- Test: `tests/unit/auth-api.test.ts`
 
 **Interfaces:**
 - Produces: `OnboardingPhase = 'workspace' | 'memory' | 'ask' | 'complete'`
 - Produces: `initialOnboardingState(session, questions): OnboardingState`
 - Produces: pure `advanceOnboarding(state, event): OnboardingState`
+- Adds: `POST /api/workspace/onboarding/complete` with exact readback
 - Consumes: `/api/workspace`, `/api/workspace/ingest/preview`, `/api/workspace/ingest`, `/api/workspace/questions`
 
 - [ ] **Step 1: Write state-machine regressions**
 
 ```ts
 it('does not recreate a durable workspace after ingest failure', () => {
-  let state = initialOnboardingState({ workspace: null }, []);
+  let state = initialOnboardingState({ workspace: null, onboarded: false }, []);
   state = advanceOnboarding(state, { type: 'workspace_created', name: 'Atlas' });
   state = advanceOnboarding(state, { type: 'ingest_failed', message: 'retry' });
   expect(state.phase).toBe('memory');
   expect(state.workspaceCreated).toBe(true);
 });
 
-it('resumes at Ask when a workspace already has real questions', () => {
-  const state = initialOnboardingState({ workspace: 'Atlas' }, [QUESTION]);
+it('resumes at Ask when an unfinished workspace has real questions', () => {
+  const state = initialOnboardingState({ workspace: 'Atlas', onboarded: false }, [QUESTION]);
   expect(state.phase).toBe('ask');
 });
 ```
 
-Cover empty-workspace resume, explicit skip, example insertion without storage, preview success, indexing pending, and answer completion.
+Cover empty-workspace resume, durable completed legacy/current accounts, explicit
+skip before and after refresh, example insertion without storage, preview
+success, `indexing_pending`, ambiguous ingest, terminal answer completion, Back,
+refresh, and account-binding change. A session with `onboarded: true` is complete;
+workspace presence alone never is.
 
 - [ ] **Step 2: Update source-contract tests for consequential steps**
 
-Remove assertions for the old five status slides. Require `CREATE WORKSPACE`, `ADD FIRST MEMORY`, `ASK WITH EVIDENCE`, explicit `USE AN EXAMPLE`, and explicit `SKIP FOR NOW`. Forbid any effect that posts the example on mount.
+Remove assertions for the old five status slides. Require `CREATE WORKSPACE`,
+`ADD FIRST MEMORY`, `ASK WITH EVIDENCE`, explicit `USE AN EXAMPLE`, and explicit
+`SKIP FOR NOW`. Forbid any effect that posts the example on mount. Add rendered
+tests for semantic labels/forms, `aria-live` progress/errors, deterministic
+focus after phase/error changes, keyboard Back/Skip/Store/Ask, disabled/busy
+double-submit protection, and no horizontal blocking at 320 CSS pixels.
 
 - [ ] **Step 3: Run state/UI tests and verify RED**
 
@@ -190,32 +288,79 @@ Expected: state module and new UI contract are absent.
 
 - [ ] **Step 4: Implement phase one and durable resume**
 
-Post the workspace once, await `session.refresh()`, and transition to memory. On mount, if session workspace is non-null, fetch questions: non-empty resumes at ask, empty resumes at memory. Workspace failure stays in workspace; later failures never call workspace creation again.
+Change workspace creation so it never flips `onboarded` to true. Preserve legacy
+accounts that already have `onboarded: true`. Post the workspace once, await a
+`session.refresh()` that returns the validated new `SessionState`, and transition
+to memory. On mount: `onboarded: true` is complete; otherwise workspace-null is
+workspace, and workspace-present fetches questions to resume at ask, memory, or
+explicit provider/indexing error. Workspace failure stays in workspace; later
+failures never call workspace creation again.
+
+Harden workspace creation itself with configured exact Origin, CSRF, current
+session, matching session binding, exact body, and a bounded workspace-keyed
+mutation quota before parsing/mutation; revalidate the account immediately
+before its exact-readback write. Wrong Origin, stale binding, quota exhaustion,
+or account swap performs zero mutation.
+
+Add exact `POST /api/workspace/onboarding/complete` body
+`{ outcome: 'asked' | 'skipped' }`. Require configured exact Origin, CSRF,
+current session, session binding, and a bounded account mutation; persist
+`onboarded: true`, perform exact readback, then refresh. The UI calls it only
+after a terminal private Ask or an explicit Skip and does not render completion
+until readback succeeds.
 
 - [ ] **Step 5: Implement paste preview and explicit store**
 
-Keep title/text locally, call preview, render kept and unread sentences, and enable `STORE THIS MEMORY` only when preview has at least one kept statement. Send the same title/text plus expected `inputDigest` to private ingest with `awaitSearchable: true`. If the request times out, retain the text and say the save may still finish.
+Keep title/text and the preview token in component memory only, call preview,
+render kept and unread sentences, and enable `STORE THIS MEMORY` only when the
+latest binding-matched preview has at least one kept statement. Send the exact
+same title/text plus `previewToken` to private ingest with
+`awaitSearchable: true`. For accepted-but-unsearchable or indeterminate results,
+retain the text, disable Store for that digest, enter a visible reconciliation
+state, and never automatically resubmit.
 
-`USE AN EXAMPLE` inserts labelled editable text only. `SKIP FOR NOW` transitions to a truthful empty state and offers Memory or Connectors navigation.
+`USE AN EXAMPLE` inserts labelled editable text only. `SKIP FOR NOW` calls the
+durable completion endpoint; only its exact-readback success transitions to a
+truthful empty state with Memory or Connectors navigation.
 
 - [ ] **Step 6: Integrate file preparation from the connector plan**
 
-Keep the selected `File` object in component state. Call `/api/workspace/connectors/file/preview`, render its extraction preview, then resend the same file and expected SHA-256 digest to `/api/workspace/connectors/file/import` only after explicit confirmation. Do not create a second parser or upload contract.
+Keep the selected `File` object in component state. Call
+`/api/workspace/connectors/file/preview`, render its extraction preview, then
+resend the same file and server-issued file preview token to
+`/api/workspace/connectors/file/import` only after explicit confirmation. Apply
+the same accepted/unsearchable/indeterminate reconciliation state and never
+automatic retry. Do not create a second parser/upload contract. On refresh,
+state plainly that a local file must be selected again.
 
 - [ ] **Step 7: Fetch at most three real suggestions**
 
-After searchable ingest, poll `/api/workspace/questions` for up to 15 seconds with capped backoff. Store at most three returned entries; if none arrive, show Memory navigation without inventing a question.
+After searchable ingest, poll `/api/workspace/questions` for up to 15 seconds
+with capped backoff. Store at most three returned entries; if none arrive,
+distinguish honest empty from provider/indexing failure and never invent a
+question or invite a duplicate write.
+
+- [ ] **Step 7a: Make session and cross-tab changes monotonic**
+
+Make `refresh()` return the validated `SessionState`; serialize or
+generation-guard overlapping reads so an older response cannot overwrite a
+newer account. Refresh on `visibilitychange`/`pageshow` and a payload-free auth
+`BroadcastChannel` event. Key the onboarding subtree by `session.binding`.
+Abort and discard every preview, ingest, file, question, and answer operation
+when that binding changes; clear all local source/file/token/suggestion state.
+Test swap during preview/ingest/question, two-tab sign-out/sign-in, stale
+response, browser Back, and bfcache restore.
 
 - [ ] **Step 8: Run state/UI tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts --maxWorkers=1`
 
 Expected: all tests pass.
 
 - [ ] **Step 9: Commit the three-phase flow**
 
 ```bash
-git add web/src/onboarding/state.ts web/src/onboarding/Onboarding.tsx web/src/api/session.tsx tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts
+git add src/auth/accounts.ts src/auth/store.ts src/api/router.ts web/src/onboarding/state.ts web/src/onboarding/Onboarding.tsx web/src/api/session.tsx web/src/landing/account-actions.ts tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts
 git commit -m "feat(onboarding): guide first memory into a real answer"
 ```
 
@@ -224,45 +369,68 @@ git commit -m "feat(onboarding): guide first memory into a real answer"
 ### Task 4: Inline private answer and evidence
 
 **Files:**
+- Modify: `src/api/router.ts`
+- Modify: `api/index.ts`
 - Create: `web/src/app/AnswerEvidence.tsx`
 - Modify: `web/src/app/routes/Ask.tsx`
 - Modify: `web/src/onboarding/Onboarding.tsx`
+- Modify: `web/src/api/client.ts`
 - Test: `tests/unit/web-product-contracts.test.ts`
 - Test: `tests/unit/onboarding-state.test.ts`
+- Test: `tests/unit/workspace-api.test.ts`
 
 **Interfaces:**
 - Produces: shared `AnswerEnvelope`, `AnswerEvidenceItem`, and `AnswerEvidence` component
-- Consumes: existing structured `/api/ask` envelope
+- Adds: authenticated `POST /api/workspace/ask` and public `POST /api/explore/ask`
+- Removes: ambiguous `/api/ask` fallback behavior
 - Requires: evidence `quote`, `source`, `meta`, and `standing`
 
 - [ ] **Step 1: Add shared-evidence contract assertions**
 
-Require Ask and Onboarding to import the same component. Require the client evidence type to include `quote`, and require the rendered evidence card to show that quote rather than only source metadata.
+Require Ask and Onboarding to import the same component. Require the client
+evidence type to include `quote`, and require the rendered evidence card to show
+that quote rather than only source metadata. Prove `/api/workspace/ask` requires
+exact configured Origin, CSRF, current session, matching session binding, and a
+dedicated workspace-keyed Ask quota before body/query. An expired session,
+workspace label `acme / backend`, or account swap must never return public
+answers/evidence. `/api/explore/ask` is the only public Ask boundary; legacy
+`/api/ask` refuses rather than guessing scope.
 
 - [ ] **Step 2: Run the UI contracts and verify RED**
 
-Run: `npx vitest run tests/unit/web-product-contracts.test.ts tests/unit/onboarding-state.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/web-product-contracts.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts --maxWorkers=1`
 
 Expected: shared answer component and quote field are absent.
 
 - [ ] **Step 3: Extract the answer renderer**
 
-Move status, answer, abstention/conflict copy, evidence toggle, citations, revisions, and trace metadata from `Ask.tsx` into `AnswerEvidence.tsx`. Preserve current Ask behavior. Add the evidence quote to the typed envelope and render it as text.
+Move status, answer, abstention/conflict copy, evidence toggle, citations,
+revisions, and trace metadata from `Ask.tsx` into `AnswerEvidence.tsx`. Preserve
+the explicit private/public UX while routing by scope to
+`/api/workspace/ask` or `/api/explore/ask`. Add the evidence quote to the typed
+envelope and render it as inert text. Every response is generation/binding
+checked before render.
 
 - [ ] **Step 4: Execute a suggestion inside onboarding**
 
-Post `{ subject, predicate, via }` from the selected server suggestion to `/api/ask`. Render loading, answer, abstention, conflict, or fail-closed system error through `AnswerEvidence`. Only show `OPEN LACUNA` after a terminal response; completion navigates to the relevant Ask or Memory route.
+Post `{ subject, predicate, via }` from the selected server suggestion to
+`/api/workspace/ask` with the current binding. Render loading, answer,
+abstention, conflict, or fail-closed system error through `AnswerEvidence`.
+After a terminal binding-matched response, call the durable onboarding-complete
+endpoint with `outcome: 'asked'`; only exact readback exposes `OPEN LACUNA`.
+Completion navigates to the relevant Ask or Memory route. Session loss/account
+swap aborts and discards the answer and completion call.
 
 - [ ] **Step 5: Run all onboarding and Ask regressions**
 
-Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/workspace-memory-standing.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts tests/unit/web-product-contracts.test.ts tests/unit/workspace-memory-standing.test.ts --maxWorkers=1`
 
 Expected: all tests pass.
 
 - [ ] **Step 6: Commit shared evidence**
 
 ```bash
-git add web/src/app/AnswerEvidence.tsx web/src/app/routes/Ask.tsx web/src/onboarding/Onboarding.tsx tests/unit/web-product-contracts.test.ts tests/unit/onboarding-state.test.ts
+git add src/api/router.ts api/index.ts web/src/app/AnswerEvidence.tsx web/src/app/routes/Ask.tsx web/src/onboarding/Onboarding.tsx web/src/api/client.ts tests/unit/workspace-api.test.ts tests/unit/web-product-contracts.test.ts tests/unit/onboarding-state.test.ts
 git commit -m "feat(onboarding): show first private answer with evidence"
 ```
 
@@ -275,19 +443,24 @@ git commit -m "feat(onboarding): show first private answer with evidence"
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/auth/SignIn.tsx`
 - Modify: `web/src/auth/SignUp.tsx`
-- Modify: `web/src/auth/Recovery.tsx`
+- Modify: `web/src/auth/Forgot.tsx`
+- Modify: `web/src/landing/account-actions.ts`
 - Modify: `web/src/app/routes/Dashboard.tsx`
 - Create: `scripts/smoke-onboarding.ts`
 - Test: `tests/unit/web-product-contracts.test.ts`
 - Test: `tests/unit/auth-api.test.ts`
 
 **Interfaces:**
-- Produces: `RequireWorkspace` redirect for authenticated sessions with `workspace === null`
+- Produces: `RequireWorkspace` redirect for authenticated sessions with `onboarded === false`
 - Produces: `npm run smoke:onboarding`
 
 - [ ] **Step 1: Add routing regressions**
 
-Require authenticated workspace-null sessions to reach `/onboarding`; require existing workspace sessions to keep `/app/*`; require sign-in/recovery success to choose onboarding only when session workspace is null.
+Require every authenticated `onboarded: false` session—workspace null or
+present—to reach `/onboarding`; require `onboarded: true` legacy/current sessions
+to keep `/app/*`. Require password sign-in, Google callback, recovery, landing,
+home return, and direct `/app/*` navigation to choose from the refreshed
+`session.onboarded` value, never workspace presence or a cached browser flag.
 
 - [ ] **Step 2: Run routing tests and verify RED**
 
@@ -297,11 +470,25 @@ Expected: the workspace guard is absent and success paths still route directly t
 
 - [ ] **Step 3: Implement the workspace guard and empty-state links**
 
-Wrap `/app/:route` with `RequireWorkspace`. Preserve `/onboarding` for workspace-null users and permit existing users to open it deliberately. Update dashboard empty actions to real Memory and Connectors routes only after those surfaces exist.
+Wrap `/app` and `/app/:route` with `RequireWorkspace`. Hold while session is
+loading/failed; redirect current unfinished sessions to `/onboarding`; allow
+completed sessions through. Preserve `/onboarding` for unfinished users and
+permit completed users to open it deliberately without resetting durable state.
+Key the guarded onboarding element by session binding so account swaps remount
+cleanly. Update dashboard empty actions to real Memory and Connectors routes
+only after those surfaces exist.
 
 - [ ] **Step 4: Add the serial smoke script**
 
-The script accepts a base URL and test credentials from environment, then performs session read, workspace create, source preview, source ingest with readiness, question fetch, structured private Ask, evidence assertion, and a second session read. It must redact cookies, CSRF values, emails, collection names, and provider bodies from output.
+The script accepts a base URL and disposable test credentials from environment,
+then performs session read, workspace create with the literal label
+`acme / backend`, source preview/token, explicit source ingest with readiness,
+question fetch, structured `/api/workspace/ask`, evidence assertion, durable
+completion, homepage return, and a fresh second session read. It also proves an
+expired session cannot access private questions/Ask and, when a second disposable
+identity is supplied, an account swap sees no first-account data. It must redact
+cookies, CSRF/session-binding values, emails, collection names, source bodies,
+tokens, and provider responses from output.
 
 Add `"smoke:onboarding": "tsx scripts/smoke-onboarding.ts"` to root `package.json`.
 
@@ -313,17 +500,23 @@ Run: `npm --prefix web run typecheck`
 
 Run: `npm run build`
 
-Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-state.test.ts tests/unit/auth-api.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/landing-session.test.ts tests/unit/web-auth-client.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
 
 Expected: all commands exit zero.
 
 - [ ] **Step 6: Production-test after the combined preview deployment**
 
-Use a fresh authorized test identity or a clean dedicated test account. Complete workspace creation, preview, explicit store, suggested Ask, evidence display, refresh, and session revalidation in the browser. Run the smoke script against the immutable deployment and capture only redacted states/statuses.
+Use a fresh authorized test identity or a clean dedicated test account. Complete
+Google/password entry as applicable, workspace creation, preview, explicit
+store, suggested private Ask, evidence display, completion, homepage return,
+hard refresh, bfcache Back/Forward, visibility restore, and a second-tab session
+revalidation in the browser at desktop and 320 CSS-pixel layouts. Verify focus,
+keyboard operation, live errors, and file-reselection disclosure. Run the smoke
+script against the immutable deployment and capture only redacted states/statuses.
 
 - [ ] **Step 7: Commit the first-run gate**
 
 ```bash
-git add web/src/app/RequireWorkspace.tsx web/src/App.tsx web/src/auth/SignIn.tsx web/src/auth/SignUp.tsx web/src/auth/Recovery.tsx web/src/app/routes/Dashboard.tsx scripts/smoke-onboarding.ts package.json tests/unit/web-product-contracts.test.ts tests/unit/auth-api.test.ts
+git add web/src/app/RequireWorkspace.tsx web/src/App.tsx web/src/auth/SignIn.tsx web/src/auth/SignUp.tsx web/src/auth/Forgot.tsx web/src/landing/account-actions.ts web/src/app/routes/Dashboard.tsx scripts/smoke-onboarding.ts package.json tests/unit/web-product-contracts.test.ts tests/unit/auth-api.test.ts tests/unit/landing-session.test.ts tests/unit/web-auth-client.test.ts
 git commit -m "feat(onboarding): enforce and verify first workspace setup"
 ```

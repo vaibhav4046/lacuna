@@ -55,7 +55,7 @@ an internal prioritization score, not an official judge score or a prediction.
 
 ## Release verdict
 
-For the protected `a3c6a6c…` / `dpl_CTX86…` release, the recorded product gates and
+For the protected `38d2672…` / `dpl_AbYNdV…` release, the recorded product gates and
 fresh public probes expose no known CRITICAL or HIGH defect on the anonymous
 judge path. That statement is scoped to the accepted immutable deployment; it
 does not grant later local auth changes a production pass.

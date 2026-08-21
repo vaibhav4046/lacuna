@@ -40,13 +40,13 @@ Production: <https://lacuna-five.vercel.app>
 
 | Surface | Evidence accepted for the current production deployment |
 | --- | --- |
-| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The hardened release probe measured the context store ready in 176 ms. |
+| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The final stable-domain smoke measured the context store ready in 92 ms. |
 | Public graph | `GET /api/explore/graph?mode=overview&limit=1` returned 453 total nodes, 682 total edges, zero orphan edges and a signed next cursor on 2026-08-21. |
 | Public MCP | `POST /mcp` with `tools/list` returned seven read-only tools on 2026-08-21: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health`. |
 | Web | The accepted production sweep passed web smoke 9/9 and demo smoke 30/30. |
 | Route/browser matrix | Production passed 198/198 normal-motion and 198/198 reduced-motion checks: 22 routes at nine viewports, zero console errors, exceptions, failed requests or horizontal overflow. |
 | Landing motion | The exact release passed eight local viewports, 20/20 distinct desktop stages, 7/7 priority mobile scenes, a 29/29 manifest and reduced motion 6/6. The promoted production landing was then recaptured at desktop and mobile widths. |
-| Google auth boundary | The deployed pre-chooser security sweep passed 15/15: Google origin, exact callback, identity-only scopes, PKCE S256, nonce/state binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. |
+| Google auth boundary | The deployed pre-chooser security sweep passed 16/16: Google origin, exact callback, identity-only scopes, request-bound PKCE S256 and state, nonce binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. Overlapping attempts retain separate proof cookies and repeated starts are bounded. |
 | Password account | Hosted password creation is deliberately disabled because the HydraDB document boundary cannot atomically enforce a unique email. A historical 12/12 run exists for an existing password identity; it is not the current signup path. |
 | Surface continuity | The deployed web endpoint, cloud-pointed Lacuna CLI and a Lacuna MCP process returned identical results for six outcome classes in `artifacts/continuity/one-context.json`. This is the same temporal read contract across those three surfaces, not a ChatGPT or Claude proof. |
 | ChatGPT public MCP | The ChatGPT Lacuna app called health, ask, timeline, explain, sentence read, search and fetch on the production endpoint. It resolved a temporal correction, exposed a two-source conflict, abstained on it, and returned a connector artifact. |
@@ -64,13 +64,14 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-Deployment `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h` is the accepted production
-deployment for product commit `a3c6a6c1682088ea9a397af178dd80894ca77a92`.
-Root typecheck, 84 unit files / 1,380 tests, the 124-module production build,
-web 9/9, demo/API 30/30, Google boundary 15/15, public-agent 403 probes, and
-normal/reduced route sweeps of 198/198 all target this product tree. The stable
-alias points to the immutable URL
-`https://lacuna-8fvg3jka2-vaibhav4046s-projects.vercel.app`. The seven-tool
+Deployment `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8` is the accepted production
+deployment for product commit `38d2672f93f6a54cffa3b5e5973ab312bd525147`.
+Root typecheck, 84 unit files / 1,384 tests, the 124-module production build,
+web 9/9, demo/API 30/30, Google boundary 16/16 and public-agent 403 probes all
+target this product tree. The earlier normal/reduced route sweeps of 198/198
+remain structural evidence; the final sign-in and first-use copy were checked
+directly in Chrome after promotion. The stable alias points to the immutable URL
+`https://lacuna-7y4m5dwws-vaibhav4046s-projects.vercel.app`. The seven-tool
 ChatGPT public connector proof targets the same public contract. A media render
 does not grant a product gate; the V10 film remains a separate artifact with its
 own acceptance steps.
@@ -84,7 +85,7 @@ own acceptance steps.
 | Claude / Claude Code | The remote endpoint is protocol-shaped. No accepted Claude-to-Lacuna session exists yet. |
 | Public agent preview | Accepted run records are readable. Production refuses anonymous run creation with `403 public_preview_read_only`; signed-in workspace runs remain implemented behind session, CSRF and durable workspace budgets. |
 | Private MCP write | Candidate code issues a random digest-only bearer with `createdAt` and `expiresAt`; it fails at the 30-day expiry or on earlier revocation. `Authorization: Bearer` at `/mcp` is preferred because `/mcp/w/<capability>` URLs may be logged. Version-1 capabilities fail closed and must be reminted after rollout. A production issue/use/revoke/expiry proof remains required. |
-| Google sign-in | The production boundary is accepted 15/15 through the real Google account chooser. Selecting a human identity and accepting a fresh provider callback remain owner actions. |
+| Google sign-in | The production boundary is accepted 16/16 through the real Google account chooser. Selecting a human identity and accepting a fresh provider callback remain owner actions. |
 | Voice | Browser states and provider routes are not an accepted provider-backed production audio session. Typed Ask is the supported fallback. |
 | Scheduler | Daily definitions are persisted. The hosted adapter does not claim distributed exactly-once execution. |
 | Connector catalogue | `AVAILABLE`: Text and Custom ingestion. `PLANNED`: GitHub, GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API, Webhook and Database source. None is `CONNECTED` or `SYNCING`. Spotify is not catalogued or implemented. |

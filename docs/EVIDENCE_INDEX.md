@@ -9,13 +9,13 @@ not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, accepted product tree | 84 files, 1,380 tests passed | terminal run on 2026-08-21 after credential/profile isolation |
+| full unit gate, accepted product tree | 84 files, 1,384 tests passed | terminal run on 2026-08-21 after overlapping-attempt isolation and first-use copy cleanup |
 | root and web typecheck | both exit 0 | terminal run on 2026-08-21 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
 | native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
 | accepted public agent record | completed, 8 lifecycle events; readable evidence with no authoritative memory writeback | production Work and Agents screens |
-| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
 | connector truth table | `AVAILABLE`: Text, Custom ingestion; all catalogued external/file/data connectors are `PLANNED`; Spotify is absent | `web/src/design/connectors.ts` |
@@ -40,7 +40,7 @@ not transfer without a named rerun.
 
 | Claim | Current evidence | Required before it becomes public proof |
 | --- | --- | --- |
-| Google sign-in completes for a human identity | accepted 15/15 pre-chooser boundary | human identity selection and accepted fresh callback |
+| Google sign-in completes for a human identity | accepted 16/16 pre-chooser boundary | human identity selection and accepted fresh callback |
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
 | voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |

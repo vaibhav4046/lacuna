@@ -434,11 +434,11 @@
     },
     {
       "id": "google-auth",
-      "claim": "The deployed Google sign-in boundary uses provider/subject binding, signed-token verification, PKCE S256, nonce/state binding, hardened cookies and non-cacheable redirects; its pre-chooser production gate passed 15/15.",
+      "claim": "The deployed Google sign-in boundary uses provider/subject binding, signed-token verification, request-bound PKCE S256 and state, nonce binding, isolated overlapping attempts, hardened cookies and non-cacheable redirects; its pre-chooser production gate passed 16/16.",
       "capability": "PARTIAL",
       "data": "LIVE",
       "measured": {
-        "production_boundary_checks": "15/15",
+        "production_boundary_checks": "16/16",
         "account_chooser_reached": true,
         "completed_provider_callback": false
       },
@@ -484,7 +484,7 @@
         "public_error": "public_preview_read_only",
         "signed_in_workspace_run_status": 200,
         "fresh_production_acceptance": true,
-        "deployment_id": "dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h"
+        "deployment_id": "dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8"
       },
       "evidence": [
         "src/api/router.ts",

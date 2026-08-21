@@ -7,7 +7,7 @@ dated evidence.
 
 ## Accepted product gate
 
-- 84 unit test files and 1,380 tests passed with no skips.
+- 84 unit test files and 1,384 tests passed with no skips.
 - Root and web TypeScript checks pass.
 - The production web bundle builds from 124 modules. The entry is 286.94 kB,
   94.25 kB gzip.
@@ -64,9 +64,9 @@ dated evidence.
 ## Accepted production
 
 The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
-deployment `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h`, built from product commit
-`a3c6a6c1682088ea9a397af178dd80894ca77a92`. Web passed 9/9, demo/API passed
-30/30, Google OAuth's pre-chooser boundary passed 15/15, and both normal and
+deployment `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8`, built from product commit
+`38d2672f93f6a54cffa3b5e5973ab312bd525147`. Web passed 9/9, demo/API passed
+30/30, Google OAuth's pre-chooser boundary passed 16/16, and both normal and
 reduced-motion route sweeps passed 198/198. The anonymous-agent 403 boundary
 was also probed directly on that deployment. The public release branch contains
 the exact accepted product source; publication to `main` remains a release

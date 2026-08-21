@@ -11,14 +11,14 @@ was uploaded or the form was submitted.
 | Item | Accepted value |
 | --- | --- |
 | Track | 03 — Memory and Context Retrieval |
-| Product commit | `a3c6a6c1682088ea9a397af178dd80894ca77a92` |
+| Product commit | `38d2672f93f6a54cffa3b5e5973ab312bd525147` |
 | Acceptance-doc commit | `695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf` |
-| Immutable deployment | `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h` |
-| Immutable URL | <https://lacuna-8fvg3jka2-vaibhav4046s-projects.vercel.app> |
+| Immutable deployment | `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8` |
+| Immutable URL | <https://lacuna-7y4m5dwws-vaibhav4046s-projects.vercel.app> |
 | Stable URL | <https://lacuna-five.vercel.app> |
 | No-account judge path | <https://lacuna-five.vercel.app/judge> |
 | Public repository | <https://github.com/vaibhav4046/lacuna> |
-| Public `main` at final audit | `695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf` |
+| Public `main` at release probe | `38d2672f93f6a54cffa3b5e5973ab312bd525147` |
 
 The machine-readable release probe is
 [`artifacts/submission/v10-exact-release-probe.json`](../artifacts/submission/v10-exact-release-probe.json).

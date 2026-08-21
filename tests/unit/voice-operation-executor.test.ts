@@ -64,7 +64,7 @@ function refused(): VoiceOperationPlan {
     requiresConfirmation: false,
     available: false,
     reason: 'unsupported_command',
-    display: 'That command is not supported.',
+    display: 'That command is not supported. Try navigation, a summary, a question, remember, or Researcher work.',
   };
 }
 
@@ -76,9 +76,15 @@ interface FetchCall {
 function harness(responder: (path: string, init: RequestInit) => Response | Promise<Response>) {
   const calls: FetchCall[] = [];
   const navigate = vi.fn<(path: string) => void>();
+  let queuedPlan: VoiceOperationPlan | null = null;
   const fetchImpl = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const path = String(input);
     calls.push({ path, init });
+    if (path === '/api/workspace/voice/intent' && queuedPlan !== null) {
+      const response = queuedPlan;
+      queuedPlan = null;
+      return json(response);
+    }
     return responder(path, init);
   }) as unknown as typeof fetch;
   const executor = new VoiceOperationExecutor({
@@ -87,7 +93,18 @@ function harness(responder: (path: string, init: RequestInit) => Response | Prom
     randomUUID: () => REQUEST_ID,
     csrfToken: () => CSRF,
   });
-  return { calls, executor, navigate };
+  const trust = async (
+    plan: VoiceOperationPlan,
+    currentRoute = '/app/dash',
+  ): Promise<VoiceOperationPlan> => {
+    queuedPlan = plan;
+    try {
+      return await executor.plan('bounded command', currentRoute);
+    } finally {
+      queuedPlan = null;
+    }
+  };
+  return { calls, executor, navigate, trust };
 }
 
 function json(value: unknown, status = 200): Response {
@@ -220,6 +237,60 @@ describe('voice operation planning boundary', () => {
     });
     expect(publicWrite.calls).toHaveLength(1);
   });
+
+  it('fails closed when contextual plans are copied but executes the exact validated object', async () => {
+    const publicOperation = {
+      version: 1, kind: 'remember', text: 'Atlas is owned by Priya.',
+    } as const;
+    const publicWrite = harness((path) => path.endsWith('/voice/intent')
+      ? json(planned(publicOperation, { available: false, reason: 'public_read_only' }))
+      : json({ ok: true, claims: 1 }));
+    const publicPlan = await publicWrite.executor.plan(
+      'remember Atlas is owned by Priya.',
+      '/explore/dash',
+    );
+    const copiedPublicPlan = {
+      ...publicPlan,
+      available: true,
+      reason: null,
+      display: formatVoicePreview(publicOperation),
+    };
+    await expect(publicWrite.executor.execute(copiedPublicPlan)).resolves.toMatchObject({
+      status: 'refused', failure: 'invalid_plan',
+    });
+    expect(publicWrite.calls).toHaveLength(1);
+
+    const navigationOperation = { version: 1, kind: 'navigate', route: 'graph' } as const;
+    const sameRoute = harness(() => json(planned(navigationOperation, {
+      available: false, reason: 'already_on_route',
+    })));
+    const navigationPlan = await sameRoute.executor.plan('go to graph', '/app/graph');
+    const copiedNavigationPlan = {
+      ...navigationPlan,
+      available: true,
+      reason: null,
+      display: formatVoicePreview(navigationOperation),
+    };
+    await expect(sameRoute.executor.execute(copiedNavigationPlan)).resolves.toMatchObject({
+      status: 'refused', failure: 'invalid_plan',
+    });
+    expect(sameRoute.calls).toHaveLength(1);
+    expect(sameRoute.navigate).not.toHaveBeenCalled();
+
+    const privateWrite = harness((path) => path.endsWith('/voice/intent')
+      ? json(planned(publicOperation))
+      : json({ ok: true, claims: 1 }));
+    const exactPlan = await privateWrite.executor.plan(
+      'remember Atlas is owned by Priya.',
+      '/app/dash',
+    );
+    await expect(privateWrite.executor.execute(exactPlan)).resolves.toMatchObject({
+      status: 'succeeded', observedCount: 1,
+    });
+    expect(privateWrite.calls.map((call) => call.path)).toEqual([
+      '/api/workspace/voice/intent', '/api/workspace/ingest',
+    ]);
+  });
 });
 
 describe('exhaustive operation allowlist', () => {
@@ -240,72 +311,89 @@ describe('exhaustive operation allowlist', () => {
     ] as const;
 
     for (const [resource, path] of summaries) {
-      const { calls, executor } = harness(() => json([{}, {}]));
-      const result = await executor.execute(planned({ version: 1, kind: 'summarize', resource }));
+      const { calls, executor, trust } = harness(() => json([{}, {}]));
+      const plan = await trust(planned({ version: 1, kind: 'summarize', resource }));
+      const result = await executor.execute(plan);
       expect(result).toMatchObject({ status: 'succeeded', observedCount: 2 });
-      expect(calls.map((call) => call.path)).toEqual([path]);
-      expect(calls[0]?.init.credentials).toBe('same-origin');
+      expect(calls.map((call) => call.path)).toEqual(['/api/workspace/voice/intent', path]);
+      expect(calls[1]?.init.credentials).toBe('same-origin');
     }
 
     const navigation = harness(() => { throw new Error('navigation must stay local'); });
-    await expect(navigation.executor.execute(planned({ version: 1, kind: 'navigate', route: 'graph' })))
+    const navigationPlan = await navigation.trust(planned({ version: 1, kind: 'navigate', route: 'graph' }));
+    await expect(navigation.executor.execute(navigationPlan))
       .resolves.toMatchObject({ status: 'succeeded', observedCount: 0 });
     expect(navigation.navigate).toHaveBeenCalledWith('/app/graph');
-    expect(navigation.calls).toEqual([]);
+    expect(navigation.calls.map((call) => call.path)).toEqual(['/api/workspace/voice/intent']);
 
     const ask = harness(() => json({
       reading: { subject: 'Atlas' },
       answer: { status: 'ANSWERED', answer: 'Priya owns Atlas.', evidence: [{}, {}] },
     }));
-    await expect(ask.executor.execute(planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' })))
+    const askPlan = await ask.trust(planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' }));
+    await expect(ask.executor.execute(askPlan))
       .resolves.toMatchObject({ status: 'succeeded', observedCount: 2, answer: 'Priya owns Atlas.' });
-    expect(ask.calls.map((call) => call.path)).toEqual(['/api/workspace/query']);
-    expect(body(ask.calls[0]!)).toEqual({ question: 'Who owns Atlas?' });
+    expect(ask.calls.map((call) => call.path)).toEqual([
+      '/api/workspace/voice/intent', '/api/workspace/query',
+    ]);
+    expect(body(ask.calls[1]!)).toEqual({ question: 'Who owns Atlas?' });
 
     const remember = harness(() => json({ ok: true, claims: 1, providerDetail: 'must not escape' }));
-    const remembered = await remember.executor.execute(planned({
+    const rememberPlan = await remember.trust(planned({
       version: 1, kind: 'remember', text: 'Atlas is owned by Priya.',
     }));
-    expect(remember.calls.map((call) => call.path)).toEqual(['/api/workspace/ingest']);
-    expect(body(remember.calls[0]!)).toEqual({ title: 'Voice memory', text: 'Atlas is owned by Priya.' });
+    const remembered = await remember.executor.execute(rememberPlan);
+    expect(remember.calls.map((call) => call.path)).toEqual([
+      '/api/workspace/voice/intent', '/api/workspace/ingest',
+    ]);
+    expect(body(remember.calls[1]!)).toEqual({ title: 'Voice memory', text: 'Atlas is owned by Priya.' });
     expect(remembered).toMatchObject({ status: 'succeeded', observedCount: 1 });
     expect(JSON.stringify(remembered)).not.toContain('providerDetail');
 
     const researcher = harness(() => json({ id: 'secret-run-id', result: 'provider output' }));
-    const researched = await researcher.executor.execute(planned({
+    const researcherPlan = await researcher.trust(planned({
       version: 1, kind: 'start_researcher', task: 'Prepare an Atlas brief.',
     }));
-    expect(researcher.calls.map((call) => call.path)).toEqual(['/api/workspace/agent/run']);
-    expect(body(researcher.calls[0]!)).toEqual({ task: 'Prepare an Atlas brief.', requestId: REQUEST_ID });
+    const researched = await researcher.executor.execute(researcherPlan);
+    expect(researcher.calls.map((call) => call.path)).toEqual([
+      '/api/workspace/voice/intent', '/api/workspace/agent/run',
+    ]);
+    expect(body(researcher.calls[1]!)).toEqual({ task: 'Prepare an Atlas brief.', requestId: REQUEST_ID });
     expect(researched).toMatchObject({ status: 'succeeded', observedCount: 1 });
     expect(JSON.stringify(researched)).not.toMatch(/secret-run-id|provider output/u);
 
     const cancel = harness((path) => path.endsWith('/runs')
       ? json([{ id: 'run/one', status: 'RUNNING' }, { id: 'done', status: 'COMPLETED' }])
       : json({ id: 'run/one', status: 'CANCELLED', provider: 'secret' }));
-    await expect(cancel.executor.execute(planned({ version: 1, kind: 'cancel_selected_run' })))
+    const cancelPlan = await cancel.trust(planned({ version: 1, kind: 'cancel_selected_run' }));
+    await expect(cancel.executor.execute(cancelPlan))
       .resolves.toMatchObject({ status: 'succeeded', observedCount: 1 });
     expect(cancel.calls.map((call) => call.path)).toEqual([
-      '/api/workspace/runs', '/api/workspace/agent/runs/run%2Fone/cancel',
+      '/api/workspace/voice/intent', '/api/workspace/runs',
+      '/api/workspace/agent/runs/run%2Fone/cancel',
     ]);
 
     const retry = harness((path) => path.endsWith('/runs')
       ? json([{ id: 'failed run', status: 'FAILED' }, { id: 'done', status: 'COMPLETED' }])
       : json({ id: 'retry', status: 'COMPLETED', provider: 'secret' }));
-    await expect(retry.executor.execute(planned({ version: 1, kind: 'retry_selected_run' })))
+    const retryPlan = await retry.trust(planned({ version: 1, kind: 'retry_selected_run' }));
+    await expect(retry.executor.execute(retryPlan))
       .resolves.toMatchObject({ status: 'succeeded', observedCount: 1 });
     expect(retry.calls.map((call) => call.path)).toEqual([
-      '/api/workspace/runs', '/api/workspace/agent/runs/failed%20run/retry',
+      '/api/workspace/voice/intent', '/api/workspace/runs',
+      '/api/workspace/agent/runs/failed%20run/retry',
     ]);
 
     const schedule = harness((path) => path.endsWith('/schedules')
       ? json([{ id: 'daily/one', enabled: true }, { id: 'paused', enabled: false }])
       : json({ outcome: 'DISPATCHED', runId: 'secret-run' }));
-    const scheduled = await schedule.executor.execute(planned({ version: 1, kind: 'run_selected_schedule' }));
+    const schedulePlan = await schedule.trust(planned({ version: 1, kind: 'run_selected_schedule' }));
+    const scheduled = await schedule.executor.execute(schedulePlan);
     expect(schedule.calls.map((call) => call.path)).toEqual([
-      '/api/workspace/schedules', '/api/workspace/schedules/daily%2Fone/run',
+      '/api/workspace/voice/intent', '/api/workspace/schedules',
+      '/api/workspace/schedules/daily%2Fone/run',
     ]);
-    expect(body(schedule.calls[1]!)).toEqual({ requestId: REQUEST_ID });
+    expect(body(schedule.calls[2]!)).toEqual({ requestId: REQUEST_ID });
     expect(scheduled).toMatchObject({ status: 'succeeded', observedCount: 1 });
     expect(JSON.stringify(scheduled)).not.toContain('secret-run');
 
@@ -315,7 +403,7 @@ describe('exhaustive operation allowlist', () => {
   });
 
   it('performs no fetch for refusal, controls, or unavailable connector operations', async () => {
-    const { calls, executor } = harness(() => { throw new Error('no request allowed'); });
+    const { calls, executor, trust } = harness(() => { throw new Error('no execution request allowed'); });
     const operations = [
       refused(),
       planned({ version: 1, kind: 'confirm' }),
@@ -332,11 +420,17 @@ describe('exhaustive operation allowlist', () => {
     ] as const;
 
     for (const operation of operations) {
-      await expect(executor.execute(operation)).resolves.toMatchObject({
+      const plan = await trust(operation);
+      const before = calls.length;
+      await expect(executor.execute(plan)).resolves.toMatchObject({
         status: operation.reason === 'connector_catalogue_unavailable' ? 'unavailable' : 'refused',
       });
+      expect(calls).toHaveLength(before);
     }
-    expect(calls).toEqual([]);
+    expect(calls.map((call) => call.path)).toEqual(Array.from(
+      { length: operations.length },
+      () => '/api/workspace/voice/intent',
+    ));
   });
 });
 
@@ -345,22 +439,22 @@ describe('execution identity and target revalidation', () => {
     let release = (_response: Response): void => undefined;
     const paused = new Promise<Response>((resolve) => { release = resolve; });
     let attempts = 0;
-    const { calls, executor } = harness(() => {
+    const { calls, executor, trust } = harness(() => {
       attempts += 1;
       return attempts === 1 ? paused : json({ id: 'retry-run' });
     });
-    const plan = planned({ version: 1, kind: 'start_researcher', task: 'Prepare the brief.' });
+    const plan = await trust(planned({ version: 1, kind: 'start_researcher', task: 'Prepare the brief.' }));
 
     const first = executor.execute(plan);
     const joined = executor.execute(plan);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
     release(json({ id: 'first-run' }));
     await expect(Promise.all([first, joined])).resolves.toHaveLength(2);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
 
     await expect(executor.execute(plan)).resolves.toMatchObject({ status: 'succeeded' });
-    expect(calls).toHaveLength(2);
-    expect(calls.map(body)).toEqual([
+    expect(calls).toHaveLength(3);
+    expect(calls.filter((call) => call.path === '/api/workspace/agent/run').map(body)).toEqual([
       { task: 'Prepare the brief.', requestId: REQUEST_ID },
       { task: 'Prepare the brief.', requestId: REQUEST_ID },
     ]);
@@ -383,29 +477,32 @@ describe('execution identity and target revalidation', () => {
     ] as const;
 
     for (const entry of cases) {
-      const { calls, executor } = harness(() => json(entry.rows));
-      await expect(executor.execute(entry.plan)).resolves.toMatchObject({
+      const { calls, executor, trust } = harness(() => json(entry.rows));
+      const plan = await trust(entry.plan);
+      await expect(executor.execute(plan)).resolves.toMatchObject({
         status: 'refused', failure: 'target_not_unique',
       });
-      expect(calls).toHaveLength(1);
-      expect(calls[0]?.init.method).toBe('GET');
+      expect(calls).toHaveLength(2);
+      expect(calls[1]?.init.method).toBe('GET');
     }
   });
 });
 
 describe('redacted execution failures', () => {
   it('maps 401 to a fixed session failure without exposing its body', async () => {
-    const { executor } = harness(() => json({ error: 'private session diagnostic' }, 401));
-    const result = await executor.execute(planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' }));
+    const { executor, trust } = harness(() => json({ error: 'private session diagnostic' }, 401));
+    const plan = await trust(planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' }));
+    const result = await executor.execute(plan);
     expect(result).toMatchObject({ status: 'unavailable', failure: 'session_required' });
     expect(JSON.stringify(result)).not.toContain('private session diagnostic');
   });
 
   it('collapses provider and parser details into a fixed request failure', async () => {
-    const { executor } = harness(() => new Response('provider api key and stack trace', { status: 502 }));
-    const result = await executor.execute(planned({
+    const { executor, trust } = harness(() => new Response('provider api key and stack trace', { status: 502 }));
+    const plan = await trust(planned({
       version: 1, kind: 'start_researcher', task: 'Prepare the brief.',
     }));
+    const result = await executor.execute(plan);
     expect(result).toMatchObject({ status: 'unavailable', failure: 'request_failed' });
     expect(JSON.stringify(result)).not.toMatch(/provider|api key|stack trace/u);
   });

@@ -393,6 +393,7 @@ export class VoiceOperationExecutor {
     const context = isRecord(untrustedPlan)
       ? this.#planContexts.get(untrustedPlan as unknown as VoiceOperationPlan)
       : undefined;
+    if (context === undefined) return Promise.resolve(refusedResult(null, 'invalid_plan'));
     const plan = readVoiceOperationPlan(untrustedPlan, undefined, context);
     if (plan === null) return Promise.resolve(refusedResult(null, 'invalid_plan'));
     const existing = this.#inFlight.get(plan.requestId);

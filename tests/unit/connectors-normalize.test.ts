@@ -112,6 +112,36 @@ describe('connector document normalization', () => {
     })).toThrowError(new ConnectorNormalizationError('invalid_provenance'));
   });
 
+  it('accepts only closed webhook evidence and binds raw/parser identity while excluding observation time', () => {
+    const webhookProvenance = {
+      connectorId: 'webhook' as const,
+      sourceUrl: null,
+      mediaType: 'application/json' as const,
+      observedAt: '2026-08-21T10:00:00.000Z',
+      webhook: {
+        schemaVersion: 1 as const,
+        rawDigest: 'a'.repeat(64),
+        parserVersion: 'webhook-v1' as const,
+      },
+    };
+    const first = prepareConnectorDocument({ title: 'Hook', text: 'Atlas is owned by Priya.', provenance: webhookProvenance });
+    const later = prepareConnectorDocument({
+      title: 'Hook', text: 'Atlas is owned by Priya.', provenance: {
+        ...webhookProvenance, observedAt: '2026-08-22T10:00:00.000Z',
+      },
+    });
+    expect(later.sourceKey).toBe(first.sourceKey);
+    expect(later.provenanceKey).toBe(first.provenanceKey);
+    expect(first.provenance.webhook).toEqual(webhookProvenance.webhook);
+    for (const bad of [
+      { ...webhookProvenance, sourceUrl: 'https://example.com/hook' },
+      { ...webhookProvenance, mediaType: 'text/plain' },
+      { ...webhookProvenance, webhook: { ...webhookProvenance.webhook, rawDigest: 'A'.repeat(64) } },
+      { ...webhookProvenance, webhook: { ...webhookProvenance.webhook, eventId: 'secret-event' } },
+    ]) expect(() => prepareConnectorDocument({ title: 'bad', text: 'text', provenance: bad as never }))
+      .toThrowError(new ConnectorNormalizationError('invalid_provenance'));
+  });
+
   it.each([
     `https://github.com/${'a'.repeat(40)}/atlas`,
     'https://github.com/acme--labs/atlas',

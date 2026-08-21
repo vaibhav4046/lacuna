@@ -51,6 +51,15 @@ import { FileConnectorService } from '../src/connectors/files.js';
 import { GitHubImporter } from '../src/connectors/github.js';
 import { PinnedHttpsReader } from '../src/connectors/https.js';
 import { FilePreviewTokenService, previewSigningKey } from '../src/connectors/preview-token.js';
+import { CloudWebhookRecordStore } from '../src/connectors/webhook-store.js';
+import {
+  WebhookService,
+  parseWebhookMasterKey,
+  redactWebhookPath,
+} from '../src/connectors/webhook.js';
+
+/** 240s internal settlement plus a 30s platform cleanup margin. */
+export const maxDuration = 270;
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -182,6 +191,20 @@ async function cloudHealth(): Promise<unknown> {
  * a trailing slash or a preview URL is a mismatch and a refused sign in.
  */
 const SITE_ORIGIN = process.env['LACUNA_SITE_ORIGIN'] ?? 'https://lacuna-five.vercel.app';
+const webhookMasterKey = parseWebhookMasterKey(process.env['LACUNA_WEBHOOK_KEY']);
+const webhookService = (() => {
+  if (cloud === null || connectorRunner === null || webhookMasterKey === null) return null;
+  try {
+    return new WebhookService({
+      masterKey: webhookMasterKey,
+      store: new CloudWebhookRecordStore(cloud),
+      runner: connectorRunner,
+      siteOrigin: SITE_ORIGIN,
+    });
+  } catch {
+    return null;
+  }
+})();
 const googleClientId = process.env['GOOGLE_CLIENT_ID'];
 const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
 const graphCursorKey = process.env['LACUNA_GRAPH_CURSOR_KEY'] ?? process.env['HYDRA_TOKEN'];
@@ -207,8 +230,9 @@ const api = new ApiRouter({
   ...(githubImporter === null || httpsReader === null || connectorRunner === null
     ? {}
     : { githubImporter, httpsReader, connectorRunner }),
+  ...(webhookService === null ? {} : { webhookService }),
   connectorCatalog: () => catalogue({
-    webhookKey: process.env['LACUNA_WEBHOOK_KEY'],
+    webhookService: webhookService !== null,
     fileImport: fileConnector !== null,
     githubImport: githubImporter !== null && connectorRunner !== null,
     httpsImport: httpsReader !== null && connectorRunner !== null,
@@ -373,7 +397,7 @@ const mcp = cloud === null || mcpCapabilities === null ? null : createMcpListene
 function guard(response: ServerResponse, where: string, error: unknown): void {
   const id = randomUUID();
   // Server side only, and only the shape of the failure.
-  console.error(`[${id}] ${where}: ${error instanceof Error ? error.name : 'unknown'}`);
+  console.error(`[${id}] ${redactWebhookPath(where)}: ${error instanceof Error ? error.name : 'unknown'}`);
   if (response.headersSent) {
     response.end();
     return;

@@ -24,7 +24,7 @@ const IMPLEMENTED: readonly Omit<ConnectorDescriptor, 'availability' | 'reason'>
 ]);
 
 export interface ConnectorCatalogueOptions {
-  readonly webhookKey?: string | undefined;
+  readonly webhookService?: boolean | undefined;
   readonly fileImport?: boolean | undefined;
   readonly githubImport?: boolean | undefined;
   readonly httpsImport?: boolean | undefined;
@@ -35,7 +35,7 @@ export interface ConnectorCatalogueOptions {
  * be started on this deployment; it says nothing about a workspace's history.
  */
 export function catalogue(options: ConnectorCatalogueOptions = {}): readonly ConnectorDescriptor[] {
-  const webhookConfigured = typeof options.webhookKey === 'string' && options.webhookKey.trim() !== '';
+  const webhookConfigured = options.webhookService === true;
   const fileConfigured = options.fileImport === true;
   const githubConfigured = options.githubImport === true;
   const httpsConfigured = options.httpsImport === true;
@@ -61,9 +61,14 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
 export function mergeConnectorState(
   descriptors: readonly ConnectorDescriptor[],
   observed: ConnectorWorkspaceState,
+  authoritative: { readonly webhookConfiguredAt?: string | null } = {},
 ): readonly ConnectorStatus[] {
   return descriptors.map((descriptor): ConnectorStatus => {
-    const observation = observed[descriptor.id] ?? EMPTY_OBSERVATION;
+    const held = observed[descriptor.id] ?? EMPTY_OBSERVATION;
+    const observation = descriptor.id === 'webhook'
+      && Object.prototype.hasOwnProperty.call(authoritative, 'webhookConfiguredAt')
+      ? { ...held, configuredAt: authoritative.webhookConfiguredAt ?? null }
+      : held;
     const state = observation.lastFailure !== null
       ? 'failed'
       : descriptor.id === 'webhook'

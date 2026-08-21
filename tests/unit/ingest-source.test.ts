@@ -2,11 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { HydraCloud, type AppRecord } from '../../src/hydra/cloud.js';
 import { CloudSource } from '../../src/hydra/cloud-source.js';
-import { HydraDecodeError, HydraQueryError } from '../../src/hydra/errors.js';
+import {
+  HydraDecodeError,
+  HydraIngestIndeterminateError,
+  HydraQueryError,
+} from '../../src/hydra/errors.js';
 import { INDEX_ID } from '../../src/hydra/cloud-graph.js';
 import {
   MAX_SOURCE_CHARS,
   ingestPreparedSource,
+  IngestSubmissionIndeterminateError,
   ingestSource,
   serializeIngestReport,
   validateSource,
@@ -598,6 +603,54 @@ describe('prepared connector ingestion', () => {
     expect(persisted).not.toMatch(/private|token|93\.184|authorization|workspace|collection/u);
   });
 
+  it('round-trips only typed webhook evidence without endpoint, event, owner, or workspace ids', async () => {
+    const controlled = statefulAdversarialCloud();
+    const workspace = workspaceCollection('webhook-evidence@example.com');
+    const document = prepareConnectorDocument({
+      title: 'Webhook event',
+      text: '[2025-01-02T03:04:05.000Z] a: Atlas is owned by Priya.',
+      provenance: {
+        connectorId: 'webhook',
+        sourceUrl: null,
+        mediaType: 'application/json',
+        observedAt: '2026-08-21T10:00:00.000Z',
+        webhook: {
+          schemaVersion: 1,
+          rawDigest: 'd'.repeat(64),
+          parserVersion: 'webhook-v1',
+        },
+      },
+    });
+    await ingestPreparedSource(controlled.cloud, workspace, document, { awaitSearchable: false });
+    const source = new CloudSource(controlled.cloud.withCollection(workspace));
+    const subject = await source.subject('Atlas', 5_000);
+    const claim = subject.value.claims[0];
+    if (claim === undefined) throw new Error('missing webhook round-tripped claim');
+    const evidence = await source.evidence(claim.id, 5_000);
+    expect(evidence.value[0]?.connector).toEqual({
+      schemaVersion: 1,
+      connectorId: 'webhook',
+      mediaType: 'application/json',
+      observedAt: '2026-08-21T10:00:00.000Z',
+      rawDigest: 'd'.repeat(64),
+      contentDigest: document.contentDigest,
+      parserVersion: 'webhook-v1',
+    });
+    const sessionMetadata = [...controlled.storedMetadata.entries()]
+      .find(([id]) => id.startsWith('lacuna:session:'))?.[1];
+    expect(sessionMetadata).toEqual({
+      lacuna_record: 'session',
+      lacuna_connector_schema: 1,
+      lacuna_connector_id: 'webhook',
+      lacuna_webhook_media_type: 'application/json',
+      lacuna_webhook_observed_at: '2026-08-21T10:00:00.000Z',
+      lacuna_webhook_raw_sha256: 'd'.repeat(64),
+      lacuna_content_sha256: document.contentDigest,
+      lacuna_connector_parser_version: 'webhook-v1',
+    });
+    expect(JSON.stringify(evidence.value[0]?.connector)).not.toMatch(/endpoint|event|owner|workspace|collection/u);
+  });
+
   it('waits for terminal completed indexing when requested', async () => {
     const result = await ingestPreparedSource(
       cloudWithIndexingStatus('completed'),
@@ -739,6 +792,29 @@ describe('prepared connector ingestion', () => {
     });
     expect(controlled.writeCalls()).toBe(1);
   });
+
+  it('rejects a webhook graph larger than the single 25-record submission before any write', async () => {
+    const sent: Sent[] = [];
+    const text = Array.from({ length: 20 }, (_, index) => (
+      `c${index}: Service${index} is owned by Person${index}.`
+    )).join('\n');
+    const document = prepareConnectorDocument({
+      title: 'Large webhook',
+      text,
+      provenance: {
+        connectorId: 'webhook', sourceUrl: null, mediaType: 'application/json',
+        observedAt: '2026-08-21T10:00:00.000Z',
+        webhook: { schemaVersion: 1, rawDigest: 'e'.repeat(64), parserVersion: 'webhook-v1' },
+      },
+    });
+    await expect(ingestPreparedSource(
+      cloudThatRecords(sent),
+      workspaceCollection('large-webhook@example.com'),
+      document,
+      { awaitSearchable: true },
+    )).rejects.toMatchObject({ code: 'too_many_records' });
+    expect(sent).toEqual([]);
+  });
 });
 
 describe('read-before-write merge failures', () => {
@@ -863,57 +939,105 @@ describe('ingest receipt integrity', () => {
   it('rejects a 2xx response with no results field', async () => {
     const result = ingestSource(cloudWithReceiptFailure('missing_results'), 'c', 'Standup', TRANSCRIPT);
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(IngestSubmissionIndeterminateError);
   });
 
   it('rejects a 2xx response whose results field is not an array', async () => {
     const result = ingestSource(cloudWithReceiptFailure('non_array_results'), 'c', 'Standup', TRANSCRIPT);
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(IngestSubmissionIndeterminateError);
   });
 
   it('rejects a batch with no receipt for one submitted record', async () => {
     const result = ingestSource(cloudWithReceiptFailure('missing_receipt'), 'c', 'Standup', TRANSCRIPT);
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(IngestSubmissionIndeterminateError);
   });
 
   it('rejects a batch with duplicate receipts for one submitted record', async () => {
     const result = ingestSource(cloudWithReceiptFailure('duplicate'), 'c', 'Standup', TRANSCRIPT);
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(IngestSubmissionIndeterminateError);
   });
 
   it('rejects a batch with a receipt for a record it did not submit', async () => {
     const result = ingestSource(cloudWithReceiptFailure('unexpected'), 'c', 'Standup', TRANSCRIPT);
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(IngestSubmissionIndeterminateError);
   });
 });
 
 describe('shared ingest receipt decoding', () => {
+  it('clips readiness polling sleep to the absolute timeout', async () => {
+    vi.useFakeTimers({ now: Date.parse('2026-08-21T12:00:00.000Z') });
+    try {
+      const cloud = new HydraCloud({
+        baseUrl: 'https://api.example.invalid', token: 'test', database: 'lacuna', collection: 'c',
+      }, {
+        fetch: async () => Response.json({
+          data: { statuses: [{ id: RECEIPT_RECORD.id, indexing_status: 'processing' }] },
+        }),
+      });
+      let settled = false;
+      const waiting = cloud.waitForIndexing([RECEIPT_RECORD.id], { timeoutMs: 20, intervalMs: 1_000 })
+        .finally(() => { settled = true; });
+
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(settled).toBe(true);
+      await expect(waiting).resolves.toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts an internally bounded submitted POST and reports receipt uncertainty', async () => {
+    let fetches = 0;
+    let observedAbort = false;
+    const cloud = new HydraCloud({
+      baseUrl: 'https://api.example.invalid', token: 'test', database: 'lacuna', collection: 'c',
+    }, {
+      fetch: async (_input, init) => {
+        fetches += 1;
+        return new Promise<Response>((_resolve, reject) => {
+          const abort = () => {
+            observedAbort = true;
+            reject(new DOMException('aborted', 'AbortError'));
+          };
+          if (init?.signal?.aborted === true) abort();
+          else init?.signal?.addEventListener('abort', abort, { once: true });
+        });
+      },
+    });
+    await expect(cloud.ingestApp([RECEIPT_RECORD], 'c', {
+      deadlineMs: Date.now() + 20,
+    })).rejects.toBeInstanceOf(HydraIngestIndeterminateError);
+    expect(fetches).toBe(1);
+    expect(observedAbort).toBe(true);
+  });
+
   it('rejects a receipt with no status before any caller can report a successful write', async () => {
     const result = cloudWithReceiptFailure('missing_status').ingestApp([RECEIPT_RECORD], 'c');
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(HydraIngestIndeterminateError);
   });
 
   it('rejects an unknown status before any caller can report a successful write', async () => {
     const result = cloudWithReceiptFailure('unknown_status').ingestApp([RECEIPT_RECORD], 'c');
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(HydraIngestIndeterminateError);
   });
 
   it('rejects a failed status that carries no provider error', async () => {
     const result = cloudWithReceiptFailure('failed_without_error').ingestApp([RECEIPT_RECORD], 'c');
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(HydraIngestIndeterminateError);
   });
 
   it('rejects an empty receipt list at the shared boundary', async () => {
     const result = cloudWithReceiptFailure('missing_receipt').ingestApp([RECEIPT_RECORD], 'c');
 
-    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    await expect(result).rejects.toBeInstanceOf(HydraIngestIndeterminateError);
   });
 
   it('preserves an explicit provider error as a refused receipt', async () => {

@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { IngestPreparedReport } from '../../src/api/ingest.js';
-import { ingestPreparedSource, IngestReadinessError } from '../../src/api/ingest.js';
+import {
+  ingestPreparedSource,
+  IngestGraphLimitError,
+  IngestReadinessError,
+  IngestSubmissionIndeterminateError,
+} from '../../src/api/ingest.js';
 import { ConnectorRunner, serializeConnectorRunResult } from '../../src/connectors/run.js';
 import type { ConnectorDocumentInput } from '../../src/connectors/normalize.js';
 import type {
@@ -92,6 +97,102 @@ function tickingClock(): () => number {
 }
 
 describe('ConnectorRunner', () => {
+  it('reports a pre-write webhook graph cap as validation failure, never transport failure', async () => {
+    const runner = new ConnectorRunner({
+      store: new MemoryStore(),
+      now: tickingClock(),
+      ingest: async () => { throw new IngestGraphLimitError(); },
+    });
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'webhook',
+      documents: [{
+        title: 'Large webhook',
+        text: 'Atlas is owned by Priya.',
+        provenance: {
+          connectorId: 'webhook', sourceUrl: null, mediaType: 'application/json',
+          observedAt: '2026-08-21T09:00:00.000Z',
+          webhook: { schemaVersion: 1, rawDigest: 'a'.repeat(64), parserVersion: 'webhook-v1' },
+        },
+      }],
+      awaitSearchable: true,
+    });
+
+    expect(result).toMatchObject({
+      acceptedDocuments: 0,
+      failedDocuments: 1,
+      failure: 'validation_failed',
+      indeterminateSubmission: false,
+    });
+  });
+
+  it('reports a missing exact submitted receipt as indeterminate, never known-zero failed', async () => {
+    const store = new MemoryStore();
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async () => { throw new IngestSubmissionIndeterminateError(); },
+    });
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'webhook',
+      documents: [{
+        title: 'Webhook',
+        text: 'Atlas is owned by Priya.',
+        provenance: {
+          connectorId: 'webhook', sourceUrl: null, mediaType: 'application/json',
+          observedAt: '2026-08-21T09:00:00.000Z',
+          webhook: { schemaVersion: 1, rawDigest: 'a'.repeat(64), parserVersion: 'webhook-v1' },
+        },
+      }],
+      awaitSearchable: true,
+    });
+    expect(result).toMatchObject({
+      acceptedDocuments: 0,
+      failedDocuments: 0,
+      failure: 'transport_failed',
+      indeterminateSubmission: true,
+      observationWrite: 'stored',
+    });
+    expect(store.writes[0]?.next).toMatchObject({ importedDocuments: 0, lastSuccessAt: null });
+  });
+
+  it('derives absolute phase deadlines and passes the observation deadline to get and put', async () => {
+    const controls: unknown[] = [];
+    const store: ConnectorStore = {
+      get: async (_workspace, storeControl) => {
+        controls.push(storeControl);
+        return {};
+      },
+      put: async (_workspace, _id, _next, storeControl) => {
+        controls.push(storeControl);
+        return 'stored';
+      },
+    };
+    let ingestOptions: unknown;
+    const runner = new ConnectorRunner({
+      store,
+      now: () => STARTED,
+      ingest: async (_workspace, prepared, options) => {
+        ingestOptions = options;
+        return report(prepared.sourceKey);
+      },
+    });
+    const controller = new AbortController();
+    await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('budgeted')], awaitSearchable: true,
+    }, { signal: controller.signal, settlementDeadlineMs: STARTED + 240_000 });
+    expect(ingestOptions).toMatchObject({
+      signal: controller.signal,
+      deadlines: {
+        prewriteDeadlineMs: STARTED + 60_000,
+        submissionDeadlineMs: STARTED + 180_000,
+        readinessDeadlineMs: STARTED + 210_000,
+      },
+    });
+    expect(controls).toEqual([
+      { deadlineMs: STARTED + 230_000 },
+      { deadlineMs: STARTED + 230_000 },
+    ]);
+  });
   it('cancels before ingestion without writing connector observation state', async () => {
     let reads = 0;
     let writes = 0;

@@ -1,7 +1,9 @@
 import type { IngestFailure, IngestPreparedOptions, IngestPreparedReport } from '../api/ingest.js';
 import {
   IngestCancelledError,
+  IngestGraphLimitError,
   IngestReadinessError,
+  IngestSubmissionIndeterminateError,
   MAX_SOURCE_CHARS,
 } from '../api/ingest.js';
 import { HydraDecodeError, HydraTransportError } from '../hydra/errors.js';
@@ -27,7 +29,18 @@ const CONNECTOR_IDS = new Set<ConnectorId>([
 const REQUEST_KEYS = new Set(['connectorId', 'documents', 'awaitSearchable']);
 // This queue only prevents lost deltas inside one process. The store's put
 // result remains authoritative; it is not a cross-instance compare-and-swap.
-const observationUpdates = new Map<string, Promise<void>>();
+interface ObservationWaiter {
+  readonly resolve: (release: () => void) => void;
+  readonly reject: (error: Error) => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+}
+
+interface ObservationLock {
+  readonly waiters: ObservationWaiter[];
+}
+
+const observationUpdates = new Map<string, ObservationLock>();
+const MAX_OBSERVATION_WAITERS = 32;
 
 export interface ConnectorRunRequest {
   readonly connectorId: ConnectorId;
@@ -37,6 +50,7 @@ export interface ConnectorRunRequest {
 
 export interface ConnectorRunOptions {
   readonly signal?: AbortSignal;
+  readonly settlementDeadlineMs?: number;
 }
 
 export class ConnectorRunCancelledError extends Error {
@@ -60,6 +74,8 @@ export interface ConnectorRunResult {
   readonly startedAt: string;
   readonly completedAt: string;
   readonly observationWrite: ConnectorPutResult | 'failed';
+  /** True when the Hydra submission may have landed but no exact receipt was available. */
+  readonly indeterminateSubmission: boolean;
 }
 
 export type ConnectorIngestBoundary = (
@@ -81,10 +97,12 @@ interface DocumentOutcome {
   readonly refusedRecords: number;
   readonly failure: ConnectorFailureCode | null;
   readonly cancelled?: boolean;
+  readonly indeterminate?: boolean;
 }
 
 function failureCode(error: unknown): ConnectorFailureCode {
   if (error instanceof ConnectorNormalizationError) return 'validation_failed';
+  if (error instanceof IngestGraphLimitError) return 'validation_failed';
   if (error instanceof IngestReadinessError) {
     return error.reason === 'timeout' ? 'readiness_timeout' : 'readiness_failed';
   }
@@ -153,15 +171,62 @@ function nextInstant(candidate: string, held: string | null): string {
   return new Date(Math.max(candidateMs, heldMs + 1)).toISOString();
 }
 
-async function serializeObservationUpdate<T>(key: string, update: () => Promise<T>): Promise<T> {
-  const previous = observationUpdates.get(key) ?? Promise.resolve();
-  const operation = previous.catch(() => undefined).then(update);
-  const settled = operation.then(() => undefined, () => undefined);
-  observationUpdates.set(key, settled);
+function observationRelease(key: string, lock: ObservationLock): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const next = lock.waiters.shift();
+    if (next === undefined) {
+      observationUpdates.delete(key);
+      return;
+    }
+    clearTimeout(next.timer);
+    next.resolve(observationRelease(key, lock));
+  };
+}
+
+async function acquireObservation(
+  key: string,
+  deadlineMs: number,
+  now: () => number,
+): Promise<() => void> {
+  if (deadlineMs <= now()) throw new Error('observation deadline');
+  const held = observationUpdates.get(key);
+  if (held === undefined) {
+    const lock: ObservationLock = { waiters: [] };
+    observationUpdates.set(key, lock);
+    return observationRelease(key, lock);
+  }
+  if (held.waiters.length >= MAX_OBSERVATION_WAITERS) throw new Error('observation queue full');
+  return new Promise<() => void>((resolve, reject) => {
+    let waiter: ObservationWaiter;
+    const fail = () => {
+      const index = held.waiters.indexOf(waiter);
+      if (index >= 0) held.waiters.splice(index, 1);
+      clearTimeout(waiter.timer);
+      reject(new Error('observation deadline'));
+    };
+    waiter = {
+      resolve,
+      reject,
+      timer: setTimeout(fail, Math.max(1, deadlineMs - now())),
+    };
+    held.waiters.push(waiter);
+  });
+}
+
+async function serializeObservationUpdate<T>(
+  key: string,
+  deadlineMs: number,
+  now: () => number,
+  update: () => Promise<T>,
+): Promise<T> {
+  const release = await acquireObservation(key, deadlineMs, now);
   try {
-    return await operation;
+    return await update();
   } finally {
-    if (observationUpdates.get(key) === settled) observationUpdates.delete(key);
+    release();
   }
 }
 
@@ -180,6 +245,7 @@ export function serializeConnectorRunResult(result: ConnectorRunResult): Connect
     startedAt: result.startedAt,
     completedAt: result.completedAt,
     observationWrite: result.observationWrite,
+    indeterminateSubmission: result.indeterminateSubmission,
   };
 }
 
@@ -203,6 +269,15 @@ export class ConnectorRunner {
     assertConnectorRequest(request);
     if (isAborted(options.signal)) throw new ConnectorRunCancelledError();
     const startedAt = iso(this.#now);
+    const settlementDeadlineMs = options.settlementDeadlineMs;
+    if (settlementDeadlineMs !== undefined && settlementDeadlineMs - this.#now() < 200_000) {
+      throw new ConnectorRunCancelledError();
+    }
+    const deadlines = settlementDeadlineMs === undefined ? undefined : {
+      prewriteDeadlineMs: settlementDeadlineMs - 180_000,
+      submissionDeadlineMs: settlementDeadlineMs - 60_000,
+      readinessDeadlineMs: settlementDeadlineMs - 30_000,
+    };
 
     let duplicateDocuments = 0;
     let outcomes: readonly DocumentOutcome[] = [];
@@ -223,6 +298,7 @@ export class ConnectorRunner {
           const report = await this.#ingest(workspace, document, {
             awaitSearchable: request.awaitSearchable,
             ...(options.signal === undefined ? {} : { signal: options.signal }),
+            ...(deadlines === undefined ? {} : { deadlines }),
           });
           if (typeof report === 'string') {
             return {
@@ -254,6 +330,16 @@ export class ConnectorRunner {
             failure: refusedRecords > 0 ? 'receipt_refused' : null,
           };
         } catch (error) {
+          if (error instanceof IngestSubmissionIndeterminateError) {
+            return {
+              accepted: false,
+              searchable: false,
+              acceptedRecords: 0,
+              refusedRecords: 0,
+              failure: 'transport_failed',
+              indeterminate: true,
+            };
+          }
           if (error instanceof IngestCancelledError) {
             return {
               accepted: false,
@@ -283,10 +369,14 @@ export class ConnectorRunner {
         }
       });
       const acceptedBeforeCancellation = outcomes.some((outcome) => outcome.accepted);
-      if (outcomes.some((outcome) => outcome.cancelled === true) && !acceptedBeforeCancellation) {
+      const submittedBeforeCancellation = outcomes.some((outcome) => outcome.indeterminate === true);
+      if (outcomes.some((outcome) => outcome.cancelled === true)
+        && !acceptedBeforeCancellation && !submittedBeforeCancellation) {
         throw new ConnectorRunCancelledError();
       }
-      if (isAborted(options.signal) && !acceptedBeforeCancellation) throw new ConnectorRunCancelledError();
+      if (isAborted(options.signal) && !acceptedBeforeCancellation && !submittedBeforeCancellation) {
+        throw new ConnectorRunCancelledError();
+      }
       failure = outcomes.find((outcome) => outcome.failure !== null)?.failure ?? null;
     } catch (error) {
       if (error instanceof ConnectorRunCancelledError || error instanceof IngestCancelledError) {
@@ -297,17 +387,28 @@ export class ConnectorRunner {
 
     const acceptedDocuments = outcomes.filter((outcome) => outcome.accepted).length;
     const searchableDocuments = outcomes.filter((outcome) => outcome.searchable).length;
-    const failedDocuments = outcomes.filter((outcome) => outcome.failure !== null).length
+    const failedDocuments = outcomes.filter((outcome) => (
+      outcome.failure !== null && outcome.indeterminate !== true
+    )).length
       + (outcomes.length === 0 && failure !== null ? request.documents.length : 0);
     const acceptedRecords = outcomes.reduce((sum, outcome) => sum + outcome.acceptedRecords, 0);
     const refusedRecords = outcomes.reduce((sum, outcome) => sum + outcome.refusedRecords, 0);
+    const indeterminateSubmission = outcomes.some((outcome) => outcome.indeterminate === true);
     const completedAt = iso(this.#now);
     let observationWrite: ConnectorPutResult | 'failed' = 'failed';
     let resultFailure = failure;
     const observationKey = `${workspace}:${request.connectorId}`;
     try {
-      observationWrite = await serializeObservationUpdate(observationKey, async () => {
-        const previous = (await this.#store.get(workspace))[request.connectorId] ?? emptyObservation();
+      const observationDeadlineMs = settlementDeadlineMs === undefined
+        ? this.#now() + 20_000
+        : settlementDeadlineMs - 10_000;
+      const observationControl = { deadlineMs: observationDeadlineMs };
+      observationWrite = await serializeObservationUpdate(
+        observationKey,
+        observationDeadlineMs,
+        this.#now,
+        async () => {
+        const previous = (await this.#store.get(workspace, observationControl))[request.connectorId] ?? emptyObservation();
         const lastAttemptAt = nextInstant(completedAt, previous.lastAttemptAt);
         const observation: ConnectorObservation = {
           configuredAt: previous.configuredAt,
@@ -318,7 +419,7 @@ export class ConnectorRunner {
           lastFailure: failure,
           importedDocuments: Math.min(MAX_STORED_DOCUMENTS, previous.importedDocuments + acceptedDocuments),
         };
-        return this.#store.put(workspace, request.connectorId, observation);
+        return this.#store.put(workspace, request.connectorId, observation, observationControl);
       });
     } catch {
       // Never absolute-write from a missing/stale snapshot. Accepted Hydra work
@@ -338,6 +439,7 @@ export class ConnectorRunner {
       startedAt,
       completedAt,
       observationWrite,
+      indeterminateSubmission,
     });
   }
 }

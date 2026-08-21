@@ -42,8 +42,10 @@ class RecordCloud {
   transformWrite: ((record: AppRecord) => AppRecord) | null = null;
   beforePersist: ((record: AppRecord) => Promise<void>) | null = null;
   wrongReadId = false;
+  readonly controls: unknown[] = [];
 
-  async ingestApp(records: readonly AppRecord[], collection: string): Promise<readonly IngestResult[]> {
+  async ingestApp(records: readonly AppRecord[], collection: string, control?: unknown): Promise<readonly IngestResult[]> {
+    this.controls.push(control);
     this.writes.push({ records, collection });
     for (const submitted of records) {
       await this.beforePersist?.(submitted);
@@ -60,7 +62,8 @@ class RecordCloud {
     }));
   }
 
-  async inspect(id: string, _timeoutMs: number, collection: string): Promise<InspectedSource | null> {
+  async inspect(id: string, timeoutMs: number, collection: string, signal?: AbortSignal): Promise<InspectedSource | null> {
+    this.controls.push({ timeoutMs, signal });
     const envelope = this.records.get(`${collection}:${id}`);
     if (envelope === undefined) return null;
     return { id: this.wrongReadId ? `${id}:wrong` : id, envelope, latencyMs: 1 };
@@ -139,6 +142,53 @@ describe('CloudConnectorStore', () => {
     expect(cloud.writes.map((write) => write.records[0]?.id).sort()).toEqual([
       idFor('github'), idFor('text'),
     ].sort());
+  });
+
+  it('removes an aborted same-record queue waiter so it never runs after the holder releases', async () => {
+    const cloud = new RecordCloud();
+    const store = fastStore(cloud);
+    let releaseFirst!: () => void;
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => { markStarted = resolve; });
+    const release = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    cloud.beforePersist = async () => {
+      if (cloud.writes.length === 1) {
+        markStarted();
+        await release;
+      }
+    };
+    const first = store.put(WORKSPACE, 'github', GITHUB);
+    await started;
+    const controller = new AbortController();
+    const queued = store.put(WORKSPACE, 'github', {
+      ...GITHUB, lastAttemptAt: '2026-08-21T10:01:00.000Z',
+    }, { signal: controller.signal, deadlineMs: Date.now() + 5_000 });
+    controller.abort();
+    await expect(queued).rejects.toBeInstanceOf(ConnectorStoreError);
+    releaseFirst();
+    await first;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(cloud.writes).toHaveLength(1);
+  });
+
+  it('clips provider calls to the caller observation deadline and signal', async () => {
+    const cloud = new RecordCloud();
+    const now = Date.now();
+    const store = new CloudConnectorStore(hydra(cloud), {
+      readbackTimeoutMs: 0, pollIntervalMs: 0, now: () => now,
+    });
+    const controller = new AbortController();
+    await store.put(WORKSPACE, 'github', GITHUB, {
+      signal: controller.signal, deadlineMs: now + 1_000,
+    });
+    expect(cloud.controls.some((entry) => (
+      typeof entry === 'object' && entry !== null
+      && (entry as { deadlineMs?: number }).deadlineMs === now + 1_000
+      && (entry as { signal?: AbortSignal }).signal === controller.signal
+    ))).toBe(true);
+    expect(cloud.controls.filter((entry) => (
+      typeof entry === 'object' && entry !== null && 'timeoutMs' in entry
+    )).every((entry) => (entry as { timeoutMs: number }).timeoutMs <= 1_000)).toBe(true);
   });
 
   it('skips stale and same-attempt conflicting completions without another write', async () => {

@@ -22,6 +22,7 @@ const INPUT_KEYS = new Set(['title', 'text', 'provenance']);
 const PROVENANCE_KEYS = new Set(['connectorId', 'sourceUrl', 'mediaType', 'observedAt']);
 const GITHUB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'github']);
 const HTTPS_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'https']);
+const WEBHOOK_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'webhook']);
 const GITHUB_EVIDENCE_KEYS = new Set([
   'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
@@ -30,6 +31,7 @@ const SHA256 = /^[0-9a-f]{64}$/u;
 const HTTPS_EVIDENCE_KEYS = new Set([
   'schemaVersion', 'pathDigest', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
+const WEBHOOK_EVIDENCE_KEYS = new Set(['schemaVersion', 'rawDigest', 'parserVersion']);
 
 export type ConnectorMediaType =
   | 'text/plain'
@@ -45,6 +47,7 @@ export interface ConnectorProvenance {
   readonly observedAt: string;
   readonly github?: GitHubConnectorEvidence;
   readonly https?: HttpsConnectorEvidence;
+  readonly webhook?: WebhookConnectorEvidence;
 }
 
 export interface GitHubConnectorEvidence {
@@ -63,6 +66,12 @@ export interface HttpsConnectorEvidence {
   readonly retrievedAt: string;
   readonly rawDigest: string;
   readonly parserVersion: 'https-v1';
+}
+
+export interface WebhookConnectorEvidence {
+  readonly schemaVersion: 1;
+  readonly rawDigest: string;
+  readonly parserVersion: 'webhook-v1';
 }
 
 export interface ConnectorDocumentInput {
@@ -157,13 +166,21 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
   }
   const github = value['connectorId'] === 'github';
   const https = value['connectorId'] === 'https_api';
-  const expectedKeys = github ? GITHUB_PROVENANCE_KEYS : https ? HTTPS_PROVENANCE_KEYS : PROVENANCE_KEYS;
+  const webhook = value['connectorId'] === 'webhook';
+  const expectedKeys = github
+    ? GITHUB_PROVENANCE_KEYS
+    : https
+      ? HTTPS_PROVENANCE_KEYS
+      : webhook
+        ? WEBHOOK_PROVENANCE_KEYS
+        : PROVENANCE_KEYS;
   if (!hasExactKeys(value, expectedKeys)) {
     throw new ConnectorNormalizationError('invalid_provenance');
   }
   const normalizedSourceUrl = canonicalUrl(value['sourceUrl']);
   let githubEvidence: GitHubConnectorEvidence | undefined;
   let httpsEvidence: HttpsConnectorEvidence | undefined;
+  let webhookEvidence: WebhookConnectorEvidence | undefined;
   if (github) {
     const evidence = value['github'];
     if (!isRecord(evidence) || !hasExactKeys(evidence, GITHUB_EVIDENCE_KEYS)
@@ -215,6 +232,22 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
       parserVersion: evidence['parserVersion'],
     });
   }
+  if (webhook) {
+    const evidence = value['webhook'];
+    if (normalizedSourceUrl !== null
+      || value['mediaType'] !== 'application/json'
+      || !isRecord(evidence) || !hasExactKeys(evidence, WEBHOOK_EVIDENCE_KEYS)
+      || evidence['schemaVersion'] !== 1
+      || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
+      || evidence['parserVersion'] !== 'webhook-v1') {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    webhookEvidence = Object.freeze({
+      schemaVersion: 1,
+      rawDigest: evidence['rawDigest'],
+      parserVersion: 'webhook-v1',
+    });
+  }
   return Object.freeze({
     connectorId: value['connectorId'] as ConnectorId,
     sourceUrl: normalizedSourceUrl,
@@ -222,6 +255,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     observedAt: value['observedAt'],
     ...(githubEvidence === undefined ? {} : { github: githubEvidence }),
     ...(httpsEvidence === undefined ? {} : { https: httpsEvidence }),
+    ...(webhookEvidence === undefined ? {} : { webhook: webhookEvidence }),
   });
 }
 
@@ -280,6 +314,13 @@ export function prepareConnectorDocument(input: ConnectorDocumentInput): Prepare
         pathDigest: provenance.https.pathDigest,
         rawDigest: provenance.https.rawDigest,
         parserVersion: provenance.https.parserVersion,
+      },
+    }),
+    ...(provenance.webhook === undefined ? {} : {
+      webhook: {
+        schemaVersion: provenance.webhook.schemaVersion,
+        rawDigest: provenance.webhook.rawDigest,
+        parserVersion: provenance.webhook.parserVersion,
       },
     }),
   }));

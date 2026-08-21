@@ -7,6 +7,7 @@ import type {
   ConnectorObservation,
   ConnectorPutResult,
   ConnectorStore,
+  ConnectorStoreControl,
   ConnectorWorkspaceState,
 } from './types.js';
 
@@ -41,6 +42,20 @@ interface StoredConnectorState {
   readonly connectorId: ConnectorId;
   readonly observation: ConnectorObservation;
 }
+
+interface MutationWaiter {
+  readonly resolve: (release: () => void) => void;
+  readonly reject: (error: Error) => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+  readonly signal?: AbortSignal;
+  abort?: () => void;
+}
+
+interface MutationLock {
+  readonly waiters: MutationWaiter[];
+}
+
+const MAX_MUTATION_WAITERS = 32;
 
 export interface CloudConnectorStoreOptions {
   readonly readbackTimeoutMs?: number;
@@ -203,7 +218,7 @@ export class CloudConnectorStore implements ConnectorStore {
   readonly #pollIntervalMs: number;
   readonly #now: () => number;
   readonly #wait: (milliseconds: number) => Promise<void>;
-  readonly #mutations = new Map<string, Promise<void>>();
+  readonly #mutations = new Map<string, MutationLock>();
 
   constructor(cloud: HydraCloud, options: CloudConnectorStoreOptions = {}) {
     this.#cloud = cloud;
@@ -224,18 +239,36 @@ export class CloudConnectorStore implements ConnectorStore {
     this.#wait = options.wait ?? delay;
   }
 
-  async #readOne(digest: string, connectorId: ConnectorId): Promise<StoredConnectorState | null> {
+  #deadline(control?: ConnectorStoreControl): number {
+    const deadline = Math.min(control?.deadlineMs ?? this.#now() + 20_000, this.#now() + 20_000);
+    if (control?.signal?.aborted === true || deadline <= this.#now()) {
+      throw new ConnectorStoreError('connector state deadline');
+    }
+    return deadline;
+  }
+
+  async #readOne(
+    digest: string,
+    connectorId: ConnectorId,
+    control?: ConnectorStoreControl,
+  ): Promise<StoredConnectorState | null> {
     const id = idFor(digest, connectorId);
-    const source = await this.#cloud.inspect(id, 10_000, COLLECTION);
+    const deadline = this.#deadline(control);
+    const source = await this.#cloud.inspect(
+      id,
+      Math.max(1, Math.min(10_000, deadline - this.#now())),
+      COLLECTION,
+      control?.signal,
+    );
     if (source === null) return null;
     return parse(unwrap(source, id), digest, connectorId);
   }
 
-  async get(workspace: string): Promise<ConnectorWorkspaceState> {
+  async get(workspace: string, control?: ConnectorStoreControl): Promise<ConnectorWorkspaceState> {
     const digest = workspaceDigest(workspace);
     const result: Partial<Record<ConnectorId, ConnectorObservation>> = {};
     const states = await Promise.all(CONNECTOR_IDS.map(
-      (connectorId) => this.#readOne(digest, connectorId),
+      (connectorId) => this.#readOne(digest, connectorId, control),
     ));
     for (let index = 0; index < CONNECTOR_IDS.length; index += 1) {
       const connectorId = CONNECTOR_IDS[index];
@@ -250,13 +283,14 @@ export class CloudConnectorStore implements ConnectorStore {
     digest: string,
     connectorId: ConnectorId,
     expectedText: string,
+    control?: ConnectorStoreControl,
   ): Promise<void> {
     const id = idFor(digest, connectorId);
-    const deadline = this.#now() + this.#readbackTimeoutMs;
+    const deadline = Math.min(this.#deadline(control), this.#now() + this.#readbackTimeoutMs);
     let sawMismatch = false;
     for (;;) {
       const inspectBudget = Math.max(1, Math.min(10_000, deadline - this.#now()));
-      const source = await this.#cloud.inspect(id, inspectBudget, COLLECTION);
+      const source = await this.#cloud.inspect(id, inspectBudget, COLLECTION, control?.signal);
       if (source !== null) {
         const text = unwrap(source, id);
         parse(text, digest, connectorId);
@@ -271,6 +305,7 @@ export class CloudConnectorStore implements ConnectorStore {
             : 'connector state was not readable',
         );
       }
+      if (control?.signal?.aborted === true) throw new ConnectorStoreError('connector state deadline');
       await this.#wait(Math.min(this.#pollIntervalMs, remaining));
     }
   }
@@ -279,8 +314,9 @@ export class CloudConnectorStore implements ConnectorStore {
     digest: string,
     connectorId: ConnectorId,
     next: ConnectorObservation,
+    control?: ConnectorStoreControl,
   ): Promise<ConnectorPutResult> {
-    const current = await this.#readOne(digest, connectorId);
+    const current = await this.#readOne(digest, connectorId, control);
     if (current !== null) {
       const order = chronology(next).localeCompare(chronology(current.observation));
       if (order < 0) return 'stale';
@@ -297,14 +333,17 @@ export class CloudConnectorStore implements ConnectorStore {
       timestamp: chronology(next),
       text,
       metadata: { lacuna_record: 'connector_state', connector_id: connectorId },
-    }], COLLECTION);
+    }], COLLECTION, {
+      ...(control?.signal === undefined ? {} : { signal: control.signal }),
+      deadlineMs: this.#deadline(control),
+    });
     const receipt = results[0];
     if (results.length !== 1 || receipt?.id !== id
       || !ACCEPTED_RECEIPTS.has(receipt.status)
       || (receipt.error !== null && receipt.error !== '')) {
       throw new ConnectorStoreError('connector state write was refused');
     }
-    await this.#verifyReadback(digest, connectorId, text);
+    await this.#verifyReadback(digest, connectorId, text, control);
     return 'stored';
   }
 
@@ -312,21 +351,77 @@ export class CloudConnectorStore implements ConnectorStore {
     workspace: string,
     connectorId: ConnectorId,
     next: ConnectorObservation,
+    control?: ConnectorStoreControl,
   ): Promise<ConnectorPutResult> {
     const digest = workspaceDigest(workspace);
     assertConnectorId(connectorId);
     const sanitized = observationFrom(next, false);
     const key = idFor(digest, connectorId);
-    const previous = this.#mutations.get(key) ?? Promise.resolve();
-    const operation = previous.catch(() => undefined).then(
-      () => this.#write(digest, connectorId, sanitized),
-    );
-    const settled = operation.then(() => undefined, () => undefined);
-    this.#mutations.set(key, settled);
+    const release = await this.#acquireMutation(key, this.#deadline(control), control?.signal);
     try {
-      return await operation;
+      return await this.#write(digest, connectorId, sanitized, control);
     } finally {
-      if (this.#mutations.get(key) === settled) this.#mutations.delete(key);
+      release();
     }
+  }
+
+  #releaseMutation(key: string, lock: MutationLock): () => void {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const next = lock.waiters.shift();
+      if (next === undefined) {
+        this.#mutations.delete(key);
+        return;
+      }
+      clearTimeout(next.timer);
+      if (next.signal !== undefined && next.abort !== undefined) {
+        next.signal.removeEventListener('abort', next.abort);
+      }
+      next.resolve(this.#releaseMutation(key, lock));
+    };
+  }
+
+  async #acquireMutation(
+    key: string,
+    deadlineMs: number,
+    signal?: AbortSignal,
+  ): Promise<() => void> {
+    if (signal?.aborted === true || deadlineMs <= this.#now()) {
+      throw new ConnectorStoreError('connector state deadline');
+    }
+    const held = this.#mutations.get(key);
+    if (held === undefined) {
+      const lock: MutationLock = { waiters: [] };
+      this.#mutations.set(key, lock);
+      return this.#releaseMutation(key, lock);
+    }
+    if (held.waiters.length >= MAX_MUTATION_WAITERS) {
+      throw new ConnectorStoreError('connector state queue full');
+    }
+    return new Promise<() => void>((resolve, reject) => {
+      let waiter: MutationWaiter;
+      const fail = () => {
+        const index = held.waiters.indexOf(waiter);
+        if (index >= 0) held.waiters.splice(index, 1);
+        clearTimeout(waiter.timer);
+        if (waiter.signal !== undefined && waiter.abort !== undefined) {
+          waiter.signal.removeEventListener('abort', waiter.abort);
+        }
+        reject(new ConnectorStoreError('connector state deadline'));
+      };
+      waiter = {
+        resolve,
+        reject,
+        ...(signal === undefined ? {} : { signal }),
+        timer: setTimeout(fail, Math.max(1, deadlineMs - this.#now())),
+      };
+      if (signal !== undefined) {
+        waiter.abort = fail;
+        signal.addEventListener('abort', fail, { once: true });
+      }
+      held.waiters.push(waiter);
+    });
   }
 }

@@ -13,6 +13,10 @@ const HTTPS_EVIDENCE_KEYS = new Set([
   'schemaVersion', 'connectorId', 'sourceUrl', 'mediaType', 'pathDigest',
   'retrievedAt', 'rawDigest', 'contentDigest', 'parserVersion',
 ]);
+const WEBHOOK_EVIDENCE_KEYS = new Set([
+  'schemaVersion', 'connectorId', 'mediaType', 'observedAt',
+  'rawDigest', 'contentDigest', 'parserVersion',
+]);
 const HTTPS_MEDIA_TYPES = new Set(['application/json', 'text/plain', 'text/markdown']);
 
 /**
@@ -52,9 +56,20 @@ export interface PersistedHttpsConnectorEvidenceV1 {
   readonly parserVersion: 'https-v1';
 }
 
+export interface PersistedWebhookConnectorEvidenceV1 {
+  readonly schemaVersion: 1;
+  readonly connectorId: 'webhook';
+  readonly mediaType: 'application/json';
+  readonly observedAt: string;
+  readonly rawDigest: string;
+  readonly contentDigest: string;
+  readonly parserVersion: 'webhook-v1';
+}
+
 export type PersistedConnectorEvidence =
   | PersistedGitHubConnectorEvidenceV1
-  | PersistedHttpsConnectorEvidenceV1;
+  | PersistedHttpsConnectorEvidenceV1
+  | PersistedWebhookConnectorEvidenceV1;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -74,6 +89,23 @@ function isCanonicalInstant(value: unknown): value is string {
 /** A closed decoder: missing evidence is legacy; any present unknown shape is invalid. */
 export function decodePersistedConnectorEvidence(value: unknown): PersistedConnectorEvidence | null {
   if (!isRecord(value) || value['schemaVersion'] !== 1) return null;
+  if (value['connectorId'] === 'webhook') {
+    if (!exactKeys(value, WEBHOOK_EVIDENCE_KEYS)
+      || value['mediaType'] !== 'application/json'
+      || !isCanonicalInstant(value['observedAt'])
+      || typeof value['rawDigest'] !== 'string' || !SHA256.test(value['rawDigest'])
+      || typeof value['contentDigest'] !== 'string' || !SHA256.test(value['contentDigest'])
+      || value['parserVersion'] !== 'webhook-v1') return null;
+    return Object.freeze({
+      schemaVersion: 1,
+      connectorId: 'webhook',
+      mediaType: 'application/json',
+      observedAt: value['observedAt'],
+      rawDigest: value['rawDigest'],
+      contentDigest: value['contentDigest'],
+      parserVersion: 'webhook-v1',
+    });
+  }
   if (value['connectorId'] === 'https_api') {
     const canonical = canonicalizePublicHttpsUrl(value['sourceUrl']);
     if (!exactKeys(value, HTTPS_EVIDENCE_KEYS)
@@ -126,6 +158,20 @@ export function persistedEvidenceFor(
 ): PersistedConnectorEvidence | undefined {
   const github = prepared.provenance.github;
   const https = prepared.provenance.https;
+  const webhook = prepared.provenance.webhook;
+  if (prepared.provenance.connectorId === 'webhook' && webhook !== undefined) {
+    const decoded = decodePersistedConnectorEvidence({
+      schemaVersion: 1,
+      connectorId: 'webhook',
+      mediaType: prepared.provenance.mediaType,
+      observedAt: prepared.provenance.observedAt,
+      rawDigest: webhook.rawDigest,
+      contentDigest: prepared.contentDigest,
+      parserVersion: webhook.parserVersion,
+    });
+    if (decoded === null) throw new Error('invalid normalized connector evidence');
+    return decoded;
+  }
   if (prepared.provenance.connectorId === 'https_api' && https !== undefined) {
     const decoded = decodePersistedConnectorEvidence({
       schemaVersion: 1,
@@ -162,6 +208,17 @@ export function connectorEvidenceMetadata(
   evidence: PersistedConnectorEvidence | undefined,
 ): Readonly<Record<string, string | number>> {
   if (evidence === undefined) return {};
+  if (evidence.connectorId === 'webhook') {
+    return {
+      lacuna_connector_schema: evidence.schemaVersion,
+      lacuna_connector_id: evidence.connectorId,
+      lacuna_webhook_media_type: evidence.mediaType,
+      lacuna_webhook_observed_at: evidence.observedAt,
+      lacuna_webhook_raw_sha256: evidence.rawDigest,
+      lacuna_content_sha256: evidence.contentDigest,
+      lacuna_connector_parser_version: evidence.parserVersion,
+    };
+  }
   if (evidence.connectorId === 'https_api') {
     return {
       lacuna_connector_schema: evidence.schemaVersion,

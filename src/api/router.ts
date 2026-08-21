@@ -79,6 +79,12 @@ import {
   type ConnectorRunner,
 } from '../connectors/run.js';
 import type { ConnectorDescriptor, ConnectorStore } from '../connectors/types.js';
+import {
+  WebhookBodyError,
+  WebhookBodyReader,
+  WebhookRejectedError,
+  type WebhookService,
+} from '../connectors/webhook.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -340,6 +346,10 @@ export interface ApiOptions {
   readonly httpsReader?: PinnedHttpsReaderBoundary;
   /** Shared governed ingestion runner used after an adapter has prepared content. */
   readonly connectorRunner?: Pick<ConnectorRunner, 'run'>;
+  /** Complete signed-webhook lifecycle and delivery service; absent fails closed. */
+  readonly webhookService?: Pick<WebhookService, 'issue' | 'state' | 'revoke' | 'admit' | 'accept'>;
+  /** Strict raw entity reader, injectable only for deterministic boundary tests. */
+  readonly webhookBodyReader?: Pick<WebhookBodyReader, 'read'>;
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -700,6 +710,8 @@ export class ApiRouter {
   readonly #githubImporter: GitHubImporterBoundary | undefined;
   readonly #httpsReader: PinnedHttpsReaderBoundary | undefined;
   readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
+  readonly #webhookService: Pick<WebhookService, 'issue' | 'state' | 'revoke' | 'admit' | 'accept'> | undefined;
+  readonly #webhookBodyReader: Pick<WebhookBodyReader, 'read'>;
   readonly #connectorCatalog: () => readonly ConnectorDescriptor[];
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
@@ -746,8 +758,13 @@ export class ApiRouter {
     this.#githubImporter = options.githubImporter;
     this.#httpsReader = options.httpsReader;
     this.#connectorRunner = options.connectorRunner;
+    this.#webhookService = options.webhookService;
+    this.#webhookBodyReader = options.webhookBodyReader ?? new WebhookBodyReader(
+      options.now === undefined ? {} : { now: options.now },
+    );
     this.#connectorCatalog = options.connectorCatalog
       ?? (() => catalogue({
+        webhookService: this.#webhookService !== undefined,
         fileImport: this.#fileConnector !== undefined,
         githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
         httpsImport: this.#httpsReader !== undefined && this.#connectorRunner !== undefined,
@@ -869,6 +886,162 @@ export class ApiRouter {
 
     const cookies = parseCookies(request.headers.cookie);
     const method = request.method ?? 'GET';
+
+    if (path === '/api/workspace/connectors/webhook' && method === 'GET') {
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const service = this.#webhookService;
+      if (service === undefined || this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      try {
+        send(response, 200, await service.state(workspaceCollection(account.email)));
+      } catch {
+        send(response, 503, { error: 'webhook_state_unavailable' });
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/webhook' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const service = this.#webhookService;
+      if (service === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      const length = firstHeader(request.headers['content-length']);
+      if (request.headers['transfer-encoding'] !== undefined
+        || (length !== undefined && length !== '0')) {
+        send(response, 422, { error: 'invalid_webhook_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      try {
+        const issued = await service.issue(workspace);
+        send(response, issued.created ? 201 : 200, {
+          created: issued.created,
+          endpointId: issued.endpointId,
+          endpoint: issued.endpoint,
+          secret: issued.secret,
+          configuredAt: issued.configuredAt,
+        });
+      } catch {
+        send(response, 503, { error: 'webhook_lifecycle_failed' });
+      }
+      return HANDLED;
+    }
+
+    const privateWebhookDelete = /^\/api\/workspace\/connectors\/webhook\/([A-Za-z0-9_-]{22})$/u.exec(path);
+    if (privateWebhookDelete !== null && method === 'DELETE') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const service = this.#webhookService;
+      if (service === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      try {
+        const revoked = await service.revoke(workspace, privateWebhookDelete[1]!);
+        send(response, revoked ? 200 : 404, revoked ? { revoked: true } : { error: 'webhook_not_found' });
+      } catch {
+        send(response, 503, { error: 'webhook_lifecycle_failed' });
+      }
+      return HANDLED;
+    }
+
+    const publicWebhook = /^\/api\/connectors\/webhook\/([^/]{1,128})$/u.exec(path);
+    if (publicWebhook !== null && method === 'POST') {
+      const service = this.#webhookService;
+      if (service === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      const startedAtMs = this.#now();
+      const settlementDeadlineMs = startedAtMs + 240_000;
+      const controller = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) controller.abort();
+      };
+      request.once('aborted', abortIfPremature);
+      response.once('close', abortIfPremature);
+      request.socket.once('close', abortIfPremature);
+      const deadline = setTimeout(() => controller.abort(), Math.max(1, settlementDeadlineMs - this.#now()));
+      deadline.unref?.();
+      try {
+        const control = { requestSignal: controller.signal, startedAtMs, settlementDeadlineMs };
+        service.admit(publicWebhook[1]!, request.rawHeaders);
+        const rawBody = await this.#webhookBodyReader.read(request, control);
+        const receipt = await service.accept(publicWebhook[1]!, request.rawHeaders, rawBody, control);
+        if (!response.destroyed && !response.writableEnded) send(response, 200, {
+          state: receipt.state,
+          acceptedDocuments: receipt.acceptedDocuments,
+          searchableDocuments: receipt.searchableDocuments,
+          failedDocuments: receipt.failedDocuments,
+          acceptedRecords: receipt.acceptedRecords,
+          refusedRecords: receipt.refusedRecords,
+          failure: receipt.failure,
+          observationWrite: receipt.observationWrite,
+          indeterminateSubmission: receipt.indeterminateSubmission,
+        });
+      } catch (error) {
+        if (response.destroyed || response.writableEnded) return HANDLED;
+        if (error instanceof WebhookBodyError) send(response, error.status, { error: error.code });
+        else if (error instanceof WebhookRejectedError) send(response, error.status, { error: error.code });
+        else send(response, 502, { error: 'webhook_failed' });
+      } finally {
+        clearTimeout(deadline);
+        request.off('aborted', abortIfPremature);
+        response.off('close', abortIfPremature);
+        request.socket.off('close', abortIfPremature);
+      }
+      return HANDLED;
+    }
 
     const fileMode = path === '/api/workspace/connectors/file/preview' ? 'preview'
       : path === '/api/workspace/connectors/file/import' ? 'import'
@@ -1121,10 +1294,14 @@ export class ApiRouter {
         return HANDLED;
       }
       try {
-        const observed = this.#connectorStore === undefined
-          ? {}
-          : await this.#connectorStore.get(workspaceCollection(account.email));
-        send(response, 200, { connectors: mergeConnectorState(this.#connectorCatalog(), observed) });
+        const workspace = workspaceCollection(account.email);
+        const [observed, webhook] = await Promise.all([
+          this.#connectorStore === undefined ? {} : this.#connectorStore.get(workspace),
+          this.#webhookService === undefined ? null : this.#webhookService.state(workspace),
+        ]);
+        send(response, 200, { connectors: mergeConnectorState(this.#connectorCatalog(), observed, {
+          webhookConfiguredAt: webhook?.configured === true ? webhook.configuredAt : null,
+        }) });
       } catch {
         send(response, 503, { error: 'connector_state_unavailable' });
       }

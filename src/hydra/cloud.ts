@@ -1,4 +1,10 @@
-import { HydraDecodeError, HydraQueryError, HydraTransportError } from './errors.js';
+import {
+  HydraDecodeError,
+  HydraGuardError,
+  HydraIngestIndeterminateError,
+  HydraQueryError,
+  HydraTransportError,
+} from './errors.js';
 import type { FetchLike } from './client.js';
 
 /**
@@ -41,6 +47,13 @@ export interface IngestResult {
   readonly filename: string;
   readonly status: string;
   readonly error: string | null;
+}
+
+export interface HydraOperationControl {
+  /** Consulted immediately before dispatch; submitted ingest then detaches it. */
+  readonly signal?: AbortSignal;
+  /** Absolute internal deadline. Every provider timer is clipped to it. */
+  readonly deadlineMs?: number;
 }
 
 export interface SourceStatus {
@@ -127,13 +140,24 @@ export class HydraCloud {
     return this.#config.collection;
   }
 
-  async #send(path: string, init: RequestInit, timeoutMs: number): Promise<{ body: unknown; latencyMs: number }> {
+  async #send(
+    path: string,
+    init: RequestInit,
+    timeoutMs: number,
+    deadlineMs?: number,
+  ): Promise<{ body: unknown; latencyMs: number }> {
+    const effectiveTimeout = deadlineMs === undefined
+      ? timeoutMs
+      : Math.min(timeoutMs, deadlineMs - Date.now());
+    if (!Number.isFinite(effectiveTimeout) || effectiveTimeout <= 0) {
+      throw new HydraTransportError(`${path} exceeded its deadline`);
+    }
     const controller = new AbortController();
     const callerSignal = init.signal ?? undefined;
     const relayAbort = () => controller.abort();
     if (callerSignal?.aborted === true) relayAbort();
     else callerSignal?.addEventListener('abort', relayAbort, { once: true });
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), effectiveTimeout);
     const started = performance.now();
     try {
       const headers = new Headers(init.headers);
@@ -155,7 +179,7 @@ export class HydraCloud {
     } catch (error) {
       if (error instanceof HydraQueryError) throw error;
       const aborted = error instanceof Error && error.name === 'AbortError';
-      throw new HydraTransportError(aborted ? `${path} did not answer in ${timeoutMs}ms` : `${path} could not be reached`);
+      throw new HydraTransportError(aborted ? `${path} did not answer before its deadline` : `${path} could not be reached`);
     } finally {
       clearTimeout(timer);
       callerSignal?.removeEventListener('abort', relayAbort);
@@ -220,6 +244,7 @@ export class HydraCloud {
   async ingestApp(
     records: readonly AppRecord[],
     collection = this.#config.collection,
+    control: HydraOperationControl = {},
   ): Promise<readonly IngestResult[]> {
     const form = new FormData();
     form.set('database', this.#config.database);
@@ -240,14 +265,30 @@ export class HydraCloud {
         : {}),
     }))));
 
-    const { body } = await this.#send('/context/ingest', { method: 'POST', body: form }, INGEST_TIMEOUT_MS);
-    const results = pick(pick(body, 'data'), 'results');
-    if (!Array.isArray(results)) {
-      throw new HydraDecodeError('ingest response has no results array');
+    if (control.signal?.aborted === true) throw new HydraGuardError('ingest cancelled before dispatch');
+    if (control.deadlineMs !== undefined && control.deadlineMs <= Date.now()) {
+      throw new HydraGuardError('ingest deadline passed before dispatch');
     }
-    const decoded = results.map(decodeIngestResult);
-    assertCompleteIngestReceipts(records, decoded);
-    return decoded;
+    // This is the commit boundary. The caller signal is deliberately not
+    // relayed after this point: losing it cannot prove Hydra rejected a POST.
+    try {
+      const { body } = await this.#send(
+        '/context/ingest',
+        { method: 'POST', body: form },
+        INGEST_TIMEOUT_MS,
+        control.deadlineMs,
+      );
+      const results = pick(pick(body, 'data'), 'results');
+      if (!Array.isArray(results)) {
+        throw new HydraDecodeError('ingest response has no results array');
+      }
+      const decoded = results.map(decodeIngestResult);
+      assertCompleteIngestReceipts(records, decoded);
+      return decoded;
+    } catch (error) {
+      if (error instanceof HydraGuardError) throw error;
+      throw new HydraIngestIndeterminateError();
+    }
   }
 
   /**
@@ -302,7 +343,11 @@ export class HydraCloud {
    * FILE_NOT_FOUND for a source that ingested successfully, which reads like a
    * service fault and is a scoping mistake.
    */
-  async statusOf(ids: readonly string[], signal?: AbortSignal): Promise<readonly SourceStatus[]> {
+  async statusOf(
+    ids: readonly string[],
+    signal?: AbortSignal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  ): Promise<readonly SourceStatus[]> {
     const query = new URLSearchParams({
       database: this.#config.database,
       collection: this.#config.collection,
@@ -312,7 +357,7 @@ export class HydraCloud {
     const { body } = await this.#send(
       `/context/status?${query.toString()}`,
       { method: 'GET', ...(signal === undefined ? {} : { signal }) },
-      DEFAULT_TIMEOUT_MS,
+      timeoutMs,
     );
     const statuses = pick(pick(body, 'data'), 'statuses');
     if (!Array.isArray(statuses)) return [];
@@ -339,10 +384,15 @@ export class HydraCloud {
     const deadline = Date.now() + (options.timeoutMs ?? 300_000);
     const interval = options.intervalMs ?? 5_000;
     for (;;) {
-      const statuses = await this.statusOf(ids, options.signal);
+      const statuses = await this.statusOf(
+        ids,
+        options.signal,
+        Math.max(1, Math.min(DEFAULT_TIMEOUT_MS, deadline - Date.now())),
+      );
       if (statuses.length > 0 && statuses.every((s) => s.done)) return statuses;
-      if (Date.now() >= deadline) return statuses;
-      await abortableDelay(interval, options.signal);
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) return statuses;
+      await abortableDelay(Math.min(interval, remainingMs), options.signal);
     }
   }
 

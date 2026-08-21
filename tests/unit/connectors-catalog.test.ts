@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { catalogue } from '../../src/connectors/catalog.js';
+import { catalogue, mergeConnectorState } from '../../src/connectors/catalog.js';
 import { CONNECTOR_GROUPS } from '../../web/src/design/connectors.js';
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookKey: 'configured', fileImport: true, githubImport: true, httpsImport: true });
+    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, httpsImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
       'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
@@ -16,9 +16,9 @@ describe('connector catalogue', () => {
   });
 
   it('fails the webhook closed when deployment signing is not configured', () => {
-    expect(catalogue({ webhookKey: undefined }).find((entry) => entry.id === 'webhook'))
+    expect(catalogue({ webhookService: false }).find((entry) => entry.id === 'webhook'))
       .toMatchObject({ availability: 'unavailable', reason: 'signing_not_configured' });
-    expect(catalogue({ webhookKey: '' }).find((entry) => entry.id === 'webhook'))
+    expect(catalogue({}).find((entry) => entry.id === 'webhook'))
       .toMatchObject({ availability: 'unavailable', reason: 'signing_not_configured' });
   });
 
@@ -34,6 +34,25 @@ describe('connector catalogue', () => {
       .toMatchObject({ availability: 'unavailable', reason: 'https_import_unavailable' });
     expect(catalogue({ httpsImport: true }).find((entry) => entry.id === 'https_api'))
       .toMatchObject({ availability: 'available', reason: null });
+  });
+
+  it('uses authoritative active-index state rather than a stale connector observation for connected', () => {
+    const descriptors = catalogue({ webhookService: true });
+    const observed = {
+      webhook: {
+        configuredAt: '2026-08-20T00:00:00.000Z',
+        lastAttemptAt: null,
+        lastSuccessAt: null,
+        lastFailure: null,
+        importedDocuments: 0,
+      },
+    } as const;
+    expect(mergeConnectorState(descriptors, observed, { webhookConfiguredAt: null })
+      .find((entry) => entry.id === 'webhook')).toMatchObject({ state: 'idle', configuredAt: null });
+    expect(mergeConnectorState(descriptors, {}, { webhookConfiguredAt: '2026-08-21T12:00:00.000Z' })
+      .find((entry) => entry.id === 'webhook')).toMatchObject({
+        state: 'connected', configuredAt: '2026-08-21T12:00:00.000Z',
+      });
   });
 
   it('keeps unimplemented account integrations planned in the public design vocabulary', () => {

@@ -30,6 +30,12 @@ import { prepareConnectorBatch, prepareConnectorDocument } from '../../src/conne
 import { FilePreviewTokenService } from '../../src/connectors/preview-token.js';
 import { ConnectorRunner } from '../../src/connectors/run.js';
 import type {
+  IssuedWebhook,
+  WebhookReceipt,
+  WebhookRequestControl,
+  WebhookState,
+} from '../../src/connectors/webhook.js';
+import type {
   ConnectorId,
   ConnectorObservation,
   ConnectorPutResult,
@@ -121,6 +127,14 @@ let runnerReadinessReleased: Promise<void>;
 let runnerReadinessAborted: Promise<void>;
 let markRunnerReadinessAborted: (() => void) | undefined;
 let now: number;
+let webhookCalls: {
+  readonly operation: 'issue' | 'state' | 'revoke' | 'accept';
+  readonly workspace?: string;
+  readonly endpointId?: string;
+  readonly body?: Buffer;
+  readonly control?: WebhookRequestControl;
+}[];
+let webhookConfiguredAt: string | null;
 
 const SITE_ORIGIN = 'https://app.example.test';
 
@@ -214,6 +228,38 @@ async function postHttps(
   }
   const response = await fetch(`${base}/api/workspace/connectors/api/import`, {
     method: 'POST', headers, body: JSON.stringify(body),
+  });
+  jar.absorb(response);
+  return response;
+}
+
+async function mutateWebhook(
+  jar: Jar,
+  method: 'POST' | 'DELETE',
+  endpointId?: string,
+  body?: unknown,
+  overrides: Readonly<Record<string, string | null>> = {},
+): Promise<Response> {
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  const headers: Record<string, string> = {
+    cookie: jar.header(),
+    'x-csrf-token': token,
+    origin: SITE_ORIGIN,
+  };
+  let encoded: string | undefined;
+  if (body !== undefined) {
+    headers['content-type'] = 'application/json';
+    encoded = JSON.stringify(body);
+  }
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === null) delete headers[name];
+    else headers[name] = value;
+  }
+  const suffix = method === 'DELETE' ? `/${endpointId ?? ''}` : '';
+  const response = await fetch(`${base}/api/workspace/connectors/webhook${suffix}`, {
+    method,
+    headers,
+    ...(encoded === undefined ? {} : { body: encoded }),
   });
   jar.absorb(response);
   return response;
@@ -411,6 +457,8 @@ beforeEach(async () => {
   runnerReadinessReleased = new Promise<void>((resolve) => { releaseRunnerReadiness = resolve; });
   runnerReadinessAborted = new Promise<void>((resolve) => { markRunnerReadinessAborted = resolve; });
   now = Date.parse('2026-08-21T12:00:00.000Z');
+  webhookCalls = [];
+  webhookConfiguredAt = null;
   const runner = new ConnectorRunner({
     store: connectorStore,
     now: () => now,
@@ -505,13 +553,50 @@ beforeEach(async () => {
     health: null,
     connectorStore,
     connectorCatalog: () => catalogue({
-      webhookKey: 'configured', fileImport: true, githubImport: true, httpsImport: true,
+      webhookService: true, fileImport: true, githubImport: true, httpsImport: true,
     }),
     fileConnector,
     githubImporter,
     httpsReader,
     connectorRunner: runner,
+    webhookService: {
+      admit: () => undefined,
+      issue: async (workspace): Promise<IssuedWebhook> => {
+        webhookCalls.push({ operation: 'issue', workspace });
+        return {
+          created: true,
+          endpointId: 'AAECAwQFBgcICQoLDA0ODw',
+          endpoint: `${SITE_ORIGIN}/api/connectors/webhook/AAECAwQFBgcICQoLDA0ODw`,
+          secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg',
+          configuredAt: '2026-08-21T12:00:00.000Z',
+        };
+      },
+      state: async (workspace): Promise<WebhookState> => {
+        webhookCalls.push({ operation: 'state', workspace });
+        return webhookConfiguredAt === null
+          ? { configured: false, endpointId: null, endpoint: null, configuredAt: null }
+          : {
+            configured: true,
+            endpointId: 'AAECAwQFBgcICQoLDA0ODw',
+            endpoint: `${SITE_ORIGIN}/api/connectors/webhook/AAECAwQFBgcICQoLDA0ODw`,
+            configuredAt: webhookConfiguredAt,
+          };
+      },
+      revoke: async (workspace, endpointId): Promise<boolean> => {
+        webhookCalls.push({ operation: 'revoke', workspace, endpointId });
+        return true;
+      },
+      accept: async (endpointId, _headers, body, control): Promise<WebhookReceipt> => {
+        webhookCalls.push({ operation: 'accept', endpointId, body, control });
+        return {
+          state: 'accepted', acceptedDocuments: 1, searchableDocuments: 1,
+          failedDocuments: 0, acceptedRecords: 4, refusedRecords: 0,
+          failure: null, observationWrite: 'stored', indeterminateSubmission: false,
+        };
+      },
+    },
     siteOrigin: SITE_ORIGIN,
+    now: () => now,
   });
   await listen(router);
 });
@@ -521,9 +606,85 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 
+describe('signed webhook lifecycle and public receiver API', () => {
+  it('authenticates private lifecycle routes before service work and derives the workspace server-side', async () => {
+    const anonymous = await fetch(`${base}/api/workspace/connectors/webhook`);
+    expect(anonymous.status).toBe(401);
+    expect(webhookCalls).toEqual([]);
+
+    const jar = await signedIn('webhook-owner@example.com');
+    const state = await fetch(`${base}/api/workspace/connectors/webhook`, {
+      headers: { cookie: jar.header() },
+    });
+    expect(state.status).toBe(200);
+    expect(await state.json()).toEqual({
+      configured: false, endpointId: null, endpoint: null, configuredAt: null,
+    });
+
+    expect((await mutateWebhook(jar, 'POST', undefined, undefined, { origin: null })).status).toBe(403);
+    expect((await mutateWebhook(jar, 'POST', undefined, undefined, { 'x-csrf-token': 'wrong' })).status).toBe(403);
+    const issuedResponse = await mutateWebhook(jar, 'POST');
+    expect(issuedResponse.status).toBe(201);
+    const issuedBody = await issuedResponse.json() as Record<string, unknown>;
+    expect(issuedBody).toMatchObject({
+      created: true,
+      endpointId: 'AAECAwQFBgcICQoLDA0ODw',
+      secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg',
+    });
+    expect(JSON.stringify(issuedBody)).not.toMatch(/workspace|collection|ownerDigest|Cipher/u);
+
+    const revoked = await mutateWebhook(jar, 'DELETE', 'AAECAwQFBgcICQoLDA0ODw');
+    expect(revoked.status).toBe(200);
+    expect(webhookCalls.map((call) => call.operation)).toEqual(['state', 'issue', 'revoke']);
+    for (const call of webhookCalls) {
+      if (call.workspace !== undefined) expect(call.workspace).toMatch(/^lacuna-ws-[0-9a-f]{32}$/u);
+    }
+  });
+
+  it('rejects private client scope fields instead of passing them to lifecycle work', async () => {
+    const jar = await signedIn('webhook-scope@example.com');
+    const response = await mutateWebhook(jar, 'POST', undefined, {
+      workspace: 'lacuna-ws-00000000000000000000000000000000',
+      collection: 'public',
+      secret: 'client-secret',
+    });
+    expect(response.status).toBe(422);
+    expect(webhookCalls).toEqual([]);
+  });
+
+  it('accepts the public exact entity body without session state and returns only safe receipt fields', async () => {
+    const body = Buffer.from(JSON.stringify({
+      title: 'Atlas', text: 'Atlas depends on cache-a.', observed_at: '2026-08-21T12:00:00.000Z',
+    }), 'utf8');
+    const response = await fetch(`${base}/api/connectors/webhook/AAECAwQFBgcICQoLDA0ODw`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': String(body.byteLength),
+        'x-lacuna-timestamp': String(Math.floor(now / 1_000)),
+        'x-lacuna-event-id': 'event_1234567890',
+        'x-lacuna-signature': `v1=${'0'.repeat(64)}`,
+      },
+      body,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store, private');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(await response.json()).toEqual({
+      state: 'accepted', acceptedDocuments: 1, searchableDocuments: 1,
+      failedDocuments: 0, acceptedRecords: 4, refusedRecords: 0,
+      failure: null, observationWrite: 'stored', indeterminateSubmission: false,
+    });
+    const call = webhookCalls[0];
+    expect(call).toMatchObject({ operation: 'accept', endpointId: 'AAECAwQFBgcICQoLDA0ODw' });
+    expect(call?.body).toEqual(body);
+    expect(call?.control).toMatchObject({ startedAtMs: now, settlementDeadlineMs: now + 240_000 });
+  });
+});
+
 describe('workspace connector catalogue API', () => {
   it('fails file availability closed when the runner or preview signer is absent', () => {
-    const unavailable = catalogue({ webhookKey: 'configured', fileImport: false });
+    const unavailable = catalogue({ webhookService: true, fileImport: false });
     for (const id of ['markdown', 'text', 'pdf', 'docx']) {
       expect(unavailable.find((entry) => entry.id === id)).toMatchObject({
         availability: 'unavailable', reason: 'file_import_unavailable',
@@ -556,6 +717,7 @@ describe('workspace connector catalogue API', () => {
         importedDocuments: 0,
       },
     };
+    webhookConfiguredAt = '2026-08-21T08:30:00.000Z';
 
     const response = await fetch(
       `${base}/api/workspace/connectors?workspace=${encodeURIComponent(workspaceCollection('somebody-else@example.com'))}`,
@@ -572,6 +734,7 @@ describe('workspace connector catalogue API', () => {
     });
     expect(body.connectors.find((entry) => entry['id'] === 'webhook')).toMatchObject({
       availability: 'available', state: 'connected', importedDocuments: 0,
+      configuredAt: '2026-08-21T08:30:00.000Z',
     });
     expect(JSON.stringify(body)).not.toContain('connector-owner@example.com');
     expect(JSON.stringify(body)).not.toContain(workspaceCollection('connector-owner@example.com'));
@@ -1007,7 +1170,7 @@ describe('workspace public GitHub import API', () => {
       secure: false,
       health: null,
       connectorStore,
-      connectorCatalog: () => catalogue({ webhookKey: 'configured', fileImport: true, githubImport: false }),
+      connectorCatalog: () => catalogue({ webhookService: true, fileImport: true, githubImport: false }),
       siteOrigin: SITE_ORIGIN,
     });
     await listen(router);
@@ -1177,7 +1340,7 @@ describe('workspace pinned public HTTPS import API', () => {
       health: null,
       connectorStore,
       connectorCatalog: () => catalogue({
-        webhookKey: 'configured', fileImport: true, githubImport: true, httpsImport: false,
+        webhookService: true, fileImport: true, githubImport: true, httpsImport: false,
       }),
       siteOrigin: SITE_ORIGIN,
     });

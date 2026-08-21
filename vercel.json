@@ -4,7 +4,8 @@
   "outputDirectory": "web/dist",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{artifacts/**,api/file-parser-worker.mjs}"
+      "includeFiles": "{artifacts/**,api/file-parser-worker.mjs}",
+      "maxDuration": 270
     }
   },
   "crons": [

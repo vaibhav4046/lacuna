@@ -5,7 +5,7 @@ import { INDEX_ID } from '../hydra/cloud-graph.js';
 import type { BuiltGraph, IndexRecord } from '../hydra/cloud-graph.js';
 import { buildCloudGraph, entityRecordId, toAppRecords, unwrapEnvelope } from '../hydra/cloud-graph.js';
 import type { EntityRecord } from '../hydra/cloud-graph.js';
-import { HydraDecodeError } from '../hydra/errors.js';
+import { HydraDecodeError, HydraIngestIndeterminateError } from '../hydra/errors.js';
 import { extract } from '../extract/extract.js';
 import { toCorpus } from '../extract/adapt.js';
 import { buildPlan } from '../ingest/plan.js';
@@ -70,6 +70,11 @@ export interface IngestPreparedOptions {
   readonly awaitSearchable: boolean;
   readonly readiness?: { readonly timeoutMs?: number; readonly intervalMs?: number };
   readonly signal?: AbortSignal;
+  readonly deadlines?: {
+    readonly prewriteDeadlineMs: number;
+    readonly submissionDeadlineMs: number;
+    readonly readinessDeadlineMs: number;
+  };
 }
 
 export class IngestCancelledError extends Error {
@@ -91,6 +96,24 @@ export class IngestReadinessError extends Error {
     this.reason = reason;
     this.acceptedRecords = acceptedRecords;
     this.refusedRecords = refusedRecords;
+  }
+}
+
+/** The one submitted Hydra POST may have landed, but no exact receipt survived. */
+export class IngestSubmissionIndeterminateError extends Error {
+  override readonly name = 'IngestSubmissionIndeterminateError';
+
+  constructor() {
+    super('indeterminate_submission');
+  }
+}
+
+export class IngestGraphLimitError extends Error {
+  override readonly name = 'IngestGraphLimitError';
+  readonly code = 'too_many_records';
+
+  constructor() {
+    super('too_many_records');
   }
 }
 
@@ -206,9 +229,10 @@ function storedEntity(text: string): EntityRecord {
 async function mergeIndex(
   scoped: HydraCloud,
   graph: BuiltGraph,
+  timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<BuiltGraph> {
-  const source = await scoped.inspect(INDEX_ID, 15_000, scoped.collection, signal);
+  const source = await scoped.inspect(INDEX_ID, timeoutMs, scoped.collection, signal);
   const text = storedText(source, 'index');
   const existing = text === null ? null : storedIndex(text);
   if (existing === null) return graph;
@@ -332,23 +356,82 @@ function assertCompleteReceipts(
   }
 }
 
-const workspaceMutations = new Map<string, Promise<void>>();
+interface WorkspaceWaiter {
+  readonly resolve: (release: () => void) => void;
+  readonly reject: (error: Error) => void;
+  readonly signal?: AbortSignal;
+  abort?: () => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+}
+
+interface WorkspaceLock {
+  held: boolean;
+  readonly waiters: WorkspaceWaiter[];
+}
+
+const workspaceMutations = new Map<string, WorkspaceLock>();
+const MAX_WORKSPACE_WAITERS = 32;
 
 /**
  * Orders the shared index/entity read-modify-write phase inside one process.
  * HydraDB has no compare-and-swap across serverless instances. Deterministic
  * ids, upserts, and exact receipts remain the cross-instance convergence boundary.
  */
-async function serializeWorkspaceMutation<T>(workspace: string, mutation: () => Promise<T>): Promise<T> {
-  const previous = workspaceMutations.get(workspace) ?? Promise.resolve();
-  const operation = previous.catch(() => undefined).then(mutation);
-  const settled = operation.then(() => undefined, () => undefined);
-  workspaceMutations.set(workspace, settled);
-  try {
-    return await operation;
-  } finally {
-    if (workspaceMutations.get(workspace) === settled) workspaceMutations.delete(workspace);
+function workspaceRelease(workspace: string, lock: WorkspaceLock): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const next = lock.waiters.shift();
+    if (next === undefined) {
+      lock.held = false;
+      workspaceMutations.delete(workspace);
+      return;
+    }
+    clearTimeout(next.timer);
+    if (next.signal !== undefined && next.abort !== undefined) {
+      next.signal.removeEventListener('abort', next.abort);
+    }
+    next.resolve(workspaceRelease(workspace, lock));
+  };
+}
+
+async function acquireWorkspaceMutation(
+  workspace: string,
+  deadlineMs: number,
+  signal?: AbortSignal,
+): Promise<() => void> {
+  if (signal?.aborted === true || deadlineMs <= Date.now()) throw new IngestCancelledError();
+  const held = workspaceMutations.get(workspace);
+  if (held === undefined) {
+    const lock: WorkspaceLock = { held: true, waiters: [] };
+    workspaceMutations.set(workspace, lock);
+    return workspaceRelease(workspace, lock);
   }
+  if (held.waiters.length >= MAX_WORKSPACE_WAITERS) throw new IngestCancelledError();
+  return new Promise<() => void>((resolve, reject) => {
+    let waiter: WorkspaceWaiter;
+    const fail = () => {
+      const index = held.waiters.indexOf(waiter);
+      if (index >= 0) held.waiters.splice(index, 1);
+      clearTimeout(waiter.timer);
+      if (waiter.signal !== undefined && waiter.abort !== undefined) {
+        waiter.signal.removeEventListener('abort', waiter.abort);
+      }
+      reject(new IngestCancelledError());
+    };
+    waiter = {
+      resolve,
+      reject,
+      ...(signal === undefined ? {} : { signal }),
+      timer: setTimeout(fail, Math.max(1, deadlineMs - Date.now())),
+    };
+    if (signal !== undefined) {
+      waiter.abort = fail;
+      signal.addEventListener('abort', fail, { once: true });
+    }
+    held.waiters.push(waiter);
+  });
 }
 
 interface MutationReceipts {
@@ -365,18 +448,27 @@ async function writeGraph(
   collection: string,
   graph: BuiltGraph,
   corrections: ReadonlySet<string>,
-  signal?: AbortSignal,
+  options: IngestPreparedOptions,
+  oneBatch: boolean,
 ): Promise<MutationReceipts> {
-  return serializeWorkspaceMutation(collection, async () => {
+  const signal = options.signal;
+  // Queue acquisition and every index/entity read share one 20-second phase.
+  // A later outer deadline must never silently expand that pre-write budget.
+  const prewriteDeadlineMs = Math.min(
+    options.deadlines?.prewriteDeadlineMs ?? Number.POSITIVE_INFINITY,
+    Date.now() + 20_000,
+  );
+  const release = await acquireWorkspaceMutation(collection, prewriteDeadlineMs, signal);
+  try {
     const scoped = cloud.withCollection(collection);
     if (isAborted(signal)) throw new IngestCancelledError();
     let merged: BuiltGraph;
     try {
       merged = await mergeEntities(
         scoped,
-        await mergeIndex(scoped, graph, signal),
+        await mergeIndex(scoped, graph, Math.max(1, Math.min(15_000, prewriteDeadlineMs - Date.now())), signal),
         corrections,
-        15_000,
+        Math.max(1, Math.min(15_000, prewriteDeadlineMs - Date.now())),
         signal,
       );
     } catch (error) {
@@ -385,6 +477,7 @@ async function writeGraph(
     }
     if (isAborted(signal)) throw new IngestCancelledError();
     const records = toAppRecords(merged);
+    if (oneBatch && records.length > BATCH) throw new IngestGraphLimitError();
     const accepted: string[] = [];
     const refused: { id: string; error: string }[] = [];
     for (let at = 0; at < records.length; at += BATCH) {
@@ -397,8 +490,19 @@ async function writeGraph(
       const batch = records.slice(at, at + BATCH);
       // Once submitted, await the exact receipt. Aborting this request would
       // turn a possibly durable write into unknown state.
-      const results: readonly IngestResult[] = await scoped.ingestApp(batch, collection);
-      assertCompleteReceipts(batch, results);
+      let results: readonly IngestResult[];
+      try {
+        results = await scoped.ingestApp(batch, collection, {
+          ...(signal === undefined ? {} : { signal }),
+          ...(options.deadlines === undefined ? {} : { deadlineMs: options.deadlines.submissionDeadlineMs }),
+        });
+        assertCompleteReceipts(batch, results);
+      } catch (error) {
+        if (error instanceof HydraIngestIndeterminateError || error instanceof HydraDecodeError) {
+          throw new IngestSubmissionIndeterminateError();
+        }
+        throw error;
+      }
       for (const result of results) {
         if (result.error === null || result.error === '') accepted.push(result.id);
         else refused.push({ id: result.id, error: result.error });
@@ -408,7 +512,9 @@ async function writeGraph(
       }
     }
     return { accepted, refused };
-  });
+  } finally {
+    release();
+  }
 }
 
 async function preparedIngest(
@@ -443,7 +549,14 @@ async function preparedIngest(
       .map((claim) => `${claim.subject}\u0000${claim.predicate}`),
   );
   if (isAborted(options.signal)) throw new IngestCancelledError();
-  const receipts = await writeGraph(cloud, collection, graph, corrections, options.signal);
+  const receipts = await writeGraph(
+    cloud,
+    collection,
+    graph,
+    corrections,
+    options,
+    prepared.provenance.connectorId === 'webhook',
+  );
   if (isAborted(options.signal)) {
     throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
   }
@@ -453,8 +566,15 @@ async function preparedIngest(
   if (options.awaitSearchable && receipts.accepted.length > 0) {
     let statuses: readonly SourceStatus[];
     try {
+      const readinessTimeout = options.deadlines === undefined
+        ? options.readiness?.timeoutMs
+        : Math.max(1, Math.min(
+          options.readiness?.timeoutMs ?? 300_000,
+          options.deadlines.readinessDeadlineMs - Date.now(),
+        ));
       statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, {
         ...options.readiness,
+        ...(readinessTimeout === undefined ? {} : { timeoutMs: readinessTimeout }),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
       });
     } catch {

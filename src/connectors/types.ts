@@ -48,11 +48,21 @@ export interface ConnectorStatus extends ConnectorDescriptor, ConnectorObservati
 
 export type ConnectorPutResult = 'stored' | 'unchanged' | 'stale';
 
+export interface ConnectorStoreControl {
+  readonly signal?: AbortSignal;
+  readonly deadlineMs?: number;
+}
+
 export interface ConnectorStore {
-  get(workspace: string): Promise<ConnectorWorkspaceState>;
+  get(workspace: string, control?: ConnectorStoreControl): Promise<ConnectorWorkspaceState>;
   /**
    * Mutates one connector only. `stale` means canonical attempt chronology
    * refused the observation; it does not promise cross-instance CAS.
    */
-  put(workspace: string, id: ConnectorId, next: ConnectorObservation): Promise<ConnectorPutResult>;
+  put(
+    workspace: string,
+    id: ConnectorId,
+    next: ConnectorObservation,
+    control?: ConnectorStoreControl,
+  ): Promise<ConnectorPutResult>;
 }

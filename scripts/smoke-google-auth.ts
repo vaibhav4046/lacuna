@@ -1,4 +1,4 @@
-export {};
+import { createHash } from 'node:crypto';
 
 /**
  * Non-destructive production proof for the hosted authentication boundary.
@@ -76,8 +76,9 @@ record(location?.searchParams.get('response_type') === 'code', 'authorization-co
 record(location?.searchParams.get('redirect_uri') === `${target}/api/auth/google/callback`, 'callback is pinned to this origin');
 record(location?.searchParams.get('scope') === 'openid email profile', 'scopes are identity-only');
 record(location?.searchParams.get('prompt') === 'select_account', 'account selection is explicit');
+record(location?.searchParams.get('state') === attempt?.state, 'authorization state matches the browser proof');
 record(location?.searchParams.get('code_challenge_method') === 'S256'
-  && /^[A-Za-z0-9_-]{43}$/.test(location?.searchParams.get('code_challenge') ?? ''), 'PKCE S256 proof is present');
+  && location?.searchParams.get('code_challenge') === createHash('sha256').update(attempt?.codeVerifier ?? '', 'utf8').digest('base64url'), 'PKCE S256 proof matches the browser verifier');
 record((location?.searchParams.get('nonce') ?? '') === attempt?.nonce, 'OIDC nonce is browser-bound');
 record(/^[A-Za-z0-9_-]{43}$/.test(attempt?.state ?? ''), 'CSRF state is high entropy');
 record(/^[A-Za-z0-9_-]{43}$/.test(attempt?.codeVerifier ?? ''), 'PKCE verifier is high entropy');

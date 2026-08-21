@@ -1,4 +1,4 @@
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -100,8 +100,11 @@ describe('Google OAuth HTTP boundary', () => {
     expect(response.headers.get('cache-control')).toBe('no-store, private');
     expect(response.headers.get('pragma')).toBe('no-cache');
     expect(location.origin).toBe('https://accounts.google.com');
+    expect(location.searchParams.get('state')).toBe(attempt?.state);
     expect(location.searchParams.get('code_challenge_method')).toBe('S256');
-    expect(location.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(location.searchParams.get('code_challenge')).toBe(
+      createHash('sha256').update(attempt?.codeVerifier ?? '', 'utf8').digest('base64url'),
+    );
     expect(location.searchParams.get('nonce')).toBe(attempt?.nonce);
     expect(attempt?.state).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(attempt?.codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);

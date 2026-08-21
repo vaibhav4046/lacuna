@@ -8,9 +8,11 @@
 
 Close the remaining product-completeness gaps without weakening Lacuna's truth
 boundary. The release must add real connector workflows, reproducible official
-LongMemEval evidence, a useful first authenticated session, and voice playback
-that survives browsers where Web Audio analysis is unavailable. Every visible
-state must still describe observed behavior rather than intended behavior.
+LongMemEval evidence, a useful first authenticated session, session-aware public
+navigation, and a global voice control that can perform supported authenticated
+operations and play speech even where Web Audio analysis is unavailable. Every
+visible state must still describe observed behavior rather than intended
+behavior.
 
 ## Product boundary
 
@@ -55,21 +57,27 @@ Three approaches were evaluated.
 
 ## Architecture
 
-The work is split into four independently testable subsystems. They share the
+The work is split into five independently testable subsystems. They share the
 existing authenticated workspace boundary and the existing `ingestSource`
 pipeline, but otherwise communicate through narrow interfaces.
 
 ```text
 connector input -> bounded acquisition -> normalized source -> ingestSource
                                                         |-> HydraDB collection
+                                                        |-> native graph impact
 
 official dataset -> per-question HydraDB collection -> hybrid query -> answerer
                                                             |-> hypotheses.jsonl
 
 onboarding -> workspace create -> optional first-source ingest -> suggested Ask
 
-user gesture -> reusable playback session -> TTS bytes -> native audio
-                                                 |-> optional Web Audio analyser
+session cookie -> SessionProvider -> landing/auth controls -> open workspace
+
+global voice bubble -> transcript/typed text -> typed intent allowlist
+                         |-> read action -> existing authenticated API -> result
+                         |-> mutation preview -> explicit confirm -> existing API
+                         |-> answer/result -> TTS bytes -> native audio
+                                                   |-> optional Web Audio analyser
 ```
 
 ### Connector core
@@ -88,11 +96,14 @@ Create a server-only `src/connectors/` package with these responsibilities:
 - `run.ts` sends each normalized chunk through the existing `ingestSource`
   function. It aggregates accepted/refused receipts and writes connector state
   only after every required receipt has been validated.
-- `store.ts` persists non-secret connector state in the authenticated HydraDB
-  collection. State records include connector id, status, source label,
+- `store.ts` persists non-secret connector state in the dedicated non-memory
+  HydraDB collection `lacuna-connectors`, keyed by an opaque keyed digest of the
+  server-derived workspace id. This prevents operational records from becoming
+  Ask evidence. State records include connector id, status, source label,
   deterministic source fingerprint, last attempt, last success, item count,
   and a redacted failure code. They never include authorization headers,
-  webhook secrets, fetched response bodies, or workspace email addresses.
+  webhook secrets, fetched response bodies, workspace collections, or workspace
+  email addresses.
 
 The connector API is under `/api/workspace/connectors` and derives the
 workspace collection from the signed-in session. No request may name a
@@ -100,6 +111,9 @@ workspace or collection.
 
 - `GET /api/workspace/connectors` returns the global catalogue merged with the
   current workspace's observed state.
+- `POST /api/workspace/connectors/file/preview` extracts one supported file
+  without storing it and returns the bounded preview used by onboarding and the
+  connector panel.
 - `POST /api/workspace/connectors/github/import` accepts a public GitHub URL and
   optional ref.
 - `POST /api/workspace/connectors/file/import` accepts one supported file.
@@ -173,8 +187,9 @@ stored. The HydraDB state record stores the id, creation time, and revocation
 state. Requests carry:
 
 - `X-Lacuna-Timestamp`: Unix seconds within five minutes;
-- `X-Lacuna-Event`: a 128-bit-or-larger unique event id;
-- `X-Lacuna-Signature`: `v1=<hex HMAC-SHA256(timestamp + "." + rawBody)>`.
+- `X-Lacuna-Event-Id`: a 128-bit-or-larger unique event id;
+- `X-Lacuna-Signature`:
+  `v1=<hex HMAC-SHA256(timestamp + "." + eventId + "." + rawBody)>`.
 
 Verification uses constant-time comparison. The latest 1,024 event ids inside
 a 24-hour window are retained in the connector state as replay markers. A
@@ -263,6 +278,60 @@ Workspace creation and first-source ingestion are separate durable operations.
 If ingestion fails, the created workspace remains valid and the UI offers retry
 without creating a second workspace.
 
+### Session-aware public navigation
+
+The secure 30-day session remains the source of truth on public and private
+routes. Landing header, footer, and final call-to-action read `SessionProvider`:
+an authenticated visitor sees `Open workspace`, never a contradictory `Sign in`
+or `Get started` prompt. Visiting `/signin` or `/signup` with a valid session
+redirects to the workspace. Refreshing Home or navigating Home from the shell
+must preserve that behavior without minting a second workspace or exposing
+session data in page markup. Loading and failed session checks remain explicit;
+they never optimistically claim that a user is signed in.
+
+### Authenticated voice operations
+
+The floating voice control is a product control, not a shortcut to another
+route. In every authenticated shell route it opens one accessible command panel
+owned by the shell. That owner retains the current transcript, pending action,
+answer, and reusable playback session while ordinary route navigation occurs.
+The `/voice` route renders the same controller in an expanded layout instead of
+creating a second microphone or audio runtime.
+
+Committed speech and the typed fallback enter one deterministic command
+boundary before the existing private Ask path. The boundary emits a closed,
+versioned `VoiceIntent` union. The initial production allowlist covers:
+
+- navigation to every visible workspace route, with spoken acknowledgement;
+- private Ask, preserving answer, standing, evidence, and trace identifiers;
+- read-only workspace summaries such as health and connector status, obtained
+  from their existing authenticated APIs rather than inferred from the page;
+- adding a bounded text memory through the existing preview and ingest path;
+- starting an existing bounded agent/work request when its required inputs can
+  be represented and validated by the existing API.
+
+Unmatched language becomes private Ask only when it is framed as a question;
+otherwise the panel reports the supported command forms and does nothing. The
+intent layer cannot produce an arbitrary URL, HTTP method, endpoint, collection,
+workspace identifier, shell command, or free-form tool invocation.
+
+Navigation and reads may execute immediately. Every mutation first renders a
+human-readable preview containing the exact action and bounded inputs. It runs
+only after the user selects `CONFIRM` or commits the exact follow-up word
+`confirm` while that preview is active. Pending confirmation is one-shot,
+expires after 30 seconds, is cleared by navigation/account change/cancel, and is
+bound to the current authenticated workspace. `cancel` always discards it.
+Deletion, revocation, sign-out, credential, permission, and security-setting
+changes are deliberately not voice-executable in this release; voice may only
+navigate to their ordinary UI.
+
+All operations call the same authenticated, CSRF-protected APIs used by their
+screens and preserve their validation, quotas, receipt checks, and tenant
+derivation. Voice has no privileged server path. Results shown and spoken come
+from observed API responses. An operation may succeed when speech playback is
+blocked, but the UI must distinguish those two outcomes and keep the result
+visible.
+
 ### Cross-browser voice playback
 
 The current runtime creates a fresh `AudioContext` after network work and makes
@@ -316,6 +385,12 @@ distinct from local browser failures.
   a false leakage test.
 - Voice never calls provider-unavailable for a local playback problem and never
   simulates audio, transcript, RMS, or waveform data.
+- Voice intents are closed and versioned. They cannot select an endpoint,
+  workspace, collection, credential, shell command, or arbitrary tool.
+- Voice mutations require an unexpired, workspace-bound preview and explicit
+  confirmation, then use the existing authenticated and CSRF-protected route.
+- A voice playback failure cannot roll back or re-run an already completed
+  operation; the panel reports operation and audio outcomes independently.
 
 ## Testing and evidence
 
@@ -335,10 +410,14 @@ Onboarding evidence includes component contract tests and an authenticated
 browser run from new workspace through ingest, suggested Ask, evidence view,
 refresh, and session revalidation.
 
-Voice evidence includes no-Web-Audio, analyser-failure, autoplay-rejection,
-abort-race, replay, and disposal tests. Production verification exercises typed
-Ask plus TTS playback in the connected browser and confirms that the fallback
-state remains usable if the automation surface itself blocks audio.
+Voice evidence includes global-bubble ownership, route-persistence, intent
+allowlist, ambiguous-command refusal, mutation preview/confirm/expiry,
+authentication/CSRF/tenant checks, no-Web-Audio, analyser-failure,
+autoplay-rejection, abort-race, replay, and disposal tests. Production
+verification exercises navigation, a private cited Ask, one confirmed memory
+write, and TTS playback in the connected browser. It confirms that a completed
+operation remains visible and usable if the automation surface itself blocks
+audio.
 
 The release gate remains the full root unit suite, root and web typechecks, web
 build, copy lint, dependency audit, targeted contract/smoke suites, diff check,
@@ -363,15 +442,23 @@ The goal is complete only when all of the following are true:
 
 1. At least GitHub, Markdown/Text, PDF, DOCX, HTTPS API, and signed webhook
    workflows ingest public test data through the production private-workspace
-   path and expose truthful persisted state.
+   path and expose truthful persisted state. A two-source correction remains
+   historically visible, changes the current cited answer, and drives a
+   workspace-scoped Hydra native graph walk whose raw candidates and Lacuna
+   policy decisions are fully accounted.
 2. The official 500-question LongMemEval oracle evaluation has a verified
    hypotheses file, official evaluator output, provenance artifact, and no
    ground-truth leakage.
 3. A new authenticated workspace can ingest its first source and execute a
    suggested private question without leaving onboarding.
-4. Voice plays through native audio without requiring Web Audio analysis, and
+4. A signed-in visitor remains visibly signed in across Home, workspace, and
+   refresh, and signed-in auth pages return that visitor to the workspace.
+5. The global voice panel persists across workspace navigation, performs its
+   tested read operations, previews and confirms its tested mutations through
+   ordinary authenticated APIs, and never executes an unsupported intent.
+6. Voice plays through native audio without requiring Web Audio analysis, and
    all local/provider/cancellation failure boundaries pass regression tests.
-5. Full local gates pass, the immutable production deployment passes the
+7. Full local gates pass, the immutable production deployment passes the
    browser/API matrix, and the canonical URL points at that deployment.
-6. Documentation and UI state only claim the integrations and benchmark tier
+8. Documentation and UI state only claim the integrations and benchmark tier
    demonstrated by those artifacts.

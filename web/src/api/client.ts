@@ -126,25 +126,42 @@ export interface PostResult {
  * than a message: nothing the server writes reaches the page as text, so a
  * response body can never become copy.
  */
-export async function postJson(path: string, body: unknown): Promise<PostResult> {
-  const send = async (): Promise<Response> => {
+export async function postJson(
+  path: string,
+  body: unknown,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): Promise<PostResult> {
+  const send = async (): Promise<{
+    readonly response: Response;
+    readonly clear: () => void;
+    readonly timedOut: () => boolean;
+  }> => {
     const control = new AbortController();
-    const timeout = globalThis.setTimeout(() => control.abort(), REQUEST_TIMEOUT_MS);
+    let timedOut = false;
+    const timeout = globalThis.setTimeout(() => {
+      timedOut = true;
+      control.abort();
+    }, timeoutMs);
     try {
-      return await fetch(path, {
+      const response = await fetch(path, {
         method: 'POST',
         signal: control.signal,
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
         body: JSON.stringify(body),
       });
-    } finally {
+      // `fetch` resolves after headers. Keep its abort timer alive while the
+      // response body is parsed, otherwise a stalled JSON body leaves a form
+      // disabled forever even though the request appeared to finish.
+      return { response, clear: () => globalThis.clearTimeout(timeout), timedOut: () => timedOut };
+    } catch (error) {
       globalThis.clearTimeout(timeout);
+      throw error;
     }
   };
 
   try {
-    let response = await send();
+    let sent = await send();
 
     /**
      * One retry, and only for the first request a visitor ever makes.
@@ -159,19 +176,23 @@ export async function postJson(path: string, body: unknown): Promise<PostResult>
      * the first attempt, fixes that without turning a real refusal into a loop:
      * if the token is still missing the second attempt is not made.
      */
-    if (response.status === 403 && csrfToken() !== '') {
-      response = await send();
+    if (sent.response.status === 403 && csrfToken() !== '') {
+      sent.clear();
+      sent = await send();
     }
 
     // A 204 has no body and neither does a failure worth reading. Parsing is
     // best effort because the status is what decides everything a user sees.
     let parsed: unknown = null;
     try {
-      parsed = response.status === 204 ? null : await response.json();
-    } catch {
+      parsed = sent.response.status === 204 ? null : await sent.response.json();
+    } catch (error) {
+      if (sent.timedOut()) throw error;
       parsed = null;
+    } finally {
+      sent.clear();
     }
-    return { ok: response.ok, status: response.status, body: parsed };
+    return { ok: sent.response.ok, status: sent.response.status, body: parsed };
   } catch (error) {
     return { ok: false, status: error instanceof Error && error.name === 'AbortError' ? 408 : 0, body: null };
   }
@@ -182,10 +203,17 @@ export async function postJson(path: string, body: unknown): Promise<PostResult>
  * difference is that the caller needs the body, so a parse failure is a null
  * rather than a thrown error in a click handler.
  */
-export async function postFor<T>(path: string, body: unknown): Promise<T | null> {
+export async function postFor<T>(
+  path: string,
+  body: unknown,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): Promise<T | null> {
+  const control = new AbortController();
+  const timeout = globalThis.setTimeout(() => control.abort(), timeoutMs);
   try {
     const response = await fetch(path, {
       method: 'POST',
+      signal: control.signal,
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
       body: JSON.stringify(body),
@@ -194,5 +222,7 @@ export async function postFor<T>(path: string, body: unknown): Promise<T | null>
     return (await response.json()) as T;
   } catch {
     return null;
+  } finally {
+    globalThis.clearTimeout(timeout);
   }
 }

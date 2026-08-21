@@ -30,6 +30,31 @@ describe('web product contracts', () => {
     expect(settings).not.toContain('TYPE THE NAME TO CONFIRM');
   });
 
+  it('sends transcript writers to sign in instead of the read-only public memory', () => {
+    const judge = readFileSync(new URL('../../web/src/pages/Judge.tsx', import.meta.url), 'utf8');
+    expect(judge).toContain('<Link to="/signin" style={{ ...label, color: \'#9A9A9A\', textDecoration: \'none\' }}>SIGN IN TO PASTE A TRANSCRIPT</Link>');
+    expect(judge).not.toContain('<Link to="/explore/memory" style={{ ...label, color: \'#9A9A9A\', textDecoration: \'none\' }}>\n             PASTE YOUR OWN TRANSCRIPT');
+  });
+
+  it('does not claim onboarding ingests a source before the Memory form is open', () => {
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    expect(onboarding).toContain("b: 'After setup, paste a note or transcript in Memory. More connectors are planned.'");
+    expect(onboarding).not.toContain("b: 'Paste a note or transcript now. More connectors are planned.'");
+  });
+
+  it('does not promise that a timed-out ingest cannot duplicate every stored relation', () => {
+    const ingest = readFileSync(new URL('../../web/src/app/routes/ingest.tsx', import.meta.url), 'utf8');
+    expect(ingest).toContain('The server may still finish. Check Memory before trying again.');
+    expect(ingest).not.toContain('will not be duplicated');
+  });
+
+  it('does not present a local-only model picker as saved workspace configuration', () => {
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    expect(onboarding).toContain('MODEL SWITCHING · PLANNED');
+    expect(onboarding).not.toContain('setModel(');
+    expect(onboarding).not.toContain('MODELS.map');
+  });
+
   it('documents private MCP access with capabilities, never workspace names', () => {
     const developers = readFileSync(new URL('../../web/src/app/routes/developers.tsx', import.meta.url), 'utf8');
     expect(developers).toContain('Authorization: Bearer');

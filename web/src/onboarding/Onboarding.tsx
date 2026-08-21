@@ -9,21 +9,18 @@ import { MONO, Mark } from '../design/mark';
 /**
  * Five steps, and the spiral gains a layer at each one.
  *
- * Two things here are checked rather than stated. The HydraDB line reads what
- * the doctor says, so a step that claims a connection only claims it when
- * there is one. The model list is a choice, not a status: a filled dot means
- * the person picked it, and nothing on this screen says the model answered.
+ * The HydraDB line reads what the doctor says, so a step that claims a
+ * connection only claims it when there is one. Model switching is labelled as
+ * planned because the active provider is configured by the deployment today.
  */
 
 const STEPS = [
   { l: 'CREATE WORKSPACE', t: 'Name your workspace.', b: 'One workspace holds the memory for a project or a team.' },
   { l: 'CHECK STORAGE', t: 'Check memory storage.', b: 'Lacuna checks that HydraDB is ready to store your project memory.' },
-  { l: 'CHOOSE MODEL', t: 'Choose a model.', b: 'The worker. You can change it any time without losing memory.' },
-  { l: 'ADD MEMORY', t: 'Add memory.', b: 'Paste a note or transcript now. More connectors are planned.' },
+  { l: 'MODEL SETUP', t: 'Check model setup.', b: 'The server chooses the model for now. Switching models per workspace is planned.' },
+  { l: 'ADD MEMORY', t: 'Add memory after setup.', b: 'After setup, paste a note or transcript in Memory. More connectors are planned.' },
   { l: 'ASK SOMETHING', t: 'Ask something.', b: 'Ask a question and see the answer, its source, and any disagreements.' },
 ] as const;
-
-const MODELS = ['claude · anthropic · cloud', 'qwen2.5 · ollama · local', 'compatible endpoint · custom'] as const;
 
 const label = { fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.2em' } as const;
 const chip = { border: '1px solid rgba(255,255,255,0.16)', borderRadius: '7px', padding: '8px 12px', color: '#BDBDBD' } as const;
@@ -34,7 +31,6 @@ export default function Onboarding() {
   const health = useHealth();
   const [step, setStep] = useState(0);
   const [workspace, setWorkspace] = useState('');
-  const [model, setModel] = useState(0);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -113,11 +109,8 @@ export default function Onboarding() {
 
         {step === 2 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontFamily: MONO, fontSize: '11.5px', letterSpacing: '0.1em' }}>
-            {MODELS.map((name, i) => (
-              <button key={name} type="button" onClick={() => setModel(i)} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', color: model === i ? '#FFFFFF' : '#7A7A84' }}>
-                {model === i ? '●' : '○'} {name}
-              </button>
-            ))}
+            <span style={{ color: '#FFFFFF' }}>SERVER MODEL · CONFIGURED BY DEPLOYMENT</span>
+            <span style={{ color: '#7A7A84' }}>MODEL SWITCHING · PLANNED</span>
           </div>
         ) : null}
 

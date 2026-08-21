@@ -11,6 +11,7 @@ export { Tools } from './tools';
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.13em', color: '#7A7A7A' } as const;
 const ACTIVE: ReadonlySet<RunStatus> = new Set(['CREATED', 'QUEUED', 'RUNNING', 'WAITING_TOOL', 'HANDOFF']);
+const AGENT_REQUEST_TIMEOUT_MS = 65_000;
 
 function at(value: string | null): string {
   if (value === null) return 'NEVER';
@@ -44,7 +45,11 @@ function RunDetail({ run, agentName, demo, onChange }: {
   async function action(kind: 'cancel' | 'retry'): Promise<void> {
     setMutating(true);
     setProblem(null);
-    const updated = await postFor<AgentRunRecord>(`/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`, {});
+    const updated = await postFor<AgentRunRecord>(
+      `/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`,
+      {},
+      kind === 'retry' ? AGENT_REQUEST_TIMEOUT_MS : 15_000,
+    );
     if (updated === null) setProblem(`${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`);
     else onChange(updated);
     setMutating(false);
@@ -132,6 +137,7 @@ function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (r
     const result = await postFor<{ readonly outcome: string; readonly runId: string | null }>(
       `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
       { requestId },
+      AGENT_REQUEST_TIMEOUT_MS,
     );
     if (result !== null) pendingRequests.current.delete(schedule.id);
     if (result?.runId !== null && result?.runId !== undefined) {

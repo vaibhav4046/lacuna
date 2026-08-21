@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  VoiceController, VoiceRuntimeError, type MicrophoneSession, type PlannedVoiceAnswer,
+  VoiceController, VoiceRuntimeError, voiceCaptureControls, type MicrophoneSession, type PlannedVoiceAnswer,
   type PlaybackHandlers, type RuntimeFailure, type SignalFrame, type TranscriptHandlers,
   type TranscriptSession, type VoiceRuntime,
 } from '../../web/src/voice/controller.js';
@@ -158,6 +158,11 @@ describe('VoiceController successful context outcomes', () => {
 });
 
 describe('VoiceController failures and adversarial lifecycle', () => {
+  it('keeps recovery controls available after a transient speech-provider failure', () => {
+    expect(voiceCaptureControls('provider_unavailable')).toEqual({ startListening: true, retry: true, replay: true });
+    expect(voiceCaptureControls('permission_denied')).toEqual({ startListening: true, retry: true, replay: true });
+  });
+
   it('maps denied microphone permission without opening STT or querying', async () => {
     const runtime = new FakeRuntime();
     runtime.microphoneFailure = 'permission_denied';

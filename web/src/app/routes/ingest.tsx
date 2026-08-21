@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { MONO } from '../../design/mark';
-import { csrfHeaders } from '../../api/client';
+import { postJson } from '../../api/client';
 
 /**
  * Putting something in, which is the half the product was missing.
@@ -22,6 +22,8 @@ const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', col
 
 /** Matches the cap the endpoint enforces, so the counter is not a decoration. */
 const MAX_SOURCE = 20_000;
+/** HydraDB accepts an ingest for up to two minutes; the UI waits beyond that boundary. */
+const INGEST_REQUEST_TIMEOUT_MS = 130_000;
 
 interface IngestReport {
   readonly ok: true;
@@ -33,11 +35,6 @@ interface IngestReport {
   readonly refused: readonly { readonly id: string; readonly error: string }[];
   readonly ms: number;
   readonly truncated: boolean;
-}
-
-interface IngestRefusal {
-  readonly ok: false;
-  readonly reason: string;
 }
 
 const REASON: Readonly<Record<string, string>> = {
@@ -61,11 +58,7 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
     setProblem(null);
     setReport(null);
     try {
-      const response = await fetch('/api/workspace/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ title, text }),
-      });
+      const response = await postJson('/api/workspace/ingest', { title, text }, INGEST_REQUEST_TIMEOUT_MS);
       if (response.status === 401) {
         setProblem('Sign in first. A source is written into your workspace, not a shared one.');
         return;
@@ -74,14 +67,22 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
         setProblem('This deployment has no writable context store.');
         return;
       }
-      const body = await response.json() as IngestReport | IngestRefusal | { error?: string };
+      const body = response.body;
+      if (typeof body !== 'object' || body === null) {
+        setProblem(response.status === 408
+          ? 'Saving is taking longer than expected. The server may still finish. Check Memory before trying again.'
+          : 'The request did not complete.');
+        return;
+      }
       if ('ok' in body && body.ok) {
-        setReport(body);
+        setReport(body as IngestReport);
         setText('');
         onIngested?.();
         return;
       }
-      const reason = 'reason' in body ? body.reason : (body as { error?: string }).error ?? 'unknown';
+      const reason = 'reason' in body && typeof body.reason === 'string'
+        ? body.reason
+        : (body as { error?: string }).error ?? 'unknown';
       setProblem(REASON[reason] ?? `That source was refused: ${reason}.`);
     } catch {
       setProblem('The request did not complete.');

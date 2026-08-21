@@ -3,7 +3,7 @@ import { useScope } from '../../api/scope';
 import { VoiceOrb } from '../../canvas/VoiceOrb';
 import { MONO } from '../../design/mark';
 import { BrowserVoiceRuntime } from '../../voice/browser';
-import { VoiceController, type VoiceSnapshot } from '../../voice/controller';
+import { VoiceController, voiceCaptureControls, type VoiceSnapshot } from '../../voice/controller';
 import { VOICE_STATE_COPY } from '../../voice/states';
 
 const FAILURE_COPY = {
@@ -42,7 +42,8 @@ export function VoiceRoute() {
   const listening = snapshot.state === 'LISTENING' || snapshot.state === 'PARTIAL_TRANSCRIPT';
   const asking = snapshot.state === 'REQUESTING_PERMISSION' || snapshot.state === 'COMMITTED'
     || snapshot.state === 'CHECKING_CONTEXT';
-  const canReplay = answer !== null && snapshot.state !== 'SPEAKING' && !asking && !listening;
+  const controls = voiceCaptureControls(snapshot.failure);
+  const canReplay = controls.replay && answer !== null && snapshot.state !== 'SPEAKING' && !asking && !listening;
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
@@ -84,16 +85,20 @@ export function VoiceRoute() {
               </>
             ) : (
               <>
-                <button className="hv-violet" onClick={() => void controller.start()} style={{ ...button, background: '#8052FF', color: '#FFFFFF', border: 'none' }}>START LISTENING</button>
-                {snapshot.failure === null ? null : (
+                {controls.startListening ? <button className="hv-violet" onClick={() => void controller.start()} style={{ ...button, background: '#8052FF', color: '#FFFFFF', border: 'none' }}>START LISTENING</button> : null}
+                {snapshot.failure !== null && controls.retry ? (
                   <button className="hv-edge35" onClick={() => void controller.retry()} style={{ ...button, background: 'none', color: '#BDBDBD', border: '1px solid rgba(255,255,255,0.16)' }}>RETRY</button>
-                )}
+                ) : null}
                 {canReplay ? (
                   <button className="hv-edge35" onClick={() => void controller.replay()} style={{ ...button, background: 'none', color: '#BDBDBD', border: '1px solid rgba(255,255,255,0.16)' }}>PLAY ANSWER</button>
                 ) : null}
               </>
             )}
           </div>
+
+          {snapshot.failure === 'provider_unavailable' ? (
+            <span style={{ ...label, color: '#FFB829', letterSpacing: '0.11em' }}>SPEECH SERVICE UNAVAILABLE · RETRY, OR TYPE A QUESTION BELOW</span>
+          ) : null}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 18px' }}>
             <span style={label}>LEVEL</span><span style={{ ...label, color: '#BDBDBD' }}>{snapshot.signal === null ? '—' : snapshot.rms.toFixed(3)}</span>

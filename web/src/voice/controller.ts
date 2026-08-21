@@ -2,6 +2,21 @@ import { advanceVoice, type AudioSignal, type VoiceEvent, type VoiceState } from
 
 export type RuntimeFailure = 'permission_denied' | 'rate_limited' | 'provider_unavailable' | 'interrupted' | 'error';
 
+/**
+ * The browser currently uses `provider_unavailable` for both configuration
+ * failures and transient capture/playback failures. Keep recovery available
+ * until those two cases have distinct runtime states; hiding it here would
+ * strand a valid text answer after one failed audio playback.
+ */
+export function voiceCaptureControls(failure: RuntimeFailure | null): {
+  readonly startListening: boolean;
+  readonly retry: boolean;
+  readonly replay: boolean;
+} {
+  void failure;
+  return { startListening: true, retry: true, replay: true };
+}
+
 export class VoiceRuntimeError extends Error {
   readonly failure: RuntimeFailure;
 

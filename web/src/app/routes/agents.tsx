@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { csrfHeaders, postFor } from '../../api/client';
+import { postFor, postJson } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import type { AgentRecommendationRecord, AgentRecord, AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
@@ -8,6 +8,7 @@ import { Empty, Failed, Stage } from '../state';
 
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#7A7A7A' } as const;
+const AGENT_REQUEST_TIMEOUT_MS = 65_000;
 
 const ERROR_COPY: Readonly<Record<string, string>> = {
   no_known_subject: 'That task did not name anything this workspace holds.',
@@ -73,17 +74,17 @@ export function Agents() {
     setBusy(true);
     setProblem(null);
     try {
-      const response = await fetch(`${scope.base}/agent/run`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...(scope.demo ? {} : csrfHeaders()) },
-        body: JSON.stringify({ task, agentId: researcher.id }),
-      });
+      const response = await postJson(
+        `${scope.base}/agent/run`,
+        { task, agentId: researcher.id },
+        AGENT_REQUEST_TIMEOUT_MS,
+      );
       if (response.status === 429) setProblem('The run budget is busy. Try again after the current rate window.');
       else if (response.status === 401 || response.status === 403) setProblem('Permission required.');
       else if (response.status === 501) setProblem('No model provider is configured on this deployment.');
-      else if (!response.ok) setProblem('The run did not complete.');
-      else setRun(await response.json() as AgentRunRecord);
+      else if (!response.ok || typeof response.body !== 'object' || response.body === null) {
+        setProblem(response.status === 408 ? 'The run timed out before a reviewed result was available.' : 'The run did not complete.');
+      } else setRun(response.body as AgentRunRecord);
     } catch {
       setProblem('Connection failed.');
     } finally {

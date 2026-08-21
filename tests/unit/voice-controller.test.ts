@@ -286,6 +286,22 @@ describe('VoiceController failures and adversarial lifecycle', () => {
     await Promise.allSettled([run, barge]);
   });
 
+  it('primes playback once when start barges into active speaking', async () => {
+    const runtime = new FakeRuntime();
+    runtime.holdSpeech = true;
+    const controller = new VoiceController(runtime);
+    const speaking = controller.submitTyped('Where does session state live?');
+    await flush();
+    expect(controller.snapshot.state).toBe('SPEAKING');
+
+    runtime.calls.length = 0;
+    await controller.start();
+
+    expect(runtime.calls.filter((call) => call === 'preparePlayback')).toHaveLength(1);
+    controller.cancel();
+    await Promise.allSettled([speaking]);
+  });
+
   it('does not query or retain a partial transcript after cancel', async () => {
     const runtime = new FakeRuntime();
     const controller = new VoiceController(runtime);

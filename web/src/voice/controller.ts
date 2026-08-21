@@ -176,11 +176,11 @@ export class VoiceController {
 
   async start(): Promise<void> {
     if (this.#busy()) return;
-    this.#runtime.preparePlayback();
     if (this.#snapshot.state === 'SPEAKING') {
       await this.bargeIn();
       return;
     }
+    this.#runtime.preparePlayback();
     if (this.#snapshot.state !== 'READY' && this.#snapshot.state !== 'INTERRUPTED') this.#move('retry');
     const generation = this.#begin('request_permission');
     const signal = this.#abort!.signal;

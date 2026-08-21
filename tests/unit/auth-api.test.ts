@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
 import { DEMO_WORKSPACE } from '../../src/api/workspace.js';
-import { AccountStore, newSessionVersion, type Account, type SessionRecord } from '../../src/auth/store.js';
+import { AccountStore, hashToken, newSessionVersion, type Account, type SessionRecord } from '../../src/auth/store.js';
 import { FileAccounts, type Accounts } from '../../src/auth/accounts.js';
 import { buildDemo } from '../../src/server/examples.js';
 
@@ -298,10 +298,27 @@ describe('sign up', () => {
     // stronger one.
     expect(cookie).not.toContain('Secure');
 
-    await expect((await session(jar)).json()).resolves.toEqual({
+    const rawSession = decodeURIComponent(jar.get('lacuna_session') ?? '');
+    const state = await (await session(jar)).json() as {
+      signedIn: boolean;
+      session?: Record<string, unknown>;
+    };
+    expect(state).toEqual({
       signedIn: true,
-      session: { email: 'new@example.com', workspace: null, onboarded: false },
+      session: {
+        email: 'new@example.com', workspace: null, onboarded: false,
+        binding: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      },
     });
+    expect(state.session?.['binding']).not.toBe(rawSession);
+    expect(state.session?.['binding']).not.toBe(hashToken(rawSession));
+    expect(JSON.stringify(state)).not.toContain(rawSession);
+
+    const another = await primed();
+    expect((await post(another, '/api/auth/signin', { email: 'new@example.com', password: PASSWORD })).status).toBe(200);
+    const anotherState = await (await session(another)).json() as { session?: Record<string, unknown> };
+    expect(anotherState.session?.['binding']).toMatch(/^[0-9a-f]{64}$/u);
+    expect(anotherState.session?.['binding']).not.toBe(state.session?.['binding']);
   });
 
   it('reports a taken address as a conflict', async () => {

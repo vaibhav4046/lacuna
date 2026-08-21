@@ -109,7 +109,7 @@ describe('web product contracts', () => {
     expect(dock).toContain('role="dialog"');
     expect(dock).toContain('aria-modal="true"');
     expect(dock).toContain('aria-label="Open voice assistant"');
-    expect(dock).toContain('onClick={dockOpen ? closeDock : openDock}');
+    expect(dock).toContain('onClick={openDock}');
     expect(dock).toContain('START LISTENING');
     expect(dock).toContain('onClick={() => void startListening()}');
     expect(dock.match(/void startListening\(\)/gu)).toHaveLength(1);
@@ -129,13 +129,16 @@ describe('web product contracts', () => {
     expect(voice).toContain('AUDIO PLAYING · METER UNAVAILABLE');
   });
 
-  it('keeps dock keyboard handling collapse-only on Escape and wraps focus on Tab', () => {
+  it('keeps dock keyboard handling collapse-only on Escape and contains zero, one, or many focus targets', () => {
     const dock = readFileSync(new URL('../../web/src/app/VoiceDock.tsx', import.meta.url), 'utf8');
     const keyboardAction = Reflect.get(browserContracts, 'voiceDockKeyboardAction');
     expect(keyboardAction).toBeTypeOf('function');
     if (typeof keyboardAction !== 'function') return;
 
     expect(keyboardAction('Escape', false, 1, 3)).toEqual({ kind: 'collapse' });
+    expect(keyboardAction('Tab', false, -1, 0)).toEqual({ kind: 'dialog' });
+    expect(keyboardAction('Tab', false, 0, 1)).toEqual({ kind: 'focus', index: 0 });
+    expect(keyboardAction('Tab', true, 0, 1)).toEqual({ kind: 'focus', index: 0 });
     expect(keyboardAction('Tab', false, 2, 3)).toEqual({ kind: 'focus', index: 0 });
     expect(keyboardAction('Tab', true, 0, 3)).toEqual({ kind: 'focus', index: 2 });
     expect(keyboardAction('Enter', false, 1, 3)).toEqual({ kind: 'none' });
@@ -144,7 +147,52 @@ describe('web product contracts', () => {
     expect(handler).toContain('closeDock()');
     expect(handler).not.toContain('cancelPending');
     expect(handler).not.toContain('confirm()');
-    expect(dock).toContain('else if (wasOpen.current) bubbleRef.current?.focus()');
+    expect(dock).toContain("action.kind === 'dialog'");
+    expect(dock).toContain('dialogRef.current?.focus()');
+  });
+
+  it('makes shell background inert while the dock is open and restores its exact prior state', () => {
+    const contain = Reflect.get(browserContracts, 'containVoiceModalBackground');
+    expect(contain).toBeTypeOf('function');
+    if (typeof contain !== 'function') return;
+
+    function region(inert: boolean, ariaHidden: string | null) {
+      let hidden = ariaHidden;
+      return {
+        get inert() { return inert; },
+        set inert(value: boolean) { inert = value; },
+        getAttribute: (name: string) => name === 'aria-hidden' ? hidden : null,
+        setAttribute: (name: string, value: string) => { if (name === 'aria-hidden') hidden = value; },
+        removeAttribute: (name: string) => { if (name === 'aria-hidden') hidden = null; },
+        state: () => ({ inert, hidden }),
+      };
+    }
+
+    const ordinary = region(false, null);
+    const precontained = region(true, 'until-owner-restores');
+    const restore = contain([ordinary, precontained]);
+    expect(ordinary.state()).toEqual({ inert: true, hidden: 'true' });
+    expect(precontained.state()).toEqual({ inert: true, hidden: 'true' });
+
+    restore();
+    restore();
+    expect(ordinary.state()).toEqual({ inert: false, hidden: null });
+    expect(precontained.state()).toEqual({ inert: true, hidden: 'until-owner-restores' });
+  });
+
+  it('uses a blocking backdrop, a non-interactive launcher, and programmatic dialog fallback', () => {
+    const shell = readFileSync(new URL('../../web/src/app/Shell.tsx', import.meta.url), 'utf8');
+    const dock = readFileSync(new URL('../../web/src/app/VoiceDock.tsx', import.meta.url), 'utf8');
+
+    expect(shell.match(/data-voice-background="1"/gu)).toHaveLength(2);
+    expect(dock).toContain('containVoiceModalBackground(background)');
+    expect(dock).toContain('data-voice-modal-backdrop="1"');
+    expect(dock).toContain('onPointerDown={closeDock}');
+    expect(dock).toContain("position: 'fixed'");
+    expect(dock).toContain('disabled={dockOpen}');
+    expect(dock).toContain('aria-hidden={dockOpen ? true : undefined}');
+    expect(dock).toContain("pointerEvents: dockOpen ? 'none' : 'auto'");
+    expect(dock).toContain('tabIndex={-1}');
   });
 
   it('bounds answer copy and counts before the compact dock renders them', () => {

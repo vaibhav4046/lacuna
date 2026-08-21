@@ -6,7 +6,12 @@ import { useVoiceAssistant } from '../voice/assistant-context';
 import { voiceCaptureControls, type RuntimeFailure } from '../voice/controller';
 import type { VoiceOperationFailure } from '../voice/operations';
 import { VOICE_STATE_COPY } from '../voice/states';
-import { voiceDockCount, voiceDockKeyboardAction, voiceDockText } from './product-contracts';
+import {
+  containVoiceModalBackground,
+  voiceDockCount,
+  voiceDockKeyboardAction,
+  voiceDockText,
+} from './product-contracts';
 
 const FAILURE_COPY: Readonly<Record<RuntimeFailure, string>> = {
   permission_denied: 'Microphone permission was not granted. Type the command below or select Start listening to try again.',
@@ -245,12 +250,40 @@ export function VoiceDock() {
   const bubbleRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(false);
+  const originRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (dockOpen) closeRef.current?.focus();
-    else if (wasOpen.current) bubbleRef.current?.focus();
-    wasOpen.current = dockOpen;
+    if (!dockOpen) return;
+    const active = document.activeElement;
+    originRef.current = active instanceof HTMLElement && active !== document.body
+      ? active
+      : bubbleRef.current;
+    const shell = bubbleRef.current?.closest('[data-shellroot]');
+    const background = shell === null || shell === undefined
+      ? []
+      : Array.from(shell.querySelectorAll<HTMLElement>('[data-voice-background]'));
+    const restoreBackground = containVoiceModalBackground(background);
+
+    const focusDialog = () => {
+      const first = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE);
+      (first ?? dialogRef.current)?.focus();
+    };
+    const keepFocusInside = (event: FocusEvent) => {
+      const target = event.target;
+      if (target instanceof Node && dialogRef.current?.contains(target)) return;
+      focusDialog();
+    };
+    focusDialog();
+    document.addEventListener('focusin', keepFocusInside);
+    return () => {
+      document.removeEventListener('focusin', keepFocusInside);
+      restoreBackground();
+      const origin = originRef.current;
+      const originAvailable = origin?.isConnected === true
+        && (!(origin instanceof HTMLButtonElement) || !origin.disabled);
+      (originAvailable ? origin : bubbleRef.current)?.focus();
+      originRef.current = null;
+    };
   }, [dockOpen]);
 
   function handleDialogKey(event: KeyboardEvent<HTMLDivElement>): void {
@@ -266,6 +299,10 @@ export function VoiceDock() {
       closeDock();
       return;
     }
+    if (action.kind === 'dialog') {
+      dialogRef.current?.focus();
+      return;
+    }
     focusable[action.index]?.focus();
   }
 
@@ -277,7 +314,9 @@ export function VoiceDock() {
         aria-label="Open voice assistant"
         aria-expanded={dockOpen}
         aria-controls="voice-assistant-dialog"
-        onClick={dockOpen ? closeDock : openDock}
+        aria-hidden={dockOpen ? true : undefined}
+        disabled={dockOpen}
+        onClick={openDock}
         style={{
           position: 'fixed',
           right: 'clamp(14px, 2vw, 28px)',
@@ -292,37 +331,51 @@ export function VoiceDock() {
           border: dockOpen ? '1px solid #8052FF' : '1px solid rgba(255,255,255,0.22)',
           background: '#050505',
           boxShadow: dockOpen ? '0 0 0 5px rgba(128,82,255,0.09), 0 14px 42px rgba(0,0,0,0.64)' : '0 14px 42px rgba(0,0,0,0.58)',
-          cursor: 'pointer',
+          cursor: dockOpen ? 'default' : 'pointer',
+          pointerEvents: dockOpen ? 'none' : 'auto',
         }}
       >
         <Mark size={24} />
       </button>
 
       {dockOpen ? (
-        <div
-          id="voice-assistant-dialog"
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="voice-assistant-title"
-          aria-describedby="voice-assistant-purpose"
-          onKeyDown={handleDialogKey}
-          style={{
-            position: 'fixed',
-            right: 'clamp(12px, 2vw, 28px)',
-            bottom: 'clamp(84px, 9vw, 98px)',
-            zIndex: 39,
-            width: 'min(430px, calc(100vw - 24px))',
-            maxHeight: 'min(720px, calc(100vh - 112px))',
-            overflowY: 'auto',
-            boxSizing: 'border-box',
-            border: '1px solid rgba(128,82,255,0.62)',
-            borderRadius: '10px',
-            background: '#050505',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.78)',
-            padding: '16px',
-          }}
-        >
+        <>
+          <div
+            data-voice-modal-backdrop="1"
+            aria-hidden="true"
+            onPointerDown={closeDock}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 38,
+              background: 'rgba(0,0,0,0.66)',
+            }}
+          />
+          <div
+            id="voice-assistant-dialog"
+            ref={dialogRef}
+            role="dialog"
+            tabIndex={-1}
+            aria-modal="true"
+            aria-labelledby="voice-assistant-title"
+            aria-describedby="voice-assistant-purpose"
+            onKeyDown={handleDialogKey}
+            style={{
+              position: 'fixed',
+              right: 'clamp(12px, 2vw, 28px)',
+              bottom: 'clamp(84px, 9vw, 98px)',
+              zIndex: 39,
+              width: 'min(430px, calc(100vw - 24px))',
+              maxHeight: 'min(720px, calc(100vh - 112px))',
+              overflowY: 'auto',
+              boxSizing: 'border-box',
+              border: '1px solid rgba(128,82,255,0.62)',
+              borderRadius: '10px',
+              background: '#050505',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.78)',
+              padding: '16px',
+            }}
+          >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '16px', marginBottom: '14px' }}>
             <div style={{ display: 'grid', gap: '5px' }}>
               <span id="voice-assistant-title" style={{ ...label, color: '#FFFFFF' }}>LACUNA VOICE</span>
@@ -340,7 +393,8 @@ export function VoiceDock() {
           >
             EXPAND VOICE
           </Link>
-        </div>
+          </div>
+        </>
       ) : null}
     </>
   );

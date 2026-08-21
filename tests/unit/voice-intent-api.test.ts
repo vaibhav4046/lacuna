@@ -20,6 +20,7 @@ interface Identity {
   readonly email: string;
   readonly cookie: string;
   readonly csrf: string;
+  readonly binding: string;
 }
 
 interface RequestOptions {
@@ -27,12 +28,14 @@ interface RequestOptions {
   readonly csrf?: boolean;
   readonly origin?: string | null;
   readonly method?: string;
+  readonly binding?: string | null;
 }
 
 let server: Server;
 let base: string;
 let directory: string;
 let accounts: FileAccounts;
+let planCalls = 0;
 
 async function identity(email: string): Promise<Identity> {
   const sessionVersion = newSessionVersion();
@@ -46,10 +49,17 @@ async function identity(email: string): Promise<Identity> {
   });
   const session = await accounts.startSession(email, now, sessionVersion);
   const csrf = `csrf-${email.replace(/[^a-z0-9]/giu, '-')}`;
+  const cookie = `lacuna_session=${encodeURIComponent(session)}; lacuna_csrf=${encodeURIComponent(csrf)}`;
+  const state = await (await fetch(`${base}/api/session`, { headers: { cookie } })).json() as {
+    session?: { binding?: unknown };
+  };
+  const binding = state.session?.binding;
+  if (typeof binding !== 'string') throw new Error('signed-in session did not expose a voice binding');
   return {
     email,
     csrf,
-    cookie: `lacuna_session=${encodeURIComponent(session)}; lacuna_csrf=${encodeURIComponent(csrf)}`,
+    cookie,
+    binding,
   };
 }
 
@@ -68,6 +78,8 @@ async function request(
   if (who !== null) {
     headers.cookie = who.cookie;
     if (options.csrf !== false) headers['x-csrf-token'] = who.csrf;
+    const binding = options.binding === undefined ? who.binding : options.binding;
+    if (binding !== null) headers['x-lacuna-voice-binding'] = binding;
   } else if (options.csrf !== false) {
     headers.cookie = 'lacuna_csrf=anonymous-csrf';
     headers['x-csrf-token'] = 'anonymous-csrf';
@@ -88,7 +100,10 @@ beforeAll(async () => {
     secure: false,
     health: null,
     siteOrigin: SITE_ORIGIN,
-    voiceIntent: planVoiceIntent,
+    voiceIntent: (...args) => {
+      planCalls += 1;
+      return planVoiceIntent(...args);
+    },
     now: () => now,
   });
   server = createServer((incoming, response) => {
@@ -123,6 +138,22 @@ describe('authenticated voice intent API', () => {
     const accepted = await request(alice);
     expect(accepted.status).toBe(200);
     expect(accepted.headers.get('cache-control')).toBe('no-store, private');
+  });
+
+  it('rejects a missing, malformed, or different current-session binding before planning', async () => {
+    const alice = await identity('intent-binding-alice@example.com');
+    const bob = await identity('intent-binding-bob@example.com');
+    const before = planCalls;
+
+    for (const binding of [null, '', 'A'.repeat(64), 'a'.repeat(63), 'g'.repeat(64), alice.binding]) {
+      const denied = await request(bob, { binding });
+      expect(denied.status).toBe(401);
+      await expect(denied.json()).resolves.toEqual({ error: 'voice_binding' });
+    }
+    expect(planCalls).toBe(before);
+
+    expect((await request(bob)).status).toBe(200);
+    expect(planCalls).toBe(before + 1);
   });
 
   it('accepts only the exact versioned bounded body and canonical route and request id', async () => {

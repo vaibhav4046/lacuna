@@ -33,6 +33,7 @@ export function askEndpoint(demo: boolean): '/api/explore/ask' | '/api/ask' {
 export type VoiceDockKeyboardAction =
   | { readonly kind: 'none' }
   | { readonly kind: 'collapse' }
+  | { readonly kind: 'dialog' }
   | { readonly kind: 'focus'; readonly index: number };
 
 /**
@@ -46,7 +47,8 @@ export function voiceDockKeyboardAction(
   focusableCount: number,
 ): VoiceDockKeyboardAction {
   if (key === 'Escape') return { kind: 'collapse' };
-  if (key !== 'Tab' || focusableCount < 1) return { kind: 'none' };
+  if (key !== 'Tab') return { kind: 'none' };
+  if (focusableCount < 1) return { kind: 'dialog' };
   const direction = shiftKey ? -1 : 1;
   const from = activeIndex >= 0 && activeIndex < focusableCount
     ? activeIndex
@@ -54,6 +56,42 @@ export function voiceDockKeyboardAction(
   return {
     kind: 'focus',
     index: (from + direction + focusableCount) % focusableCount,
+  };
+}
+
+export interface VoiceModalBackgroundRegion {
+  inert: boolean;
+  getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
+}
+
+/**
+ * Contain a modal without assuming the shell owned the previous DOM state.
+ * Cleanup is idempotent so a close followed by unmount cannot overwrite a
+ * later owner's accessibility attributes.
+ */
+export function containVoiceModalBackground(
+  regions: readonly VoiceModalBackgroundRegion[],
+): () => void {
+  const previous = regions.map((region) => ({
+    region,
+    inert: region.inert,
+    ariaHidden: region.getAttribute('aria-hidden'),
+  }));
+  for (const { region } of previous) {
+    region.inert = true;
+    region.setAttribute('aria-hidden', 'true');
+  }
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    for (const state of previous) {
+      state.region.inert = state.inert;
+      if (state.ariaHidden === null) state.region.removeAttribute('aria-hidden');
+      else state.region.setAttribute('aria-hidden', state.ariaHidden);
+    }
   };
 }
 

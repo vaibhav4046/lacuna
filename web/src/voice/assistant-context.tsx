@@ -26,10 +26,11 @@ function createVoiceAssistantOwner(
   base: string,
   navigate: (path: string) => void,
   context: VoiceAssistantContext,
+  sessionBinding: () => string | null,
 ): VoiceAssistantOwner {
   const runtime = new BrowserVoiceRuntime(base);
   const voice = new VoiceController(runtime);
-  const executor = new VoiceOperationExecutor({ navigate });
+  const executor = new VoiceOperationExecutor({ navigate, sessionBinding });
   const assistant = new VoiceAssistantController(voice, executor, context);
   let disposed = false;
   return {
@@ -103,6 +104,7 @@ export function VoiceAssistantProvider({
       base,
       (path) => navigateRef.current(path),
       contextRef.current,
+      () => contextRef.current.sessionKey,
     );
     const unsubscribe = created.assistant.subscribe(setSnapshot);
     setOwner(created);

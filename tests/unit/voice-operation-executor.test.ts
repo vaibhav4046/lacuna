@@ -13,6 +13,8 @@ import {
 
 const REQUEST_ID = '123e4567-e89b-42d3-a456-426614174000';
 const CSRF = 'voice-csrf-token';
+const SESSION_BINDING_A = 'a'.repeat(64);
+const SESSION_BINDING_B = 'b'.repeat(64);
 
 const EFFECTS: Readonly<Record<VoiceOperation['kind'], VoiceEffect>> = {
   navigate: 'navigation',
@@ -77,6 +79,7 @@ function harness(responder: (path: string, init: RequestInit) => Response | Prom
   const calls: FetchCall[] = [];
   const navigate = vi.fn<(path: string) => void>();
   let queuedPlan: VoiceOperationPlan | null = null;
+  let currentBinding: string | null = SESSION_BINDING_A;
   const fetchImpl = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const path = String(input);
     calls.push({ path, init });
@@ -92,6 +95,7 @@ function harness(responder: (path: string, init: RequestInit) => Response | Prom
     navigate,
     randomUUID: () => REQUEST_ID,
     csrfToken: () => CSRF,
+    sessionBinding: () => currentBinding,
   });
   const trust = async (
     plan: VoiceOperationPlan,
@@ -104,7 +108,13 @@ function harness(responder: (path: string, init: RequestInit) => Response | Prom
       queuedPlan = null;
     }
   };
-  return { calls, executor, navigate, trust };
+  return {
+    calls,
+    executor,
+    navigate,
+    trust,
+    setSessionBinding: (binding: string | null) => { currentBinding = binding; },
+  };
 }
 
 function json(value: unknown, status = 200): Response {
@@ -121,6 +131,10 @@ function expectAuthenticatedPost(call: FetchCall): void {
   expect(new Headers(call.init.headers).get('x-csrf-token')).toBe(CSRF);
 }
 
+function expectVoiceBinding(call: FetchCall, binding = SESSION_BINDING_A): void {
+  expect(new Headers(call.init.headers).get('x-lacuna-voice-binding')).toBe(binding);
+}
+
 describe('voice operation planning boundary', () => {
   it('generates a canonical request id and validates the authenticated network plan again', async () => {
     const operation = { version: 1, kind: 'ask', question: 'Who owns Atlas?' } as const;
@@ -131,12 +145,39 @@ describe('voice operation planning boundary', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.path).toBe('/api/workspace/voice/intent');
     expectAuthenticatedPost(calls[0]!);
+    expectVoiceBinding(calls[0]!);
     expect(body(calls[0]!)).toEqual({
       version: 1,
       requestId: REQUEST_ID,
       transcript: 'Who owns Atlas?',
       currentRoute: '/app/dash',
     });
+  });
+
+  it('refuses private planning without one exact opaque session binding', async () => {
+    const valid = planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' });
+    for (const binding of [null, '', 'A'.repeat(64), 'a'.repeat(63), 'a'.repeat(65), 'g'.repeat(64)]) {
+      const test = harness(() => json(valid));
+      test.setSessionBinding(binding);
+      await expect(test.executor.plan('Who owns Atlas?', '/app/dash'))
+        .rejects.toMatchObject({ failure: 'session_required' });
+      expect(test.calls).toHaveLength(0);
+    }
+  });
+
+  it('keeps the planning-session binding on the actual mutation after the browser session changes', async () => {
+    const test = harness(() => json({ ok: true, claims: 1 }));
+    const plan = await test.trust(planned({
+      version: 1, kind: 'remember', text: 'Atlas is owned by Priya.',
+    }));
+
+    test.setSessionBinding(SESSION_BINDING_B);
+    await expect(test.executor.execute(plan)).resolves.toMatchObject({
+      status: 'succeeded', observedCount: 1,
+    });
+
+    expectVoiceBinding(test.calls[0]!, SESSION_BINDING_A);
+    expectVoiceBinding(test.calls[1]!, SESSION_BINDING_A);
   });
 
   it('rejects planner-supplied authority and executes no follow-up request', async () => {
@@ -399,6 +440,11 @@ describe('exhaustive operation allowlist', () => {
 
     for (const calls of [ask.calls, remember.calls, researcher.calls, cancel.calls, retry.calls, schedule.calls]) {
       for (const call of calls.filter((entry) => entry.init.method === 'POST')) expectAuthenticatedPost(call);
+    }
+    for (const calls of [remember.calls, researcher.calls, cancel.calls, retry.calls, schedule.calls]) {
+      const mutation = calls.at(-1);
+      expect(mutation).toBeDefined();
+      expectVoiceBinding(mutation!);
     }
   });
 

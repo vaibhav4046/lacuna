@@ -16,6 +16,7 @@ import {
   serialiseCookie,
 } from '../auth/http.js';
 import { CredentialChanged, SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, sessionVersionMatches, type Account } from '../auth/store.js';
+import { VOICE_BINDING_HEADER, voiceBindingVerdict, voiceSessionBinding } from '../auth/voice-binding.js';
 import type { Accounts } from '../auth/accounts.js';
 import { googleBinding } from '../auth/identity.js';
 import type { McpCapabilities } from '../auth/mcp-capability-store.js';
@@ -513,6 +514,19 @@ function firstHeader(value: string | readonly string[] | undefined): string | un
   return typeof value === 'string' ? value : value?.[0];
 }
 
+function voiceBindingOk(
+  request: IncomingMessage,
+  cookies: Readonly<Record<string, string>>,
+  required: boolean,
+): boolean {
+  const token = cookies[SESSION_COOKIE];
+  const verdict = voiceBindingVerdict(
+    request.headers[VOICE_BINDING_HEADER],
+    typeof token === 'string' && token !== '' ? hashToken(token) : null,
+  );
+  return verdict === 'matching' || (!required && verdict === 'absent');
+}
+
 /**
  * The address a rate limit key is built from. Behind a proxy this is the
  * socket, which is the proxy, so the forwarded header is used when present.
@@ -856,7 +870,12 @@ export class ApiRouter {
       }
       send(response, 200, {
         signedIn: true,
-        session: { email: account.email, workspace: account.workspace, onboarded: account.onboarded },
+        session: {
+          email: account.email,
+          workspace: account.workspace,
+          onboarded: account.onboarded,
+          binding: voiceSessionBinding(record.tokenHash),
+        },
       }, this.#csrfCookie(cookies));
       return HANDLED;
     }
@@ -1516,6 +1535,10 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
       const account = await this.#accountFor(cookies);
       if (account === null) {
         send(response, 401, { error: 'session' });
@@ -1780,6 +1803,10 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
+      if (!voiceBindingOk(request, cookies, false)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
       const account = await this.#accountFor(cookies);
       if (account === null) {
         send(response, 401, { error: 'session' });
@@ -1841,6 +1868,10 @@ export class ApiRouter {
     if (runMutation !== null && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, false)) {
+        send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
       const account = await this.#accountFor(cookies);
@@ -1909,6 +1940,10 @@ export class ApiRouter {
     if (scheduleMutation !== null && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, false)) {
+        send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
       const account = await this.#accountFor(cookies);
@@ -1984,6 +2019,10 @@ export class ApiRouter {
     if (path === '/api/workspace/ingest' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, false)) {
+        send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
       const account = await this.#accountFor(cookies);

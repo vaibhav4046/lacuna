@@ -19,10 +19,15 @@ const idempotencyKeys: string[] = [];
 interface Identity {
   readonly cookie: string;
   readonly csrf: string;
+  readonly binding: string;
 }
 
-async function identity(accounts: FileAccounts): Promise<Identity> {
-  const email = 'voice-runtime@example.com';
+interface BareIdentity {
+  readonly cookie: string;
+  readonly csrf: string;
+}
+
+async function identity(accounts: FileAccounts, email: string): Promise<BareIdentity> {
   const now = Date.UTC(2026, 7, 21, 12);
   const sessionVersion = newSessionVersion();
   await accounts.create({
@@ -35,30 +40,51 @@ async function identity(accounts: FileAccounts): Promise<Identity> {
   });
   const session = await accounts.startSession(email, now, sessionVersion);
   return {
-    csrf: 'voice-runtime-csrf',
-    cookie: `lacuna_session=${encodeURIComponent(session)}; lacuna_csrf=voice-runtime-csrf`,
+    csrf: `csrf-${email}`,
+    cookie: `lacuna_session=${encodeURIComponent(session)}; lacuna_csrf=${encodeURIComponent(`csrf-${email}`)}`,
   };
 }
 
 let who: Identity;
+let other: Identity;
 
-async function run(body: unknown): Promise<Response> {
-  return fetch(`${base}/api/workspace/agent/run`, {
+async function withBinding(identity: BareIdentity): Promise<Identity> {
+  const state = await (await fetch(`${base}/api/session`, {
+    headers: { cookie: identity.cookie },
+  })).json() as { session?: { binding?: unknown } };
+  if (typeof state.session?.binding !== 'string') throw new Error('signed-in session did not expose a voice binding');
+  return { ...identity, binding: state.session.binding };
+}
+
+async function postPath(
+  path: string,
+  body: unknown,
+  identity = who,
+  binding?: string,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    cookie: identity.cookie,
+    'x-csrf-token': identity.csrf,
+  };
+  if (binding !== undefined) headers['x-lacuna-voice-binding'] = binding;
+  return fetch(`${base}${path}`, {
     method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-      cookie: who.cookie,
-      'x-csrf-token': who.csrf,
-    },
+    headers,
     body: JSON.stringify(body),
   });
+}
+
+async function run(body: unknown, binding?: string, identity = who): Promise<Response> {
+  return postPath('/api/workspace/agent/run', body, identity, binding);
 }
 
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'lacuna-agent-runtime-api-'));
   const accounts = new FileAccounts(new AccountStore(directory));
-  who = await identity(accounts);
+  const bareWho = await identity(accounts, 'voice-runtime@example.com');
+  const bareOther = await identity(accounts, 'voice-runtime-other@example.com');
   const router = new ApiRouter({
     store: accounts,
     secure: false,
@@ -84,6 +110,8 @@ beforeAll(async () => {
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('no port');
   base = `http://127.0.0.1:${address.port}`;
+  who = await withBinding(bareWho);
+  other = await withBinding(bareOther);
 });
 
 afterAll(async () => {
@@ -92,6 +120,39 @@ afterAll(async () => {
 });
 
 describe('authenticated agent-run request identity', () => {
+  it('accepts a matching voice binding but rejects stale and malformed bindings before any dispatch', async () => {
+    const body = { task: 'Prepare an evidence brief for Atlas.', requestId: VOICE_REQUEST_ID };
+    const before = idempotencyKeys.length;
+
+    expect((await run(body, who.binding)).status).toBe(200);
+    expect(idempotencyKeys).toHaveLength(before + 1);
+
+    for (const binding of [who.binding, '', 'A'.repeat(64), 'a'.repeat(63), 'g'.repeat(64)]) {
+      const denied = await run(body, binding, other);
+      expect(denied.status).toBe(401);
+      await expect(denied.json()).resolves.toEqual({ error: 'voice_binding' });
+    }
+    expect(idempotencyKeys).toHaveLength(before + 1);
+  });
+
+  it('enforces a stale planning-session binding on every closed voice mutation path', async () => {
+    const mutations = [
+      ['/api/workspace/ingest', { title: 'Voice memory', text: 'Atlas belongs to Priya.' }],
+      ['/api/workspace/agent/run', { task: 'Prepare an Atlas brief.', requestId: VOICE_REQUEST_ID }],
+      ['/api/workspace/agent/runs/run-one/cancel', {}],
+      ['/api/workspace/agent/runs/run-one/retry', {}],
+      ['/api/workspace/schedules/schedule-one/run', { requestId: VOICE_REQUEST_ID }],
+    ] as const;
+    const before = idempotencyKeys.length;
+
+    for (const [path, body] of mutations) {
+      const denied = await postPath(path, body, other, who.binding);
+      expect(denied.status, path).toBe(401);
+      await expect(denied.json()).resolves.toEqual({ error: 'voice_binding' });
+    }
+    expect(idempotencyKeys).toHaveLength(before);
+  });
+
   it('maps a canonical voice UUID replay to the same durable idempotency key', async () => {
     const before = idempotencyKeys.length;
     const body = { task: 'Prepare an evidence brief for Atlas.', requestId: VOICE_REQUEST_ID };

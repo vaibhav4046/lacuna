@@ -56,11 +56,11 @@ export default function Shell() {
       base={scope.base}
       currentRoute={`${scope.prefix}/${route}`}
       scope={scope.demo ? 'public' : 'private'}
-      sessionKey={email}
+      sessionKey={account?.binding ?? null}
       workspaceKey={workspace}
     >
       <div data-shellroot="1" style={{ position: 'relative', zIndex: 1, display: 'flex', minHeight: '100vh', background: '#000000' }}>
-      <aside data-shellnav="1" style={{ width: '216px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', padding: '20px 14px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+      <aside data-shellnav="1" data-voice-background="1" style={{ width: '216px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', padding: '20px 14px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <button className="shell-brand" onClick={() => go('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '9px', padding: '6px 10px', textAlign: 'left' }}>
           <Mark size={17} />
           <span style={{ fontSize: '13.5px', fontWeight: 500, color: '#FFFFFF' }}>Lacuna</span>
@@ -117,7 +117,7 @@ export default function Shell() {
           )}
         </div>
       </aside>
-      <main data-shellmain="1" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <main data-shellmain="1" data-voice-background="1" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <div data-shelltop="1" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', padding: '15px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <span style={{ fontFamily: MONO, fontSize: '11px', fontWeight: 500, letterSpacing: '0.24em', textTransform: 'uppercase', color: '#BDBDBD' }}>{routeTitle(route, workspace)}</span>
           {/* A keyboard hint and a status label. On a phone this pair was wider

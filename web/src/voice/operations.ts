@@ -23,6 +23,7 @@ import {
 } from '../api/voice-operations';
 
 const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const SESSION_BINDING = /^[0-9a-f]{64}$/u;
 const DISPLAY_LIMIT = 2_000;
 const ANSWER_LIMIT = 5_000;
 const IDENTIFIER_LIMIT = 512;
@@ -109,11 +110,13 @@ export interface VoiceOperationExecutorOptions {
   readonly navigate?: (path: string) => void;
   readonly randomUUID?: () => string;
   readonly csrfToken?: () => string;
+  readonly sessionBinding?: () => string | null;
 }
 
 interface VoicePlanContext {
   readonly route: VoiceRoute;
   readonly scope: 'private' | 'public';
+  readonly sessionBinding: string;
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -133,11 +136,16 @@ function boundedText(value: unknown, maximum: number): value is string {
     && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
 }
 
-function planContext(currentRoute: string): VoicePlanContext | null {
+function planContext(currentRoute: string, sessionBinding: string | null): VoicePlanContext | null {
   const matched = /^\/(app|explore)\/([^/]+)$/u.exec(currentRoute);
   const route = matched?.[2];
   if (route === undefined || !VOICE_ROUTE_SET.has(route)) return null;
-  return { route: route as VoiceRoute, scope: matched?.[1] === 'explore' ? 'public' : 'private' };
+  if (sessionBinding === null || !SESSION_BINDING.test(sessionBinding)) return null;
+  return {
+    route: route as VoiceRoute,
+    scope: matched?.[1] === 'explore' ? 'public' : 'private',
+    sessionBinding,
+  };
 }
 
 function expectedOperationDisplay(operation: VoiceOperation, reason: VoiceIntentReason | null): string {
@@ -366,6 +374,7 @@ export class VoiceOperationExecutor {
   readonly #api: VoiceOperationApiOptions;
   readonly #navigate: (path: string) => void;
   readonly #randomUUID: () => string;
+  readonly #sessionBinding: () => string | null;
   readonly #inFlight = new Map<string, Promise<VoiceOperationResult>>();
   readonly #planContexts = new WeakMap<VoiceOperationPlan, VoicePlanContext>();
 
@@ -376,13 +385,19 @@ export class VoiceOperationExecutor {
     };
     this.#navigate = options.navigate ?? defaultNavigate;
     this.#randomUUID = options.randomUUID ?? (() => globalThis.crypto.randomUUID());
+    this.#sessionBinding = options.sessionBinding ?? (() => null);
   }
 
   async plan(transcript: string, currentRoute: string): Promise<VoiceOperationPlan> {
     const requestId = this.#randomUUID();
-    const context = planContext(currentRoute);
-    if (!REQUEST_ID.test(requestId) || context === null) throw new VoiceOperationRequestError('invalid_plan');
-    const raw = await requestVoiceIntent({ version: 1, requestId, transcript, currentRoute }, this.#api);
+    const context = planContext(currentRoute, this.#sessionBinding());
+    if (!REQUEST_ID.test(requestId)) throw new VoiceOperationRequestError('invalid_plan');
+    if (context === null) throw new VoiceOperationRequestError('session_required');
+    const raw = await requestVoiceIntent(
+      { version: 1, requestId, transcript, currentRoute },
+      this.#api,
+      context.sessionBinding,
+    );
     const plan = readVoiceOperationPlan(raw, requestId, context);
     if (plan === null) throw new VoiceOperationRequestError('invalid_plan');
     this.#planContexts.set(plan, context);
@@ -399,7 +414,7 @@ export class VoiceOperationExecutor {
     const existing = this.#inFlight.get(plan.requestId);
     if (existing !== undefined) return existing;
 
-    const pending = this.#executeSafely(plan);
+    const pending = this.#executeSafely(plan, context.sessionBinding);
     this.#inFlight.set(plan.requestId, pending);
     void pending.finally(() => {
       if (this.#inFlight.get(plan.requestId) === pending) this.#inFlight.delete(plan.requestId);
@@ -407,16 +422,16 @@ export class VoiceOperationExecutor {
     return pending;
   }
 
-  async #executeSafely(plan: VoiceOperationPlan): Promise<VoiceOperationResult> {
+  async #executeSafely(plan: VoiceOperationPlan, sessionBinding: string): Promise<VoiceOperationResult> {
     try {
-      return await this.#executePlan(plan);
+      return await this.#executePlan(plan, sessionBinding);
     } catch (error) {
       if (error instanceof VoiceOperationRequestError) return unavailableResult(plan, error.failure);
       return unavailableResult(plan, 'request_failed');
     }
   }
 
-  async #executePlan(plan: VoiceOperationPlan): Promise<VoiceOperationResult> {
+  async #executePlan(plan: VoiceOperationPlan, sessionBinding: string): Promise<VoiceOperationResult> {
     if (!plan.available) {
       return plan.reason === 'connector_catalogue_unavailable'
         ? unavailableResult(plan, 'operation_unavailable')
@@ -448,7 +463,7 @@ export class VoiceOperationExecutor {
       case 'remember': {
         const raw = await postVoiceOperationJson('/api/workspace/ingest', {
           title: 'Voice memory', text: operation.text,
-        }, this.#api);
+        }, this.#api, sessionBinding);
         if (!isRecord(raw) || raw['ok'] !== true
           || !Number.isSafeInteger(raw['claims'])
           || (raw['claims'] as number) < 0
@@ -460,15 +475,15 @@ export class VoiceOperationExecutor {
       case 'start_researcher': {
         const raw = await postVoiceOperationJson('/api/workspace/agent/run', {
           task: operation.task, requestId: plan.requestId,
-        }, this.#api);
+        }, this.#api, sessionBinding);
         return isRecord(raw) ? success(plan, 1) : unavailableResult(plan, 'invalid_response');
       }
       case 'cancel_selected_run':
-        return this.#runMutation(plan, 'cancel', ACTIVE_RUN_STATUSES);
+        return this.#runMutation(plan, 'cancel', ACTIVE_RUN_STATUSES, sessionBinding);
       case 'retry_selected_run':
-        return this.#runMutation(plan, 'retry', RETRY_RUN_STATUSES);
+        return this.#runMutation(plan, 'retry', RETRY_RUN_STATUSES, sessionBinding);
       case 'run_selected_schedule':
-        return this.#runSchedule(plan);
+        return this.#runSchedule(plan, sessionBinding);
       case 'confirm':
       case 'cancel':
         return refusedResult(plan, 'control_operation');
@@ -481,6 +496,7 @@ export class VoiceOperationExecutor {
     plan: VoiceOperationPlan,
     action: 'cancel' | 'retry',
     eligibleStatuses: ReadonlySet<string>,
+    sessionBinding: string,
   ): Promise<VoiceOperationResult> {
     const rawRuns = await getVoiceOperationJson('/api/workspace/runs', this.#api);
     const runs = readRuns(rawRuns);
@@ -491,11 +507,12 @@ export class VoiceOperationExecutor {
       `/api/workspace/agent/runs/${encodeURIComponent(target.id)}/${action}`,
       {},
       this.#api,
+      sessionBinding,
     );
     return isRecord(raw) ? success(plan, 1) : unavailableResult(plan, 'invalid_response');
   }
 
-  async #runSchedule(plan: VoiceOperationPlan): Promise<VoiceOperationResult> {
+  async #runSchedule(plan: VoiceOperationPlan, sessionBinding: string): Promise<VoiceOperationResult> {
     const rawSchedules = await getVoiceOperationJson('/api/workspace/schedules', this.#api);
     const schedules = readSchedules(rawSchedules);
     if (schedules === null) return unavailableResult(plan, 'invalid_response');
@@ -505,6 +522,7 @@ export class VoiceOperationExecutor {
       `/api/workspace/schedules/${encodeURIComponent(target.id)}/run`,
       { requestId: plan.requestId },
       this.#api,
+      sessionBinding,
     );
     if (!isRecord(raw) || (raw['outcome'] !== 'DISPATCHED' && raw['outcome'] !== 'DUPLICATE')) {
       return unavailableResult(plan, 'invalid_response');

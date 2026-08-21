@@ -79,6 +79,8 @@ describe('the authenticated voice shell owner', () => {
     for (const contextProp of ['currentRoute=', 'scope=', 'sessionKey=', 'workspaceKey=']) {
       expect(shell).toContain(contextProp);
     }
+    expect(shell).toContain('sessionKey={account?.binding ?? null}');
+    expect(shell).not.toContain('sessionKey={email}');
   });
 
   it('creates one owned controller stack and updates context without rebuilding it', () => {
@@ -96,5 +98,7 @@ describe('the authenticated voice shell owner', () => {
     expect(context).toContain('}, [base]);');
     expect(context).toContain('assistant.dispose()');
     expect(context).toContain('voice.dispose()');
+    expect(context).toContain('new VoiceOperationExecutor({ navigate, sessionBinding })');
+    expect(context).toContain('() => contextRef.current.sessionKey');
   });
 });

@@ -8,7 +8,7 @@ describe('landing account actions', () => {
       state: 'ready',
       value: {
         signedIn: true,
-        session: { email: 'member@example.com', workspace: 'Atlas', onboarded: true },
+        session: { email: 'member@example.com', binding: 'a'.repeat(64), workspace: 'Atlas', onboarded: true },
       },
     })).toEqual({
       state: 'member',
@@ -25,7 +25,7 @@ describe('landing account actions', () => {
       state: 'ready',
       value: {
         signedIn: true,
-        session: { email: 'new@example.com', workspace: null, onboarded: false },
+        session: { email: 'new@example.com', binding: 'b'.repeat(64), workspace: null, onboarded: false },
       },
     })).toEqual({
       state: 'member',

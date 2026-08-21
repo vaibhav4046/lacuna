@@ -71,16 +71,19 @@ export async function postVoiceOperationJson(
   path: string,
   body: unknown,
   options: VoiceOperationApiOptions,
+  sessionBinding?: string,
 ): Promise<unknown> {
   try {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': options.csrfToken(),
+    };
+    if (sessionBinding !== undefined) headers['X-Lacuna-Voice-Binding'] = sessionBinding;
     const response = await options.fetchImpl(path, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': options.csrfToken(),
-      },
+      headers,
       body: JSON.stringify(body),
     });
     return await responseJson(response);
@@ -93,6 +96,7 @@ export async function postVoiceOperationJson(
 export function requestVoiceIntent(
   input: VoiceIntentInput,
   options: VoiceOperationApiOptions,
+  sessionBinding: string,
 ): Promise<unknown> {
-  return postVoiceOperationJson('/api/workspace/voice/intent', input, options);
+  return postVoiceOperationJson('/api/workspace/voice/intent', input, options, sessionBinding);
 }

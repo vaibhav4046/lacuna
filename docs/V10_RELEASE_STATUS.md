@@ -40,7 +40,7 @@ Production: <https://lacuna-five.vercel.app>
 
 | Surface | Evidence accepted for the current production deployment |
 | --- | --- |
-| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The final stable-domain smoke measured the context store ready in 92 ms. |
+| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The final stable-domain smoke measured the context store ready in 65 ms. |
 | Public graph | `GET /api/explore/graph?mode=overview&limit=1` returned 453 total nodes, 682 total edges, zero orphan edges and a signed next cursor on 2026-08-21. |
 | Public MCP | `POST /mcp` with `tools/list` returned seven read-only tools on 2026-08-21: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health`. |
 | Web | The accepted production sweep passed web smoke 9/9 and demo smoke 30/30. |
@@ -64,14 +64,14 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-Deployment `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8` is the accepted production
-deployment for product commit `38d2672f93f6a54cffa3b5e5973ab312bd525147`.
-Root typecheck, 84 unit files / 1,384 tests, the 124-module production build,
+Deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc` is the accepted production
+deployment for product commit `05fe9d15dea75e4db7f5eb61d17533aa26e6e5a8`.
+Root typecheck, 84 unit files / 1,393 tests, the 125-module production build,
 web 9/9, demo/API 30/30, Google boundary 16/16 and public-agent 403 probes all
 target this product tree. The earlier normal/reduced route sweeps of 198/198
 remain structural evidence; the final sign-in and first-use copy were checked
 directly in Chrome after promotion. The stable alias points to the immutable URL
-`https://lacuna-7y4m5dwws-vaibhav4046s-projects.vercel.app`. The seven-tool
+`https://lacuna-6fq3hiy9q-vaibhav4046s-projects.vercel.app`. The seven-tool
 ChatGPT public connector proof targets the same public contract. A media render
 does not grant a product gate; the V10 film remains a separate artifact with its
 own acceptance steps.
@@ -93,10 +93,11 @@ own acceptance steps.
 
 ## Submission media
 
-The earlier 179-second V8 candidate was rejected by the owner. It is historical
-media, not the V10 master, and must not be uploaded or presented as accepted.
-The V10 cue sheet is [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md). A final master
-requires live product motion, a verified duration below 180 seconds, claim-map
-review, audio and caption checks, owner approval, upload, and signed-out playback.
+The earlier 179-second V8 candidate was rejected by the owner and remains
+historical. The V10 master at
+`video/hyperframes-v10/renders/lacuna-v10-hack-hydra-final.mp4` passed metadata
+inspection and a full decode at 178.500 seconds, 1920×1080/30 fps, H.264 + AAC.
+Its owner watch, clone-publication confirmation, upload and signed-out playback
+remain owner actions.
 
 The owner performs the YouTube upload and hackathon form submission.

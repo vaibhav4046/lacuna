@@ -55,10 +55,12 @@ an internal prioritization score, not an official judge score or a prediction.
 
 ## Release verdict
 
-For the protected `38d2672…` / `dpl_AbYNdV…` release, the recorded product gates and
-fresh public probes expose no known CRITICAL or HIGH defect on the anonymous
-judge path. That statement is scoped to the accepted immutable deployment; it
-does not grant later local auth changes a production pass.
+For the protected `05fe9d1…` / `dpl_GZhotq…` release, the recorded product gates and
+fresh public probes expose no known CRITICAL, HIGH or MEDIUM defect in the
+reviewed auth, timeout, onboarding, voice-recovery and anonymous judge paths. The
+broader product still has the named capability limits below. This statement is
+scoped to the accepted immutable deployment; it
+does not grant later local changes a production pass.
 
 Remaining limits are disclosed rather than simulated. The candidate is strong
 enough to compete for Track 03 and Best Use of HydraDB, and could reach the

@@ -1,16 +1,16 @@
 {
   "schema": "lacuna.submission.release-probe.v1",
-  "capturedAt": "2026-08-21T06:20:04.0227244Z",
+  "capturedAt": "2026-08-21T06:41:10.9007264Z",
   "containsSecrets": false,
   "release": {
-    "productCommit": "38d2672f93f6a54cffa3b5e5973ab312bd525147",
+    "productCommit": "05fe9d15dea75e4db7f5eb61d17533aa26e6e5a8",
     "acceptanceDocsCommit": "695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf",
-    "publicMainCommit": "38d2672f93f6a54cffa3b5e5973ab312bd525147",
-    "deploymentId": "dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8",
+    "publicMainCommit": "05fe9d15dea75e4db7f5eb61d17533aa26e6e5a8",
+    "deploymentId": "dpl_GZhotqcHc2p3f2AKCeezQKNidjwc",
     "deploymentStatus": "READY",
-    "immutableUrl": "https://lacuna-7y4m5dwws-vaibhav4046s-projects.vercel.app",
+    "immutableUrl": "https://lacuna-6fq3hiy9q-vaibhav4046s-projects.vercel.app",
     "stableUrl": "https://lacuna-five.vercel.app",
-    "stableAliasResolvedDeploymentId": "dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8",
+    "stableAliasResolvedDeploymentId": "dpl_GZhotqcHc2p3f2AKCeezQKNidjwc",
     "repository": "https://github.com/vaibhav4046/lacuna"
   },
   "repositoryEvidence": {
@@ -38,7 +38,7 @@
     "collection": "backend",
     "reachable": true,
     "roundTrip": true,
-    "observedTimingMs": 92
+    "observedTimingMs": 65
   },
   "publicGraph": {
     "mode": "overview",

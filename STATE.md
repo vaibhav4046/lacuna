@@ -7,11 +7,11 @@ dated evidence.
 
 ## Accepted product gate
 
-- 84 unit test files and 1,384 tests passed with no skips.
+- 84 unit test files and 1,393 tests passed with no skips.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 124 modules. The entry is 286.94 kB,
-  94.25 kB gzip.
-- Copy lint scans 57 files with zero findings.
+- The production web bundle builds from 125 modules. The entry is 287.26 kB,
+  94.32 kB gzip.
+- Copy lint scans 58 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
 - Two bounded, no-write agents run Researcher to Reviewer handoffs from a
@@ -64,13 +64,12 @@ dated evidence.
 ## Accepted production
 
 The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
-deployment `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8`, built from product commit
-`38d2672f93f6a54cffa3b5e5973ab312bd525147`. Web passed 9/9, demo/API passed
+deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc`, built from product commit
+`05fe9d15dea75e4db7f5eb61d17533aa26e6e5a8`. Web passed 9/9, demo/API passed
 30/30, Google OAuth's pre-chooser boundary passed 16/16, and both normal and
 reduced-motion route sweeps passed 198/198. The anonymous-agent 403 boundary
-was also probed directly on that deployment. The public release branch contains
-the exact accepted product source; publication to `main` remains a release
-action rather than a product gate.
+was also probed directly on that deployment. Public `main` and the release
+branch contain the exact accepted product source.
 
 The selected narration voice is the verified ElevenLabs **Vaibhav Lalwani
 Professional** clone. Raw clone audio stays local and gitignored so a biometric
@@ -78,12 +77,14 @@ voice asset is not redistributed. A narration render is not proof of the
 product's live voice route; no provider-enabled STT/TTS/interruption session is
 accepted in production.
 
-The metadata-verified 179-second V8 MP4 is historical, was rejected by the
-owner, and is not submission media. The V10 cut, Supademo, YouTube and form
-submission remain open. The seven-tool public ChatGPT MCP proof is accepted;
-Claude remains untested. A packaged Lacuna SDK and a Spotify connector are not
-shipped capabilities, not pending claims. Nothing has been submitted or
-uploaded.
+The 179-second V8 MP4 is historical and rejected. The V10 master is machine
+accepted at 178.500 seconds, 1920×1080/30 fps with H.264 video, AAC audio and a
+full decode pass; its SHA-256 is
+`e73e6e0bf1de598b3c1c998a43057ac06e8dcb3b492a19d3ac8623c8d9cb9d96`.
+The owner's uninterrupted watch, Supademo, YouTube upload and form submission
+remain open. The seven-tool public ChatGPT MCP proof is accepted; Claude remains
+untested. A packaged Lacuna SDK and a Spotify connector are not shipped
+capabilities. Nothing has been submitted or uploaded.
 
 ## Remaining engineering limits
 

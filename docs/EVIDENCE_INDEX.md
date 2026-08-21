@@ -9,13 +9,13 @@ not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, accepted product tree | 84 files, 1,384 tests passed | terminal run on 2026-08-21 after overlapping-attempt isolation and first-use copy cleanup |
+| full unit gate, accepted product tree | 84 files, 1,393 tests passed | serial terminal run on 2026-08-21 after auth, timeout, voice-recovery and first-use honesty fixes |
 | root and web typecheck | both exit 0 | terminal run on 2026-08-21 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
 | native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
 | accepted public agent record | completed, 8 lifecycle events; readable evidence with no authoritative memory writeback | production Work and Agents screens |
-| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_AbYNdVMkMSrYefbXy4h1e7v1hdr8`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
 | connector truth table | `AVAILABLE`: Text, Custom ingestion; all catalogued external/file/data connectors are `PLANNED`; Spotify is absent | `web/src/design/connectors.ts` |
@@ -46,7 +46,7 @@ not transfer without a named rerun.
 | voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |
 | Claude continuity | no accepted Claude-to-Lacuna session | named-client connection and same-workspace evidence capture |
 | Supademo | no published walkthrough | assemble from final production captures and verify the public link |
-| final video | no accepted V10 master; the metadata-verified 179-second V8 candidate was rejected | build and review the V10 cut from [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md), then complete audio, caption, upload and signed-out playback checks |
+| final video | V10 master machine-accepted: 178.500 seconds, 1920×1080/30 fps, H.264 + AAC, full decode pass; no renderer remains | owner uninterrupted watch, upload and signed-out playback checks |
 | YouTube | no URL | owner upload and signed-out playback check |
 | exact public repository parity | working-tree candidate is not itself reproducible public source | commit and push the exact accepted source before submission |
 

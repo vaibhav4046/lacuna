@@ -1,7 +1,7 @@
 # V10 production acceptance evidence
 
 Captured on 2026-08-21 against <https://lacuna-five.vercel.app> after deployment
-`dpl_5kpU5GECQDi6UK71JjZp4Kj1q1in` reached `READY` and the production alias
+`dpl_GZhotqcHc2p3f2AKCeezQKNidjwc` reached `READY` and the production alias
 moved to it.
 
 ## Accepted gates
@@ -9,11 +9,11 @@ moved to it.
 | Gate | Result |
 | --- | --- |
 | Root typecheck | passed |
-| Unit suite | 83 files, 1,374 tests passed |
-| Production build | 124 modules transformed; zero dependency vulnerabilities reported by the Vercel build |
+| Unit suite | 84 files, 1,393 tests passed |
+| Production build | 125 modules transformed; zero dependency vulnerabilities reported by the Vercel build |
 | Web smoke | 9/9 |
 | Demo/API smoke | 30/30; 174 memory rows; all six temporal outcome checks live |
-| Google OAuth boundary | 15/15; the proof stops before the human account chooser |
+| Google OAuth boundary | 16/16; the proof stops before the human account chooser |
 | ChatGPT public connector | health, ask, timeline, explain, sentence read, search and fetch accepted against HydraDB Cloud |
 | Governed agent | adversarial run completed all eight stages; both conflicting owners and their evidence reached the Context Pack; Reviewer accepted zero unsupported claims; no authoritative writeback |
 | Route audit | 198/198 normal and 198/198 reduced motion; 22 routes × 9 viewports; zero console errors, exceptions, failed requests or overflow |

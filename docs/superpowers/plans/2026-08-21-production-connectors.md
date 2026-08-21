@@ -280,6 +280,7 @@ git commit -m "feat(connectors): import bounded public GitHub context"
 
 **Files:**
 - Create: `src/connectors/https.ts`
+- Modify: `src/connectors/normalize.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
 - Test: `tests/unit/connectors-https.test.ts`
@@ -293,9 +294,9 @@ git commit -m "feat(connectors): import bounded public GitHub context"
 
 Reject all schemes except HTTPS, ports except 443, credentials, fragments, more than 2,048 URL characters, localhost names, numeric/octal/hex IP spellings, and DNS results in loopback, private, link-local, multicast, carrier-grade NAT, documentation, benchmark, unspecified, or reserved IPv4/IPv6 ranges. Reject mixed public/private DNS answers rather than choosing the public one.
 
-- [ ] **Step 2: Write DNS-rebinding and response-budget tests**
+- [ ] **Step 2: Write DNS-rebinding, cancellation, concurrency, and response-budget tests**
 
-Inject DNS and `https.request`. Assert the request's custom `lookup` returns the exact validated address while retaining the original hostname for SNI/certificate checks. Disable agents/keep-alive and redirects. Enforce 10 seconds, 1 MiB compressed and decoded body budgets, at most 100 JSON leaf items, depth 8, and only `application/json`, `text/plain`, or `text/markdown` UTF-8 content.
+Inject a cancellable complete A+AAAA resolver and `https.request`. Assert the request's custom `lookup` returns the exact validated address while retaining the original hostname for SNI/certificate checks. Disable agents/keep-alive and redirects. Enforce one 10-second deadline, at most three active reads, a 1 MiB de-chunked entity-body budget with no decompression path, at most 100 JSON scalar leaves plus 512 total nodes/100 members per container, depth 8, and only `application/json`, `text/plain`, or `text/markdown` UTF-8 content. Persist only origin plus a pathname digest; never persist the path or query.
 
 - [ ] **Step 3: Write canonicalization/redaction tests**
 
@@ -309,7 +310,7 @@ Expected: safe HTTPS reader and route are absent.
 
 - [ ] **Step 5: Implement pinned HTTPS transport**
 
-Use `node:dns/promises`, `node:net`, and `node:https`. Resolve once, validate every answer, choose a deterministic public address, and pass a custom `lookup` to `https.request` while leaving `hostname` unchanged. Set `servername` to the hostname, `rejectUnauthorized: true`, `agent: false`, `maxRedirects: 0` by construction, and abort/tear down the socket on every limit violation.
+Use a per-read cancellable resolver from `node:dns/promises`, plus `node:net` and `node:https`. Resolve A+AAAA once, validate every answer, choose a deterministic public address, and pass a custom `lookup` to `https.request` while leaving `hostname` unchanged. Set `servername` to the hostname, `rejectUnauthorized: true`, `agent: false`, no redirect behavior by construction, and abort/tear down DNS/request/response/socket work on every limit violation. Bind typed HTTPS provenance into normalization/source identity and fail closed when the real reader is not injected.
 
 - [ ] **Step 6: Run focused tests and verify GREEN**
 
@@ -320,7 +321,7 @@ Expected: all focused tests pass.
 - [ ] **Step 7: Commit public HTTPS import**
 
 ```bash
-git add src/connectors/https.ts src/api/router.ts api/index.ts tests/unit/connectors-https.test.ts tests/unit/connectors-api.test.ts
+git add src/connectors/https.ts src/connectors/normalize.ts src/api/router.ts api/index.ts tests/unit/connectors-https.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-api.test.ts
 git commit -m "feat(connectors): import pinned public HTTPS sources"
 ```
 

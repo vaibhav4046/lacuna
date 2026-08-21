@@ -332,6 +332,8 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 **Files:**
 - Create: `src/connectors/webhook.ts`
 - Create: `src/connectors/webhook-store.ts`
+- Modify: `src/hydra/cloud.ts`
+- Modify: `src/connectors/store.ts`
 - Modify: `src/connectors/normalize.ts`
 - Modify: `src/connectors/types.ts`
 - Modify: `src/connectors/catalog.ts`
@@ -344,6 +346,7 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 - Modify: `.env.example`
 - Test: `tests/unit/connectors-webhook.test.ts`
 - Test: `tests/unit/connectors-api.test.ts`
+- Test: `tests/unit/connectors-store.test.ts`
 - Test: `tests/unit/connectors-normalize.test.ts`
 - Test: `tests/unit/connectors-catalog.test.ts`
 - Test: `tests/unit/connectors-run.test.ts`
@@ -355,7 +358,9 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 - Adds: `DELETE /api/workspace/connectors/webhook/:id`
 - Adds: `POST /api/connectors/webhook/:id`
 - Produces: `WebhookService.issue(workspace): Promise<IssuedWebhook>`
-- Produces: `WebhookService.accept(id, headers, rawBody): Promise<WebhookReceipt>`
+- Produces: `WebhookService.accept(id, headers, rawBody, control): Promise<WebhookReceipt>`
+- Produces: `WebhookRequestControl { requestSignal, startedAtMs, settlementDeadlineMs }`
+- Extends: `HydraCloud.ingestApp(records, collection, control?)` and connector-store operations with bounded signal/deadline controls
 
 - [ ] **Step 1: Write issuance and secret-storage tests**
 
@@ -385,6 +390,15 @@ evidence.
 
 Simulate a timeout after Hydra accepts an event, then retry the same signed body. Assert deterministic source records converge and the response preserves accepted/searchability uncertainty. Test two independent service instances and explicitly record that Hydra has no CAS: visible-window duplicate/conflict detection, issuance serialization, and revocation cutoff are not globally linearizable. Never claim exactly-once or globally replay-proof delivery.
 
+Also prove every queue acquisition, Hydra read, workspace pre-write merge, submitted
+Hydra write, readiness poll, connector-observation read/write/readback, and replay
+finalization is clipped by one absolute handler deadline. A request disconnect before
+the workspace write is submitted must produce zero ingest; after submission it must
+not cancel the settlement attempt or turn a missing exact receipt into a known-zero
+failure. Extend the runner result with an allowlisted indeterminate-submission fact
+so the webhook serializer can distinguish a confirmed refusal from a write whose
+receipt was lost.
+
 - [ ] **Step 4: Run tests and verify RED**
 
 Run: `npx vitest run tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts --maxWorkers=1`
@@ -395,20 +409,45 @@ Expected: webhook service and routes are absent.
 
 Use a dedicated exact-readback webhook record store. Persist endpoint first and active pointer second; stale pointers are inert. Maintain at most 256 keyed event markers in one bounded per-hook replay-window record through a process-local queue, acknowledging cross-instance lost updates. The public receiver uses a strict raw-body/framing reader, verifies exact bytes before fatal UTF-8/JSON parsing, then accepts exact `{ title, text, observed_at }`. Recheck visible lifecycle immediately before runner submission. Delete marks the endpoint revoked; it does not erase audit state and cannot cancel a different instance already past the commit boundary.
 
+Capture `startedAtMs` before body acquisition and pass the request-disconnect signal
+plus exact `settlementDeadlineMs = startedAtMs + 240_000` through the body reader and
+`WebhookService.accept`. Before the workspace write is submitted, request disconnect
+or deadline aborts all work. Once submitted, ignore only the client-disconnect signal,
+continue under the internal phase deadline, and classify every missing/invalid exact
+Hydra receipt as indeterminate. Add deadline-aware/cancellable controls to
+`HydraCloud.ingestApp`, workspace mutation acquisition, `ConnectorRunner`, and
+`CloudConnectorStore` get/put/readback; queued work may not outlive its caller.
+
 - [ ] **Step 6: Document configuration without a fallback secret**
 
-Add `LACUNA_WEBHOOK_KEY=` to `.env.example` with a generation command and explicit server-only/destructive-rotation note. A retired key must never be restored. In `api/index.ts`, instantiate the service only for a valid key and complete dependencies. Do not fall back to `HYDRA_TOKEN`, OAuth credentials, or a source-controlled constant. Redact webhook ids from application request/error paths. The linked project was verified with Fluid Compute enabled and a current 300-second maximum; configure `api/index.ts` `maxDuration` to 270 seconds around a 240-second internal settlement budget, cap webhook ingestion at one 25-record batch, pass readiness ≤30 seconds, and re-verify after deployment. Stage a generous POST+webhook-path WAF rate-limit in log-only mode for traffic review; do not describe it as enforced until the staged rule is reviewed and published.
+Add `LACUNA_WEBHOOK_KEY=` to `.env.example` with a generation command and explicit server-only/destructive-rotation note. A retired key must never be restored. In `api/index.ts`, instantiate the service only for a valid key and complete dependencies. Do not fall back to `HYDRA_TOKEN`, OAuth credentials, or a source-controlled constant. Redact webhook ids from application request/error paths. The linked project was verified with Fluid Compute enabled and a current 300-second maximum; configure `api/index.ts` `maxDuration` to 270 seconds around a 240-second internal settlement budget and re-verify after deployment.
+
+Make the budget executable by scheduling backward from the absolute settlement
+deadline: reserve the final 10 seconds for accepted-only replay merge/readback, the
+preceding 20 seconds for connector-observation get/put/exact-readback, the preceding
+30 seconds for readiness, up to 120 seconds for the single submitted Hydra ingest,
+and up to 20 seconds for bounded workspace-queue acquisition plus all pre-write
+index/entity reads. Therefore do not enter the runner unless at least 200 seconds
+remain. Body acquisition is at most five seconds; endpoint/index authorization,
+the owner-lock wait, replay lookup, and final lifecycle recheck must finish before
+that admission point. Each phase receives the earlier of its local cap or its
+backward-derived absolute deadline, and no later phase may borrow a reserved tail.
+Cap webhook graph output at one 25-record batch before any write. An observation
+timeout cannot erase a confirmed accepted receipt, and replay finalization never
+runs past the hard deadline. Stage a generous POST+webhook-path WAF rate-limit in
+log-only mode for traffic review; do not describe it as enforced until the staged
+rule is reviewed and published.
 
 - [ ] **Step 7: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/connectors-webhook.test.ts tests/unit/connectors-run.test.ts tests/unit/connectors-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-catalog.test.ts tests/unit/connectors-run.test.ts tests/unit/ingest-source.test.ts --maxWorkers=1`
 
 Expected: all focused tests pass.
 
 - [ ] **Step 8: Commit signed webhooks**
 
 ```bash
-git add src/connectors/webhook.ts src/connectors/webhook-store.ts src/connectors/normalize.ts src/connectors/types.ts src/connectors/catalog.ts src/connectors/run.ts src/api/ingest.ts src/api/router.ts api/index.ts src/server/server.ts vercel.json .env.example tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-catalog.test.ts tests/unit/connectors-run.test.ts tests/unit/ingest-source.test.ts
+git add src/connectors/webhook.ts src/connectors/webhook-store.ts src/hydra/cloud.ts src/connectors/store.ts src/connectors/normalize.ts src/connectors/types.ts src/connectors/catalog.ts src/connectors/run.ts src/api/ingest.ts src/api/router.ts api/index.ts src/server/server.ts vercel.json .env.example tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-catalog.test.ts tests/unit/connectors-run.test.ts tests/unit/ingest-source.test.ts
 git commit -m "feat(connectors): accept signed at-least-once webhooks"
 ```
 

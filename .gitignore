@@ -75,6 +75,7 @@ yarn-error.log*
 design/incoming2/
 
 .vercel
+.worktrees/
 
 # Deployment configuration. Values only, never committed.
 .env.deploy

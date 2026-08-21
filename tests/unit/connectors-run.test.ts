@@ -63,6 +63,28 @@ class MemoryStore implements ConnectorStore {
   }
 }
 
+class ChronologicalStore implements ConnectorStore {
+  state: ConnectorWorkspaceState;
+  readonly writes: ConnectorObservation[] = [];
+
+  constructor(initial: ConnectorObservation) {
+    this.state = { text: initial };
+  }
+
+  async get(): Promise<ConnectorWorkspaceState> {
+    return structuredClone(this.state);
+  }
+
+  async put(_workspace: string, id: ConnectorId, next: ConnectorObservation): Promise<ConnectorPutResult> {
+    const current = this.state[id];
+    if (current !== undefined && current.lastAttemptAt !== null && next.lastAttemptAt !== null
+      && next.lastAttemptAt <= current.lastAttemptAt) return 'stale';
+    this.writes.push(next);
+    this.state = { ...this.state, [id]: next };
+    return 'stored';
+  }
+}
+
 function tickingClock(): () => number {
   let tick = STARTED;
   return () => tick++;
@@ -127,7 +149,7 @@ describe('ConnectorRunner', () => {
       id: 'text',
       next: {
         configuredAt: null,
-        lastAttemptAt: '2026-08-21T10:00:00.000Z',
+        lastAttemptAt: expect.stringMatching(/^2026-08-21T10:00:00\.00\dZ$/u),
         lastSuccessAt: expect.stringMatching(/^2026-08-21T10:00:00\.00\dZ$/u),
         lastFailure: null,
         importedDocuments: 10,
@@ -194,6 +216,43 @@ describe('ConnectorRunner', () => {
     expect(store.writes[0]?.next.lastFailure).toBe(expected);
   });
 
+  it('preserves accepted receipt counts and success history when readiness times out', async () => {
+    const store = new MemoryStore('stored', {
+      text: {
+        configuredAt: null,
+        lastAttemptAt: '2026-08-20T10:00:00.000Z',
+        lastSuccessAt: '2026-08-20T10:00:00.000Z',
+        lastFailure: null,
+        importedDocuments: 7,
+      },
+    });
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async () => { throw new IngestReadinessError('timeout', 4, 1); },
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('accepted-before-timeout')], awaitSearchable: true,
+    });
+
+    expect(result).toMatchObject({
+      acceptedDocuments: 1,
+      searchableDocuments: 0,
+      failedDocuments: 1,
+      acceptedRecords: 4,
+      refusedRecords: 1,
+      failure: 'readiness_timeout',
+    });
+    expect(store.writes[0]?.next).toMatchObject({
+      importedDocuments: 8,
+      lastSuccessAt: expect.stringMatching(/^2026-08-21T10:00:00\.00\dZ$/u),
+      lastFailure: 'readiness_timeout',
+    });
+    expect(JSON.stringify(result)).not.toContain('receipt');
+    expect(JSON.stringify(result)).not.toContain('provider');
+  });
+
   it('maps refused receipts without returning their provider errors', async () => {
     const runner = new ConnectorRunner({
       store: new MemoryStore(),
@@ -256,6 +315,105 @@ describe('ConnectorRunner', () => {
       observationWrite: 'failed',
     });
     expect(JSON.stringify(result)).not.toContain('provider body');
+  });
+
+  it('serializes post-run deltas so an older attempt completing last cannot lose accepted documents', async () => {
+    const store = new ChronologicalStore({
+      configuredAt: null,
+      lastAttemptAt: '2026-08-20T10:00:00.000Z',
+      lastSuccessAt: '2026-08-20T10:00:00.000Z',
+      lastFailure: null,
+      importedDocuments: 5,
+    });
+    const releases = new Map<string, () => void>();
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => {
+        await new Promise<void>((resolve) => releases.set(prepared.title, resolve));
+        return report(prepared.sourceKey);
+      },
+    });
+
+    const older = runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('Older')], awaitSearchable: true,
+    });
+    await vi.waitFor(() => expect(releases.has('Older')).toBe(true));
+    const newer = runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('Newer')], awaitSearchable: true,
+    });
+    await vi.waitFor(() => expect(releases.has('Newer')).toBe(true));
+
+    releases.get('Newer')?.();
+    const newerResult = await newer;
+    releases.get('Older')?.();
+    const olderResult = await older;
+
+    expect(newerResult.observationWrite).toBe('stored');
+    expect(olderResult.observationWrite).toBe('stored');
+    expect(store.writes.map((entry) => entry.importedDocuments)).toEqual([6, 7]);
+    expect(store.state.text?.importedDocuments).toBe(7);
+  });
+
+  it('does not write a default observation when the queued latest-state read fails', async () => {
+    let puts = 0;
+    const store: ConnectorStore = {
+      get: async () => { throw new Error('state unavailable'); },
+      put: async () => { puts += 1; return 'stored'; },
+    };
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => report(prepared.sourceKey),
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('accepted')], awaitSearchable: true,
+    });
+
+    expect(result).toMatchObject({ acceptedDocuments: 1, observationWrite: 'failed', failure: 'transport_failed' });
+    expect(puts).toBe(0);
+  });
+
+  it('runtime-validates the exact connector request shape before reads or ingestion', async () => {
+    let reads = 0;
+    let ingests = 0;
+    const store: ConnectorStore = {
+      get: async () => { reads += 1; return {}; },
+      put: async () => 'stored',
+    };
+    const runner = new ConnectorRunner({
+      store,
+      ingest: async (_workspace, prepared) => { ingests += 1; return report(prepared.sourceKey); },
+    });
+    const invalid = [
+      { connectorId: 'slack', documents: [document('wrong-id')], awaitSearchable: true },
+      { connectorId: 'text', documents: [document('wrong-ready')], awaitSearchable: 'true' },
+      { connectorId: 'text', documents: [document('extra')], awaitSearchable: true, providerBody: 'secret' },
+    ];
+
+    for (const request of invalid) {
+      await expect(runner.run(WORKSPACE, request as never)).rejects.toThrow('invalid connector request');
+    }
+    expect(reads).toBe(0);
+    expect(ingests).toBe(0);
+  });
+
+  it('rejects a prepared document above the extractor limit before the ingest boundary', async () => {
+    const store = new MemoryStore();
+    let ingests = 0;
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => { ingests += 1; return report(prepared.sourceKey); },
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('oversized', 'x'.repeat(20_001))], awaitSearchable: false,
+    });
+
+    expect(result).toMatchObject({ acceptedDocuments: 0, failure: 'validation_failed' });
+    expect(ingests).toBe(0);
   });
 
   it('rejects client-shaped workspace identifiers before normalization or storage', async () => {

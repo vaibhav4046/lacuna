@@ -32,7 +32,7 @@ interface IngestReport {
   readonly claims: number;
   readonly entities: number;
   readonly accepted: number;
-  readonly refused: readonly { readonly id: string; readonly error: string }[];
+  readonly refused: number;
   readonly ms: number;
   readonly truncated: boolean;
 }
@@ -162,7 +162,7 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
           </span>
           <span style={{ ...note }}>
             {report.accepted} RECORDS ACCEPTED · {report.ms}MS
-            {report.refused.length > 0 ? ` · ${report.refused.length} REFUSED` : ''}
+            {report.refused > 0 ? ` · ${report.refused} REFUSED` : ''}
             {report.truncated ? ' · TEXT WAS CUT AT THE LIMIT' : ''}
           </span>
           <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '70ch', lineHeight: 1.55 }}>

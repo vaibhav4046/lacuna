@@ -49,6 +49,13 @@ describe('web product contracts', () => {
     expect(ingest).not.toContain('will not be duplicated');
   });
 
+  it('renders the router-safe numeric refused count without array-only access', () => {
+    const ingest = readFileSync(new URL('../../web/src/app/routes/ingest.tsx', import.meta.url), 'utf8');
+    expect(ingest).toContain('readonly refused: number;');
+    expect(ingest).toContain('report.refused > 0');
+    expect(ingest).not.toContain('report.refused.length');
+  });
+
   it('does not present a local-only model picker as saved workspace configuration', () => {
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
     expect(onboarding).toContain('MODEL SWITCHING · PLANNED');

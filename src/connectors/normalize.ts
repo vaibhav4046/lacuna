@@ -61,6 +61,7 @@ export type ConnectorNormalizationFailure =
   | 'invalid_title'
   | 'invalid_text'
   | 'invalid_provenance'
+  | 'document_too_long'
   | 'too_many_documents'
   | 'text_budget_exceeded';
 

@@ -1,10 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { HydraCloud, type AppRecord } from '../../src/hydra/cloud.js';
 import { HydraDecodeError, HydraQueryError } from '../../src/hydra/errors.js';
 import { INDEX_ID } from '../../src/hydra/cloud-graph.js';
 import {
-  IngestReadinessError,
   MAX_SOURCE_CHARS,
   ingestPreparedSource,
   ingestSource,
@@ -66,11 +65,22 @@ function cloudThatRecords(sent: Sent[]): HydraCloud {
   );
 }
 
-function statefulAdversarialCloud(): { readonly cloud: HydraCloud; readonly stored: Map<string, string> } {
+function statefulAdversarialCloud(options: { readonly blockReadiness?: boolean } = {}): {
+  readonly cloud: HydraCloud;
+  readonly stored: Map<string, string>;
+  readonly readinessStarted: Promise<void>;
+  readonly releaseReadiness: () => void;
+  readonly writeCalls: () => number;
+} {
   const stored = new Map<string, string>();
+  let writes = 0;
   let firstMissingIndexRead = true;
   let releaseFirstIndexRead: (() => void) | undefined;
   const secondIndexRead = new Promise<void>((resolve) => { releaseFirstIndexRead = resolve; });
+  let markReadinessStarted: (() => void) | undefined;
+  const readinessStarted = new Promise<void>((resolve) => { markReadinessStarted = resolve; });
+  let releaseReadiness: (() => void) | undefined;
+  const readinessReleased = new Promise<void>((resolve) => { releaseReadiness = resolve; });
   const cloud = new HydraCloud(
     {
       baseUrl: 'https://api.example.invalid',
@@ -82,6 +92,17 @@ function statefulAdversarialCloud(): { readonly cloud: HydraCloud; readonly stor
       fetch: async (input, init) => {
         const url = new URL(String(input));
         if (init?.method === 'GET') {
+          if (url.pathname.endsWith('/context/status')) {
+            markReadinessStarted?.();
+            if (options.blockReadiness === true) await readinessReleased;
+            return Response.json({
+              data: {
+                statuses: url.searchParams.getAll('ids').map((id) => ({
+                  id, indexing_status: 'completed', error_code: '',
+                })),
+              },
+            });
+          }
           const id = url.searchParams.get('id') ?? '';
           if (id === INDEX_ID && !stored.has(id)) {
             if (firstMissingIndexRead) {
@@ -108,6 +129,7 @@ function statefulAdversarialCloud(): { readonly cloud: HydraCloud; readonly stor
         const records = typeof app === 'string'
           ? (JSON.parse(app) as { id: string; content: { text: string } }[])
           : [];
+        writes += 1;
         for (const record of records) stored.set(record.id, record.content.text);
         return Response.json({
           data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
@@ -115,7 +137,13 @@ function statefulAdversarialCloud(): { readonly cloud: HydraCloud; readonly stor
       },
     },
   );
-  return { cloud, stored };
+  return {
+    cloud,
+    stored,
+    readinessStarted,
+    releaseReadiness: () => releaseReadiness?.(),
+    writeCalls: () => writes,
+  };
 }
 
 function cloudWithIndexingStatus(indexingStatus: string): HydraCloud {
@@ -441,7 +469,41 @@ describe('prepared connector ingestion', () => {
       { awaitSearchable: true, readiness: { timeoutMs: 0, intervalMs: 0 } },
     );
 
-    await expect(result).rejects.toEqual(new IngestReadinessError(reason));
+    await expect(result).rejects.toMatchObject({
+      reason,
+      acceptedRecords: expect.any(Number),
+      refusedRecords: 0,
+    });
+  });
+
+  it('accepts the exact prepared extractor limit and refuses one extra character before Hydra writes', async () => {
+    const exactSent: Sent[] = [];
+    const tooLongSent: Sent[] = [];
+    const exactText = `a: Atlas is owned by Priya.${' '.repeat(20_000 - 27)}`;
+    const tooLongText = `${exactText}x`;
+    expect(exactText).toHaveLength(20_000);
+    expect(tooLongText).toHaveLength(20_001);
+
+    const accepted = await ingestPreparedSource(
+      cloudThatRecords(exactSent),
+      workspaceCollection('exact-limit@example.com'),
+      prepareConnectorDocument({
+        title: 'Exact limit', text: exactText, provenance: prepared().provenance,
+      }),
+      { awaitSearchable: false },
+    );
+    expect(typeof accepted).not.toBe('string');
+    expect(exactSent.length).toBeGreaterThan(0);
+
+    await expect(ingestPreparedSource(
+      cloudThatRecords(tooLongSent),
+      workspaceCollection('over-limit@example.com'),
+      prepareConnectorDocument({
+        title: 'Over limit', text: tooLongText, provenance: prepared().provenance,
+      }),
+      { awaitSearchable: false },
+    )).rejects.toMatchObject({ code: 'document_too_long' });
+    expect(tooLongSent).toEqual([]);
   });
 
   it('serializes the read-modify-write merge per workspace so concurrent sources cannot lose one another', async () => {
@@ -468,6 +530,28 @@ describe('prepared connector ingestion', () => {
     const index = JSON.parse(indexText) as { claims: Record<string, string>; entities: Record<string, string> };
     expect(Object.values(index.entities)).toEqual(expect.arrayContaining(['Atlas', 'Billing']));
     expect(Object.keys(index.claims)).toHaveLength(2);
+  });
+
+  it('releases the workspace mutation queue before readiness polling', async () => {
+    const controlled = statefulAdversarialCloud({ blockReadiness: true });
+    const workspace = workspaceCollection('readiness-queue@example.com');
+    const first = ingestPreparedSource(controlled.cloud, workspace, prepared(), { awaitSearchable: true });
+    await controlled.readinessStarted;
+
+    const second = ingestPreparedSource(
+      controlled.cloud,
+      workspace,
+      prepareConnectorDocument({
+        title: 'Second source',
+        text: 'b: Billing is owned by Dana.',
+        provenance: { ...prepared().provenance, sourceUrl: 'https://example.com/billing' },
+      }),
+      { awaitSearchable: false },
+    );
+    await vi.waitFor(() => expect(controlled.writeCalls()).toBe(2));
+    controlled.releaseReadiness();
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
   });
 });
 

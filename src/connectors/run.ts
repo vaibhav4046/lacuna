@@ -1,5 +1,5 @@
 import type { IngestFailure, IngestPreparedOptions, IngestPreparedReport } from '../api/ingest.js';
-import { IngestReadinessError } from '../api/ingest.js';
+import { IngestReadinessError, MAX_SOURCE_CHARS } from '../api/ingest.js';
 import { HydraDecodeError, HydraTransportError } from '../hydra/errors.js';
 import {
   ConnectorNormalizationError,
@@ -17,6 +17,13 @@ import type {
 
 const WORKSPACE_SHAPE = /^lacuna-ws-[0-9a-f]{32}$/u;
 const MAX_STORED_DOCUMENTS = 1_000_000;
+const CONNECTOR_IDS = new Set<ConnectorId>([
+  'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+]);
+const REQUEST_KEYS = new Set(['connectorId', 'documents', 'awaitSearchable']);
+// This queue only prevents lost deltas inside one process. The store's put
+// result remains authoritative; it is not a cross-instance compare-and-swap.
+const observationUpdates = new Map<string, Promise<void>>();
 
 export interface ConnectorRunRequest {
   readonly connectorId: ConnectorId;
@@ -69,6 +76,22 @@ function failureCode(error: unknown): ConnectorFailureCode {
   return 'transport_failed';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertConnectorRequest(value: unknown): asserts value is ConnectorRunRequest {
+  if (!isRecord(value)) throw new Error('invalid connector request');
+  const keys = Object.keys(value);
+  if (keys.length !== REQUEST_KEYS.size || keys.some((key) => !REQUEST_KEYS.has(key))
+    || typeof value['connectorId'] !== 'string'
+    || !CONNECTOR_IDS.has(value['connectorId'] as ConnectorId)
+    || !Array.isArray(value['documents'])
+    || typeof value['awaitSearchable'] !== 'boolean') {
+    throw new Error('invalid connector request');
+  }
+}
+
 function iso(now: () => number): string {
   return new Date(now()).toISOString();
 }
@@ -103,6 +126,24 @@ function emptyObservation(): ConnectorObservation {
   };
 }
 
+function nextInstant(candidate: string, held: string | null): string {
+  const candidateMs = Date.parse(candidate);
+  const heldMs = held === null ? 0 : Date.parse(held);
+  return new Date(Math.max(candidateMs, heldMs + 1)).toISOString();
+}
+
+async function serializeObservationUpdate<T>(key: string, update: () => Promise<T>): Promise<T> {
+  const previous = observationUpdates.get(key) ?? Promise.resolve();
+  const operation = previous.catch(() => undefined).then(update);
+  const settled = operation.then(() => undefined, () => undefined);
+  observationUpdates.set(key, settled);
+  try {
+    return await operation;
+  } finally {
+    if (observationUpdates.get(key) === settled) observationUpdates.delete(key);
+  }
+}
+
 /** Dedicated allowlist for connector JSON routes. */
 export function serializeConnectorRunResult(result: ConnectorRunResult): ConnectorRunResult {
   return {
@@ -134,14 +175,8 @@ export class ConnectorRunner {
 
   async run(workspace: string, request: ConnectorRunRequest): Promise<ConnectorRunResult> {
     if (!WORKSPACE_SHAPE.test(workspace)) throw new Error('invalid workspace');
+    assertConnectorRequest(request);
     const startedAt = iso(this.#now);
-    let previous = emptyObservation();
-    try {
-      previous = (await this.#store.get(workspace))[request.connectorId] ?? previous;
-    } catch {
-      // The final put remains the authoritative observation attempt. If it is
-      // also unavailable, observationWrite reports that instead of claiming persistence.
-    }
 
     let duplicateDocuments = 0;
     let outcomes: readonly DocumentOutcome[] = [];
@@ -150,6 +185,9 @@ export class ConnectorRunner {
       const batch = prepareConnectorBatch(request.documents);
       if (batch.documents.some((document) => document.provenance.connectorId !== request.connectorId)) {
         throw new ConnectorNormalizationError('invalid_provenance');
+      }
+      if (batch.documents.some((document) => document.text.length > MAX_SOURCE_CHARS)) {
+        throw new ConnectorNormalizationError('document_too_long');
       }
       duplicateDocuments = batch.duplicates;
       outcomes = await mapConcurrent(batch.documents, 2, async (document): Promise<DocumentOutcome> => {
@@ -173,6 +211,15 @@ export class ConnectorRunner {
             failure: refusedRecords > 0 ? 'receipt_refused' : null,
           };
         } catch (error) {
+          if (error instanceof IngestReadinessError) {
+            return {
+              accepted: error.acceptedRecords > 0,
+              searchable: false,
+              acceptedRecords: error.acceptedRecords,
+              refusedRecords: error.refusedRecords,
+              failure: failureCode(error),
+            };
+          }
           return {
             accepted: false,
             searchable: false,
@@ -194,20 +241,27 @@ export class ConnectorRunner {
     const acceptedRecords = outcomes.reduce((sum, outcome) => sum + outcome.acceptedRecords, 0);
     const refusedRecords = outcomes.reduce((sum, outcome) => sum + outcome.refusedRecords, 0);
     const completedAt = iso(this.#now);
-    const observation: ConnectorObservation = {
-      configuredAt: previous.configuredAt,
-      lastAttemptAt: startedAt,
-      lastSuccessAt: acceptedDocuments > 0 ? completedAt : previous.lastSuccessAt,
-      lastFailure: failure,
-      importedDocuments: Math.min(MAX_STORED_DOCUMENTS, previous.importedDocuments + acceptedDocuments),
-    };
     let observationWrite: ConnectorPutResult | 'failed' = 'failed';
     let resultFailure = failure;
+    const observationKey = `${workspace}:${request.connectorId}`;
     try {
-      observationWrite = await this.#store.put(workspace, request.connectorId, observation);
+      observationWrite = await serializeObservationUpdate(observationKey, async () => {
+        const previous = (await this.#store.get(workspace))[request.connectorId] ?? emptyObservation();
+        const lastAttemptAt = nextInstant(completedAt, previous.lastAttemptAt);
+        const observation: ConnectorObservation = {
+          configuredAt: previous.configuredAt,
+          lastAttemptAt,
+          lastSuccessAt: acceptedDocuments > 0
+            ? nextInstant(completedAt, previous.lastSuccessAt)
+            : previous.lastSuccessAt,
+          lastFailure: failure,
+          importedDocuments: Math.min(MAX_STORED_DOCUMENTS, previous.importedDocuments + acceptedDocuments),
+        };
+        return this.#store.put(workspace, request.connectorId, observation);
+      });
     } catch {
-      // A completed Hydra ingest and a failed observation write are different
-      // facts. The result keeps the ingest counts and refuses to claim storage.
+      // Never absolute-write from a missing/stale snapshot. Accepted Hydra work
+      // remains in the result while observation persistence is reported failed.
       resultFailure = 'transport_failed';
     }
     return serializeConnectorRunResult({

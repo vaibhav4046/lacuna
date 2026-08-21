@@ -9,7 +9,11 @@ import { HydraDecodeError } from '../hydra/errors.js';
 import { extract } from '../extract/extract.js';
 import { toCorpus } from '../extract/adapt.js';
 import { buildPlan } from '../ingest/plan.js';
-import { prepareConnectorDocument, type PreparedConnectorDocument } from '../connectors/normalize.js';
+import {
+  ConnectorNormalizationError,
+  prepareConnectorDocument,
+  type PreparedConnectorDocument,
+} from '../connectors/normalize.js';
 
 /**
  * A transcript somebody pasted, turned into memory they can then ask about.
@@ -69,10 +73,14 @@ export interface IngestPreparedOptions {
 export class IngestReadinessError extends Error {
   override readonly name = 'IngestReadinessError';
   readonly reason: 'failed' | 'timeout';
+  readonly acceptedRecords: number;
+  readonly refusedRecords: number;
 
-  constructor(reason: 'failed' | 'timeout') {
+  constructor(reason: 'failed' | 'timeout', acceptedRecords = 0, refusedRecords = 0) {
     super(reason);
     this.reason = reason;
+    this.acceptedRecords = acceptedRecords;
+    this.refusedRecords = refusedRecords;
   }
 }
 
@@ -356,10 +364,12 @@ async function preparedIngest(
   options: IngestPreparedOptions,
   started: number,
   now: () => number,
+  legacyTruncated = false,
 ): Promise<IngestPreparedReport | IngestFailure> {
-  const truncated = prepared.text.length > MAX_SOURCE_CHARS;
-  const text = truncated ? prepared.text.slice(0, MAX_SOURCE_CHARS) : prepared.text;
-  const extraction = extract(text, {
+  if (prepared.text.length > MAX_SOURCE_CHARS) {
+    throw new ConnectorNormalizationError('document_too_long');
+  }
+  const extraction = extract(prepared.text, {
     sessionKey: prepared.sourceKey,
     title: prepared.title,
     startedAt: prepared.provenance.observedAt,
@@ -384,13 +394,13 @@ async function preparedIngest(
   if (options.awaitSearchable && receipts.accepted.length > 0) {
     const statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, options.readiness);
     if (statuses.some((status) => status.indexingStatus === 'failed' || status.indexingStatus === 'errored')) {
-      throw new IngestReadinessError('failed');
+      throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
     }
     const completed = new Set(
       statuses.filter((status) => status.indexingStatus === 'completed').map((status) => status.id),
     );
     if (receipts.accepted.some((id) => !completed.has(id))) {
-      throw new IngestReadinessError('timeout');
+      throw new IngestReadinessError('timeout', receipts.accepted.length, receipts.refused.length);
     }
     searchable = true;
     indexing = 'completed';
@@ -404,7 +414,7 @@ async function preparedIngest(
     accepted: receipts.accepted.length,
     refused: receipts.refused,
     ms: now() - started,
-    truncated,
+    truncated: legacyTruncated,
     searchable,
     indexing,
   };
@@ -437,9 +447,11 @@ export async function ingestSource(
   now: () => number = Date.now,
 ): Promise<IngestReport | IngestFailure> {
   const started = now();
+  const legacyTruncated = rawText.length > MAX_SOURCE_CHARS;
+  const legacyText = legacyTruncated ? rawText.slice(0, MAX_SOURCE_CHARS) : rawText;
   const normalized = prepareConnectorDocument({
     title: title.trim().slice(0, 120),
-    text: rawText,
+    text: legacyText,
     provenance: {
       connectorId: 'text',
       sourceUrl: null,
@@ -447,12 +459,11 @@ export async function ingestSource(
       observedAt: new Date(started).toISOString(),
     },
   });
-  const legacyText = rawText.length > MAX_SOURCE_CHARS ? rawText.slice(0, MAX_SOURCE_CHARS) : rawText;
   const prepared: PreparedConnectorDocument = {
     ...normalized,
     // Preserve the pre-connector identity so an old manual paste upserts the
     // records it already owns instead of forking them after this refactor.
     sourceKey: `src-${createHash('sha256').update(`${title}\n${legacyText}`, 'utf8').digest('hex').slice(0, 24)}`,
   };
-  return preparedIngest(cloud, collection, prepared, { awaitSearchable: false }, started, now);
+  return preparedIngest(cloud, collection, prepared, { awaitSearchable: false }, started, now, legacyTruncated);
 }

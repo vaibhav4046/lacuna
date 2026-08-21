@@ -25,7 +25,8 @@ export const FILE_PARSER_VERSION = 'files-v1';
 
 const MAX_FILENAME_BYTES = 240;
 const PARSER_TIMEOUT_MS = 5_000;
-const PARSER_TEARDOWN_MS = 500;
+const PARSER_ACQUIRE_TIMEOUT_MS = 250;
+const MAX_CONCURRENT_PARSERS = 2;
 const PREVIEW_EXCERPT_CHARS = 320;
 const SUPPORTED_TYPES = new Set(['text', 'markdown', 'pdf', 'docx']);
 const DANGEROUS_SUFFIXES = new Set([
@@ -207,7 +208,61 @@ interface ExtractedText {
 export interface FileParserIsolationOptions {
   readonly workerUrl?: URL;
   readonly timeoutMs?: number;
+  readonly acquireTimeoutMs?: number;
   readonly workerFactory?: (url: URL, options: WorkerOptions) => Worker;
+}
+
+interface ParserWaiter {
+  readonly resolve: (release: () => void) => void;
+  readonly reject: (error: FileConnectorError) => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+}
+
+interface ParserPool {
+  active: number;
+  readonly waiting: ParserWaiter[];
+}
+
+const parserPools = new WeakMap<FileParserIsolationOptions, ParserPool>();
+
+function parserRelease(pool: ParserPool): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const next = pool.waiting.shift();
+    if (next === undefined) {
+      pool.active -= 1;
+      return;
+    }
+    clearTimeout(next.timer);
+    next.resolve(parserRelease(pool));
+  };
+}
+
+async function acquireParser(options: FileParserIsolationOptions, timeoutMs: number): Promise<() => void> {
+  let pool = parserPools.get(options);
+  if (pool === undefined) {
+    pool = { active: 0, waiting: [] };
+    parserPools.set(options, pool);
+  }
+  if (pool.active < MAX_CONCURRENT_PARSERS) {
+    pool.active += 1;
+    return parserRelease(pool);
+  }
+  return await new Promise<() => void>((resolve, reject) => {
+    const waiter: ParserWaiter = {
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        const index = pool.waiting.indexOf(waiter);
+        if (index >= 0) pool.waiting.splice(index, 1);
+        reject(new FileConnectorError('file_too_complex', 422));
+      }, timeoutMs),
+    };
+    waiter.timer.unref?.();
+    pool.waiting.push(waiter);
+  });
 }
 
 const WORKER_ERROR_CODES = new Set<FileConnectorErrorCode>([
@@ -254,21 +309,6 @@ function extractedFromWorker(message: unknown): ExtractedText {
   };
 }
 
-function terminateWorker(worker: Worker): { readonly bounded: Promise<boolean>; readonly settled: Promise<boolean> } {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const settled = worker.terminate().then(() => true, () => false);
-  const bounded = Promise.race([
-    settled,
-    new Promise<false>((resolve) => {
-      timer = setTimeout(() => resolve(false), PARSER_TEARDOWN_MS);
-      timer.unref?.();
-    }),
-  ]).finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
-  });
-  return { bounded, settled };
-}
-
 async function extractIsolated(
   type: 'pdf' | 'docx',
   bytes: Buffer,
@@ -278,10 +318,15 @@ async function extractIsolated(
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 10 || timeoutMs > PARSER_TIMEOUT_MS) {
     fail('parse_failed');
   }
+  const acquireTimeoutMs = options.acquireTimeoutMs ?? PARSER_ACQUIRE_TIMEOUT_MS;
+  if (!Number.isSafeInteger(acquireTimeoutMs)
+    || acquireTimeoutMs < 10
+    || acquireTimeoutMs > PARSER_TIMEOUT_MS) fail('parse_failed');
   const workerUrl = options.workerUrl ?? DEFAULT_FILE_PARSER_WORKER;
   if (workerUrl.protocol !== 'file:') fail('parse_failed');
-  let worker: Worker;
+  const releaseParser = await acquireParser(options, acquireTimeoutMs);
   try {
+    let worker: Worker;
     const workerOptions: WorkerOptions = {
       execArgv: [],
       resourceLimits: {
@@ -293,60 +338,73 @@ async function extractIsolated(
     worker = options.workerFactory === undefined
       ? new Worker(workerUrl, workerOptions)
       : options.workerFactory(workerUrl, workerOptions);
-  } catch {
-    fail('parse_failed');
-  }
-
-  return await new Promise<ExtractedText>((resolve, reject) => {
-    let finishing = false;
-    const timeout = setTimeout(() => finish(new FileConnectorError('file_too_complex', 422)), timeoutMs);
-    timeout.unref?.();
-    const cleanup = () => {
-      clearTimeout(timeout);
-      worker.off('message', onMessage);
-      worker.off('messageerror', onMessageError);
-      worker.off('error', onError);
-      worker.off('exit', onExit);
-    };
-    const finish = (outcome: ExtractedText | FileConnectorError) => {
-      if (finishing) return;
-      finishing = true;
-      clearTimeout(timeout);
-      const termination = terminateWorker(worker);
-      void termination.bounded.then((stopped) => {
-        if (stopped) cleanup();
-        else void termination.settled.finally(cleanup);
-        if (!stopped) {
-          reject(new FileConnectorError('parse_failed', 422));
-        } else if (outcome instanceof FileConnectorError) {
-          reject(outcome);
-        } else {
-          resolve(outcome);
-        }
+    return await new Promise<ExtractedText>((resolve, reject) => {
+      let finishing = false;
+      let exitObserved = false;
+      let confirmExit!: () => void;
+      const exitConfirmed = new Promise<void>((confirmed) => {
+        confirmExit = confirmed;
       });
-    };
-    const onMessage = (message: unknown) => {
+      const timeout = setTimeout(() => finish(new FileConnectorError('file_too_complex', 422)), timeoutMs);
+      timeout.unref?.();
+      const cleanup = () => {
+        clearTimeout(timeout);
+        worker.off('message', onMessage);
+        worker.off('messageerror', onMessageError);
+        worker.off('error', onError);
+        worker.off('exit', onExit);
+      };
+      const confirmTermination = async () => {
+        if (exitObserved) return;
+        try {
+          await worker.terminate();
+          return;
+        } catch {
+          if (!exitObserved) await exitConfirmed;
+        }
+      };
+      const finish = (outcome: ExtractedText | FileConnectorError) => {
+        if (finishing) return;
+        finishing = true;
+        clearTimeout(timeout);
+        void confirmTermination().then(() => {
+          cleanup();
+          if (outcome instanceof FileConnectorError) reject(outcome);
+          else resolve(outcome);
+        });
+      };
+      const onMessage = (message: unknown) => {
+        try {
+          finish(extractedFromWorker(message));
+        } catch (error) {
+          finish(error instanceof FileConnectorError ? error : new FileConnectorError('parse_failed', 422));
+        }
+      };
+      const onMessageError = () => finish(new FileConnectorError('parse_failed', 422));
+      const onError = () => finish(new FileConnectorError('parse_failed', 422));
+      const onExit = () => {
+        exitObserved = true;
+        confirmExit();
+        finish(new FileConnectorError('parse_failed', 422));
+      };
+      worker.once('message', onMessage);
+      worker.once('messageerror', onMessageError);
+      worker.on('error', onError);
+      worker.once('exit', onExit);
+      const owned = Uint8Array.from(bytes);
+      const transferred = owned.buffer as ArrayBuffer;
       try {
-        finish(extractedFromWorker(message));
-      } catch (error) {
-        finish(error instanceof FileConnectorError ? error : new FileConnectorError('parse_failed', 422));
+        worker.postMessage({ kind: 'parse', fileType: type, bytes: transferred }, [transferred]);
+      } catch {
+        finish(new FileConnectorError('parse_failed', 422));
       }
-    };
-    const onMessageError = () => finish(new FileConnectorError('parse_failed', 422));
-    const onError = () => finish(new FileConnectorError('parse_failed', 422));
-    const onExit = () => finish(new FileConnectorError('parse_failed', 422));
-    worker.once('message', onMessage);
-    worker.once('messageerror', onMessageError);
-    worker.once('error', onError);
-    worker.once('exit', onExit);
-    const owned = Uint8Array.from(bytes);
-    const transferred = owned.buffer as ArrayBuffer;
-    try {
-      worker.postMessage({ kind: 'parse', fileType: type, bytes: transferred }, [transferred]);
-    } catch {
-      finish(new FileConnectorError('parse_failed', 422));
-    }
-  });
+    });
+  } catch (error) {
+    if (error instanceof FileConnectorError) throw error;
+    return fail('parse_failed');
+  } finally {
+    releaseParser();
+  }
 }
 
 function preparedDocument(

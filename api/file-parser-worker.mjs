@@ -48,32 +48,136 @@ function begins(bytes, magic) {
   return bytes.length >= magic.length && bytes.subarray(0, magic.length).equals(magic);
 }
 
-function strictPdfTrailer(bytes) {
+function skipPdfTrivia(source, initial, end = source.length) {
+  let cursor = initial;
+  while (cursor < end) {
+    if (/^[\x00\t\n\f\r ]$/u.test(source[cursor] ?? '')) {
+      cursor += 1;
+      continue;
+    }
+    if (source[cursor] !== '%') break;
+    while (cursor < end && source[cursor] !== '\r' && source[cursor] !== '\n') cursor += 1;
+  }
+  return cursor;
+}
+
+function consumePdfDictionary(source, initial, end) {
+  if (source.slice(initial, initial + 2) !== '<<') return -1;
+  const stack = ['dictionary'];
+  let cursor = initial + 2;
+  while (cursor < end && cursor - initial <= 65_536) {
+    const character = source[cursor];
+    if (character === '%') {
+      while (cursor < end && source[cursor] !== '\r' && source[cursor] !== '\n') cursor += 1;
+      continue;
+    }
+    if (character === '(') {
+      let depth = 1;
+      cursor += 1;
+      while (cursor < end && depth > 0) {
+        if (source[cursor] === '\\') cursor += 2;
+        else {
+          if (source[cursor] === '(') depth += 1;
+          if (source[cursor] === ')') depth -= 1;
+          cursor += 1;
+        }
+      }
+      if (depth !== 0) return -1;
+      continue;
+    }
+    if (character === '<') {
+      if (source[cursor + 1] === '<') {
+        stack.push('dictionary');
+        cursor += 2;
+      } else {
+        const close = source.indexOf('>', cursor + 1);
+        if (close < 0 || close >= end || !/^[0-9A-Fa-f\x00\t\n\f\r ]*$/u.test(source.slice(cursor + 1, close))) return -1;
+        cursor = close + 1;
+      }
+      continue;
+    }
+    if (character === '>' && source[cursor + 1] === '>') {
+      if (stack.pop() !== 'dictionary') return -1;
+      cursor += 2;
+      if (stack.length === 0) return cursor;
+      continue;
+    }
+    if (character === '[') {
+      stack.push('array');
+      cursor += 1;
+      continue;
+    }
+    if (character === ']') {
+      if (stack.pop() !== 'array') return -1;
+      cursor += 1;
+      continue;
+    }
+    cursor += 1;
+  }
+  return -1;
+}
+
+function parseClassicXref(source, xrefOffset, terminalStart) {
+  let cursor = xrefOffset;
+  if (source.slice(cursor, cursor + 4) !== 'xref') return null;
+  cursor += 4;
+  const xrefEnd = /^(?:[ \t]*(?:\r\n|\n|\r))/u.exec(source.slice(cursor, terminalStart));
+  if (xrefEnd === null) return null;
+  cursor += xrefEnd[0].length;
+  let sections = 0;
+  let entries = 0;
+  let firstObject = -1;
+  while (cursor < terminalStart) {
+    cursor = skipPdfTrivia(source, cursor, terminalStart);
+    if (source.slice(cursor, cursor + 7) === 'trailer') break;
+    const header = /^([0-9]{1,10})[ \t]+([0-9]{1,10})[ \t]*(?:\r\n|\n|\r)/u.exec(
+      source.slice(cursor, terminalStart),
+    );
+    if (header === null) return null;
+    const start = Number(header[1]);
+    const count = Number(header[2]);
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(count) || count < 1) return null;
+    if (sections === 0) firstObject = start;
+    sections += 1;
+    entries += count;
+    if (sections > 1_000 || entries > 100_000) return null;
+    cursor += header[0].length;
+    for (let index = 0; index < count; index += 1) {
+      const entry = /^[0-9]{10}[ \t]+[0-9]{5}[ \t]+[nf][ \t]*(?:\r\n|\n|\r)/u.exec(
+        source.slice(cursor, terminalStart),
+      );
+      if (entry === null) return null;
+      cursor += entry[0].length;
+    }
+  }
+  if (sections === 0 || firstObject !== 0 || source.slice(cursor, cursor + 7) !== 'trailer') return null;
+  cursor = skipPdfTrivia(source, cursor + 7, terminalStart);
+  const dictionaryStart = cursor;
+  const dictionaryEnd = consumePdfDictionary(source, dictionaryStart, terminalStart);
+  if (dictionaryEnd < 0) return null;
+  const dictionary = source.slice(dictionaryStart, dictionaryEnd);
+  if (/\/(?:Prev|XRefStm)(?=[\x00\t\n\f\r /<>\[\]()])/u.test(dictionary)) return null;
+  return { dictionaryEnd };
+}
+
+function validatePdfEnvelope(bytes) {
   const source = bytes.toString('latin1');
-  const trailer = /(?:^|[\r\n])startxref[ \t]*(?:\r\n|\n|\r)([0-9]{1,10})[ \t]*(?:\r\n|\n|\r)%%EOF/gu;
-  const matches = [...source.matchAll(trailer)];
-  if (matches.length !== 1) return false;
-  const match = matches[0];
-  const matched = match[0];
-  const offsetText = match[1];
-  if (matched === undefined || offsetText === undefined || match.index === undefined) return false;
-  const end = match.index + matched.length;
-  if (!/^[\t\n\f\r ]*$/u.test(source.slice(end))) return false;
-  const startxref = match.index + matched.indexOf('startxref');
+  const marker = /(?:^|[\r\n])startxref[ \t]*(?=\r\n|\n|\r)/gu;
+  if ([...source.matchAll(marker)].length !== 1) return false;
+  const terminal = /startxref[ \t]*(?:\r\n|\n|\r)([0-9]{1,10})[ \t]*(?:\r\n|\n|\r)%%EOF[\x00\t\n\f\r ]*$/u.exec(source);
+  const offsetText = terminal?.[1];
+  if (terminal === null || offsetText === undefined || terminal.index === undefined) return false;
+  const terminalStart = terminal.index;
   const xrefOffset = Number(offsetText);
-  if (!Number.isSafeInteger(xrefOffset) || xrefOffset < PDF_MAGIC.length || xrefOffset >= startxref) return false;
-  const crossReference = source.slice(xrefOffset, Math.min(startxref, xrefOffset + 4_096));
-  if (/^xref(?=[\t\n\f\r ])/u.test(crossReference)) return true;
-  const objectHeader = /^[1-9][0-9]{0,9}[ \t]+[0-9]{1,5}[ \t]+obj(?=[\t\n\f\r <])/u.exec(crossReference);
-  if (objectHeader === null) return false;
-  const stream = crossReference.indexOf('stream', objectHeader[0].length);
-  return stream >= 0 && /\/Type[ \t\r\n]*\/XRef(?=[\t\n\f\r />])/u.test(crossReference.slice(0, stream));
+  if (!Number.isSafeInteger(xrefOffset) || xrefOffset < PDF_MAGIC.length || xrefOffset >= terminalStart) return false;
+  const parsed = parseClassicXref(source, xrefOffset, terminalStart);
+  return parsed !== null && skipPdfTrivia(source, parsed.dictionaryEnd, terminalStart) === terminalStart;
 }
 
 async function extractPdf(bytes) {
   if (!begins(bytes, PDF_MAGIC)) fail('invalid_file');
   if (bytes.indexOf(Buffer.from('%%EOF', 'ascii')) < 0) fail('parse_failed');
-  if (!strictPdfTrailer(bytes)) fail('invalid_file');
+  if (!validatePdfEnvelope(bytes)) fail('invalid_file');
   try {
     await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
   } catch {
@@ -210,7 +314,7 @@ function preflightCentralDirectory(bytes) {
     const canonical = zipEntryName({ fileName: name }).toLowerCase();
     if (names.has(canonical)) fail('invalid_file');
     names.add(canonical);
-    if ((flags & 1) !== 0 || (method !== 0 && method !== 8)) fail('invalid_file');
+    if ((flags & 9) !== 0 || (method !== 0 && method !== 8)) fail('invalid_file');
     if (localOffset + 30 > directoryOffset || bytes.readUInt32LE(localOffset) !== 0x04034b50) fail('invalid_file');
     const localFlags = bytes.readUInt16LE(localOffset + 6);
     const localMethod = bytes.readUInt16LE(localOffset + 8);
@@ -227,13 +331,9 @@ function preflightCentralDirectory(bytes) {
       || localNameBytes !== nameBytes
       || dataEnd > directoryOffset
       || !bytes.subarray(localNameStart, localNameStart + localNameBytes).equals(centralName)) fail('invalid_file');
-    if ((flags & 8) === 0) {
-      if (localChecksum !== checksum
-        || localCompressed !== compressed
-        || localUncompressed !== uncompressed) fail('invalid_file');
-    } else if ((localChecksum !== 0 && localChecksum !== checksum)
-      || (localCompressed !== 0 && localCompressed !== compressed)
-      || (localUncompressed !== 0 && localUncompressed !== uncompressed)) fail('invalid_file');
+    if (localChecksum !== checksum
+      || localCompressed !== compressed
+      || localUncompressed !== uncompressed) fail('invalid_file');
     localRanges.push({ start: localOffset, end: dataEnd });
     const extra = bytes.subarray(at + 46 + nameBytes, at + 46 + nameBytes + extraBytes);
     let cursor = 0;
@@ -374,6 +474,7 @@ async function readEveryEntryByte(zipFile, entry, canonical, state) {
   }
   const chunks = [];
   let actual = 0;
+  let checksum = 0xffffffff;
   try {
     for await (const chunk of stream) {
       const held = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
@@ -385,6 +486,7 @@ async function readEveryEntryByte(zipFile, entry, canonical, state) {
         stream.destroy();
         fail('file_too_complex');
       }
+      for (const byte of held) checksum = (checksum >>> 8) ^ CRC_TABLE[(checksum ^ byte) & 0xff];
       chunks.push(held);
     }
   } catch (error) {
@@ -393,6 +495,7 @@ async function readEveryEntryByte(zipFile, entry, canonical, state) {
     fail('parse_failed');
   }
   if (actual !== entry.uncompressedSize) fail('file_too_complex');
+  if (((checksum ^ 0xffffffff) >>> 0) !== (entry.crc32 >>> 0)) fail('invalid_file');
   return Buffer.concat(chunks, actual);
 }
 
@@ -497,7 +600,7 @@ async function validatedDocx(bytes) {
           const canonical = name.toLowerCase();
           if (names.has(canonical)) fail('invalid_file');
           names.add(canonical);
-          if ((entry.generalPurposeBitFlag & 1) !== 0
+          if ((entry.generalPurposeBitFlag & 9) !== 0
             || (entry.compressionMethod !== 0 && entry.compressionMethod !== 8)) fail('invalid_file');
           state.compressed += entry.compressedSize;
           if (state.compressed > MAX_FILE_BYTES

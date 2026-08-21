@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Worker } from 'node:worker_threads';
@@ -12,6 +13,7 @@ import {
   MAX_MULTIPART_BYTES,
   parseUploadedFile,
   readMultipartFile,
+  type FileParserIsolationOptions,
   type MultipartRequestStream,
 } from '../../src/connectors/files.js';
 import {
@@ -65,6 +67,8 @@ interface ZipPart {
   readonly deflate?: boolean;
   readonly declaredLocalUncompressedBytes?: number;
   readonly declaredCentralUncompressedBytes?: number;
+  readonly declaredChecksum?: number;
+  readonly dataDescriptor?: boolean;
 }
 
 function crc32(data: Buffer): number {
@@ -83,9 +87,9 @@ function zip(parts: readonly ZipPart[]): Buffer {
   for (const part of parts) {
     const name = Buffer.from(part.name, 'utf8');
     const compressed = part.deflate === true ? deflateRawSync(part.data) : part.data;
-    const flags = part.encrypted === true ? 1 : 0;
+    const flags = (part.encrypted === true ? 1 : 0) | (part.dataDescriptor === true ? 8 : 0);
     const method = part.deflate === true ? 8 : 0;
-    const checksum = crc32(part.data);
+    const checksum = part.declaredChecksum ?? crc32(part.data);
     const header = Buffer.alloc(30);
     header.writeUInt32LE(0x04034b50, 0);
     header.writeUInt16LE(20, 4);
@@ -165,6 +169,47 @@ function multipartRequest(body: Buffer, boundary = 'lacuna-test-boundary', decla
     ...(declaredLength ? { 'content-length': String(body.length) } : {}),
   };
   return stream;
+}
+
+class DelayedTerminationWorker extends EventEmitter {
+  readonly #termination: Promise<number>;
+  #confirmTermination!: () => void;
+  #timer: ReturnType<typeof setInterval> | undefined;
+  ticks = 0;
+
+  constructor() {
+    super();
+    this.#termination = new Promise<number>((resolve) => {
+      this.#confirmTermination = () => {
+        if (this.#timer === undefined) return;
+        clearInterval(this.#timer);
+        this.#timer = undefined;
+        this.emit('exit', 1);
+        resolve(1);
+      };
+    });
+    this.#timer = setInterval(() => {
+      this.ticks += 1;
+    }, 1);
+  }
+
+  postMessage(): void {
+    // The deterministic timeout case intentionally never returns a parser result.
+  }
+
+  terminate(): Promise<number> {
+    return this.#termination;
+  }
+
+  confirmTermination(): void {
+    this.#confirmTermination();
+  }
+}
+
+async function waitUntil(predicate: () => boolean, timeoutMs = 1_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate() && Date.now() < deadline) await delay(5);
+  if (!predicate()) throw new Error('test condition timed out');
 }
 
 describe('uploaded text and Markdown', () => {
@@ -294,6 +339,52 @@ describe('bounded PDF extraction', () => {
     })).rejects.toMatchObject({ code: 'invalid_file' });
   });
 
+  it('rejects one terminal marker when unreferenced payload follows the parsed trailer', async () => {
+    const source = pdf(['text']).toString('binary');
+    const terminal = /startxref\n([0-9]+)\n%%EOF\n$/u.exec(source);
+    expect(terminal?.index).toBeTypeOf('number');
+    const attack = Buffer.from(
+      `${source.slice(0, terminal?.index)}unreferenced-payload\nstartxref\n${terminal?.[1]}\n%%EOF\n`,
+      'binary',
+    );
+
+    await expect(parseUploadedFile({
+      filename: 'single-marker.pdf',
+      mediaType: 'application/pdf',
+      bytes: attack,
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it('rejects a malformed classic xref row before PDF recovery', async () => {
+    const malformed = Buffer.from(
+      pdf(['text']).toString('binary').replace('0000000000 65535 f \n', '000000000 65535 f \n'),
+      'binary',
+    );
+
+    await expect(parseUploadedFile({
+      filename: 'malformed-xref.pdf',
+      mediaType: 'application/pdf',
+      bytes: malformed,
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it('allows only PDF whitespace and comments between the classic trailer and terminal marker', async () => {
+    const withTrivia = Buffer.from(
+      pdf(['text']).toString('binary').replace('startxref\n', '% approved trailer comment\nstartxref\n'),
+      'binary',
+    );
+    const prepared = await parseUploadedFile({
+      filename: 'commented.pdf',
+      mediaType: 'application/pdf',
+      bytes: withTrivia,
+      observedAt: OBSERVED_AT,
+    });
+
+    expect(prepared.document.text).toBe('text');
+  });
+
   it('terminates isolated parser work before returning a timeout failure', async () => {
     const ticks = new Int32Array(new SharedArrayBuffer(4));
     let worker: Worker | undefined;
@@ -323,6 +414,94 @@ describe('bounded PDF extraction', () => {
     await delay(75);
     expect(Atomics.load(ticks, 0)).toBe(stoppedAt);
   });
+
+  it('keeps a timed-out request pending until delayed termination is confirmed', async () => {
+    const fake = new DelayedTerminationWorker();
+    let settled = false;
+    const parsing = parseUploadedFile({
+      filename: 'brief.pdf',
+      mediaType: 'application/pdf',
+      bytes: pdf(['text']),
+      observedAt: OBSERVED_AT,
+    }, {
+      timeoutMs: 20,
+      workerFactory: () => fake as unknown as Worker,
+    });
+    void parsing.then(() => { settled = true; }, () => { settled = true; });
+
+    let settledBeforeExit = true;
+    try {
+      await delay(550);
+      settledBeforeExit = settled;
+      expect(() => {
+        fake.emit('error', new Error('late worker error'));
+        fake.emit('error', new Error('second late worker error'));
+      }).not.toThrow();
+    } finally {
+      fake.confirmTermination();
+    }
+    await expect(parsing).rejects.toMatchObject({ code: 'file_too_complex' });
+    expect(settledBeforeExit).toBe(false);
+    const stoppedAt = fake.ticks;
+    await delay(50);
+    expect(fake.ticks).toBe(stoppedAt);
+  });
+
+  it('runs at most two isolated parsers for one service isolation instance', async () => {
+    const counts = new Int32Array(new SharedArrayBuffer(8));
+    const releases = new Int32Array(new SharedArrayBuffer(12));
+    let workerIndex = 0;
+    const isolation: FileParserIsolationOptions = {
+      timeoutMs: 1_000,
+      acquireTimeoutMs: 40,
+      workerFactory: (_url, options) => {
+        const index = workerIndex;
+        workerIndex += 1;
+        return new Worker(`
+          const { parentPort, workerData } = require('node:worker_threads');
+          const counts = new Int32Array(workerData.counts);
+          const releases = new Int32Array(workerData.releases);
+          parentPort.once('message', () => {
+            const active = Atomics.add(counts, 0, 1) + 1;
+            let observed = Atomics.load(counts, 1);
+            while (active > observed && Atomics.compareExchange(counts, 1, observed, active) !== observed) {
+              observed = Atomics.load(counts, 1);
+            }
+            const timer = setInterval(() => {
+              if (Atomics.load(releases, workerData.index) !== 1) return;
+              clearInterval(timer);
+              Atomics.sub(counts, 0, 1);
+              parentPort.postMessage({ ok: true, value: { text: 'queued', pages: 1, paragraphs: 1, tables: 0 } });
+            }, 1);
+          });
+        `, {
+          ...options,
+          eval: true,
+          workerData: { counts: counts.buffer, releases: releases.buffer, index },
+        });
+      },
+    };
+    const input = {
+      filename: 'brief.pdf',
+      mediaType: 'application/pdf',
+      bytes: pdf(['text']),
+      observedAt: OBSERVED_AT,
+    };
+    const runs = [
+      parseUploadedFile(input, isolation),
+      parseUploadedFile(input, isolation),
+    ];
+
+    await waitUntil(() => Atomics.load(counts, 0) === 2);
+    await expect(parseUploadedFile(input, isolation)).rejects.toMatchObject({ code: 'file_too_complex' });
+    const maximum = Atomics.load(counts, 1);
+    Atomics.store(releases, 0, 1);
+    Atomics.store(releases, 1, 1);
+    await Promise.all(runs);
+
+    expect(maximum).toBe(2);
+    expect(Atomics.load(counts, 0)).toBe(0);
+  });
 });
 
 describe('DOCX central-directory policy and extraction', () => {
@@ -348,6 +527,8 @@ describe('DOCX central-directory policy and extraction', () => {
     ['macro', docx([{ name: 'word/vbaProject.bin', data: Buffer.from('macro') }]), 'invalid_file'],
     ['traversal', docx([{ name: '../outside.xml', data: Buffer.from('<x/>') }]), 'invalid_file'],
     ['duplicate', docx([{ name: 'WORD/DOCUMENT.XML', data: DOCUMENT }]), 'invalid_file'],
+    ['wrong-crc', docx([{ name: 'word/styles.xml', data: Buffer.from('<styles/>'), declaredChecksum: 0 }]), 'invalid_file'],
+    ['data-descriptor', docx([{ name: 'word/styles.xml', data: Buffer.from('<styles/>'), dataDescriptor: true }]), 'invalid_file'],
     ['external-rel', docx([{ name: 'word/_rels/header1.xml.rels', data: Buffer.from('<Relationships><Relationship TargetMode="External" Target="https://secret.invalid/x"/></Relationships>') }]), 'invalid_file'],
     ['encoded-external-rel', docx([{ name: 'word/_rels/header1.xml.rels', data: Buffer.from('<Relationships><Relationship TargetMode="Exter&#110;al" Target="https://secret.invalid/x"/></Relationships>') }]), 'invalid_file'],
     ['ole-content-type', docx(

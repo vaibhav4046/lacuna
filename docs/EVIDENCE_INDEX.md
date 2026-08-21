@@ -1,19 +1,27 @@
 # Evidence index
 
-## Last accepted production evidence: 2026-08-20
+## Current V10 evidence boundary: 2026-08-21
 
-These rows describe the committed acceptance build, not the later uncommitted
-OAuth, MCP, scheduler, agent-recommendation, landing, or video changes. A result
-does not transfer to the candidate until the named gate is rerun.
+These rows separate accepted production evidence, the current working-tree
+candidate, and dated V8 history. The authoritative production/candidate
+boundary is [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md); a local patch does
+not inherit a deployment pass, and historical results do not transfer without
+a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, current candidate | 79 files, 1,344 tests passed | terminal run in the V8 execution session |
+| full unit gate, current candidate | 83 files, 1,376 tests passed | terminal run on 2026-08-21 after the V10 semantic-artifact fixes |
 | root and web typecheck | both exit 0 | terminal run in the V8 execution session |
+| production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
+| native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
-| real public agent run | completed, 8 lifecycle events | production Work and Agents screens |
-| landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
-| landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
+| accepted public agent record | completed, 8 lifecycle events; readable evidence with no authoritative memory writeback | production Work and Agents screens |
+| anonymous public agent creation, current candidate only | `POST /api/explore/agent/run` and `/api/demo/agent/run` return `403 public_preview_read_only` before body/provider processing | `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
+| exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
+| connector truth table | `AVAILABLE`: Text, Custom ingestion; all catalogued external/file/data connectors are `PLANNED`; Spotify is absent | `web/src/design/connectors.ts` |
+| historical V8 landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
+| historical V8 landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
 | graph overview | 140 loaded of 453 | `artifacts/screens/v8/memory-field.png` |
 | persisted agent definitions | 2 roles with last run | `artifacts/screens/v8/agents-live.png` |
 | persisted Work record | Context Pack summary and full lifecycle | `artifacts/screens/v8/work-live.png` |
@@ -24,35 +32,39 @@ does not transfer to the candidate until the named gate is rerun.
 | reduced-motion production routes | 198/198 clean, 22 routes × 9 viewports | `artifacts/route-audit/routes-reduced-motion.json` |
 | exact proof DAG | production capture, visually inspected | `artifacts/screens/v8/proof-dag-final.png` |
 | older video proof-beat preview | graph, agents and voice frames; not final | `video/hyperframes/snapshots-v8/contact-sheet.jpg` |
-| older HyperFrames composition | 18 scenes, 175.2 seconds; checks passed; visual direction rejected by the owner | `video/hyperframes/meta.json` and `video/hyperframes/snapshots/` |
-| current production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
+| superseded HyperFrames composition | 18-scene visual direction rejected by the owner; retained only in git history | historical commits, not current release evidence |
+| rejected V8-film visual audit | 3 contact sheets and 8 key frames, retained as historical inspection evidence only | `artifacts/video/judges-master/` |
+| historical V8 production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
+| accepted V10 production baseline | exact accepted probes and deployment id | `docs/V10_RELEASE_STATUS.md` |
 
 ## Candidate acceptance gaps
 
 | Claim | Current evidence | Required before it becomes public proof |
 | --- | --- | --- |
-| Google sign-in is secure | provider/subject binding, JWKS/RS256, PKCE, nonce, `no-store` redirects and negative HTTP account-merge tests | production deployment and fresh-identity browser pass |
+| Google sign-in completes for a human identity | accepted 15/15 pre-chooser boundary | human identity selection and accepted fresh callback |
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
-| voice works end to end | state machine and fixture-tested provider routes | ElevenLabs credentials, selected voice id, microphone/STT/TTS/interruption production session |
-| memory recommends agents | deterministic read-only integration, reasons/evidence/budgets and passing full unit gate | production API/UI capture and schedule-creation proof |
-| ChatGPT / Claude continuity | none; existing continuity is Lacuna web + CLI + MCP | named-client connection and same-workspace evidence capture |
+| voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |
+| anonymous public run creation is disabled in production | candidate returns `403 public_preview_read_only`; signed-in workspace runs remain real | deploy the candidate and rerun public/private agent gates |
+| Claude continuity | no accepted Claude-to-Lacuna session | named-client connection and same-workspace evidence capture |
 | Supademo | no published walkthrough | assemble from final production captures and verify the public link |
-| final video | an older draft MP4, SRT and 175.2-second preview | final production recapture, preview approval, render, metadata/claim review |
+| final video | no accepted V10 master; the metadata-verified 179-second V8 candidate was rejected | build and review the V10 cut from [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md), then complete audio, caption, upload and signed-out playback checks |
 | YouTube | no URL | owner upload and signed-out playback check |
+| exact public repository parity | working-tree candidate is not itself reproducible public source | commit and push the exact accepted source before submission |
 
 The screenshot inventory and exact recapture requirements are in
 [SCREENSHOT_EVIDENCE_PLAN.md](SCREENSHOT_EVIDENCE_PLAN.md). Rows for cross-client
-proof, Supademo, final MP4, and YouTube are added here only after the evidence
-exists.
+proof, Supademo, owner-approved master, and YouTube are added here only after
+the evidence exists.
 
 ## Legacy evidence ledger
 
-The remainder of this document is the dated pre-V8 ledger retained without
+The remainder of this document is the dated pre-V8/V8 ledger retained without
 rewriting its transcripts. Statements such as "the deployment is a replay" or
 "voice and authentication are unavailable" describe the run named by that row,
-not the current product. The sections above and `FINAL_EXECUTION_STATE.md`
-supersede them for release decisions.
+not the current product. The sections above and `V10_RELEASE_STATUS.md`
+supersede them for release decisions; `FINAL_EXECUTION_STATE.md` is itself a
+historical V8 handoff.
 
 Every number this project states in public, and the file it came out of.
 
@@ -289,7 +301,7 @@ That last check is not decorative. It is what caught a proof panel printing
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
 | The MCP server answers over stdio | CLAIMS, MCP | [artifacts/verification/2026-08-14b/mcp-stdio.txt](../artifacts/verification/2026-08-14b/mcp-stdio.txt) | a throwaway JSON-RPC driver, described in that directory's README | `LIVE` |
-| Five tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `lacuna_health` | MCP | same, the `tools/list` response | `tools/list` against the deployed `/mcp` on 20 Aug returned all five in order; `lacuna_read_question` was added after the 14 Aug stdio capture, so that transcript still shows four | `LIVE` |
+| Seven public tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health` | MCP | the deployed `/mcp` `tools/list` response and [src/mcp/tools.ts](../src/mcp/tools.ts) | A live `tools/list` against deployed `/mcp` on 21 Aug returned all seven in order. `search` and `fetch` are the connector-compatible reads. The 14 Aug stdio transcript remains a historical four-tool capture | `LIVE` |
 | The command line answers and abstains with the same typed result | CLAIMS, CLI | [cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json), [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) | `node bin/lacuna.js ask Bellwether beta_partner --json` | `LIVE` |
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
 | MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty-four eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-18/parity.txt](../artifacts/verification/2026-08-18/parity.txt) | `npm run parity` | `LIVE` |
@@ -321,8 +333,9 @@ command on the same surface. `parity.txt` prints both orders next to the verdict
 so the exclusion is visible rather than buried in the comparison that excludes
 it.
 
-The only clients that have connected to the MCP server were run from this
-repository: the stdio driver behind the row above, and the SDK's own `Client`
+At the time of this legacy run, the only clients that had connected to the MCP
+server were run from this repository: the stdio driver behind the row above,
+and the SDK's own `Client`
 over the HTTP transport in the parity run. No editor or agent runtime has been
 pointed at it yet, so nothing in this repository calls the server universal or
 claims compatibility with a named host. That row arrives when three materially
@@ -355,7 +368,7 @@ pretending the walk was clean on the first pass.
 The 42 in the history row is the commit count at the time of the email rewrite,
 not the count now, which is 84. Both are true and they are not the same fact.
 
-## Deployment
+## Legacy snapshot deployment
 
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
@@ -364,8 +377,8 @@ not the count now, which is 84. Both are true and they are not the same fact.
 | The deployment and the local HTML server send **different** policies, both strict | CLAIMS | `curl -sD- -o /dev/null https://lacuna-five.vercel.app/` and [src/view/layout.ts](../src/view/layout.ts) | `LIVE` |
 | The snapshot replays all sixty-four gold questions with zero mismatches | README, CLAIMS | [artifacts/verification/2026-08-18/snapshot-verify.txt](../artifacts/verification/2026-08-18/snapshot-verify.txt) | `npm run snapshot:verify` | `RECORDED` |
 
-The deployment is a replay, not a hosted node. Every reply it serves was
-produced by the live node at export time and stored byte for byte in
+The deployment measured in this legacy section was a replay, not a hosted node.
+Every reply it served was produced by the live node at export time and stored byte for byte in
 [artifacts/snapshot/graph-snapshot.json](../artifacts/snapshot/graph-snapshot.json);
 production decodes them through the same client code the live server uses, and
 each answer page marks its reads as replayed. `npm run serve:snapshot` runs the

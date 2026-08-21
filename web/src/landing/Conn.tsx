@@ -11,7 +11,7 @@ export function Conn() {
           <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.18em', color: '#7A7A7A', display: 'block', marginTop: '14px' }}>STATES ARE HONEST · CONNECTED · AVAILABLE · SYNCING · PLANNED</span>
         </div>
         {CONNECTOR_GROUPS.map((g) => (
-          <div key={g.h} data-mhide="1" style={{ position: 'absolute', left: g.gx, top: g.gy, transform: 'translate(-50%,-50%)', width: '170px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div key={g.h} data-mhide="1" data-shield style={{ position: 'absolute', left: g.gx, top: g.gy, transform: 'translate(-50%,-50%)', width: '170px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontFamily: MONO, fontSize: '9.5px', fontWeight: 500, letterSpacing: '0.24em', color: '#7A7A84' }}>{g.h}</span>
             {g.items.map((c) => (
               <span key={c.n} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

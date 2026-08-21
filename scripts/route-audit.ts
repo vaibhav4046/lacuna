@@ -303,6 +303,13 @@ try {
       ].filter((flag) => flag !== '').join(', ');
 
       print(`  ${finding.ok ? 'ok  ' : 'FAIL'}  ${path.padEnd(18)}${flags}`);
+      if (!finding.ok) {
+        for (const detail of [
+          ...finding.consoleErrors.map((entry) => `console: ${entry}`),
+          ...finding.exceptions.map((entry) => `exception: ${entry}`),
+          ...finding.failedRequests.map((entry) => `request: ${entry}`),
+        ].slice(0, 4)) print(`       ${detail}`);
+      }
     }
     print('');
   }

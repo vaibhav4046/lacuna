@@ -347,23 +347,32 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
     return new Promise<TranscriptSession>((resolve, reject) => {
       let session: ScribeSession | null = null;
       let settled = false;
-      const timeout = window.setTimeout(() => {
-        if (settled) return;
-        socket.close();
-        reject(new VoiceRuntimeError('provider_unavailable'));
-      }, 10_000);
-      const abort = () => {
-        window.clearTimeout(timeout);
-        session?.close();
-        if (!settled) reject(new VoiceRuntimeError('interrupted'));
+      let timeout = 0;
+      const closeHandshakeSocket = () => {
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close(1000, 'client cancelled');
+        }
       };
+      const rejectHandshake = (failure: RuntimeFailure) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        signal.removeEventListener('abort', abort);
+        closeHandshakeSocket();
+        reject(new VoiceRuntimeError(failure));
+      };
+      const abort = () => {
+        if (session !== null) session.close();
+        else rejectHandshake('interrupted');
+      };
+      timeout = window.setTimeout(() => rejectHandshake('provider_unavailable'), 10_000);
       signal.addEventListener('abort', abort, { once: true });
       socket.addEventListener('message', (event) => {
         let parsed: unknown;
         try {
           parsed = JSON.parse(String(event.data));
         } catch {
-          if (!settled) reject(new VoiceRuntimeError('provider_unavailable'));
+          if (!settled) rejectHandshake('provider_unavailable');
           else handlers.failure('provider_unavailable');
           return;
         }
@@ -381,14 +390,15 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
         else handlers.failure(message.failure);
       });
       socket.addEventListener('error', () => {
-        window.clearTimeout(timeout);
-        if (!settled) reject(new VoiceRuntimeError('provider_unavailable'));
+        if (!settled) rejectHandshake('provider_unavailable');
         else handlers.failure('provider_unavailable');
       });
       socket.addEventListener('close', (event) => {
         window.clearTimeout(timeout);
-        if (!settled) reject(new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'provider_unavailable'));
-        else if (event.code !== 1000 && !signal.aborted) handlers.failure('provider_unavailable');
+        if (!settled) rejectHandshake(signal.aborted ? 'interrupted' : 'provider_unavailable');
+        else if (session !== null && event.code !== 1000 && !signal.aborted) {
+          handlers.failure('provider_unavailable');
+        }
       });
     });
   }

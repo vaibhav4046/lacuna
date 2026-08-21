@@ -2,7 +2,12 @@ import { createServer, request as nodeRequest, type Server } from 'node:http';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import {
+  CloudMcpCapabilities,
+  MCP_CAPABILITY_TTL_MS,
+} from '../../src/auth/mcp-capability-store.js';
 import { mintMcpCapability } from '../../src/auth/mcp-capability.js';
+import type { AppRecord, HydraCloud, IngestResult, InspectedSource } from '../../src/hydra/cloud.js';
 import { emptySubject } from '../../src/hydra/source.js';
 import { createMcpListener, type HttpOptions } from '../../src/mcp/http.js';
 import type { ToolContext } from '../../src/mcp/server.js';
@@ -32,6 +37,26 @@ const INITIALIZE = {
 };
 
 const servers: Server[] = [];
+
+class CapabilityCloud {
+  readonly records = new Map<string, string>();
+
+  async ingestApp(records: readonly AppRecord[], collection: string): Promise<readonly IngestResult[]> {
+    for (const record of records) {
+      this.records.set(`${collection}:${record.id}`, JSON.stringify({ content: { text: record.text } }));
+    }
+    return records.map((record) => ({ id: record.id, filename: record.title, status: 'completed', error: null }));
+  }
+
+  async inspect(id: string, _timeoutMs: number, collection: string): Promise<InspectedSource | null> {
+    const envelope = this.records.get(`${collection}:${id}`);
+    return envelope === undefined ? null : { id, envelope, latencyMs: 1 };
+  }
+}
+
+function hydra(cloud: CapabilityCloud): HydraCloud {
+  return cloud as unknown as HydraCloud;
+}
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
@@ -89,6 +114,29 @@ describe('MCP HTTP authorization', () => {
     const response = await post(base, INITIALIZE, { authorization: `Bearer ${capability}` });
     expect(response.status).toBe(200);
     expect(seen).toEqual([capability]);
+  });
+
+  it('preserves path-only clients but denies the same bearer at its exact expiry', async () => {
+    const workspace = `lacuna-ws-${'c'.repeat(32)}`;
+    const start = Date.parse('2026-08-20T10:00:00.000Z');
+    let clock = start;
+    const capabilities = new CloudMcpCapabilities(hydra(new CapabilityCloud()));
+    const issued = await capabilities.issue(workspace, start);
+    const base = await serving({
+      authorizeWorkspace: async (candidate) => (
+        await capabilities.resolve(candidate, clock) === workspace ? WRITABLE : null
+      ),
+    });
+    const pathResponse = await fetch(`${base}/mcp/w/${issued.capability}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify(INITIALIZE),
+    });
+    expect(pathResponse.status).toBe(200);
+
+    clock = start + MCP_CAPABILITY_TTL_MS;
+    const expired = await post(base, INITIALIZE, { authorization: `Bearer ${issued.capability}` });
+    expect(expired.status).toBe(401);
   });
 });
 

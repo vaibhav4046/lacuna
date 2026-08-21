@@ -10,7 +10,7 @@ export function Gap() {
         </div>
         <div data-fx="gap-a" style={{ position: 'absolute', top: '51.5%', left: 0, right: 0, textAlign: 'center', opacity: 0 }}>
           <div style={{ fontSize: 'clamp(19px, 1.6vw, 25px)', fontWeight: 400, color: '#FFFFFF' }}>No supporting evidence.</div>
-          <div style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A', marginTop: '12px' }}>THE MEMORY DOES NOT CONTAIN THIS VALUE</div>
+          <div style={{ fontFamily: MONO, fontSize: '12px', letterSpacing: '0.18em', color: '#B0B0B8', marginTop: '12px' }}>THE MEMORY DOES NOT CONTAIN THIS VALUE</div>
         </div>
       </div>
     </section>

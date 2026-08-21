@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MemoryFieldEngine } from './engine';
 import type { EngineState } from './engine';
 import { MONO } from '../design/mark';
-import { overviewLayout } from '../graph/layout';
+import { overviewLayout, projectOverview3D } from '../graph/layout';
 import { STATE_COLOUR, STATE_LABEL, type GraphEnvelope, type GraphNode, type GraphNodeState } from '../graph/types';
 
 /**
@@ -133,7 +133,8 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
   const [state, setState] = useState<'all' | GraphNodeState>('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
-  const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
+  const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1, yaw: -0.28, pitch: 0.18 });
+  const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
 
   const shown = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -143,8 +144,16 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
     ));
   }, [graph.nodes, query, state]);
   const placed = useMemo(() => overviewLayout(shown), [shown]);
+  const projected = useMemo(() => projectOverview3D(placed, camera), [placed, camera]);
+  const painted = useMemo(() => [...projected].sort((a, b) => b.cameraZ - a.cameraZ), [projected]);
+  const projectedById = useMemo(() => new Map(projected.map((node) => [node.id, node])), [projected]);
+  const visibleEdges = useMemo(() => {
+    const ids = new Set(projected.map((node) => node.id));
+    return graph.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to)).slice(0, 360);
+  }, [graph.edges, projected]);
   const active = graph.nodes.find((node) => node.id === (hovered ?? selected)) ?? null;
   const selectedNode = graph.nodes.find((node) => node.id === selected) ?? null;
+  const selectedRelationships = selected === null ? 0 : graph.edges.filter((edge) => edge.from === selected || edge.to === selected).length;
   const adjacent = useMemo(() => {
     if (selected === null) return new Set<string>();
     return new Set(graph.edges.flatMap((edge) => edge.from === selected
@@ -164,14 +173,35 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
     const source = graph.nodes.find((node) => node.kind === 'source' && node.label === selectedNode.sourceRef);
     if (source !== undefined) setSelected(source.id);
   };
+  const beginRotate = (event: ReactPointerEvent<SVGRectElement>) => {
+    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const rotate = (event: ReactPointerEvent<SVGRectElement>) => {
+    const previous = drag.current;
+    if (previous === null || previous.pointerId !== event.pointerId) return;
+    const dx = event.clientX - previous.x;
+    const dy = event.clientY - previous.y;
+    if (Math.abs(dx) + Math.abs(dy) < 2) return;
+    drag.current = { ...previous, x: event.clientX, y: event.clientY };
+    setCamera((current) => ({
+      ...current,
+      yaw: current.yaw + dx * 0.008,
+      pitch: Math.max(-0.72, Math.min(0.72, current.pitch - dy * 0.006)),
+    }));
+  };
+  const endRotate = (event: ReactPointerEvent<SVGRectElement>) => {
+    if (drag.current?.pointerId === event.pointerId) drag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
 
   return (
     <section aria-labelledby="memory-field-heading" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ maxWidth: '66ch' }}>
-          <div id="memory-field-heading" style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#B9AED8' }}>MEMORY FIELD OVERVIEW · NAVIGATION</div>
+          <div id="memory-field-heading" style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#B9AED8' }}>3D MEMORY FIELD · ROTATE · FILTER · INSPECT</div>
           <p style={{ margin: '8px 0 0', color: '#9A9A9A', fontSize: '14px', lineHeight: 1.65 }}>
-            State shapes the field: current claims stay near the opening, history moves outward, conflicts split, and missing evidence leaves the centre open. Position is for navigation. It is not proof of topology.
+            Drag to rotate the loaded memory. State shapes the bands, depth separates dense marks, and every visible line is a loaded graph relationship. Position is for navigation; open a proof path for causality.
           </p>
         </div>
         <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#918B9F', textAlign: 'right' }}>
@@ -199,31 +229,47 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
           <div role="group" aria-label="Pan and zoom" style={{ position: 'absolute', zIndex: 2, top: '10px', right: '10px', display: 'grid', gridTemplateColumns: 'repeat(3, 30px)', gap: '4px' }}>
             <span></span><button aria-label="Pan up" onClick={() => setCamera((it) => ({ ...it, y: it.y - 36 / it.zoom }))} style={cameraButton}>↑</button><span></span>
             <button aria-label="Pan left" onClick={() => setCamera((it) => ({ ...it, x: it.x - 36 / it.zoom }))} style={cameraButton}>←</button>
-            <button aria-label="Reset view" onClick={() => setCamera({ x: 0, y: 0, zoom: 1 })} style={cameraButton}>•</button>
+            <button aria-label="Reset view" onClick={() => setCamera({ x: 0, y: 0, zoom: 1, yaw: -0.28, pitch: 0.18 })} style={cameraButton}>•</button>
             <button aria-label="Pan right" onClick={() => setCamera((it) => ({ ...it, x: it.x + 36 / it.zoom }))} style={cameraButton}>→</button>
             <button aria-label="Zoom out" onClick={() => setCamera((it) => ({ ...it, zoom: Math.max(0.7, Number((it.zoom - 0.2).toFixed(1))) }))} style={cameraButton}>−</button>
             <button aria-label="Pan down" onClick={() => setCamera((it) => ({ ...it, y: it.y + 36 / it.zoom }))} style={cameraButton}>↓</button>
             <button aria-label="Zoom in" onClick={() => setCamera((it) => ({ ...it, zoom: Math.min(2.4, Number((it.zoom + 0.2).toFixed(1))) }))} style={cameraButton}>+</button>
           </div>
+          <div role="group" aria-label="Rotate 3D memory field" style={{ position: 'absolute', zIndex: 2, left: '10px', bottom: '10px', display: 'flex', gap: '4px' }}>
+            <button aria-label="Rotate left" onClick={() => setCamera((it) => ({ ...it, yaw: it.yaw - 0.2 }))} style={cameraButton}>↶</button>
+            <button aria-label="Rotate up" onClick={() => setCamera((it) => ({ ...it, pitch: Math.min(0.72, it.pitch + 0.14) }))} style={cameraButton}>↑</button>
+            <button aria-label="Rotate down" onClick={() => setCamera((it) => ({ ...it, pitch: Math.max(-0.72, it.pitch - 0.14) }))} style={cameraButton}>↓</button>
+            <button aria-label="Rotate right" onClick={() => setCamera((it) => ({ ...it, yaw: it.yaw + 0.2 }))} style={cameraButton}>↷</button>
+          </div>
           {shown.length === 0 ? (
             <div style={{ minHeight: '420px', display: 'grid', placeItems: 'center', color: '#817B8E', fontSize: '14px', padding: '30px', textAlign: 'center' }}>No nodes match this search and state. Clear the search or choose another state.</div>
           ) : (
-            <svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="group" aria-label="Navigational memory field grouped by state" style={{ width: '100%', minHeight: '440px', display: 'block', touchAction: 'none' }}>
+            <svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="group" aria-label="Interactive 3D memory graph grouped by state" style={{ width: '100%', minHeight: '440px', display: 'block', touchAction: 'none' }}>
+              <rect x={viewX} y={viewY} width={viewWidth} height={viewHeight} fill="transparent" aria-hidden="true" onPointerDown={beginRotate} onPointerMove={rotate} onPointerUp={endRotate} onPointerCancel={endRotate} style={{ cursor: drag.current === null ? 'grab' : 'grabbing' }} />
               <circle cx="500" cy="310" r="49" fill="none" stroke="rgba(213,208,232,0.32)" strokeWidth="1" strokeDasharray="5 7" />
               <path d="M520 267 A48 48 0 0 1 548 310" fill="none" stroke="#09090D" strokeWidth="9" />
               <text x="500" y="306" textAnchor="middle" fill="#8D8798" fontFamily="JetBrains Mono, monospace" fontSize="9" letterSpacing="1.8">OPEN</text>
               <text x="500" y="320" textAnchor="middle" fill="#6D6878" fontFamily="JetBrains Mono, monospace" fontSize="8">MISSING STAYS MISSING</text>
               <ellipse cx="500" cy="310" rx="294" ry="235" fill="none" stroke="rgba(98,98,115,0.19)" strokeWidth="1" strokeDasharray="3 8" />
-              {placed.map((node) => {
+              <g aria-hidden="true">
+                {visibleEdges.map((edge) => {
+                  const from = projectedById.get(edge.from);
+                  const to = projectedById.get(edge.to);
+                  if (from === undefined || to === undefined) return null;
+                  const touchesSelection = selected !== null && (edge.from === selected || edge.to === selected);
+                  return <line key={edge.id} x1={from.screenX} y1={from.screenY} x2={to.screenX} y2={to.screenY} stroke={edge.rejected ? '#FFB829' : '#8A64FF'} strokeWidth={touchesSelection ? 1.45 : 0.72} strokeOpacity={touchesSelection ? 0.74 : edge.rejected ? 0.24 : 0.18} strokeDasharray={edge.rejected ? '3 4' : undefined} />;
+                })}
+              </g>
+              {painted.map((node) => {
                 const isSelected = node.id === selected;
                 const dim = selected !== null && !isSelected && !adjacent.has(node.id);
                 return (
-                  <g key={node.id} transform={`translate(${node.x} ${node.y})`} role="button" tabIndex={0} aria-label={`${node.kind}: ${node.label}. ${STATE_LABEL[node.state]}`} aria-pressed={isSelected} onClick={() => setSelected(node.id)} onKeyDown={(event) => {
+                  <g key={node.id} transform={`translate(${node.screenX} ${node.screenY}) scale(${node.scale})`} role="button" tabIndex={0} aria-label={`${node.kind}: ${node.label}. ${STATE_LABEL[node.state]}`} aria-pressed={isSelected} onClick={() => setSelected(node.id)} onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
                       setSelected(node.id);
                     }
-                  }} onMouseEnter={() => setHovered(node.id)} onMouseLeave={() => setHovered(null)} style={{ cursor: 'pointer', opacity: dim ? 0.18 : 1, transition: 'opacity 140ms ease' }}>
+                  }} onMouseEnter={() => setHovered(node.id)} onMouseLeave={() => setHovered(null)} style={{ cursor: 'pointer', opacity: dim ? 0.18 : Math.max(0.5, Math.min(1, 1.12 - node.cameraZ / 520)), transition: 'opacity 140ms ease' }}>
                     {isSelected ? <circle r="15" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="1" /> : null}
                     {nodeShape(node, isSelected)}
                     {(node.kind === 'entity' || node.kind === 'context_pack') ? <text x="13" y="4" fill={isSelected ? '#FFFFFF' : '#B3AFC0'} fontFamily="Space Grotesk, sans-serif" fontSize="10">{node.label.slice(0, 28)}</text> : null}
@@ -243,6 +289,7 @@ export function MemoryFieldOverview({ graph, prefix, loadingMore, moreFailed, on
                 <div style={{ fontFamily: MONO, fontSize: '9px', color: STATE_COLOUR[active.state], letterSpacing: '0.16em' }}>{active.kind.toUpperCase()} · {STATE_LABEL[active.state].toUpperCase()}</div>
                 <div style={{ color: '#FFFFFF', fontSize: '14px', lineHeight: 1.45, marginTop: '7px', overflowWrap: 'anywhere' }}>{active.label}</div>
                 <div style={{ color: '#777181', fontFamily: MONO, fontSize: '9.5px', lineHeight: 1.6, marginTop: '7px' }}>{active.date ?? 'DATE NOT RECORDED'}{active.sourceRef === null ? '' : ` · ${active.sourceRef}`}</div>
+                {selected === active.id ? <div style={{ color: '#918B9F', fontFamily: MONO, fontSize: '9px', marginTop: '6px' }}>{selectedRelationships} LOADED RELATIONSHIPS</div> : null}
               </>
             )}
           </div>

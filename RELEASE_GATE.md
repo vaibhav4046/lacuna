@@ -1,5 +1,10 @@
 # Release gate
 
+> **Superseded as the current handoff.** This file preserves V8 and earlier
+> acceptance evidence. Use `docs/V10_RELEASE_STATUS.md` for the 2026-08-21
+> production/candidate boundary. In particular, the 179-second V8 film named
+> below was rejected by the owner and is not the submission master.
+
 > **V8 candidate gate, 2026-08-20.** The material below this block is the dated
 > V7 evidence record and remains only for audit history. It does not describe
 > the current product boundary. The table separates local candidate proof from
@@ -7,9 +12,9 @@
 
 | V8 gate | Current evidence |
 | --- | --- |
-| unit | 1,344 of 1,344; 79 files; no skips |
+| unit | 1,345 of 1,345; 79 files; no skips |
 | TypeScript | root and web typechecks exit 0 |
-| production build | 104 modules; entry 282.09 kB / 92.64 kB gzip |
+| production build | 104 modules; entry 282.06 kB / 92.63 kB gzip |
 | dependency audit | zero known npm vulnerabilities |
 | public graph | 453 nodes, 682 edges; signed cursor pages; overview + exact proof modes |
 | agent runtime | 2 persisted roles; one real production run completed through 8 lifecycle events |
@@ -27,9 +32,10 @@ The V8 acceptance details and limitation language are in
 `docs/FINAL_CAPABILITY_MATRIX.md`. A pending video or human-only cross-client
 send is never silently converted into a pass.
 
-The exact final narration voice is **Vaibhav Lalwani Professional**. Selection
-is recorded, but no provider voice id or accepted audio session exists. There
-is no approved final MP4, Supademo walkthrough or YouTube link.
+The rejected V8 candidate used the verified ElevenLabs **Vaibhav Lalwani
+Professional** clone and passed metadata-level HyperFrames validation. That is
+historical film evidence, not an accepted V10 master and not a production
+STT/TTS/interruption proof. Supademo and YouTube remain open.
 
 Every gate below was run in this session, in this order, and the output pasted
 is the output it produced. A gate with no evidence line is not a gate.

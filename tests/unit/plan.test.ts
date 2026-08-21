@@ -80,6 +80,10 @@ describe('the predicate', () => {
     expect(predicateIn('who is the runbook owner for billing-gate', CORPUS)?.matched).toBe('runbook owner');
   });
 
+  it('lets an explicit runbook noun disambiguate a preceding generic ownership verb', () => {
+    expect(predicateIn('Who owns the billing-gate runbook?', CORPUS)?.predicate).toBe('runbook_owner');
+  });
+
   it('takes the earliest cue, because English asks first and qualifies after', () => {
     // "who owns the service Bellwether depends on" holds both `owns` and
     // `depends on`, and it is a question about ownership.

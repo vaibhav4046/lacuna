@@ -789,3 +789,312 @@ summary:focus-visible {
   .dashboard-memory-counts strong { font-size:24px; }
   .dashboard-actions button { flex:1 1 42%; padding-inline:8px !important; font-size:8.5px !important; }
 }
+
+/* V10 production landing cut -------------------------------------------------
+   The restored oracle used 200-300vh chapters because it was a design study.
+   These overrides keep every semantic morph and sticky composition intact but
+   give each one a deliberate 30-45vh progress rail. The nineteen animated
+   scenes total 2595vh (25.95 viewports); readable SDK, CLI, proof, FAQ and
+   footer content brings the complete page to the intended ~30-viewports pace.
+   Everything is scoped so workspace screens and the archived oracle are not
+   affected. */
+.v10-landing {
+  min-width:0;
+  overflow-x:clip;
+  color:#fff;
+}
+
+.v10-skip-link {
+  position:fixed;
+  top:8px;
+  left:8px;
+  z-index:100;
+  padding:10px 14px;
+  color:#FFFFFF;
+  background:#161616;
+  border:1px solid #8052FF;
+  border-radius:6px;
+  font:500 12px/1.2 'JetBrains Mono', ui-monospace, monospace;
+  transform:translateY(-160%);
+  transition:transform 160ms ease-out;
+}
+
+.v10-skip-link:focus {
+  transform:translateY(0);
+}
+
+.v10-chapter {
+  position:relative;
+  min-width:0;
+}
+
+.v10-chapter > [id] {
+  scroll-margin-top:88px;
+}
+
+/* The opening composition must fit the viewport as a composition, not merely
+   avoid horizontal overflow. Width and height both participate in the type
+   scale so a wide, short laptop never turns the two-line promise into four
+   oversized lines or pushes its actions below the fold. */
+.hero-v10-copy {
+  width:min(820px, 48vw);
+}
+
+.hero-v10-title,
+.v10-landing [data-scene] h2 {
+  text-wrap:balance;
+}
+
+/* Real timing evidence for the context-path scene. This is a rail rather than
+   a card: the moving line shows elapsed work and the printed value remains the
+   artifact a judge can read in a still frame. */
+.speed-metrics {
+  position:absolute;
+  right:clamp(24px, 5.2vw, 92px);
+  bottom:clamp(44px, 7vh, 76px);
+  width:min(430px, 35vw);
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  color:#B6B6BE;
+  font-family:'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric:tabular-nums;
+}
+
+.speed-metrics-head {
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  padding:0 0 11px;
+  border-bottom:1px solid rgba(255,255,255,0.26);
+  color:#C8C8CF;
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:0.15em;
+}
+
+.speed-metrics-head time { color:#8F8F99; }
+
+.speed-metric {
+  display:grid;
+  grid-template-columns:minmax(142px, auto) minmax(54px, 1fr) 82px;
+  align-items:center;
+  gap:14px;
+  min-height:37px;
+  border-bottom:1px solid rgba(255,255,255,0.11);
+}
+
+.speed-metric-label {
+  color:#AFAFB7;
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:0.12em;
+}
+
+.speed-metric-track {
+  height:1px;
+  overflow:visible;
+  background:rgba(255,255,255,0.16);
+}
+
+.speed-metric-track > span {
+  position:relative;
+  display:block;
+  width:100%;
+  height:1px;
+  background:#A78BFA;
+  transform:scaleX(var(--metric-progress, 0));
+  transform-origin:left center;
+}
+
+.speed-metric-track > span::after {
+  content:'';
+  position:absolute;
+  top:50%;
+  right:-2px;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#FFB829;
+  transform:translateY(-50%);
+}
+
+.speed-metric-value {
+  justify-self:end;
+  color:#FFFFFF;
+  font-family:'Space Grotesk', ui-sans-serif, sans-serif;
+  font-size:18px;
+  font-weight:400;
+  letter-spacing:-0.02em;
+}
+
+.speed-metric-value small {
+  color:#9C9CA5;
+  font-family:'JetBrains Mono', ui-monospace, monospace;
+  font-size:10px;
+  letter-spacing:0.1em;
+}
+
+.speed-metrics-note {
+  padding-top:11px;
+  color:#8F8F99;
+  font-size:10px;
+  line-height:1.55;
+  letter-spacing:0.13em;
+}
+
+@media (min-width:861px) and (max-height:920px) {
+  .v10-landing [data-scene] h2 {
+    font-size:clamp(35px, min(3.8vw, 7vh), 62px) !important;
+  }
+
+  .hero-v10-title {
+    font-size:clamp(54px, min(4.8vw, 9.8vh), 88px) !important;
+  }
+
+  .hero-v10-stage {
+    padding-top:74px !important;
+  }
+
+  .hero-v10-summary {
+    line-height:1.58 !important;
+  }
+}
+
+@media (max-width:860px) {
+  .hero-v10-stage {
+    align-items:flex-start !important;
+    padding-top:112px !important;
+    padding-bottom:46px !important;
+  }
+
+  .hero-v10-copy {
+    width:100%;
+    max-width:560px !important;
+  }
+
+  .hero-v10-title {
+    font-size:clamp(48px, 12.8vw, 68px) !important;
+  }
+
+  .hero-v10-summary {
+    max-width:42ch !important;
+    font-size:16px !important;
+  }
+
+  .speed-heading {
+    top:88px !important;
+  }
+
+  .speed-metrics {
+    right:18px;
+    left:18px;
+    bottom:34px;
+    width:auto;
+  }
+
+  .pack-list {
+    left:18px !important;
+    right:18px;
+    top:auto !important;
+    bottom:8%;
+    display:grid !important;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:10px 18px !important;
+    font-size:11px !important;
+  }
+
+  .pack-list > span:last-child {
+    grid-column:1 / -1;
+  }
+}
+
+@media (max-width:520px) {
+  .hero-v10-stage {
+    padding-inline:18px !important;
+  }
+
+  .hero-v10-title {
+    font-size:clamp(46px, 12.2vw, 58px) !important;
+    line-height:0.96 !important;
+  }
+
+  .hero-v10-actions {
+    gap:14px 20px !important;
+  }
+
+  .speed-heading h2 {
+    font-size:clamp(34px, 10vw, 46px) !important;
+  }
+
+  .speed-heading p {
+    font-size:15px !important;
+    line-height:1.55 !important;
+  }
+
+  .speed-metric {
+    grid-template-columns:minmax(126px, auto) 1fr 76px;
+    gap:10px;
+    min-height:35px;
+  }
+
+  .speed-metric-label { font-size:10px; }
+  .speed-metric-value { font-size:16px; }
+  .speed-metrics-head { font-size:9.5px; }
+  .speed-metrics-note { font-size:9px; }
+}
+
+.v10-landing [data-chapter="hero"] > [data-scene="hero"] { height:140vh !important; }
+.v10-landing [data-chapter="real-memory-failure"] > [data-scene="real"] { height:140vh !important; }
+.v10-landing [data-chapter="real-memory-failure"] > [data-scene="gap"] { height:130vh !important; }
+.v10-landing [data-chapter="architecture"] > [data-scene="arch"] { height:140vh !important; }
+.v10-landing [data-chapter="context-reduction"] > [data-scene="funnel"] { height:145vh !important; }
+.v10-landing [data-chapter="context-reduction"] > [data-scene="org"] { height:130vh !important; }
+.v10-landing [data-chapter="temporal-truth"] > [data-scene="temporal"] { height:135vh !important; }
+.v10-landing [data-chapter="temporal-truth"] > [data-scene="contra"] { height:130vh !important; }
+.v10-landing [data-chapter="context-pack"] > [data-scene="pack"] { height:140vh !important; }
+.v10-landing [data-chapter="context-pack"] > [data-scene="speed"] { height:135vh !important; }
+.v10-landing [data-chapter="client-neutral"] > [data-scene="any"] { height:130vh !important; }
+.v10-landing [data-chapter="client-neutral"] > [data-scene="route"] { height:135vh !important; }
+.v10-landing [data-chapter="agent-runtime"] > [data-scene="harness"] { height:140vh !important; }
+.v10-landing [data-chapter="agent-runtime"] > [data-scene="hand"] { height:135vh !important; }
+.v10-landing [data-chapter="voice-connectors"] > [data-scene="voice"] { height:145vh !important; }
+.v10-landing [data-chapter="voice-connectors"] > [data-scene="conn"] { height:135vh !important; }
+.v10-landing [data-chapter="developer-surfaces"] > [data-scene="mcp"] { height:135vh !important; }
+.v10-landing [data-chapter="live-proof"] > [data-scene="hydra"] { height:140vh !important; }
+.v10-landing [data-chapter="close"] > [data-scene="final"] { height:135vh !important; }
+
+/* Static evidence should read as evidence, not another long scroll effect. */
+.v10-landing [data-chapter="developer-surfaces"] > [data-scene="quiet"] {
+  padding-block:10vh 7vh !important;
+}
+
+.v10-landing [data-chapter="developer-surfaces"] > [data-scene="off"] {
+  padding-block:8vh 9vh !important;
+}
+
+.v10-landing [data-chapter="live-proof"] > [data-scene="quiet"] {
+  padding-block:9vh !important;
+}
+
+.v10-landing [data-chapter="trust"] > [data-scene="off"] {
+  padding-block:10vh !important;
+}
+
+@media (max-width: 760px) {
+  .v10-chapter > [id] { scroll-margin-top:72px; }
+  .v10-landing [data-chapter="developer-surfaces"] > [data-scene="quiet"],
+  .v10-landing [data-chapter="developer-surfaces"] > [data-scene="off"],
+  .v10-landing [data-chapter="live-proof"] > [data-scene="quiet"],
+  .v10-landing [data-chapter="trust"] > [data-scene="off"] {
+    padding-block:8vh !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* With morphing disabled there is no reason to make someone traverse a
+     progress rail. One complete viewport preserves every piece of copy. */
+  .v10-landing [data-chapter] > [data-scene]:has(> [style*="sticky"]) {
+    height:max(100vh, 680px) !important;
+  }
+}

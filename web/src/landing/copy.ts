@@ -27,9 +27,9 @@ export const FAQ: readonly (readonly [string, string])[] = [
   ['What happens when two sources disagree?', 'The conflict stays visible until evidence or policy resolves it.'],
   ['What happens when the answer is missing?', 'Lacuna returns no supporting evidence instead of inventing a value.'],
   ['Why HydraDB?', 'HydraDB gives Lacuna a persistent graph-first context substrate for memory, knowledge, relationships, history and retrieval.'],
-  ['Does Lacuna work with MCP?', 'Yes. The server is live at /mcp over streamable HTTP, and stdio locally. Five read-only tools: ask in a sentence, ask by subject and predicate, explain a decision, read a revision history, and check which node answered.'],
+  ['Does Lacuna work with MCP?', 'Yes. The server is live at /mcp over Streamable HTTP, and stdio locally. Its live catalog exposes seven read-only tools: five Lacuna evidence reads plus connector-compatible search and fetch.'],
   ['Does Lacuna have an SDK?', 'There is no published package. The HTTP API is real and callable without a key, and so is MCP; the Developers screen prints the exact commands and says which of the three is not shipped.'],
-  ['Does Lacuna have a CLI?', 'Yes, with seven commands: doctor, status, read, ask, explain, timeline and bench. "lacuna read" takes the question as a sentence, the same way the web product does. It reads the same store the web product reads, which is what the three-surface gate checks.'],
+  ['Does Lacuna have a CLI?', 'Yes, with nine commands: doctor, status, profile, shell, ask, read, explain, timeline and bench. "lacuna read" takes the question as a sentence, the same way the web product does. It reads the same store the web product reads, which is what the three-surface gate checks.'],
   ['Does Lacuna expose chain of thought?', 'No. Lacuna shows evidence, retrieval and system traces, not hidden model reasoning.']
 ];
 
@@ -92,6 +92,8 @@ const MCP = [
   '  lacuna_explain         the same read, plus why it decided',
   '  lacuna_timeline        every claim for that predicate, in order',
   '  lacuna_health          which node answered, and at what epoch',
+  '  search                 connector-compatible evidence search',
+  '  fetch                  connector-compatible result retrieval',
   '',
   'curl -s https://lacuna-five.vercel.app/mcp \\',
   '  -H "Content-Type: application/json" \\',

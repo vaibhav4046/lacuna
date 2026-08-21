@@ -127,6 +127,33 @@ export default function Shell() {
           <RouteBody route={route} />
         </div>
       </main>
+      <button
+        type="button"
+        aria-label={route === 'voice' ? 'Voice workspace is open' : 'Open voice workspace'}
+        aria-pressed={route === 'voice'}
+        title={route === 'voice' ? 'Voice workspace' : 'Open voice'}
+        onClick={() => go(`${scope.prefix}/voice`)}
+        style={{
+          position: 'fixed',
+          right: 'clamp(16px, 2vw, 28px)',
+          bottom: 'clamp(16px, 2vw, 28px)',
+          zIndex: 20,
+          width: '58px',
+          height: '58px',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 0,
+          borderRadius: '50%',
+          border: route === 'voice' ? '1px solid rgba(255,184,41,0.72)' : '1px solid rgba(255,255,255,0.2)',
+          background: '#050505',
+          boxShadow: route === 'voice'
+            ? '0 0 0 5px rgba(255,184,41,0.07), 0 14px 42px rgba(0,0,0,0.58)'
+            : '0 14px 42px rgba(0,0,0,0.58)',
+          cursor: route === 'voice' ? 'default' : 'pointer',
+        }}
+      >
+        <Mark size={24} />
+      </button>
     </div>
   );
 }

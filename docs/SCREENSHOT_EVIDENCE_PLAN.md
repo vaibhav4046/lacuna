@@ -34,11 +34,11 @@ or security changes.
 | agent recommendation | memory-derived reason, evidence, permissions, no-write | pending API and UI gate |
 | agent run | eight lifecycle events, bounded Context Pack, reviewer verdict | pending recapture |
 | schedule | daily cadence, next eligible time, limitation text | pending recapture |
-| voice | selected Vaibhav professional clone plus typed fallback | blocked on provider configuration and real audio proof |
+| voice | product voice states plus typed fallback | blocked on provider configuration and live product audio proof; final-film narration is separate and verified |
 | CLI | actual command and output from the final deployment | pending final capture |
 | MCP | Inspector or client tool list and evidence-bearing call | pending final capture |
 | Google sign-in | provider-bound account and callback success | blocked on security acceptance |
-| ChatGPT / Claude | each named client reading the same current value and evidence | not run |
+| ChatGPT / Claude | each named client reading the same current value and evidence | ChatGPT public read accepted; Claude not run |
 | Supademo | published walkthrough using only the final captures above | not assembled |
 
 ## Capture rules

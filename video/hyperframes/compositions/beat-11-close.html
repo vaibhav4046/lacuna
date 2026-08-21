@@ -1,82 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
-  <title>Lacuna · the agent can change</title>
-  <style>
-    @font-face{font-family:"Space Grotesk";src:url("assets/fonts/space-grotesk-latin.woff2") format("woff2");font-weight:300 700;font-display:block}
-    @font-face{font-family:"JetBrains Mono";src:url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");font-weight:400 500;font-display:block}
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:1920px;height:1080px;overflow:hidden;background:#000;color:#fff}
-    body{font-family:"Space Grotesk",sans-serif}
-    #beat-11-close{position:relative;width:1920px;height:1080px;overflow:hidden}
-    .fill{position:absolute;inset:0;background:#000}
-    .scene{position:absolute;inset:0;overflow:hidden}
-    .client{position:absolute;padding:11px 15px;background:#030303;border:1px solid rgba(255,255,255,.17);font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.18em;color:#bdbdbd;white-space:nowrap}
-    #b11-c1{left:240px;top:214px}#b11-c2{left:828px;top:128px}#b11-c3{right:230px;top:246px}
-    #b11-c4{left:224px;bottom:234px}#b11-c5{left:820px;bottom:136px}#b11-c6{right:196px;bottom:252px}
-    .links{position:absolute;inset:0}
-    .link{fill:none;stroke:#8052ff;stroke-width:1.5;stroke-dasharray:9 9;opacity:.72}
-    .lockup{position:absolute;left:0;right:0;top:236px;display:flex;flex-direction:column;align-items:center;text-align:center}
-    .logo-wrap{width:148px;height:148px;display:grid;place-items:center;border:1px solid rgba(128,82,255,.5);border-radius:50%;background:#000}
-    .logo{width:112px;height:112px;image-rendering:auto}
-    .tagline{margin-top:38px;font-size:72px;font-weight:300;line-height:1.05;letter-spacing:-.035em}
-    .tagline span{display:block}
-    .tagline .violet{color:#8052ff}
-    .foundation{margin-top:28px;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.8;letter-spacing:.17em;color:#9a9a9a;text-transform:uppercase}
-    .links-row{margin-top:25px;display:flex;gap:34px;font-family:"JetBrains Mono",monospace;font-size:16px;color:#fff}
-    .links-row span+span{color:#8052ff}
-    .locator{position:absolute;left:50%;top:310px;width:12px;height:12px;margin-left:-6px;margin-top:-6px;border:1px solid #8052ff;border-radius:50%}
-  </style>
-</head>
-<body>
-  <div data-hf-id="hf-04wp" id="beat-11-close" data-composition-id="beat-11-close" data-start="0" data-width="1920" data-height="1080" data-duration="8" data-fps="30">
-    <div data-hf-id="hf-4qej" class="fill"></div>
-    <section data-hf-id="hf-0e04" id="b11-scene" class="clip scene" data-start="0" data-duration="8" data-track-index="1">
-      <svg data-hf-id="hf-91ap" class="links" width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true">
-        <path data-hf-id="hf-3wak" id="b11-l1" class="link" d="M 336 243 L 960 310" />
-        <path data-hf-id="hf-xrj7" id="b11-l2" class="link" d="M 902 158 L 960 310" />
-        <path data-hf-id="hf-yjq9" id="b11-l3" class="link" d="M 1582 275 L 960 310" />
-        <path data-hf-id="hf-3mzh" id="b11-l4" class="link" d="M 332 816 L 960 310" />
-        <path data-hf-id="hf-q4wr" id="b11-l5" class="link" d="M 912 914 L 960 310" />
-        <path data-hf-id="hf-1gej" id="b11-l6" class="link" d="M 1600 798 L 960 310" />
-      </svg>
-      <span data-hf-id="hf-fc4p" id="b11-c1" class="client">CODING</span>
-      <span data-hf-id="hf-4tum" id="b11-c2" class="client">VOICE</span>
-      <span data-hf-id="hf-zyc0" id="b11-c3" class="client">SUPPORT</span>
-      <span data-hf-id="hf-q27u" id="b11-c4" class="client">PERSONAL</span>
-      <span data-hf-id="hf-7852" id="b11-c5" class="client">MUSIC</span>
-      <span data-hf-id="hf-2eh3" id="b11-c6" class="client">ENTERPRISE</span>
-      <div data-hf-id="hf-aheq" id="b11-locator" class="locator" data-layout-ignore="true"></div>
-      <div data-hf-id="hf-6jvi" class="lockup">
-        <div data-hf-id="hf-64kd" id="b11-logo-wrap" class="logo-wrap"><img data-hf-id="hf-0wg6" id="b11-logo" class="logo" src="assets/favicon.svg" alt="Lacuna"></div>
-        <h1 data-hf-id="hf-t4iv" id="b11-tagline" class="tagline"><span data-hf-id="hf-5r4p">THE AGENT CAN CHANGE.</span><span data-hf-id="hf-9mgm" class="violet">LACUNA STAYS.</span></h1>
-        <p data-hf-id="hf-9ni2" id="b11-foundation" class="foundation">BUILT ON HYDRADB · DATABASE LACUNA · COLLECTION BACKEND</p>
-        <p data-hf-id="hf-ga7h" id="b11-links" class="links-row"><span data-hf-id="hf-big2">lacuna-five.vercel.app</span><span data-hf-id="hf-d0z4">github.com/vaibhav4046/lacuna</span></p>
+  <head>
+    <meta charset="UTF-8">
+    <title>Lacuna — Beat 11 — One memory</title>
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Space Grotesk";
+          src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+          font-weight: 300 700;
+          font-display: block;
+        }
+        @font-face {
+          font-family: "JetBrains Mono";
+          src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+          font-weight: 400 500;
+          font-display: block;
+        }
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: #000000;
+          color: #ffffff;
+          font-family: "Space Grotesk", Arial, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        .b11-scene {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          background: #000000;
+        }
+        .b11-network {
+          position: absolute;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+        }
+        .b11-link {
+          fill: none;
+          stroke: #8052ff;
+          stroke-width: 1.5;
+          stroke-dasharray: 10 10;
+          opacity: 0.55;
+        }
+        .b11-client {
+          position: absolute;
+          color: #c1bdc6;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 15px;
+          font-weight: 500;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        #b11-c1 { left: 220px; top: 208px; }
+        #b11-c2 { left: 874px; top: 118px; }
+        #b11-c3 { right: 218px; top: 238px; }
+        #b11-c4 { left: 228px; bottom: 225px; }
+        #b11-c5 { left: 864px; bottom: 120px; }
+        #b11-c6 { right: 172px; bottom: 222px; }
+        .b11-lockup {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding-top: 194px;
+          text-align: center;
+        }
+        .b11-logo {
+          display: block;
+          width: 190px;
+          height: 190px;
+          object-fit: contain;
+          opacity: 0.1;
+          will-change: transform, opacity;
+        }
+        .b11-tagline {
+          margin: 38px 0 0;
+          color: #ffffff;
+          font-size: 76px;
+          font-weight: 300;
+          line-height: 1.02;
+          letter-spacing: -0.045em;
+        }
+        .b11-tagline span { color: #8052ff; }
+        .b11-contract {
+          margin-top: 26px;
+          color: #9e99a5;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 11px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+        .b11-url {
+          margin-top: 32px;
+          color: #ffffff;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 25px;
+          letter-spacing: 0.055em;
+        }
+        .b11-url::after {
+          content: "";
+          display: block;
+          width: 100%;
+          height: 2px;
+          margin-top: 12px;
+          background: #8052ff;
+        }
+        .b11-origin {
+          position: absolute;
+          z-index: 6;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+          height: 2px;
+          background: #8052ff;
+          transform-origin: right center;
+        }
+      </style>
+
+      <div id="root" data-hf-id="hf-b11-root" data-composition-id="beat-11-close" data-start="0" data-width="1920" data-height="1080" data-duration="12" data-fps="30">
+        <section data-hf-id="hf-ujf9" id="b11-scene" class="clip b11-scene" data-start="0" data-duration="12" data-track-index="1">
+          <svg data-hf-id="hf-kvq7" class="b11-network" width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true">
+            <path data-hf-id="hf-2ee9" id="b11-l1" class="b11-link" d="M 270 218 C 502 238 720 292 960 330" />
+            <path data-hf-id="hf-x0og" id="b11-l2" class="b11-link" d="M 920 136 C 930 204 944 268 960 330" />
+            <path data-hf-id="hf-126f" id="b11-l3" class="b11-link" d="M 1642 250 C 1394 257 1190 288 960 330" />
+            <path data-hf-id="hf-3234" id="b11-l4" class="b11-link" d="M 282 840 C 520 694 724 502 960 330" />
+            <path data-hf-id="hf-w5z6" id="b11-l5" class="b11-link" d="M 914 940 C 920 704 936 510 960 330" />
+            <path data-hf-id="hf-6y99" id="b11-l6" class="b11-link" d="M 1668 846 C 1430 688 1208 492 960 330" />
+          </svg>
+
+          <span data-hf-id="hf-eft8" id="b11-c1" class="b11-client">WEB</span>
+          <span data-hf-id="hf-i465" id="b11-c2" class="b11-client">CLI</span>
+          <span data-hf-id="hf-c0tw" id="b11-c3" class="b11-client">MCP</span>
+          <span data-hf-id="hf-zyd1" id="b11-c4" class="b11-client">AGENTS</span>
+          <span data-hf-id="hf-9cxs" id="b11-c5" class="b11-client">VOICE</span>
+          <span data-hf-id="hf-nfi7" id="b11-c6" class="b11-client">API</span>
+
+          <div data-hf-id="hf-em9f" class="b11-lockup">
+            <img data-hf-id="hf-00zt" id="b11-logo" class="b11-logo" src="assets/favicon.svg" alt="Lacuna">
+            <h1 data-hf-id="hf-w1zk" id="b11-tagline" class="b11-tagline">THE AGENT CAN CHANGE.<br data-hf-id="hf-x5px"><span data-hf-id="hf-tg71">LACUNA STAYS.</span></h1>
+            <p data-hf-id="hf-yoth" id="b11-contract" class="b11-contract">One evidence-bearing memory · every client · built on HydraDB</p>
+            <p data-hf-id="hf-nb5a" id="b11-url" class="b11-url">lacuna-five.vercel.app</p>
+          </div>
+
+          <div data-hf-id="hf-l3m7" id="b11-origin" class="b11-origin" data-layout-ignore="true"></div>
+        </section>
       </div>
-    </section>
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    const b11 = gsap.timeline({paused:true});
-    b11.fromTo("#b11-c1, #b11-c2, #b11-c3, #b11-c4, #b11-c5, #b11-c6",{scale:.86,opacity:0},{scale:1,opacity:1,duration:.5,ease:"power3.out",stagger:.08},0)
-      .fromTo("#b11-l1, #b11-l2, #b11-l3, #b11-l4, #b11-l5, #b11-l6",{strokeDashoffset:660,opacity:0},{strokeDashoffset:0,opacity:.72,duration:1.25,ease:"power2.inOut",stagger:.06},.25)
-      .fromTo("#b11-locator",{scale:.2,opacity:0},{scale:1,opacity:1,duration:.7,ease:"power3.out"},.75)
-      .to("#b11-c1",{x:674,y:78,scale:.6,opacity:0,duration:1.05,ease:"power3.inOut"},1.25)
-      .to("#b11-c2",{x:90,y:164,scale:.6,opacity:0,duration:1.05,ease:"power3.inOut"},1.25)
-      .to("#b11-c3",{x:-685,y:46,scale:.6,opacity:0,duration:1.05,ease:"power3.inOut"},1.25)
-      .to("#b11-c4",{x:720,y:-520,scale:.6,opacity:0,duration:1.05,ease:"power3.inOut"},1.25)
-      .to("#b11-c5",{x:110,y:-618,scale:.6,opacity:0,duration:1.05,ease:"power3.inOut"},1.25)
-      .to("#b11-c6",{x:-700,y:-504,scale:.6,opacity:0,duration:1.05,ease:"power3.inOut"},1.25)
-      .to("#b11-l1, #b11-l2, #b11-l3, #b11-l4, #b11-l5, #b11-l6",{strokeDashoffset:-320,opacity:0,duration:1.05,ease:"power3.inOut"},1.8)
-      .fromTo("#b11-logo-wrap",{scale:.3,rotation:-28,opacity:0},{scale:1,rotation:0,opacity:1,duration:.95,ease:"power3.out"},2.1)
-      .fromTo("#b11-logo",{scale:.72,opacity:0},{scale:1,opacity:1,duration:.65,ease:"power2.out"},2.35)
-      .fromTo("#b11-tagline",{y:28,opacity:0},{y:0,opacity:1,duration:.78,ease:"power3.out"},2.8)
-      .fromTo("#b11-foundation",{y:14,opacity:0},{y:0,opacity:1,duration:.55,ease:"power2.out"},3.4)
-      .fromTo("#b11-links",{y:12,opacity:0},{y:0,opacity:1,duration:.55,ease:"power2.out"},3.7)
-      .to("#b11-logo-wrap",{borderColor:"rgba(128,82,255,.95)",duration:1.25,ease:"power1.inOut",repeat:2,yoyo:true},4.25);
-    window.__timelines["beat-11-close"] = b11;
-  </script>
-</body>
+
+      <script>
+        (() => {
+          const id = "beat-11-close";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.to("#b11-origin", { scaleX: 0, duration: 0.82, ease: "power3.inOut" }, 0);
+          tl.fromTo("#b11-l1, #b11-l2, #b11-l3, #b11-l4, #b11-l5, #b11-l6", {
+            strokeDashoffset: 760, opacity: 0.18
+          }, {
+            strokeDashoffset: 0, opacity: 0.72, duration: 1.25, ease: "power2.inOut", stagger: 0.055
+          }, 0.12);
+
+          tl.to("#b11-c1", { x: 690, y: 112, scale: 0.62, opacity: 0, duration: 1.02, ease: "power3.inOut" }, 1.05);
+          tl.to("#b11-c2", { x: 56, y: 202, scale: 0.62, opacity: 0, duration: 1.02, ease: "power3.inOut" }, 1.05);
+          tl.to("#b11-c3", { x: -682, y: 82, scale: 0.62, opacity: 0, duration: 1.02, ease: "power3.inOut" }, 1.05);
+          tl.to("#b11-c4", { x: 688, y: -510, scale: 0.62, opacity: 0, duration: 1.02, ease: "power3.inOut" }, 1.05);
+          tl.to("#b11-c5", { x: 72, y: -610, scale: 0.62, opacity: 0, duration: 1.02, ease: "power3.inOut" }, 1.05);
+          tl.to("#b11-c6", { x: -706, y: -516, scale: 0.62, opacity: 0, duration: 1.02, ease: "power3.inOut" }, 1.05);
+          tl.to("#b11-l1, #b11-l2, #b11-l3, #b11-l4, #b11-l5, #b11-l6", {
+            strokeDashoffset: -260, opacity: 0, duration: 0.9, ease: "power3.inOut"
+          }, 1.55);
+
+          tl.fromTo("#b11-logo", { scale: 0.54, rotation: -24, opacity: 0.1 }, {
+            scale: 1, rotation: 0, opacity: 1, duration: 1.0, ease: "power3.out"
+          }, 1.55);
+          tl.fromTo("#b11-tagline", { y: 24, opacity: 0 }, {
+            y: 0, opacity: 1, duration: 0.72, ease: "power3.out"
+          }, 2.28);
+          tl.fromTo("#b11-contract", { y: 12, opacity: 0 }, {
+            y: 0, opacity: 1, duration: 0.52, ease: "power2.out"
+          }, 2.78);
+          tl.fromTo("#b11-url", { y: 12, opacity: 0 }, {
+            y: 0, opacity: 1, duration: 0.55, ease: "power2.out"
+          }, 3.18);
+
+          window.__timelines = window.__timelines || {};
+          window.__timelines[id] = tl;
+        })();
+      </script>
+    </template>
+  </body>
 </html>

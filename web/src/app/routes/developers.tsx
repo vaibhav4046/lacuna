@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import { CONNECTOR_GROUPS, dotFor } from '../../design/connectors';
 import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { DEVCODE } from '../../landing/copy';
+import { CLI_COMMAND_NAMES, MCP_TOOLS_LIST_REQUEST, mcpToolNames } from '../product-contracts';
 
 /**
  * The DEVELOPERS group: MCP, SDK · API, CLI and Connectors.
@@ -18,6 +19,17 @@ import { DEVCODE } from '../../landing/copy';
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
+async function readMcpToolNames(signal?: AbortSignal): Promise<readonly string[]> {
+  const response = await fetch('/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify(MCP_TOOLS_LIST_REQUEST),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw new Error('MCP tools/list did not answer');
+  return mcpToolNames(await response.json() as unknown);
+}
+
 /**
  * The MCP server, as something a reader can connect rather than read about.
  *
@@ -30,6 +42,7 @@ const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', col
 export function Mcp() {
   const [probe, setProbe] = useState<'idle' | 'running' | string>('idle');
   const [copied, setCopied] = useState(false);
+  const [tools, setTools] = useState<readonly string[] | null>(null);
   const endpoint = `${window.location.origin}/mcp`;
 
   const config = `{
@@ -41,21 +54,28 @@ export function Mcp() {
   }
 }`;
 
-  async function callIt() {
-    setProbe('running');
+  async function listTools(showResult: boolean) {
+    if (showResult) setProbe('running');
     try {
-      const response = await fetch('/mcp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-      });
-      const body = await response.json() as { result?: { tools?: { name: string }[] } };
-      const names = (body.result?.tools ?? []).map((tool) => tool.name);
-      setProbe(names.length > 0 ? `${names.length} TOOLS · ${names.join(' · ')}` : 'THE SERVER ANSWERED WITH NO TOOLS');
+      const names = await readMcpToolNames();
+      setTools(names);
+      if (showResult) setProbe(names.length > 0 ? `${names.length} TOOLS · ${names.join(' · ')}` : 'THE SERVER ANSWERED WITH NO TOOLS');
     } catch {
-      setProbe('THE SERVER DID NOT ANSWER');
+      setTools([]);
+      if (showResult) setProbe('THE SERVER DID NOT ANSWER');
     }
   }
+
+  useEffect(() => {
+    const control = new AbortController();
+    void readMcpToolNames(control.signal).then(
+      (names) => setTools(names),
+      () => {
+        if (!control.signal.aborted) setTools([]);
+      },
+    );
+    return () => control.abort();
+  }, []);
 
   return (
     <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
@@ -68,9 +88,13 @@ export function Mcp() {
       <p style={{ fontSize: '14.5px', color: '#BDBDBD', margin: 0, maxWidth: '72ch', lineHeight: 1.6 }}>
         Streamable HTTP, no key, no account. By default it reads the public workspace, over the
         same resolver, and every tool is a read. Point any MCP client at the URL above from
-        wherever that client runs. To read a workspace you ingested into, add the header{' '}
-        <span style={{ fontFamily: MONO, color: '#B79BFF' }}>x-lacuna-workspace</span> with the
-        handle the ingest report shows; the handle is unguessable and read only.
+        wherever that client runs. For private memory, sign in and issue a random capability on
+        the Tools screen. Lacuna stores only its digest. It expires 30 days after issue and can be revoked earlier.
+        Prefer sending it as{' '}
+        <span style={{ fontFamily: MONO, color: '#B79BFF' }}>Authorization: Bearer &lt;capability&gt;</span>.
+        The <span style={{ fontFamily: MONO, color: '#B79BFF' }}>/mcp/w/&lt;capability&gt;</span> path
+        remains available only for clients that cannot set headers because URLs may be recorded in logs.
+        The server resolves that capability to its workspace; a caller-supplied workspace name is never trusted.
       </p>
 
       {/*
@@ -85,7 +109,7 @@ export function Mcp() {
         <p style={{ fontSize: '14.5px', color: '#BDBDBD', margin: 0, lineHeight: 1.7, maxWidth: '70ch' }}>
           In Claude, open Settings, then Connectors, then Add custom connector, and paste the URL
           above. There is no key and no OAuth step: every tool is a read against the public
-          workspace. Claude will list five tools once it connects.
+          workspace. The live tool list below is read directly from this endpoint.
         </p>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', paddingTop: '4px' }}>
           <code style={{ fontFamily: MONO, fontSize: '12px', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '7px 11px' }}>{endpoint}</code>
@@ -113,11 +137,13 @@ export function Mcp() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '20px' }}>
         <span style={{ ...note, letterSpacing: '0.2em' }}>TOOLS</span>
-        <span style={{ fontFamily: MONO, fontSize: '12px', letterSpacing: '0.08em', color: '#BDBDBD', lineHeight: 2 }}>lacuna_ask · lacuna_explain · lacuna_timeline · lacuna_read_question · lacuna_health</span>
+        <span style={{ fontFamily: MONO, fontSize: '12px', letterSpacing: '0.08em', color: '#BDBDBD', lineHeight: 2 }}>
+          {tools === null ? 'READING THE LIVE SERVER…' : tools.length === 0 ? 'THE LIVE TOOL LIST DID NOT LOAD' : `${tools.length} · ${tools.join(' · ')}`}
+        </span>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
           <button
             className="hv-text"
-            onClick={() => void callIt()}
+            onClick={() => void listTools(true)}
             style={{ background: 'none', cursor: 'pointer', borderRadius: '7px', padding: '8px 14px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF' }}
           >
             CALL THE SERVER
@@ -170,9 +196,6 @@ export function Sdk() {
   );
 }
 
-/** The seven commands the shipped CLI really has. */
-const CLI_COMMANDS = 'lacuna doctor · status · read · ask · explain · timeline · bench';
-
 export function Cli() {
   const health = useHealth();
   const hydra = hydraState(health);
@@ -203,7 +226,7 @@ export function Cli() {
           <span style={{ color: '#7A7A7A' }}>⌘K</span>
         </div>
       </div>
-      <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>{CLI_COMMANDS}</span>
+      <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>{CLI_COMMAND_NAMES.map((command) => `lacuna ${command}`).join(' · ')}</span>
       <span style={note}>THESE ARE THE COMMANDS THAT EXIST · THE DESIGNED SET IS LARGER AND LANDS AS EACH ONE IS BUILT</span>
     </div>
   );

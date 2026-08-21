@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
-import { AccountStore } from '../../src/auth/store.js';
-import { FileAccounts } from '../../src/auth/accounts.js';
+import { AccountStore, newSessionVersion, type Account, type SessionRecord } from '../../src/auth/store.js';
+import { FileAccounts, type Accounts } from '../../src/auth/accounts.js';
 
 /**
  * The auth surface, driven over a real socket.
@@ -23,6 +23,7 @@ const PASSWORD = 'correct horse battery';
 let server: Server;
 let base: string;
 let dir: string;
+let accounts: RotatingAccounts;
 /**
  * The router's clock. Sign up is limited to three a minute per address and
  * every test here comes from 127.0.0.1, so a suite that did not move the clock
@@ -30,6 +31,44 @@ let dir: string;
  * bugs in whatever test happened to be sixth.
  */
 let clock = Date.UTC(2026, 0, 1);
+
+/** Deterministically rotates credentials inside the verify-to-issue gap. */
+class RotatingAccounts implements Accounts {
+  readonly #delegate: Accounts;
+  #rotateBeforeStart = false;
+
+  constructor(delegate: Accounts) {
+    this.#delegate = delegate;
+  }
+
+  rotateBeforeNextSession(): void {
+    this.#rotateBeforeStart = true;
+  }
+
+  available(): Promise<boolean> { return this.#delegate.available(); }
+  find(email: string): Promise<Account | null> { return this.#delegate.find(email); }
+  create(account: Account): Promise<Account | null> { return this.#delegate.create(account); }
+  update(account: Account): Promise<void> { return this.#delegate.update(account); }
+  sessionFor(token: string, now: number): Promise<SessionRecord | null> {
+    return this.#delegate.sessionFor(token, now);
+  }
+  endSession(token: string): Promise<void> { return this.#delegate.endSession(token); }
+
+  async startSession(
+    email: string,
+    now: number,
+    expectedSessionVersion: string | undefined,
+  ): Promise<string> {
+    if (this.#rotateBeforeStart) {
+      this.#rotateBeforeStart = false;
+      const account = await this.#delegate.find(email);
+      if (account !== null) {
+        await this.#delegate.update({ ...account, sessionVersion: newSessionVersion() });
+      }
+    }
+    return this.#delegate.startSession(email, now, expectedSessionVersion);
+  }
+}
 
 /** Past the rate limit window, so the next request starts a fresh bucket. */
 function nextMinute(): void {
@@ -90,8 +129,9 @@ async function primed(): Promise<Jar> {
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'lacuna-auth-'));
+  accounts = new RotatingAccounts(new FileAccounts(new AccountStore(dir)));
   const router = new ApiRouter({
-    store: new FileAccounts(new AccountStore(dir)),
+    store: accounts,
     secure: false,
     health: async () => ({ command: 'doctor', ok: true, warnings: 0, exitCode: 0, checks: [] }),
     now: () => clock,
@@ -220,6 +260,18 @@ describe('sign in', () => {
     await expect((await session(jar)).json()).resolves.toMatchObject({ signedIn: true });
   });
 
+  it('fails closed when recovery rotates credentials after verification but before session issue', async () => {
+    nextMinute();
+    const jar = await primed();
+    accounts.rotateBeforeNextSession();
+
+    const response = await post(jar, '/api/auth/signin', { email: 'new@example.com', password: PASSWORD });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'credentials' });
+    expect(response.headers.getSetCookie().some((line) => line.startsWith('lacuna_session='))).toBe(false);
+  });
+
   it('stops answering after six attempts in a window', async () => {
     nextMinute();
     const jar = await primed();
@@ -272,7 +324,11 @@ describe('the account store', () => {
 
   it('never stores the password or the session token', async () => {
     const store = new AccountStore(dir);
-    const token = store.startSession('persist@example.com', Date.now());
+    const token = store.startSession(
+      'persist@example.com',
+      Date.now(),
+      store.find('persist@example.com')?.sessionVersion,
+    );
 
     const reopened = new AccountStore(dir);
 

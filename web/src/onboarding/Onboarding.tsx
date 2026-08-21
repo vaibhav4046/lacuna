@@ -123,9 +123,9 @@ export default function Onboarding() {
 
         {step === 3 ? (
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.14em' }}>
-            <span style={chip}>CONNECT GITHUB</span>
-            <span style={chip}>CONNECT SLACK</span>
-            <span style={chip}>PASTE A NOTE</span>
+            <span style={chip}>GITHUB · PLANNED</span>
+            <span style={chip}>SLACK · PLANNED</span>
+            <span style={chip}>PASTE A NOTE · AVAILABLE</span>
           </div>
         ) : null}
 

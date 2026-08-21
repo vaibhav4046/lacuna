@@ -42,6 +42,7 @@ import { dailyContextHealthSchedule } from '../src/scheduler/dispatcher.js';
 import { ElevenLabsVoiceProvider, VoiceBoundary, elevenLabsVoiceConfig } from '../src/api/voice.js';
 import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
+import { PREDICATE_NAMES } from '../src/corpus/types.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -62,9 +63,6 @@ const groq = configured(process.env).find((provider) => provider.name === 'groq'
 // answers 404 and the run fails at the model call, which is how the first
 // attempt failed.
 const AGENT_MODEL = 'groq/compound-mini';
-
-/** The predicates a run resolves for each subject the task names. */
-const AGENT_PREDICATES = ['depends_on', 'owner', 'storage', 'region', 'ttl', 'pool_size', 'policy'] as const;
 
 /** Names the public corpus holds, used to find what a task is about. */
 const SUBJECT_NAMES: readonly string[] = [
@@ -209,8 +207,9 @@ const api = new ApiRouter({
     // One agent run over that workspace, when a real model provider answers.
     // Absent otherwise, so the route says 501 rather than inventing a run.
     ...(groq === undefined ? {} : {
-      // `null` is the public corpus: the same run, over the collection every
-      // visitor already reads. It writes nothing either way.
+      // The router admits only an authenticated workspace here. The nullable
+      // type remains at the injected boundary for compatibility, but anonymous
+      // public run creation is refused before this function can be called.
       agent: (collection: string | null, task: string, run = {}) => runAgents({
         source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),
         provider: groq,
@@ -219,7 +218,11 @@ const api = new ApiRouter({
         collection: collection ?? 'public',
         task,
         knownSubjects: SUBJECT_NAMES,
-        predicates: [...AGENT_PREDICATES],
+        // Keep the runtime on the same vocabulary ingestion writes. A former
+        // hand-built subset omitted temporal fields such as runbook_owner and
+        // included fields the corpus never stores, producing healthy-looking
+        // runs with the wrong Context Pack.
+        predicates: [...PREDICATE_NAMES],
         store: agentRuntime,
         ...(run.idempotencyKey === undefined ? {} : { idempotencyKey: run.idempotencyKey }),
         ...(run.kind === undefined ? {} : { kind: run.kind }),

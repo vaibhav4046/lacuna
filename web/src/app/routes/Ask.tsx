@@ -4,6 +4,7 @@ import { postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { STANDING_COLOUR, STANDING_LABEL } from '../../design/standing';
+import { askEndpoint } from '../product-contracts';
 
 /**
  * Ask, wired to the real answer path.
@@ -94,7 +95,7 @@ const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flex
 
 export function Ask() {
   const go = useNavigate();
-  const { prefix, base } = useScope();
+  const { prefix, base, demo } = useScope();
   const suggested = useScoped<readonly Suggestion[]>('questions');
   const [asked, setAsked] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
@@ -168,7 +169,7 @@ export function Ask() {
     setPredicate(question.predicate);
     setResult(null);
     setStage('CHECKING CURRENT STATE');
-    const envelope = await postFor<Envelope>('/api/ask', { subject: question.subject, predicate: question.predicate });
+    const envelope = await postFor<Envelope>(askEndpoint(demo), { subject: question.subject, predicate: question.predicate });
     setStage(null);
     setResult(envelope ?? {
       status: 'SYSTEM_ERROR', answer: null, evidence: [], revisions: [], conflicts: [],

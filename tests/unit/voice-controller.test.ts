@@ -51,14 +51,17 @@ class FakeRuntime implements VoiceRuntime {
   stopped = 0;
   transcriptClosed = 0;
   transcriptCommits = 0;
+  calls: string[] = [];
 
   async openMicrophone(_signal: AbortSignal, _onSignal: (frame: SignalFrame) => void): Promise<MicrophoneSession> {
+    this.calls.push('microphone');
     this.microphoneCalls += 1;
     if (this.microphoneFailure !== null) throw new VoiceRuntimeError(this.microphoneFailure);
     return this.microphone;
   }
 
   async singleUseToken(_signal: AbortSignal): Promise<string> {
+    this.calls.push('token');
     if (this.tokenFailure !== null) throw new VoiceRuntimeError(this.tokenFailure);
     return 'sutkn_test_token';
   }
@@ -69,6 +72,7 @@ class FakeRuntime implements VoiceRuntime {
     handlers: TranscriptHandlers,
     _signal: AbortSignal,
   ): Promise<TranscriptSession> {
+    this.calls.push('transcript');
     if (this.transcriptFailure !== null) throw new VoiceRuntimeError(this.transcriptFailure);
     this.handlers = handlers;
     return {
@@ -104,6 +108,7 @@ describe('VoiceController successful context outcomes', () => {
 
     await controller.start();
     expect(controller.snapshot.state).toBe('LISTENING');
+    expect(runtime.calls.slice(0, 3)).toEqual(['token', 'microphone', 'transcript']);
     runtime.handlers?.partial('Where does session state live');
     expect(controller.snapshot.state).toBe('PARTIAL_TRANSCRIPT');
     expect(runtime.queryCalls).toEqual([]);
@@ -169,6 +174,8 @@ describe('VoiceController failures and adversarial lifecycle', () => {
     const tokenController = new VoiceController(token);
     await tokenController.start();
     expect(tokenController.snapshot.state).toBe('PROVIDER_UNAVAILABLE');
+    expect(token.calls).toEqual(['token']);
+    expect(token.microphoneCalls).toBe(0);
 
     const stt = new FakeRuntime();
     stt.transcriptFailure = 'provider_unavailable';

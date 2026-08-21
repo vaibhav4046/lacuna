@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { HydraCloud } from '../hydra/cloud.js';
 import {
   AccountStore,
+  CredentialChanged,
   StoreUnavailable,
   hashToken,
   isAccount,
@@ -37,7 +38,8 @@ export interface Accounts {
   create(account: Account): Promise<Account | null>;
   update(account: Account): Promise<void>;
   /** Returns the raw token. Only its hash is stored. */
-  startSession(email: string, now: number): Promise<string>;
+  /** Mint only if the account still has the credential epoch the caller authenticated. */
+  startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string>;
   sessionFor(token: string, now: number): Promise<SessionRecord | null>;
   endSession(token: string): Promise<void>;
 }
@@ -66,8 +68,8 @@ export class FileAccounts implements Accounts {
     this.#store.update(account);
   }
 
-  async startSession(email: string, now: number): Promise<string> {
-    return this.#store.startSession(email, now);
+  async startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string> {
+    return this.#store.startSession(email, now, expectedSessionVersion);
   }
 
   async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
@@ -177,9 +179,12 @@ export class CloudAccounts implements Accounts {
     await this.#write(this.#accountId(account.email), account.email, account);
   }
 
-  async startSession(email: string, now: number): Promise<string> {
+  async startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string> {
     const account = await this.find(email);
     if (account === null) throw new StoreUnavailable('cannot start a session for a missing account');
+    if ((account.sessionVersion ?? '') !== (expectedSessionVersion ?? '')) {
+      throw new CredentialChanged('credentials changed before the session was created');
+    }
     const token = mintToken();
     const record: SessionRecord = {
       tokenHash: hashToken(token),

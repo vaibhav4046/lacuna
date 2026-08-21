@@ -15,7 +15,7 @@ import {
   readJsonBody,
   serialiseCookie,
 } from '../auth/http.js';
-import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, type Account } from '../auth/store.js';
+import { CredentialChanged, SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
 import { googleBinding } from '../auth/identity.js';
 import type { McpCapabilities } from '../auth/mcp-capability-store.js';
@@ -56,7 +56,7 @@ import {
   recommendedDailySchedule,
   runScheduleNow,
 } from '../scheduler/dispatcher.js';
-import type { VoiceBoundary, VoiceBoundaryResult } from './voice.js';
+import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } from './voice.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -121,12 +121,6 @@ const RECOVER_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
  */
 const PUBLIC_READ_LIMIT = { limit: 60, windowMs: 60_000, maxKeys: 8_192 };
 const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
-/**
- * A public run spends two model calls, so its budget is not the read budget.
- * Four a minute is enough for somebody trying the thing and far too little to
- * be worth pointing at a bill.
- */
-const PUBLIC_RUN_LIMIT = { limit: 4, windowMs: 60_000, maxKeys: 8_192 };
 /** Private spend ceilings are keyed by the server-derived workspace id. */
 const PRIVATE_RUN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const PRIVATE_INGEST_LIMIT = { limit: 4, windowMs: 5 * 60_000, maxKeys: 4_096 };
@@ -359,15 +353,27 @@ async function sendVoiceResult(
     'X-Content-Type-Options': 'nosniff',
   });
   const reader = body.getReader();
+  let streamedBytes = 0;
   try {
     for (;;) {
       const chunk = await reader.read();
       if (chunk.done || control.signal.aborted) break;
+      const nextBytes = addStreamingAudioBytes(streamedBytes, chunk.value.byteLength);
+      if (nextBytes === null) {
+        control.abort();
+        await reader.cancel().catch(() => undefined);
+        if (!response.destroyed) response.destroy();
+        return;
+      }
+      streamedBytes = nextBytes;
       if (!response.write(Buffer.from(chunk.value))) {
         await Promise.race([once(response, 'drain'), once(response, 'close')]);
       }
     }
     if (!response.writableEnded) response.end();
+  } catch {
+    control.abort();
+    if (!response.destroyed) response.destroy();
   } finally {
     if (control.signal.aborted) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
@@ -545,7 +551,6 @@ export class ApiRouter {
   readonly #recoverLimit = new FixedWindow(RECOVER_LIMIT);
   readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
   readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
-  readonly #runLimit = new FixedWindow(PUBLIC_RUN_LIMIT);
   readonly #privateRunLimit = new WorkspaceRunWindow(PRIVATE_RUN_LIMIT);
   readonly #privateIngestLimit = new FixedWindow(PRIVATE_INGEST_LIMIT);
   readonly #privateMcpIssueLimit = new FixedWindow(PRIVATE_MCP_ISSUE_LIMIT);
@@ -830,18 +835,23 @@ export class ApiRouter {
            * means nobody is left without a way back after using theirs.
            */
           const replacement = newRecoveryCode();
+          const sessionVersion = newSessionVersion();
           await this.#store.update({
             ...account,
             passwordHash: await hashPassword(next),
             recoveryHash: await hashPassword(canonicalRecoveryCode(replacement)),
             // Credential recovery revokes every prior 30-day session. The
             // replacement session minted below carries this fresh epoch.
-            sessionVersion: newSessionVersion(),
+            sessionVersion,
           });
-          const token = await this.#store.startSession(email, this.#now());
+          const token = await this.#store.startSession(email, this.#now(), sessionVersion);
           send(response, 200, { signedIn: true, recoveryCode: replacement }, [this.#sessionCookie(token)]);
         } catch (error) {
-          send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+          if (error instanceof CredentialChanged) {
+            send(response, 409, { error: 'recovery_conflict' });
+          } else {
+            send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+          }
         }
         return HANDLED;
       }
@@ -1373,7 +1383,7 @@ export class ApiRouter {
           }
           // Resolve first so one signed-in workspace cannot revoke another's
           // bearer merely by obtaining its value elsewhere.
-          if (await capabilities.resolve(capability) !== workspace) {
+          if (await capabilities.resolve(capability, this.#now()) !== workspace) {
             send(response, 404, { error: 'capability' });
             return HANDLED;
           }
@@ -1396,6 +1406,7 @@ export class ApiRouter {
         send(response, 201, {
           capability: issued.capability,
           createdAt: issued.createdAt,
+          expiresAt: issued.expiresAt,
           endpoint: '/mcp',
         });
       } catch (error) {
@@ -1737,54 +1748,18 @@ export class ApiRouter {
     }
 
     /**
-     * The same run, over the corpus anybody can read.
+     * The public workspace is evidence, not a shared scratchpad.
      *
-     * A run writes nothing. Both agents are `NO_WRITE`, the manifest says so
-     * before either model is called, and the only thing it touches is the
-     * public collection every visitor already reads. So requiring an account
-     * for it protected nothing and hid the strongest thing the product does
-     * behind a sign-in wall, which is how a judge concludes it does not exist.
-     *
-     * It costs model calls where a read does not, which is why it has its own
-     * budget rather than sharing the read one.
+     * Agent manifests correctly prohibit authoritative memory writeback, but a
+     * run still persists its task, lifecycle, Context Pack and result in the
+     * runtime store and spends two provider calls. An anonymous endpoint would
+     * therefore let any visitor mutate public run history and make unbounded
+     * spend possible across serverless instances. Judges can inspect the
+     * accepted recorded run; creating new work requires an authenticated,
+     * workspace-scoped route with CSRF and durable per-workspace budgets.
      */
     if ((path === '/api/explore/agent/run' || path === '/api/demo/agent/run') && method === 'POST') {
-      const runAgent = this.#agent;
-      if (runAgent === undefined) {
-        send(response, 501, { error: 'no model provider is configured on this deployment' });
-        return HANDLED;
-      }
-      let body: Record<string, unknown> | null;
-      try {
-        body = await readJsonBody(request);
-      } catch (error) {
-        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
-        return HANDLED;
-      }
-      const task = body?.['task'];
-      if (typeof task !== 'string' || task.trim() === '' || task.length > 600) {
-        send(response, 422, { error: 'task_required' });
-        return HANDLED;
-      }
-      if (!this.#runLimit.check(sourceKey(request), this.#now()).allowed) {
-        send(response, 429, { error: 'too many runs from this address, try again shortly' });
-        return HANDLED;
-      }
-      const requestedAgent = body?.['agentId'];
-      if (requestedAgent !== undefined && requestedAgent !== builtInAgentId('public', 'RESEARCHER')) {
-        send(response, 403, { error: 'agent_scope' });
-        return HANDLED;
-      }
-      try {
-        await this.#prepareRuntime('public');
-        send(response, 200, await runAgent(null, task, {
-          idempotencyKey: `public:${randomBytes(16).toString('hex')}`,
-        }));
-      } catch (error) {
-        send(response, error instanceof AgentInputRejected ? 422 : 502, {
-          error: error instanceof AgentInputRejected ? 'task_rejected' : 'the run did not complete',
-        });
-      }
+      send(response, 403, { error: 'public_preview_read_only' });
       return HANDLED;
     }
 
@@ -2074,7 +2049,7 @@ export class ApiRouter {
         send(response, 409, { error: 'exists' });
         return HANDLED;
       }
-      const token = await this.#store.startSession(email, now);
+      const token = await this.#store.startSession(email, now, created.sessionVersion);
       send(response, 201, { signedIn: true, recoveryCode: recovery }, [this.#sessionCookie(token)]);
     } catch (error) {
       send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
@@ -2221,7 +2196,7 @@ export class ApiRouter {
         return this.#redirect(response, '/signin?google=identity', clear);
       }
 
-      const token = await this.#store.startSession(account.email, this.#now());
+      const token = await this.#store.startSession(account.email, this.#now(), account.sessionVersion);
       return this.#redirect(response, this.#afterSignIn(account), [...clear, this.#sessionCookie(token)]);
     } catch {
       return this.#redirect(response, '/signin?google=store', clear);
@@ -2246,10 +2221,14 @@ export class ApiRouter {
     }
 
     try {
-      const token = await this.#store.startSession(email, this.#now());
+      const token = await this.#store.startSession(email, this.#now(), account.sessionVersion);
       send(response, 200, { signedIn: true }, [this.#sessionCookie(token)]);
     } catch (error) {
-      send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+      if (error instanceof CredentialChanged) {
+        send(response, 401, { error: 'credentials' });
+      } else {
+        send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+      }
     }
     return HANDLED;
   }

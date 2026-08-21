@@ -1,5 +1,10 @@
 # Rules matrix
 
+> **Historical submission matrix.** It records the rules captured on
+> 2026-08-12. Use [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md) for current
+> product evidence and [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md) for the pending
+> film. The 179-second V8 candidate was rejected.
+
 Every published Hack Hydra requirement, mapped to where this repository
 satisfies it and how that can be checked. Source text captured verbatim at
 [`artifacts/rules/hackhydra-rules-2026-08-12.txt`](../artifacts/rules/hackhydra-rules-2026-08-12.txt)
@@ -28,7 +33,7 @@ here.
 | Work started before August 12, 2026 | Fresh repository, `git init` on 2026-08-12. No pre-hackathon code, assets, or history imported from any prior project. Full history is inspectable and unmodified | done |
 | Missing or private GitHub repository | Public at <https://github.com/vaibhav4046/lacuna> since 2026-08-13. Check with `git ls-remote --heads https://github.com/vaibhav4046/lacuna`; the route it took is item 2 in [NEEDS_VAIBHAV.md](../NEEDS_VAIBHAV.md) | done |
 | No open-source license in the repository | `LICENSE`, canonical Apache-2.0 text fetched from apache.org | done |
-| Missing demo video | 3 minutes or less, recorded near the end of the build | pending |
+| Missing demo video | No accepted V10 master or public YouTube link exists; the 179-second V8 candidate was rejected | in progress |
 | HydraDB not used meaningfully | HydraDB is the storage and traversal engine for the evidence graph. The answer path is four graph reads and no similarity score, itemised in [HYDRADB_INTEGRATION.md](HYDRADB_INTEGRATION.md), executed against a live node by the contract suite. See also ADR 0002 and the HydraDB proof panel | done |
 | Submitted after the deadline | Internal target is a full day early | pending |
 | Breaking the rules or code of conduct | This matrix | in progress |

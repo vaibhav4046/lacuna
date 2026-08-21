@@ -67,7 +67,7 @@ export function advanceVoice(from: VoiceState, event: VoiceEvent): VoiceState {
 
 export const VOICE_STATE_COPY: Readonly<Record<VoiceState, { readonly status: string; readonly detail: string }>> = {
   READY: { status: 'Ready', detail: 'No microphone track, provider session, query or audio playback is active.' },
-  REQUESTING_PERMISSION: { status: 'Requesting microphone permission', detail: 'The browser permission prompt is open. Listening has not started.' },
+  REQUESTING_PERMISSION: { status: 'Preparing secure voice', detail: 'The server is checking speech access before the browser requests microphone permission. Listening has not started.' },
   LISTENING: { status: 'Listening', detail: 'A live microphone track is supplying PCM to the realtime transcript session.' },
   PARTIAL_TRANSCRIPT: { status: 'Uncommitted transcript', detail: 'Scribe returned words that may still change. They have not been queried or written.' },
   COMMITTED: { status: 'Transcript committed', detail: 'Scribe committed the utterance. The microphone and transcript session are closed.' },

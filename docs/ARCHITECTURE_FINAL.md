@@ -24,7 +24,7 @@ CLIENTS
 TRANSPORT AND ENVELOPE
   src/api/router.ts            the JSON surface the React app talks to
   src/api/workspace.ts         AnswerEnvelope, the web's answer shape
-  src/mcp/server.ts            four tools, one implementation
+  src/mcp/server.ts            seven public read tools, one implementation
   src/mcp/result.ts            AskResult, ExplainResult, TimelineResult
   src/cli/question.ts          one path for ask, explain and timeline
          |                              |                        |

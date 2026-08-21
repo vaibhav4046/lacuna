@@ -16,6 +16,25 @@ npm run cli -- ask Bellwether beta_partner
 `npm link` puts it on the path as `lacuna`. Every example below is written as
 `lacuna` for brevity.
 
+## Command map
+
+The shipped CLI has exactly nine commands:
+
+| Command | Purpose |
+| --- | --- |
+| `doctor` | Check Node, configuration, credentials, reachability and one real read. |
+| `status` | Name the active store and report what it can count. |
+| `profile` | Show whether this process selected HydraDB Cloud or a self-hosted node. |
+| `shell` | Keep an interactive question session open. |
+| `read` | Ask one plain-English question and print how it was interpreted. |
+| `ask` | Read one exact subject/predicate pair. |
+| `explain` | Add the resolver trace and store reads to `ask`. |
+| `timeline` | Print every claim on a pair, oldest first. |
+| `bench` | Print the committed benchmark artifact without rerunning it. |
+
+There is no CLI `ingest`, agent-run, scheduler or voice command. Corpus ingest
+is the separate `npm run ingest` script. There is no packaged Lacuna SDK.
+
 ## Commands
 
 ### `lacuna doctor`
@@ -75,6 +94,8 @@ What this CLI is pointed at, one count per node label, and the read epoch the
 counts were answered at.
 
 ```
+  profile     node
+  store       HydraDB node, namespace local, graph default
   node        http://127.0.0.1:18443
   namespace   local
   graph       default
@@ -88,6 +109,40 @@ counts were answered at.
   Claim         174
   Entity        86
 ```
+
+On the cloud profile, label counts are not available and the command says so;
+it does not print invented zeroes.
+
+### `lacuna profile`
+
+Shows which context store the process selected, how it selected it and which
+profiles are configured on this machine. It does not contact the store, so it
+still answers when the store is unavailable.
+
+```
+  profile     cloud
+  decided by  environment
+  store       HydraDB Cloud, database lacuna, collection backend
+  available   cloud, node
+```
+
+`LACUNA_PROFILE=cloud` selects HydraDB Cloud. `LACUNA_PROFILE=node` selects the
+self-hosted node. With no explicit profile, a complete cloud configuration wins.
+The command prints database and collection names, never a URL or token.
+
+### `lacuna shell`
+
+Keeps the store connection and subject inventory between questions:
+
+```text
+lacuna ❯ who is the runbook owner for billing-gate?
+lacuna ❯ when does Lowbank launch?
+```
+
+Inside the shell, `:subjects` lists known names, `:store` names the active
+profile, `:clear` clears the terminal, `:help` prints help and `:quit` exits.
+Ctrl+D also exits. Every question uses the same parser and resolver as `read`;
+the shell is not a second answer implementation.
 
 ### `lacuna read "<question>"`
 

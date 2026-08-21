@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { MONO } from '../../design/mark';
 import { csrfHeaders } from '../../api/client';
@@ -25,7 +26,6 @@ const MAX_SOURCE = 20_000;
 interface IngestReport {
   readonly ok: true;
   readonly sourceKey: string;
-  readonly collection: string;
   readonly turns: number;
   readonly claims: number;
   readonly entities: number;
@@ -49,6 +49,7 @@ const REASON: Readonly<Record<string, string>> = {
 };
 
 export function AddSource({ onIngested }: { onIngested?: () => void }) {
+  const go = useNavigate();
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [state, setState] = useState<'idle' | 'working'>('idle');
@@ -168,12 +169,14 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
             Indexing is asynchronous, so a question about this may abstain for a moment before
             the store has it. That is the store catching up, not the answer changing.
           </span>
-          <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '70ch', lineHeight: 1.55 }}>
-            Any MCP agent can read this workspace too: add the header{' '}
-            <span style={{ fontFamily: MONO, color: '#B79BFF' }}>x-lacuna-workspace: {report.collection}</span>{' '}
-            to calls against <span style={{ fontFamily: MONO, color: '#B79BFF' }}>/mcp</span>. The
-            handle is unguessable and read only; treat it like an unlisted link.
-          </span>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '3px' }}>
+            <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '62ch', lineHeight: 1.55 }}>
+              To read this memory through MCP, issue a random private capability. Lacuna stores
+              only its digest. It expires after 30 days and can be revoked earlier. Prefer the
+              Authorization header. Workspace names are never accepted as credentials.
+            </span>
+            <button type="button" onClick={() => go('/app/tools')} style={{ background: 'none', border: '1px solid rgba(128,82,255,0.55)', borderRadius: '6px', color: '#FFFFFF', cursor: 'pointer', padding: '7px 10px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em' }}>ISSUE CAPABILITY</button>
+          </div>
         </div>
       )}
     </div>

@@ -1,0 +1,179 @@
+1
+00:00:00,000 --> 00:00:03,505
+Agents do not fail only because they forget.
+
+2
+00:00:03,505 --> 00:00:09,200
+They fail when yesterday's truth is remembered as if it were still true.
+
+3
+00:00:09,200 --> 00:00:11,000
+One source says Redis.
+
+4
+00:00:11,000 --> 00:00:12,800
+A proposal says Postgres.
+
+5
+00:00:12,800 --> 00:00:15,050
+The pull request implements Postgres.
+
+6
+00:00:15,050 --> 00:00:16,850
+Retrieval returns every sentence.
+
+7
+00:00:16,850 --> 00:00:25,400
+Lacuna keeps the sources, marks what changed, exposes conflict, and refuses to turn missing evidence into a confident answer.
+
+8
+00:00:25,400 --> 00:00:29,434
+We built Lacuna, a provenance-first memory layer on HydraDB.
+
+9
+00:00:29,434 --> 00:00:32,572
+Conversations become evidence, claims, entities, and relationships.
+
+10
+00:00:32,572 --> 00:00:38,400
+Lacuna resolves what stands now, then compiles the context the next agent needs.
+
+11
+00:00:38,400 --> 00:00:40,661
+Here is the deployed product.
+
+12
+00:00:40,661 --> 00:00:44,730
+I ask, Who is the runbook owner for billing-gate?
+
+13
+00:00:44,730 --> 00:00:51,965
+Lacuna says the sources disagree, keeps both claims at equal weight, and attaches a contradiction trace.
+
+14
+00:00:51,965 --> 00:00:54,226
+Ask for Foxglove's connection-pool size.
+
+15
+00:00:54,226 --> 00:00:59,200
+Nothing states one, so Lacuna returns never stated, instead of guessing.
+
+16
+00:00:59,200 --> 00:01:01,006
+The answer stays inspectable.
+
+17
+00:01:01,006 --> 00:01:03,714
+A table keeps every memory readable.
+
+18
+00:01:03,714 --> 00:01:11,389
+On the accepted public build, the overview measured four hundred fifty-three nodes and six hundred eighty-two edges.
+
+19
+00:01:11,389 --> 00:01:15,000
+The proof view follows one exact source-to-evidence-to-claim-to-entity path.
+
+20
+00:01:15,000 --> 00:01:16,816
+Memory becomes bounded work.
+
+21
+00:01:16,816 --> 00:01:20,903
+Lacuna includes two built-in, no-write roles: Researcher and Reviewer.
+
+22
+00:01:20,903 --> 00:01:27,259
+A production run persisted eight events, tool calls, handoff, artifacts, and its final verdict.
+
+23
+00:01:27,259 --> 00:01:29,076
+A daily schedule persists.
+
+24
+00:01:29,076 --> 00:01:31,800
+Cross-instance exactly-once dispatch is not claimed.
+
+25
+00:01:31,800 --> 00:01:37,133
+One resolved context reaches web, C L I, and M C P.
+
+26
+00:01:37,133 --> 00:01:46,911
+The parity sweep sends all sixty-four questions through the C L I and both M C P transports, then compares every field.
+
+27
+00:01:46,911 --> 00:01:47,800
+They match.
+
+28
+00:01:47,800 --> 00:01:52,244
+The H T T P A P I is live.
+
+29
+00:01:52,244 --> 00:01:55,800
+A packaged S D K is not shipped.
+
+30
+00:01:55,800 --> 00:02:01,578
+The voice surface models fifteen explicit states, including listening, interruption, and typed fallback.
+
+31
+00:02:01,578 --> 00:02:05,578
+This narration uses the verified Vaibhav Lalwani professional clone.
+
+32
+00:02:05,578 --> 00:02:11,800
+The product's live voice round-trip remains separately gated until its server key is configured.
+
+33
+00:02:11,800 --> 00:02:15,752
+HydraDB is the retrieval substrate, not a results bucket.
+
+34
+00:02:15,752 --> 00:02:18,387
+A correction becomes a supersession edge.
+
+35
+00:02:18,387 --> 00:02:24,096
+Provenance is the path from session to message to evidence span to claim.
+
+36
+00:02:24,096 --> 00:02:25,413
+Disagreement is structural.
+
+37
+00:02:25,413 --> 00:02:28,048
+Multi-hop answers traverse a bridge entity.
+
+38
+00:02:28,048 --> 00:02:32,000
+No claim means absence, not a low similarity score.
+
+39
+00:02:32,000 --> 00:02:39,703
+On the labelled generated evaluation, Lacuna answers sixty-four of sixty-four with zero unsupported answers using about eighteen context tokens.
+
+40
+00:02:39,703 --> 00:02:43,757
+The strongest tuned baseline reaches sixty-three using about eighteen hundred.
+
+41
+00:02:43,757 --> 00:02:47,000
+Self-hosted and HydraDB Cloud matched field by field.
+
+42
+00:02:47,000 --> 00:02:48,642
+Models can change.
+
+43
+00:02:48,642 --> 00:02:50,283
+Agents can change.
+
+44
+00:02:50,283 --> 00:02:54,114
+The memory stays current, inspectable, and portable.
+
+45
+00:02:54,114 --> 00:02:57,398
+Lacuna: memory that knows what changed.

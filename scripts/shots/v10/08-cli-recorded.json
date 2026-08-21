@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "v10-cli-recorded",
+  "url": "http://127.0.0.1:4174/#cli",
+  "output": "video/hyperframes-v10/assets/captures/08-cli-recorded.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "#cli", "state": "visible", "timeoutMs": 25000, "textIncludes": "RECORDED RUN" },
+    { "selector": "#cli", "state": "visible", "timeoutMs": 25000, "textIncludes": "ARTIFACTS/CLI/SESSION.TXT" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 700 },
+    { "type": "scroll", "selector": "#cli", "align": "end", "offsetPx": 0, "durationMs": 800, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 700 },
+    { "type": "scroll", "selector": "#hydra", "align": "start", "offsetPx": 0, "durationMs": 2200, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 650 }
+  ],
+  "success": [
+    { "selector": "#hydra", "state": "visible", "timeoutMs": 5000, "textIncludes": "underneath Lacuna." }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

@@ -3,14 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1920, height=1080">
-    <title>Lacuna — ask, answer, inspect</title>
+    <title>Lacuna — conflict to never stated</title>
     <style>
-      @font-face {
-        font-family: "Space Grotesk";
-        src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
-        font-weight: 300 700;
-        font-display: block;
-      }
       @font-face {
         font-family: "JetBrains Mono";
         src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
@@ -19,143 +13,142 @@
       }
       * { box-sizing: border-box; }
       html, body { width: 1920px; height: 1080px; margin: 0; overflow: hidden; background: #000; }
-      body { color: #fff; font-family: "Space Grotesk", sans-serif; }
       #b04-root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
       .b04-fill { position: absolute; inset: 0; overflow: hidden; background: #000; }
-      .b04-screen {
+      .b04-shot {
         position: absolute;
-        inset: 0;
+        left: 0;
+        top: 0;
         width: 1920px;
-        height: 1080px;
-        object-fit: cover;
         transform-origin: 0 0;
+        will-change: transform, opacity;
       }
-      .b04-frame {
+      #b04-ask { height: 1080px; }
+      #b04-never { height: 3865.3333px; opacity: 0; }
+      .b04-frame { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.08); pointer-events: none; }
+      .b04-topline {
         position: absolute;
-        inset: 0;
-        pointer-events: none;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+        left: 58px;
+        right: 58px;
+        top: 42px;
+        height: 58px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        padding: 0 20px;
+        border: 1px solid rgba(255,255,255,0.15);
+        background: #030303;
+        color: #9a9a9a;
+        font: 500 13px/1 "JetBrains Mono", monospace;
+        letter-spacing: 0.16em;
+      }
+      .b04-stage { opacity: 0.38; }
+      .b04-stage strong { color: #8053ff; font-weight: 500; }
+      .b04-arrow { color: #8053ff; opacity: 0.55; }
+      .b04-source { margin-left: auto; color: #bdbdbd; }
+      .b04-progress {
+        position: absolute;
+        left: 0;
+        bottom: -1px;
+        width: 100%;
+        height: 2px;
+        background: #8053ff;
+        transform-origin: left center;
       }
       .b04-focus {
         position: absolute;
-        border: 1px solid rgba(128,82,255,0.95);
-        border-radius: 10px;
-        opacity: 0;
+        border: 1px solid #8053ff;
         pointer-events: none;
+        opacity: 0;
       }
-      #b04-query-focus { left: 633px; top: 89px; width: 869px; height: 68px; }
-      #b04-answer-focus { left: 631px; top: 446px; width: 773px; height: 232px; }
-      .b04-rail {
+      #b04-conflict-focus { left: 396px; top: 382px; width: 940px; height: 332px; }
+      #b04-never-focus { left: 350px; top: 408px; width: 1238px; height: 226px; }
+      .b04-tag {
         position: absolute;
-        left: 60px;
-        right: 60px;
-        bottom: 36px;
-        height: 62px;
-        display: flex;
-        align-items: center;
-        gap: 52px;
-        padding: 0 25px;
-        border: 1px solid rgba(255,255,255,0.16);
+        padding: 10px 12px;
+        border-left: 2px solid #8053ff;
         background: #030303;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 14px;
-        letter-spacing: 0.18em;
+        color: #fff;
+        font: 500 12px/1 "JetBrains Mono", monospace;
+        letter-spacing: 0.16em;
+        opacity: 0;
       }
-      .b04-phase { color: #9a9a9a; opacity: 0.46; }
-      .b04-phase strong { color: #fff; font-weight: 500; }
-      .b04-line {
-        position: absolute;
-        left: 25px;
-        bottom: -1px;
-        width: 118px;
-        height: 2px;
-        background: #8052ff;
-        transform-origin: left center;
-      }
-      .b04-proof {
-        margin-left: auto;
-        color: #bdbdbd;
-        font-size: 12px;
-        letter-spacing: 0.14em;
-      }
-      .b04-proof em { color: #8053ff; font-style: normal; }
+      #b04-conflict-tag { left: 396px; top: 730px; }
+      #b04-never-tag { left: 350px; top: 652px; }
     </style>
   </head>
   <body>
-    <div data-hf-id="hf-gh43" id="b04-root" data-composition-id="beat-04-demo" data-start="0" data-width="1920" data-height="1080" data-duration="19" data-fps="30">
-      <section data-hf-id="hf-ibgs" id="b04-scene" class="clip b04-fill" data-start="0" data-duration="19" data-track-index="1">
-        <img data-hf-id="hf-7is1" id="b04-screen" class="b04-screen" src="assets/screens/live-ask-1920x1080.png" alt="Captured Lacuna Ask surface showing an unresolved conflict with standing, resolution policy, and trace">
-        <div data-hf-id="hf-izk7" id="b04-query-focus" class="b04-focus"></div>
-        <div data-hf-id="hf-kcq9" id="b04-answer-focus" class="b04-focus"></div>
-        <div data-hf-id="hf-33k2" class="b04-frame"></div>
-        <div data-hf-id="hf-f4sy" id="b04-rail" class="b04-rail" data-layout-allow-caption-zone="">
-          <span data-hf-id="hf-254s" id="b04-phase-question" class="b04-phase"><strong data-hf-id="hf-c73h">01</strong> QUESTION</span>
-          <span data-hf-id="hf-6vls" id="b04-phase-resolver" class="b04-phase"><strong data-hf-id="hf-de0k">02</strong> RESOLVER</span>
-          <span data-hf-id="hf-4cb0" id="b04-phase-standing" class="b04-phase"><strong data-hf-id="hf-czpj">03</strong> STANDING</span>
-          <span data-hf-id="hf-comq" id="b04-phase-abstention" class="b04-phase"><strong data-hf-id="hf-e6mm">04</strong> ABSTENTION</span>
-          <span data-hf-id="hf-ddgy" class="b04-proof"><em data-hf-id="hf-qbr9">REAL CAPTURE</em> · TRACE VISIBLE</span>
-          <span data-hf-id="hf-zioz" id="b04-line" class="b04-line"></span>
+    <div data-hf-id="b04-root" id="b04-root" data-composition-id="beat-04-demo" data-start="0" data-width="1920" data-height="1080" data-duration="19" data-fps="30">
+      <section data-hf-id="b04-scene" id="b04-scene" class="clip b04-fill" data-start="0" data-duration="19" data-track-index="1">
+        <img data-hf-id="b04-ask" id="b04-ask" class="b04-shot" src="assets/screens/live-ask-1920x1080.png" alt="Captured Lacuna Ask result: billing-gate runbook-owner is contradicted because two current sources disagree">
+        <img data-hf-id="b04-never" id="b04-never" class="b04-shot" src="assets/screens/live-judge-fullpage.png" alt="Captured Lacuna live judge page showing zero sources and the exact never stated result">
+        <div data-hf-id="b04-conflict-focus" id="b04-conflict-focus" class="b04-focus"></div>
+        <div data-hf-id="b04-never-focus" id="b04-never-focus" class="b04-focus"></div>
+        <div data-hf-id="b04-conflict-tag" id="b04-conflict-tag" class="b04-tag">2 CURRENT SOURCES · CONTRADICTED</div>
+        <div data-hf-id="b04-never-tag" id="b04-never-tag" class="b04-tag">0 SOURCES · NEVER_STATED</div>
+        <div data-hf-id="b04-frame" class="b04-frame"></div>
+        <div data-hf-id="b04-topline" class="b04-topline" data-layout-allow-caption-zone="">
+          <span data-hf-id="b04-stage-conflict" id="b04-stage-conflict" class="b04-stage"><strong data-hf-id="hf-c73h">01</strong> CONFLICT IS PRESERVED</span>
+          <span data-hf-id="b04-arrow" class="b04-arrow">→</span>
+          <span data-hf-id="b04-stage-never" id="b04-stage-never" class="b04-stage"><strong data-hf-id="hf-de0k">02</strong> ABSENCE IS NOT INVENTED</span>
+          <span data-hf-id="b04-source" class="b04-source">EXACT PRODUCT CAPTURES</span>
+          <span data-hf-id="b04-progress" id="b04-progress" class="b04-progress"></span>
         </div>
       </section>
     </div>
     <script>
       window.__timelines = window.__timelines || {};
-      const b04 = gsap.timeline({ paused: true });
-      const b04Phases = [
-        "#b04-phase-question",
-        "#b04-phase-resolver",
-        "#b04-phase-standing",
-        "#b04-phase-abstention",
-      ];
+      const b04 = gsap.timeline({ paused: true, defaults: { ease: "power3.inOut" } });
 
-      b04.addLabel("question", 0);
-      b04.to(b04Phases[0], { opacity: 1, duration: 0.2 }, 0);
+      b04.addLabel("conflict", 0);
+      b04.fromTo("#b04-stage-conflict", { opacity: 0.38 }, { opacity: 1, duration: 0.25 }, 0);
       b04.fromTo(
-        "#b04-screen",
-        { x: -38, y: -22, scale: 1.04 },
-        { x: -556, y: 364, scale: 1.42, duration: 2.4, ease: "power3.inOut" },
-        0.35,
-      );
-      b04.to("#b04-query-focus", { opacity: 1, duration: 0.35 }, 2.1);
-      b04.to("#b04-query-focus", { opacity: 0, duration: 0.25 }, 4.25);
-
-      b04.addLabel("resolver", 4.4);
-      b04.to(b04Phases[0], { opacity: 0.46, duration: 0.18 }, 4.4);
-      b04.to(b04Phases[1], { opacity: 1, duration: 0.18 }, 4.4);
-      b04.to("#b04-line", { x: 170, duration: 0.45, ease: "power3.out" }, 4.4);
-      b04.to(
-        "#b04-screen",
-        { x: -182, y: -82, scale: 1.12, duration: 2.25, ease: "power3.inOut" },
-        4.35,
-      );
-
-      b04.addLabel("standing", 7.15);
-      b04.to(b04Phases[1], { opacity: 0.46, duration: 0.18 }, 7.15);
-      b04.to(b04Phases[2], { opacity: 1, duration: 0.18 }, 7.15);
-      b04.to("#b04-line", { x: 342, duration: 0.45, ease: "power3.out" }, 7.15);
-      b04.to("#b04-answer-focus", { opacity: 1, duration: 0.32 }, 7.45);
-      b04.to(
-        "#b04-screen",
-        { x: -360, y: -265, scale: 1.32, duration: 2.15, ease: "power2.inOut" },
-        8.05,
-      );
-
-      b04.addLabel("abstention", 11.55);
-      b04.to(b04Phases[2], { opacity: 0.46, duration: 0.18 }, 11.55);
-      b04.to(b04Phases[3], { opacity: 1, duration: 0.18 }, 11.55);
-      b04.to("#b04-line", { x: 520, duration: 0.45, ease: "power3.out" }, 11.55);
-      b04.to("#b04-answer-focus", { opacity: 0, duration: 0.3 }, 13.5);
-      b04.to(
-        "#b04-screen",
-        { x: 0, y: 0, scale: 1, duration: 2.5, ease: "power3.inOut" },
-        14.2,
+        "#b04-ask",
+        { x: 0, y: 0, scale: 1 },
+        { x: -458, y: -216, scale: 1.35, duration: 3.2 },
+        0.55,
       );
       b04.fromTo(
-        "#b04-rail",
-        { y: 0 },
-        { y: -7, duration: 0.8, ease: "power2.out" },
-        17.2,
+        "#b04-conflict-focus",
+        { opacity: 0, scale: 0.985 },
+        { opacity: 1, scale: 1, duration: 0.34, ease: "power3.out" },
+        3.05,
       );
+      b04.fromTo(
+        "#b04-conflict-tag",
+        { x: -20, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.42, ease: "power3.out" },
+        3.28,
+      );
+      b04.to("#b04-progress", { scaleX: 0.46, duration: 6.1, ease: "none" }, 0);
+
+      b04.addLabel("handoff", 7.1);
+      b04.to("#b04-conflict-focus, #b04-conflict-tag", { opacity: 0, duration: 0.24 }, 7.1);
+      b04.to("#b04-stage-conflict", { opacity: 0.38, duration: 0.2 }, 7.1);
+      b04.to("#b04-stage-never", { opacity: 1, duration: 0.2 }, 7.1);
+      b04.to("#b04-ask", { opacity: 0, duration: 0.38, ease: "none" }, 7.15);
+      b04.fromTo(
+        "#b04-never",
+        { opacity: 0, x: 0, y: -1525, scale: 1 },
+        { opacity: 1, x: -50, y: -1770, scale: 1.08, duration: 1.35, ease: "power3.out" },
+        7.15,
+      );
+      b04.to("#b04-progress", { scaleX: 1, duration: 1.35, ease: "power3.out" }, 7.15);
+
+      b04.addLabel("never-stated", 8.7);
+      b04.fromTo(
+        "#b04-never-focus",
+        { opacity: 0, scale: 0.985 },
+        { opacity: 1, scale: 1, duration: 0.36, ease: "power3.out" },
+        9.05,
+      );
+      b04.fromTo(
+        "#b04-never-tag",
+        { x: -20, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.44, ease: "power3.out" },
+        9.32,
+      );
+      b04.to("#b04-never", { x: -68, y: -1794, scale: 1.095, duration: 6.8, ease: "sine.inOut" }, 10.3);
 
       window.__timelines["beat-04-demo"] = b04;
     </script>

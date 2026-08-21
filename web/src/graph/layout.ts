@@ -71,6 +71,72 @@ export function overviewLayout(
   });
 }
 
+export interface OverviewCamera3D {
+  readonly yaw: number;
+  readonly pitch: number;
+}
+
+export interface ProjectedGraphNode extends PlacedGraphNode {
+  /** Stable semantic depth before camera rotation. */
+  readonly z: number;
+  readonly screenX: number;
+  readonly screenY: number;
+  /** Perspective scale. Values are clamped so labels remain usable. */
+  readonly scale: number;
+  /** Rotated depth, used for back-to-front painting. */
+  readonly cameraZ: number;
+}
+
+function stableDepth(id: string): number {
+  // FNV-1a keeps the same node at the same depth across filters and sessions.
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return (hash % 241) - 120;
+}
+
+/**
+ * Project the state-shaped overview into a deterministic perspective field.
+ *
+ * The third axis is navigational, not invented evidence: the source graph still
+ * owns every line and the proof layout still owns causality. Depth simply lets
+ * a dense loaded page be rotated and inspected without flattening every mark
+ * into the same plane.
+ */
+export function projectOverview3D(
+  nodes: readonly PlacedGraphNode[],
+  camera: OverviewCamera3D,
+  width = 1_000,
+  height = 620,
+): readonly ProjectedGraphNode[] {
+  const centreX = width / 2;
+  const centreY = height / 2;
+  const cosYaw = Math.cos(camera.yaw);
+  const sinYaw = Math.sin(camera.yaw);
+  const cosPitch = Math.cos(camera.pitch);
+  const sinPitch = Math.sin(camera.pitch);
+  return nodes.map((node) => {
+    const x = node.x - centreX;
+    const y = node.y - centreY;
+    const z = stableDepth(node.id) + (node.layer - 2.5) * 18;
+    const yawX = x * cosYaw + z * sinYaw;
+    const yawZ = -x * sinYaw + z * cosYaw;
+    const pitchY = y * cosPitch - yawZ * sinPitch;
+    const cameraZ = y * sinPitch + yawZ * cosPitch;
+    const perspective = 760 / Math.max(470, 760 + cameraZ);
+    return {
+      ...node,
+      z: Number(z.toFixed(3)),
+      screenX: Number((centreX + yawX * perspective).toFixed(3)),
+      screenY: Number((centreY + pitchY * perspective).toFixed(3)),
+      scale: Number(Math.max(0.62, Math.min(1.42, perspective)).toFixed(4)),
+      cameraZ: Number(cameraZ.toFixed(3)),
+    };
+  });
+}
+
 const PROOF_LAYER: Readonly<Record<GraphNode['kind'], number>> = {
   source: 0,
   evidence: 1,

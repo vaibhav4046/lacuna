@@ -1,22 +1,27 @@
 # Current state
 
-Updated 2026-08-20. This file describes the current V8 candidate, not the
-historical V7 release. Detailed claim boundaries live in
-[`docs/FINAL_CAPABILITY_MATRIX.md`](docs/FINAL_CAPABILITY_MATRIX.md) and
-[`docs/FINAL_EXECUTION_STATE.md`](docs/FINAL_EXECUTION_STATE.md).
+Updated 2026-08-21. This file describes the V10 working tree and keeps it
+separate from the accepted production deployment. The current handoff is
+[`docs/V10_RELEASE_STATUS.md`](docs/V10_RELEASE_STATUS.md); V8 matrices remain
+dated evidence.
 
 ## Candidate verified locally
 
-- 79 unit test files and 1,344 tests passed with no skips.
+- 83 unit test files and 1,376 tests passed with no skips.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 104 modules. The entry is 282.09 kB,
-  92.64 kB gzip.
+- The production web bundle builds from 124 modules. The entry is 286.42 kB,
+  94.08 kB gzip.
 - Copy lint scans 57 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
 - Two bounded, no-write agents run Researcher to Reviewer handoffs from a
   Context Pack. Memory-derived recommendations state their reason, evidence,
   permissions and budgets before any run or schedule is created.
+- The public workspace is read-only in the current candidate:
+  `POST /api/explore/agent/run` and its legacy `/api/demo` alias return
+  `403 public_preview_read_only` before reading a body or calling a provider.
+  Existing public run records remain inspectable. Authenticated, CSRF-protected
+  `/api/workspace/agent/run` still creates a real workspace-scoped run.
 - Daily schedule creation, run-now, retry and cancellation exist. The cron
   dispatcher discovers private workspaces server-side and authenticates before
   reading the registry.
@@ -26,11 +31,29 @@ historical V7 release. Detailed claim boundaries live in
   30-day session.
 - Hosted password signup is disabled. HydraDB's current writer cannot provide
   the atomic unique create needed to make same-email password signup safe.
-- Private MCP uses a 256-bit random revocable bearer stored digest-only. The
-  workspace comes from the signed-in account, never from request input. Body,
-  request, tool, write and issuance limits are enforced.
+- Private MCP uses a 256-bit random bearer stored digest-only. It expires 30
+  days after issue, can be revoked earlier, and issuance returns `createdAt`
+  plus `expiresAt`. Capabilities fail at `expiresAt`; version-1 records fail
+  closed and must be reminted after rollout. The workspace comes from the
+  signed-in account, never from request input. Body, request, tool, write and
+  issuance limits are enforced.
 - Hydra Cloud configuration accepts only the exact canonical HTTPS origin, so
   a lookalike host cannot receive the bearer through misconfiguration.
+- Production answers use HydraDB Cloud as a collection-scoped addressed-record
+  store. Lacuna fetches those deterministic entity records and applies temporal
+  standing, contradiction, abstention and multi-hop resolution in application
+  code. The native Cypher adapter and 162-query compatibility probe target a
+  separate self-hosted HydraDB node; they are genuine proof, not the deployed
+  answer path.
+- Text and Custom ingestion are `AVAILABLE`. GitHub, GitLab, Linear, Jira,
+  Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API, Webhook and
+  Database source are `PLANNED`; none is `CONNECTED` or `SYNCING`. Spotify is
+  not in the connector catalogue and is not implemented.
+- The exact 399-character `package-session` blast-radius request is
+  `NOT_PROVEN`. The subject is absent, the sentence exceeds the 300-character
+  sentence API contract, and no Web, CLI or MCP blast-radius command carries
+  that full request. The recorded hostile audit is
+  `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json`.
 - The landing, dashboard, agents, tools, graph and mobile shell have been
   redesigned. Reduced motion disables non-essential movement.
 - Voice browser/runtime routes are implemented and fixture-tested. Typed Ask
@@ -38,20 +61,26 @@ historical V7 release. Detailed claim boundaries live in
 
 ## Production acceptance still required
 
-The stable URL is <https://lacuna-five.vercel.app>. It currently represents
-the last accepted V8 deployment, not every uncommitted candidate change above.
-After deployment, rerun web/demo/auth/graph/agent/schedule/MCP browser gates and
-verify OAuth cache headers from the live origin.
+The stable URL is <https://lacuna-five.vercel.app>. The accepted production
+baseline and its deployment id are named in `docs/V10_RELEASE_STATUS.md`; they
+do not include every uncommitted candidate change above. In particular, the
+anonymous-agent 403 boundary and current landing changes still require a fresh
+deployment and rerun of the web/demo/auth/graph/agent/schedule/MCP gates before
+they become production evidence. The public repository must contain the exact
+accepted source before submission.
 
-The exact final narration/transition voice is selected as **Vaibhav Lalwani
-Professional**. No ElevenLabs voice id or provider-enabled STT/TTS/interruption
-session is installed or accepted in production, so no final audio claim is
-made. The local George recording is timing-only and must not ship as the final
-voice.
+The selected narration voice is the verified ElevenLabs **Vaibhav Lalwani
+Professional** clone. Raw clone audio stays local and gitignored so a biometric
+voice asset is not redistributed. A narration render is not proof of the
+product's live voice route; no provider-enabled STT/TTS/interruption session is
+accepted in production.
 
-There is no approved final three-minute MP4, Supademo walkthrough, YouTube link,
-ChatGPT custom-app proof, Claude MCP proof, Spotify connector, or packaged
-Lacuna SDK. Nothing has been submitted or uploaded.
+The metadata-verified 179-second V8 MP4 is historical, was rejected by the
+owner, and is not submission media. The V10 cut, Supademo, YouTube and form
+submission remain open. The seven-tool public ChatGPT MCP proof is accepted;
+Claude remains untested. A packaged Lacuna SDK and a Spotify connector are not
+shipped capabilities, not pending claims. Nothing has been submitted or
+uploaded.
 
 ## Remaining engineering limits
 
@@ -68,8 +97,10 @@ Lacuna SDK. Nothing has been submitted or uploaded.
   lifecycle controls.
 - Existing pre-binding Google records deliberately fail closed until a separate
   verified migration/linking flow exists.
-- MCP path-form capabilities may appear in infrastructure logs. Prefer the
-  `Authorization: Bearer` header and revoke the credential when finished.
+- MCP path-form capabilities may appear in infrastructure logs. Prefer
+  `Authorization: Bearer <capability>` at `/mcp`; use
+  `/mcp/w/<capability>` only when a client cannot set headers. Revoke the
+  credential when finished even though it expires after 30 days.
 
 ## Submission boundary
 

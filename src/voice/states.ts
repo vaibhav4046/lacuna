@@ -184,9 +184,9 @@ export const STATE_FACTS: Readonly<Record<VoiceState, StateFacts>> = Object.free
     detail: 'No microphone track, provider session, query or audio playback is active.',
   },
   REQUESTING_PERMISSION: {
-    label: 'Permission', status: 'Requesting microphone permission', failed: false,
+    label: 'Permission', status: 'Preparing secure voice', failed: false,
     weight: 'outline', provisional: true, transcript: 'Unavailable', signal: null,
-    detail: 'The browser permission prompt is open. Listening has not started.',
+    detail: 'The server is checking speech access before the browser requests microphone permission. Listening has not started.',
   },
   LISTENING: {
     label: 'Listening', status: 'Listening', failed: false, weight: 'full', provisional: false,

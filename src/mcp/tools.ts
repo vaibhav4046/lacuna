@@ -6,7 +6,7 @@ import { MAX_TERM_CHARS } from '../retrieval/question.js';
 import { MAX_EVIDENCE_ITEMS } from './result.js';
 
 /**
- * The four tools, and the schemas a client validates against.
+ * The tool catalog, and the schemas a client validates against.
  *
  * Everything here is read-only. There is no tool that writes a claim, resets
  * the graph or deletes anything, and that is a property of the release rather
@@ -30,13 +30,14 @@ const PREFIX = 'lacuna_';
 /**
  * Stated in every question tool's description.
  *
- * A model that does not know the data is fixed and local will try to reason
+ * A model that does not know the public proof data is fixed will try to reason
  * about freshness, and a model that does not know abstention is a real outcome
  * will treat it as a failure and retry.
  */
 const CORPUS_NOTE
-  = 'The corpus is a seeded, deterministic set of synthetic conversations in a local '
-  + 'HydraDB graph. It is not the internet and it is not the user\'s own data. '
+  = 'The public proof corpus is a reproducible, generated set of synthetic conversations '
+  + 'stored in HydraDB; every result is resolved live from that dataset. It is not the '
+  + 'internet and it is not the caller\'s private workspace. '
   + 'Read-only: this tool cannot change anything. Abstaining is a correct outcome, '
   + 'not an error, and the reason code says which kind.';
 
@@ -229,7 +230,7 @@ const HEALTH_OUTPUT: Tool['outputSchema'] = {
 /**
  * Read-only in every sense the annotations can express.
  *
- * `openWorldHint` is false because the graph is a fixed local corpus rather
+ * `openWorldHint` is false because the public proof dataset is fixed rather
  * than an open-ended service, which is the distinction the field was added for.
  */
 const READ_ONLY: Tool['annotations'] = {

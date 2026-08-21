@@ -352,7 +352,7 @@ export async function callTool(
   if (name === REMEMBER_TOOL && context.remember === undefined) {
     throw new McpError(
       ErrorCode.InvalidRequest,
-      'this connection is read only. Send the x-lacuna-workspace header naming a workspace to write into one.',
+      'this connection is read only. Authenticate with a private workspace capability to use remember.',
     );
   }
 
@@ -669,7 +669,7 @@ async function rememberTool(
   if (write === undefined) {
     throw new McpError(
       ErrorCode.InvalidRequest,
-      'this connection is read only. Point it at a workspace to write into one.',
+      'this connection is read only. Authenticate with a private workspace capability to use remember.',
     );
   }
 

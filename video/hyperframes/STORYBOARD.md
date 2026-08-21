@@ -1,270 +1,253 @@
-# Lacuna — three-minute launch film storyboard
+# Lacuna: final judges-master storyboard
+
+This file describes the rendered judges-master candidate. It is a record of the
+implemented edit, not a wishlist for a later production.
+
+## Master contract
+
+- Frame: 1920x1080, 16:9, 30 fps.
+- Host duration: 179 seconds.
+- Narration: verified ElevenLabs `Vaibhav Lalwani Professional` clone, voice id
+  `GAeq3X4y41cIseBkBfsS`, Eleven Multilingual v2.
+- Narration source: local, intentionally gitignored biometric audio at
+  `assets/narration-vaibhav/lacuna-v8-vaibhav.mp3`, 177.3975 seconds, SHA-256
+  `FF7472F1C136C7C4FAE8C72F09F90D6D74EA503366D6CDD3F2F398F6604A263A`.
+- Spoken copy: [SCRIPT.md](SCRIPT.md), without substitutions or retiming.
+- Captions: deterministic sentence timing from `compositions/captions.html`,
+  burned into the picture. The matching 45-cue sidecar is
+  `renders/lacuna-v8-judges-master-vaibhav.srt` and ends at `00:02:57,398`.
+- Audio mix: narration only. The film contains no music bed or sound effects.
+- Motion: paused, seek-safe GSAP timelines over captured product frames and
+  first-party graphic elements. The edit contains no authored cursor, fake
+  typing, simulated product response, live-action footage, or render-time
+  network request.
+- Local render: `renders/lacuna-v8-judges-master-vaibhav.mp4`, 126,468,170
+  bytes, SHA-256
+  `C941FDA5F1D40856FBCB1C2D18816C6E4C917924740B78B80351D940E5BDFD28`.
+- Render status: HyperFrames artifact validation passed. Owner approval,
+  YouTube upload, Supademo, and submission remain open.
 
-**Format:** 1920×1080, 30 fps, 16:9, 175 seconds maximum
-**Audio:** verified ElevenLabs narration + minimal electronic underscore + restrained interface SFX
-**VO direction:** calm, incisive, technically credible; keynote pace with real pauses; never hype a state that is not visible
-**Style basis:** `DESIGN.md` and exact production captures
+The narration runs continuously across scene cuts. Each scene below references
+the exact time window in [SCRIPT.md](SCRIPT.md); scene boundaries do not define
+new or paraphrased voiceover.
 
-## Global direction
+## Implemented host order
 
-The viewer travels through one Memory Aperture. It begins as the landing-page Gravity Field, turns to reveal a real artifact through its center, and then disappears once the product has been entered. Every subsequent scene is a distinct working surface: answer, memory, graph, agents, voice, HydraDB, CLI/MCP, and measured artifacts. Captured UI is never color graded or rewritten. Energy comes from camera moves, precise cursor actions, proof-path drawing, foreground metadata, and transitions around unchanged pixels.
+| Order | Composition | Host time | Duration | Purpose |
+| --- | --- | --- | --- | --- |
+| 1 | `beat-01-aperture` | 0:00-0:09 | 9s | Lacuna mark and deployed landing hero |
+| 2 | `beat-02-problem` | 0:09-0:27 | 18s | Current, history, and conflict |
+| 3 | `beat-03-architecture` | 0:27-0:43 | 16s | Extraction, provenance graph, Context Pack |
+| 4 | `beat-04-demo` | 0:43-1:02 | 19s | Conflict and never-stated product answers |
+| 5 | `beat-05-graph` | 1:02-1:20 | 18s | Overview, proof graph, readable proof row |
+| 6 | `beat-06-agents` | 1:20-1:39 | 19s | Recommendation, bounded agents, run, schedule |
+| 7 | `beat-09-everywhere` | 1:39-1:59 | 20s | Web, CLI, and MCP parity |
+| 8 | `beat-07-voice` | 1:59-2:11 | 12s | Product voice boundary and typed fallback |
+| 9 | `beat-08-hydradb` | 2:11-2:28 | 17s | Provenance and HydraDB graph walk |
+| 10 | `beat-10-proof` | 2:28-2:47 | 19s | Generated evaluation and store parity |
+| 11 | `beat-11-close` | 2:47-2:59 | 12s | Client convergence and Lacuna close |
 
-The underscore is a restrained modular pulse: low sub and dry clockwork at the problem, a wider harmonic bed when Lacuna resolves the context, a near-silent drop for abstention and security proof, then a confident but not triumphant close. SFX are factual—click, key, path tick, state change, completion chime—not trailer impacts. Motion remains deterministic and seek-safe. Reduced-motion product behavior is shown in the accessibility appendix capture, not mixed into the main edit.
+## Scene 01: aperture and landing hero, 0:00-0:09
 
-## Asset audit
+**Narration:** Exact `SCRIPT.md` audio from 0:00 through 0:09.
 
-| Asset | Type | Beat | Role |
-| --- | --- | --- | --- |
-| `capture-final/screenshots/scroll-000.png` | Production landing capture | 1 | Exact redesigned hero and Memory Aperture |
-| `capture-final/screenshots/scroll-006.png` | Production landing capture | 2 | Problem and capability progression |
-| `capture-final/screenshots/scroll-012.png` | Production landing capture | 3 | Time-aware context journey |
-| `capture-final/screenshots/scroll-023.png` | Production landing capture | 3 | Architecture and client surface |
-| `assets/screens/live-ask-1920x1080.png` | Deployed product | 4 | Answer, explanation, evidence, artifact |
-| `assets/screens/live-dashboard-v8-1920x1080.png` | Deployed product | 4 | Signed-out control room and memory summary |
-| `assets/screens/live-graph-v8-1920x1080.png` | Deployed product | 5 | Interactive graph and table |
-| `assets/screens/live-proof-graph-v8-1920x1080.png` | Deployed product | 5 | Exact source-to-entity proof page |
-| `assets/screens/live-agent-recommendations-v8-1920x1080.png` | Deployed product | 6 | Memory-derived bounded agent suggestions |
-| `assets/screens/live-agents-v8-1920x1080.png` | Deployed product | 6 | Agent ledger and schedule |
-| `assets/screens/live-work-v8-1920x1080.png` | Deployed product | 6 | Daily schedule and run history |
-| `assets/screens/live-voice-v8-1920x1080.png` | Deployed product | 7 | Explicit voice state machine |
-| `assets/screens/live-hydradb-top-1920x1080.png` | Deployed product | 8 | HydraDB counts and checks |
-| `assets/screens/live-hydradb-1920x1080.png` | Deployed product | 8 | Store graph relations |
-| `assets/screens/live-evaluations-1920x1080.png` | Deployed product | 10 | Labelled generated evaluation |
-| `assets/continuity.txt` | Recorded CLI/MCP output | 9 | Exact same-store parity transcript |
-| `assets/favicon.svg` | Brand mark | 1, 11 | Opening and closing Lacuna mark |
-| `artifacts/cli/session.txt` | Recorded cloud CLI session · 2026-08-19 | 9 | Status, answered, evidence, and abstention proof |
-| `assets/continuity.txt` | Recorded web/CLI/MCP parity | 9 | Same-store values and `ONE_CONTEXT_IDENTICAL: true` |
+The first-party Lacuna mark draws on black. A circular reveal opens onto
+`capture-final/screenshots/scroll-000.png`, the deployed landing hero. The mark
+moves into the captured hero position, the capture holds under a slow camera
+push, and the camera moves back through the aperture for the next scene.
 
-The preview edit uses verified production captures and repository artifacts only. Continuous cursor recordings remain a final polish gate, not a prerequisite hidden behind simulated UI. Conditional voice media is omitted, not simulated, until the exact selected clone passes production STT, TTS, and interruption acceptance.
+No source chips, telemetry, cursor, or sound cue is present.
 
-## Beat 1 — The memory aperture · 0:00–0:09
+## Scene 02: current, history, conflict, 0:09-0:27
 
-**VO:** “Your agent remembers the meeting, the pull request, and the runbook—as if all three were still true.”
+**Narration:** Exact `SCRIPT.md` audio from 0:09 through 0:27.
 
-**Concept:** We begin inside Lacuna’s mark, not on a title card. Tiny source glyphs orbit at full size, then camera distance reveals that they form the Memory Aperture beside the live landing-page headline. The product identity and problem arrive as one continuous discovery.
+The aperture opens onto three implemented states in sequence:
 
-**Visual:** Exact `scroll-000.png` establishes the hero. The Lacuna mark traces on; four mono source chips—MEETING, PR, RUNBOOK, CHAT—ride the captured ring. A subtle telemetry corner shows `4 SOURCES / 1 DECISION`. Headline words settle on their spoken cues. The real CTA and HydraDB line remain visible.
+1. `capture-final/screenshots/scroll-017.png` with `Find what is true now.`
+2. `capture-final/screenshots/scroll-023.png` with the retained-history copy.
+3. `assets/screens/live-timeline-1920x1080.png` with the conflict state and
+   `NO ANSWER · CONTRADICTED`.
 
-**Techniques:** SVG stroke trace; deterministic Canvas 2D orbit matching captured glyph language; per-word kinetic type; slow push-in.
+Clip-path reveals, capture translation, copy changes, and the persistent Lacuna
+mark provide the movement. No synthetic four-card source stack is shown.
 
-**Choreography:** mark DRAWS; source chips ORBIT; headline SETTLES word by word; camera PUSHES through the aperture on “true.”
+## Scene 03: extraction to Context Pack, 0:27-0:43
 
-**Transition:** registry `zoom-through-transition`, 0.55s, centered on the aperture opening.
+**Narration:** Exact `SCRIPT.md` audio from 0:27 through 0:43.
 
-**Depth:** BG captured black field; MG live hero; FG source chips, mark trace, telemetry corners.
+`assets/screens/live-extract-1920x1080.png` opens first. The scene wipes to
+`assets/screens/live-proof-graph-v8-1920x1080.png`, then reframes the captured
+source, evidence, claim, and entity path. A first-party Context Pack panel
+appears with four rows: standing state, evidence, history, and missing evidence.
 
-**SFX:** one dry path tick per source; low sub begins; no logo boom.
+This is the implemented architecture claim: conversations become structured
+evidence and claims, HydraDB holds the graph substrate, and Lacuna compiles a
+bounded context result. The scene does not show seven animated clients or a
+live ingest transaction.
 
-## Beat 2 — Four memories, one decision · 0:09–0:27
+## Scene 04: conflict and absence, 0:43-1:02
 
-**VO:** Problem paragraph from `SCRIPT.md`.
+**Narration:** Exact `SCRIPT.md` audio from 0:43 through 1:02.
 
-**Concept:** The viewer is inside the memory. Four intact source records occupy one spatial stack; none is erased. The sequence demonstrates why “retrieve everything” is not resolution.
+The scene starts on `assets/screens/live-ask-1920x1080.png`, the captured
+billing-gate conflict result. Focus rectangles identify the two current sources
+and contradiction trace. It then cuts to
+`assets/screens/live-judge-fullpage.png` and moves to the captured Foxglove
+result with zero sources and `never_stated`.
 
-**Visual:** Four exact-text records CASCADE in: Redis, Postgres proposal, implemented PR, confirmation. Their dates and source types remain readable. A thin violet time rail draws below them. On “hopes,” every record compresses into one overcrowded context window; on “current truth,” the current row separates while history and conflict remain behind.
+The film shows completed product states. It does not show a cursor, keystrokes,
+loading, streaming, or a fabricated interaction.
 
-**Techniques:** CSS 3D stack; SVG path drawing; strikethrough-replace only for the visual relationship, never deletion; velocity-matched shared-axis transition.
+## Scene 05: overview to exact proof, 1:02-1:20
 
-**Choreography:** records CASCADE; time rail DRAWS; context window COMPRESSES; current row LIFTS; historical rows HOLD.
+**Narration:** Exact `SCRIPT.md` audio from 1:02 through 1:20.
 
-**Transition:** registry `type-match-cut`; the word CURRENT opens the architecture lane.
+`assets/screens/live-graph-v8-1920x1080.png` establishes the accepted public
+overview and its 453-record total. The edit changes to
+`assets/screens/live-proof-graph-v8-1920x1080.png`, follows the captured
+source-to-evidence-to-claim-to-entity layout, and ends on a readable selected
+proof row.
 
-**Depth:** BG sparse date grid; MG record stack; FG time cursor and source labels.
+The count and proof content come from the captures. No generated graph nodes or
+interactive table action is added in the film.
 
-**SFX:** paper-dry card landings; one clipped overload hiss; clean locator chime on current.
+## Scene 06: bounded agents and schedule, 1:20-1:39
 
-## Beat 3 — Lacuna on HydraDB · 0:27–0:43
+**Narration:** Exact `SCRIPT.md` audio from 1:20 through 1:39.
 
-**VO:** What-we-built paragraph.
+Four captured states appear in order:
 
-**Concept:** A living system diagram, not an architecture slide. Evidence enters from distinct clients, passes through Lacuna’s policy/compiler/router, becomes a compact Context Pack, while HydraDB’s persistent graph remains visible underneath as durable state.
+1. `assets/screens/live-agent-recommendations-v8-1920x1080.png`.
+2. `assets/screens/live-agents-v8-1920x1080.png`.
+3. `assets/screens/live-agents-1920x1080.png`.
+4. `assets/screens/live-work-v8-1920x1080.png`.
 
-**Visual:** The refreshed real landing architecture scroll is the base. Seven input chips arrive from transcript, corpus, ingest, MCP, CLI, API, and agent outcome. SVG beams connect into the Lacuna core. Evidence/claims/relationships descend into HydraDB; one compact pack exits toward MODEL, TOOL, AGENT. Each stage gets one concise live status line.
+The phase rail reads `MEMORY RECOMMENDS`, `AGENTS ARE BOUNDED`, `RUN IS
+PERSISTED`, and `DAILY · 06:00 UTC`. The persistent boundary reads `NO
+AUTHORITATIVE WRITE`.
 
-**Techniques:** real video compositing; tracing-beam path; state-chip rail; CSS 3D depth separation.
+This scene proves two built-in roles, one persisted eight-event run, its
+artifacts, and one daily schedule. It does not claim arbitrary user-created
+agents, distributed atomic leases, or cross-instance exactly-once execution.
 
-**Choreography:** inputs STREAM; beams TRACE; Hydra layer FILLS; Context Pack FOLDS to one-sixth width; output rail ADVANCES.
+## Scene 09: one context across web, CLI, and MCP, 1:39-1:59
 
-**Transition:** registry `gravitational-lens`, 0.7s, used once to enter the working product.
+**Narration:** Exact `SCRIPT.md` audio from 1:39 through 1:59.
 
-**Depth:** BG Hydra persistent layer; MG Lacuna compiler/router; FG clients, pack, telemetry.
+The scene renders the recorded cloud CLI result and the recorded parity result
+as first-party HTML. Its source records are `assets/continuity.txt` and the
+repository-level `artifacts/cli/session.txt`. It shows Bellwether resolving to
+Halverd, six representative parity rows, `ONE_CONTEXT_IDENTICAL: true`, and the
+same HydraDB Cloud collection across web, CLI, and MCP.
 
-**SFX:** seven quiet ingress ticks; low graph rumble; compact snap when the pack closes.
+The final panel states `Packaged Lacuna SDK: not shipped` and names the shipped
+HTTP, CLI, and MCP surfaces. This is not evidence that ChatGPT or Claude
+connected to Lacuna.
 
-## Beat 4 — Ask, answer, inspect · 0:43–1:02
+## Scene 07: product voice boundary, 1:59-2:11
 
-**VO:** Working-demo paragraph.
+**Narration:** Exact `SCRIPT.md` audio from 1:59 through 2:11.
 
-**Concept:** No montage tricks. We watch one uninterrupted real product action from question to artifact, then a fast truthful cut to abstention. The cursor is an actor whose movement explains the interface.
+`assets/screens/live-voice-v8-1920x1080.png` remains the product frame. Camera
+reframes identify the real ready state, the typed fallback, and the provider
+acceptance boundary. The overlay distinguishes `FILM NARRATION · EXACT CLONE
+VERIFIED` from `PROVIDER ACCEPTANCE PENDING`.
 
-**Visual:** Verified deployed captures show the completed answer, explanation, cited sentence, artifact, and conflict abstention. A restrained HUD names `ANSWER / EXPLANATION / EVIDENCE / ARTIFACT`; no fake loading or cursor event is inserted.
+No microphone, STT, product TTS, interruption, transcript, waveform, or product
+voice round-trip is simulated. The narration proves the selected film voice;
+the product route remains separately gated on its server key and production
+acceptance.
 
-**Techniques:** live video compositing; registry `simulated-cursor` only if capture cursor is absent; registry `ui-focus-zoom`; telemetry HUD.
+## Scene 08: HydraDB provenance and graph walk, 2:11-2:28
 
-**Choreography:** cursor TYPES and CLICKS; answer STREAMS; camera FOCUSES; evidence row HIGHLIGHTS; artifact OPENS; abstention CUTS in.
+**Narration:** Exact `SCRIPT.md` audio from 2:11 through 2:28.
 
-**Transition:** whip-pan along the artifact drawer edge into the memory table.
+The scene begins on `assets/screens/live-proof-graph-v8-1920x1080.png` with the
+captured source, evidence, claim, and entity order. It then changes to
+`assets/screens/live-hydradb-1920x1080.png` and reframes the product's HydraDB
+walk for one subject. The visible copy states that standing and replaced edges
+remain readable.
 
-**Depth:** BG application chrome; MG exact product; FG focus brackets and tiny HUD only.
+HydraDB is shown as the graph retrieval substrate. The scene does not claim a
+generic results bucket, a live write during playback, or a storage capability
+that is absent from the product evidence.
 
-**SFX:** real keystrokes, one submit click, two evidence ticks, silence before the abstention reason.
+## Scene 10: generated evaluation and parity, 2:28-2:47
 
-## Beat 5 — Readable memory, navigable graph · 1:02–1:20
+**Narration:** Exact `SCRIPT.md` audio from 2:28 through 2:47.
 
-**VO:** Memory-and-graph paragraph.
+`assets/screens/live-evaluations-1920x1080.png` is the base frame. The first-
+party overlay keeps `generated 64-question evaluation` and `not a public
+benchmark` visible with 64/64, zero false answers, zero unsupported answers,
+18.27 mean estimated context tokens, the 1,843-token baseline, and the baseline
+result of 63/64. The second proof panel shows self-hosted node and HydraDB Cloud
+field parity as `ALL_IDENTICAL: true` and `0 mismatches`.
 
-**Concept:** Scale without spaghetti. The camera starts over a readable table, pulls back to reveal hundreds of graph elements, then follows one violet proof path and returns to the exact edge row.
+The cited records are `artifacts/bench/results.json` and
+`artifacts/hydra/cloud-parity.json`. The film makes no general accuracy claim
+beyond this labelled generated corpus and question set.
 
-**Visual:** Verified overview and proof captures show the graph and readable edge table. Count-up lands at 453 nodes and 682 relationships only where the deployed UI displays those values. A violet tracer follows source → evidence → claim → entity.
+## Scene 11: close, 2:47-2:59
 
-**Techniques:** real video compositing; SVG tracing beam; counter; registry `ui-focus-zoom`; velocity throw-and-snap between overview and proof.
+**Narration:** Exact `SCRIPT.md` audio from 2:47 through 2:57.398. The final
+1.6025 seconds is picture hold without narration.
 
-**Choreography:** table SCROLLS; camera PULLS BACK; counts LOCK; proof tracer WALKS; matching row SLIDES into focus.
+The labels `WEB`, `CLI`, `MCP`, `AGENTS`, `VOICE`, and `API` converge on
+`assets/favicon.svg`. The close resolves to `THE AGENT CAN CHANGE. LACUNA
+STAYS.`, `One evidence-bearing memory · every client · built on HydraDB`, and
+`lacuna-five.vercel.app`.
 
-**Transition:** proof tracer continues offscreen and becomes the agent-run event rail.
+The frame holds on the real Lacuna mark and deployment URL. It does not show a
+repository URL, upload state, submission state, or partner logo wall.
 
-**Depth:** BG overview graph; MG focused nodes/table; FG violet tracer, counts, focus brackets.
+## Source and output paths
 
-**SFX:** soft node ticks increasing then stopping; four distinct path ticks.
-
-## Beat 6 — Recommended agents that really run · 1:20–1:39
-
-**VO:** Agents-and-scheduler paragraph.
-
-**Concept:** Memory becomes bounded work. A recommendation is visibly justified by workspace evidence; then the run ledger proves Researcher, Reviewer, artifacts, retries, cancellation controls, and the daily schedule are real state—not decorative cards.
-
-**Visual:** Verified recommendation, completed run, tool ledger, and schedule captures show reasons, evidence, bounded tools, artifacts, and `DAILY · 06:00 UTC`. A compact concurrency proof card appears only from the test artifact: 48 cron contenders, 32 Run Now callers, 32 duplicate callers. The film states that cross-instance exactly-once needs datastore compare-and-set.
-
-**Techniques:** live video compositing; state-chip rail; tracing beam between Researcher and Reviewer; counter/stagger cascade.
-
-**Choreography:** recommendation REVEALS; run STARTS; state chips ADVANCE; artifacts STACK; schedule LOCKS; concurrency values COUNT and HOLD.
-
-**Transition:** schedule’s circular status indicator enlarges into the voice orb.
-
-**Depth:** BG run ledger; MG artifact/schedule panels; FG state rail and bounded-tools labels.
-
-**SFX:** deterministic state ticks; restrained completion chime; no celebratory confetti.
-
-## Beat 7 — Voice is the same memory · 1:39–1:51
-
-**VO:** Voice paragraph, conditional on the acceptance note in `SCRIPT.md`.
-
-**Concept:** The orb is a state instrument. A real speech roundtrip moves through listening, committed transcript, thinking, evidence answer, speaking, and interruption; the typed fallback remains on screen so failure is never disguised.
-
-**Visual:** The deployed voice route remains unchanged beneath an honest overlay: `VAIBHAV LALWANI PROFESSIONAL SELECTED`, `PROVIDER NOT CONFIGURED`, and `NO SUBSTITUTE VOICE`. The fifteen-state implementation, server-only key boundary, interruption, and typed fallback are named without simulating a roundtrip.
-
-**Techniques:** live video compositing; state-chip rail; audio-reactive orb driven only by recorded waveform amplitude; soft focus zoom.
-
-**Choreography:** orb BREATHES; state rail ADVANCES; transcript COMMITS; answer APPEARS; speech PULSES; interrupt SNAPS to ready.
-
-**Transition:** a clean audio cut and blur-through to HydraDB counts.
-
-**Depth:** BG application; MG orb/transcript/answer; FG state rail and privacy label.
-
-**SFX:** real voice audio; no synthetic waveform; one tactile interrupt click.
-
-## Beat 8 — HydraDB is the durable graph · 1:51–2:08
-
-**VO:** Why-HydraDB paragraph.
-
-**Concept:** We separate evidence from claims physically. The frame becomes a two-layer ledger backed by the product’s HydraDB health and graph screens, making the storage role unmistakable.
-
-**Visual:** `live-hydradb-top` and `live-hydradb` occupy two interlocking planes. 72 conversation records remain on EVIDENCE; 86 entities remain on CLAIMS. Relationships draw between them. Four verified checks light only if the live health route passes. A workspace-isolation bracket encloses one collection while others stay dim.
-
-**Techniques:** CSS 3D planes; SVG path draw; counter; telemetry HUD.
-
-**Choreography:** ledgers SPLIT; counts ROLL; relations DRAW; health checks STAMP; scope bracket CLOSES.
-
-**Transition:** one relation line straightens into a terminal prompt.
-
-**Depth:** BG graph relations; MG evidence/claim planes; FG checks and workspace bracket.
-
-**SFX:** low database pulse; four quiet check ticks; terminal cursor click.
-
-## Beat 9 — One store, every client · 2:08–2:28
-
-**VO:** Everywhere paragraph.
-
-**Concept:** This is the credibility beat developers will pause. A real CLI and real MCP client ask the same question; the output lines, evidence, timing, and parity marker are captured directly.
-
-**Visual:** The recorded cloud CLI session begins with `lacuna status`, continues to `lacuna ask` and `lacuna explain`, then splits to the recorded MCP parity artifact and returned record. The remote endpoint and HTTP API appear as exact-code inserts. `PACKAGED LACUNA SDK: NOT SHIPPED` remains visible; `ONE_CONTEXT_IDENTICAL` lands from the recorded artifact, not marketing copy.
-
-**Techniques:** real video compositing; terminal focus zoom; code highlight; match cut on identical answer lines.
-
-**Choreography:** commands TYPE in the recording; output STREAMS; answer lines ALIGN; parity marker STAMPS; endpoint/SDK inserts SLIDE and HOLD.
-
-**Transition:** terminal rows collapse into the evaluation table rows.
-
-**Depth:** BG terminal capture; MG MCP/SDK inserts; FG source/evidence locator and parity stamp.
-
-**SFX:** recorded key cadence lowered beneath VO; response chime; matched click on parity.
-
-## Beat 10 — Measure before claiming · 2:28–2:47
-
-**VO:** Measured-proof paragraph.
-
-**Concept:** Claims and caveats arrive together. The generated evaluation label is as visible as 64/64; the context-token comparison is large but never detached from the baseline and artifact path.
-
-**Visual:** Exact evaluation screen forms the base. 64/64 counts up beside `GENERATED EVALUATION`; 32 correct abstentions appears; baseline 63/64 and 1,843 tokens draw as a restrained bar; Lacuna’s 18.27 draws beside it. Self-hosted and cloud columns compare field-by-field and resolve to identical. Artifact paths remain readable.
-
-**Techniques:** data chart; SVG line draw; counters; text callout highlight.
-
-**Choreography:** results COUNT; caveat UNDERLINES; bars GROW; parity columns SCAN; `ALL_IDENTICAL` LOCKS.
-
-**Transition:** bars narrow into five client lines converging on one mark.
-
-**Depth:** BG evaluation table; MG counters/bars; FG generated label, artifact paths, parity lock.
-
-**SFX:** dry counter ticks; no casino roll; one restrained resolve chord.
-
-## Beat 11 — The agent can change · 2:47–2:55
-
-**VO:** Close paragraph.
-
-**Concept:** The system expands without turning into a logo wall. Coding, voice, support, personal, music, and enterprise use-case labels orbit once, then disappear into the Lacuna aperture; one durable mark remains.
-
-**Visual:** Six client labels converge along thin lines. The Lacuna logo assembles from its actual SVG geometry, not a new symbol. The final lockup reads `THE AGENT CAN CHANGE. LACUNA STAYS.` with deployment and repository beneath. HydraDB stays in the same frame as a factual foundation line.
-
-**Techniques:** SVG path drawing; radial surround/converge; registry `logo-outro`; per-word closing lockup.
-
-**Choreography:** clients ORBIT; lines CONVERGE; logo ASSEMBLES; tagline SETTLES; URL and repository FADE and HOLD for three seconds.
-
-**Transition:** none; full hold, then clean cut to black before 2:56.
-
-**Depth:** BG black; MG client lines; FG logo, tagline, two links, HydraDB foundation.
-
-**SFX:** pulse resolves to one warm sustained note; no upload or submission slate.
-
-## Production architecture
+All paths below exist in the current workspace. Paths beginning with
+`video/hyperframes/` are relative to the repository root.
 
 ```text
 video/hyperframes/
-├── index.html
-├── DESIGN.md
-├── SCRIPT.md
-├── STORYBOARD.md
-├── transcript.json
-├── narration.wav
-├── capture-final/
-│   ├── screenshots/
-│   └── extracted/
-├── assets/
-│   ├── fonts/
-│   ├── narration/
-│   └── screens/
-├── compositions/
-│   ├── beat-01-aperture.html
-│   ├── beat-02-problem.html
-│   ├── beat-03-architecture.html
-│   ├── beat-04-demo.html
-│   ├── beat-05-graph.html
-│   ├── beat-06-agents.html
-│   ├── beat-07-voice.html
-│   ├── beat-08-hydradb.html
-│   ├── beat-09-everywhere.html
-│   ├── beat-10-proof.html
-│   ├── beat-11-close.html
-│   └── captions.html
-├── snapshots/
-└── renders/
+|-- index.html
+|-- DESIGN.md
+|-- SCRIPT.md
+|-- STORYBOARD.md
+|-- hyperframes.json
+|-- meta.json
+|-- narration.json
+|-- assets/
+|   |-- continuity.txt
+|   |-- favicon.svg
+|   |-- fonts/
+|   |-- narration-vaibhav/lacuna-v8-vaibhav.mp3 (local, gitignored)
+|   `-- screens/
+|-- capture-final/screenshots/
+|-- compositions/
+|   |-- beat-01-aperture.html
+|   |-- beat-02-problem.html
+|   |-- beat-03-architecture.html
+|   |-- beat-04-demo.html
+|   |-- beat-05-graph.html
+|   |-- beat-06-agents.html
+|   |-- beat-07-voice.html
+|   |-- beat-08-hydradb.html
+|   |-- beat-09-everywhere.html
+|   |-- beat-10-proof.html
+|   |-- beat-11-close.html
+|   `-- captions.html
+`-- renders/
+    |-- lacuna-v8-judges-master-vaibhav.mp4
+    `-- lacuna-v8-judges-master-vaibhav.srt
+
+artifacts/
+|-- bench/results.json
+|-- cli/session.txt
+|-- hydra/cloud-parity.json
+`-- video/
+    |-- final-metadata.json
+    `-- judges-master/
 ```
+
+The MP4 is a local ignored render output. Its metadata and curated review frames
+are retained under `artifacts/video/`. The rendered candidate still requires
+the owner's full-length approval before publication.

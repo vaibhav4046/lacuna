@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { AudioSignal, VoiceState } from '../voice/states';
+import { voiceOrbFrame } from '../voice/orb';
 
-const SIZE = 300;
+const SIZE = 320;
+const PARTICLES = 360;
+const GOLDEN_ANGLE = 2.399963229728653;
 
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -15,9 +18,8 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-function canMove(state: VoiceState, signal: AudioSignal): boolean {
-  if ((state === 'LISTENING' || state === 'PARTIAL_TRANSCRIPT') && signal === 'microphone') return true;
-  return state === 'SPEAKING' && signal === 'playback';
+function clamp(value: number, min = 0, max = 1): number {
+  return Math.max(min, Math.min(max, Number.isFinite(value) ? value : 0));
 }
 
 export interface VoiceOrbProps {
@@ -28,83 +30,132 @@ export interface VoiceOrbProps {
 }
 
 /**
- * A deterministic audio meter. It has no clock, noise source or simulated
- * breathing. Every non-static coordinate comes from analyser samples supplied
- * by the live microphone or actual playback path.
+ * Lacuna's live speech instrument. The field has no clock, random source or
+ * simulated breathing: displacement comes only from microphone/playback
+ * analyser frames. Every other lifecycle state resolves to a static aperture.
  */
 export function VoiceOrb({
   state = 'READY', signal = null, rms = 0, waveform = [],
 }: VoiceOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const captionId = useId();
   const reducedMotion = useReducedMotion();
+  const frame = voiceOrbFrame(state, signal, rms, reducedMotion);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas === null) return;
     const context = canvas.getContext('2d');
     if (context === null) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.8);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     canvas.width = SIZE * dpr;
     canvas.height = SIZE * dpr;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, SIZE, SIZE);
 
-    const active = canMove(state, signal) && !reducedMotion;
-    const measured = active ? Math.max(0, Math.min(1, rms * 12)) : 0;
-    const radius = 82 + measured * 28;
     const cx = SIZE / 2;
     const cy = SIZE / 2;
+    const radius = 78 + frame.measured * 25;
+    const activeSamples = frame.active && waveform.length > 1 ? waveform : [];
 
-    // A fixed sunflower packing. Positions never drift on their own.
-    for (let index = 0; index < 280; index += 1) {
-      const theta = index * 2.399963229728653;
-      const distance = radius * Math.sqrt(index / 280);
-      const edge = index / 280;
-      context.globalAlpha = 0.18 + edge * 0.48;
-      context.fillStyle = index % 41 === 0 ? '#8052FF' : '#8A8A8A';
+    const atmosphere = context.createRadialGradient(cx, cy, 4, cx, cy, 142);
+    atmosphere.addColorStop(0, frame.active ? 'rgba(255,184,41,0.075)' : 'rgba(255,255,255,0.025)');
+    atmosphere.addColorStop(0.52, 'rgba(255,255,255,0.012)');
+    atmosphere.addColorStop(1, 'rgba(0,0,0,0)');
+    context.fillStyle = atmosphere;
+    context.fillRect(0, 0, SIZE, SIZE);
+
+    context.save();
+    context.globalCompositeOperation = 'lighter';
+    for (let index = 0; index < PARTICLES; index += 1) {
+      const edge = Math.sqrt((index + 0.5) / PARTICLES);
+      const rawSample = activeSamples.length === 0
+        ? 0
+        : activeSamples[index % activeSamples.length] ?? 0;
+      const sample = clamp(rawSample, -1, 1);
+      const theta = index * GOLDEN_ANGLE + sample * 0.14;
+      const depth = 0.58 + 0.42 * ((Math.sin(theta * 0.73) + 1) / 2);
+      const audioDisplacement = sample * (5 + edge * 19);
+      const pressure = frame.measured * Math.pow(edge, 1.7) * 18;
+      const distance = radius * edge + audioDisplacement + pressure;
+      const x = cx + Math.cos(theta) * distance;
+      const y = cy + Math.sin(theta) * distance * (0.91 + depth * 0.09);
+      const highlighted = index % 47 === 0;
+
+      context.globalAlpha = 0.14 + edge * 0.34 + depth * 0.18;
+      context.fillStyle = highlighted
+        ? '#FFB829'
+        : frame.active && signal === 'playback'
+          ? (index % 5 === 0 ? '#FFD98E' : '#A8A8A8')
+          : (index % 7 === 0 ? '#FFFFFF' : '#868686');
       context.beginPath();
-      context.arc(
-        cx + Math.cos(theta) * distance,
-        cy + Math.sin(theta) * distance,
-        1 + measured * 0.35,
-        0,
-        Math.PI * 2,
-      );
+      context.arc(x, y, 0.62 + depth * 0.78 + frame.measured * 0.22, 0, Math.PI * 2);
       context.fill();
     }
+    context.restore();
 
-    // The ring is real time-domain audio, wrapped around the measured sphere.
-    if (active && waveform.length > 1) {
-      context.globalAlpha = 0.82;
-      context.strokeStyle = signal === 'microphone' ? '#8052FF' : '#FFB829';
-      context.lineWidth = 1.4;
+    // The perimeter is the measured time-domain signal, never an idle loop.
+    if (activeSamples.length > 1) {
+      context.save();
+      context.globalAlpha = 0.9;
+      context.strokeStyle = signal === 'playback' ? '#FFB829' : '#FFFFFF';
+      context.shadowColor = signal === 'playback' ? 'rgba(255,184,41,0.38)' : 'rgba(255,255,255,0.22)';
+      context.shadowBlur = 10;
+      context.lineWidth = 1.25;
       context.beginPath();
-      for (let index = 0; index <= waveform.length; index += 1) {
-        const sample = waveform[index % waveform.length] ?? 0;
-        const angle = index / waveform.length * Math.PI * 2;
-        const ring = radius + 13 + sample * 30;
+      for (let index = 0; index <= activeSamples.length; index += 1) {
+        const sample = clamp(activeSamples[index % activeSamples.length] ?? 0, -1, 1);
+        const angle = index / activeSamples.length * Math.PI * 2 - Math.PI / 2;
+        const ring = radius + 19 + sample * 32;
         const x = cx + Math.cos(angle) * ring;
         const y = cy + Math.sin(angle) * ring;
         if (index === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
       }
+      context.closePath();
       context.stroke();
+      context.restore();
     }
-    context.globalAlpha = 1;
-  }, [reducedMotion, rms, signal, state, waveform]);
+
+    // An open aperture is the static anchor and the visual relationship to the
+    // approved Lacuna mark. Its small gold node is intentionally not violet.
+    const apertureRadius = 27 + frame.measured * 3;
+    const start = -Math.PI * 0.43;
+    const end = Math.PI * 1.22;
+    context.save();
+    context.globalAlpha = frame.active ? 0.92 : 0.68;
+    context.strokeStyle = '#FFFFFF';
+    context.lineWidth = 1.5;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.arc(cx, cy, apertureRadius, start, end);
+    context.stroke();
+    const nodeX = cx + Math.cos(start) * apertureRadius;
+    const nodeY = cy + Math.sin(start) * apertureRadius;
+    context.fillStyle = '#FFB829';
+    context.shadowColor = 'rgba(255,184,41,0.48)';
+    context.shadowBlur = frame.active ? 9 : 4;
+    context.beginPath();
+    context.arc(nodeX, nodeY, 2.4 + frame.measured * 0.45, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }, [frame.active, frame.measured, reducedMotion, signal, state, waveform]);
+
+  const analyserLabel = frame.active
+    ? `${signal === 'microphone' ? 'Live microphone' : 'Live playback'} analyser drives the field.`
+    : 'No live audio signal. The field is static.';
 
   return (
-    <figure style={{ margin: 0, display: 'grid', justifyItems: 'center', gap: '10px' }}>
+    <figure style={{ margin: 0, width: '100%', display: 'grid', justifyItems: 'center', gap: '10px' }}>
       <canvas
         ref={canvasRef}
-        style={{ width: 'min(300px, 100%)', aspectRatio: '1', flexShrink: 0 }}
+        style={{ width: 'min(320px, 100%)', aspectRatio: '1', flexShrink: 0 }}
         role="img"
-        aria-label={`Voice ${state.toLowerCase().replaceAll('_', ' ')}. ${canMove(state, signal) && !reducedMotion ? `${signal} analyser active.` : 'Orb static.'}`}
+        aria-label={`Voice ${state.toLowerCase().replaceAll('_', ' ')}.`}
+        aria-describedby={captionId}
       />
-      <figcaption style={{ fontSize: '12px', color: '#7A7A7A', textAlign: 'center' }}>
-        {reducedMotion ? 'Static by reduced-motion preference.'
-          : canMove(state, signal) ? `${signal === 'microphone' ? 'Microphone' : 'Playback'} analyser.`
-            : 'No live audio signal.'}
+      <figcaption id={captionId} style={{ maxWidth: '34ch', fontSize: '12px', color: '#7A7A7A', textAlign: 'center' }}>
+        {reducedMotion ? 'Static by reduced-motion preference.' : analyserLabel}
       </figcaption>
     </figure>
   );

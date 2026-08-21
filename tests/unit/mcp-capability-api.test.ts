@@ -7,30 +7,44 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
 import { FileAccounts } from '../../src/auth/accounts.js';
-import type { IssuedMcpCapability, McpCapabilities } from '../../src/auth/mcp-capability-store.js';
+import {
+  MCP_CAPABILITY_TTL_MS,
+  type IssuedMcpCapability,
+  type McpCapabilities,
+} from '../../src/auth/mcp-capability-store.js';
 import { MCP_CAPABILITY_SHAPE, mintMcpCapability } from '../../src/auth/mcp-capability.js';
 import { AccountStore } from '../../src/auth/store.js';
 import { workspaceCollection } from '../../src/api/ingest.js';
 
 class MemoryCapabilities implements McpCapabilities {
-  readonly records = new Map<string, { workspace: string; createdAt: string; revoked: boolean }>();
+  readonly records = new Map<string, {
+    workspace: string;
+    createdAt: string;
+    expiresAt: string;
+    revokedAt: string | null;
+  }>();
 
   async issue(workspace: string, now = Date.now()): Promise<IssuedMcpCapability> {
     const capability = mintMcpCapability();
     const createdAt = new Date(now).toISOString();
-    this.records.set(capability, { workspace, createdAt, revoked: false });
-    return { capability, workspace, createdAt };
+    const expiresAt = new Date(now + MCP_CAPABILITY_TTL_MS).toISOString();
+    this.records.set(capability, { workspace, createdAt, expiresAt, revokedAt: null });
+    return { capability, workspace, createdAt, expiresAt };
   }
 
-  async resolve(capability: string): Promise<string | null> {
+  async resolve(capability: string, now = Date.now()): Promise<string | null> {
     const record = this.records.get(capability);
-    return record === undefined || record.revoked ? null : record.workspace;
+    return record === undefined || record.revokedAt !== null
+      || now < Date.parse(record.createdAt) || now >= Date.parse(record.expiresAt)
+      ? null
+      : record.workspace;
   }
 
-  async revoke(capability: string): Promise<boolean> {
+  async revoke(capability: string, now = Date.now()): Promise<boolean> {
     const record = this.records.get(capability);
-    if (record === undefined || record.revoked) return false;
-    this.records.set(capability, { ...record, revoked: true });
+    if (record === undefined || record.revokedAt !== null
+      || now < Date.parse(record.createdAt) || now >= Date.parse(record.expiresAt)) return false;
+    this.records.set(capability, { ...record, revokedAt: new Date(now).toISOString() });
     return true;
   }
 }
@@ -117,11 +131,19 @@ describe('workspace MCP capability API', () => {
     const response = await post(jar, '/api/workspace/mcp/capabilities', {});
 
     expect(response.status).toBe(201);
-    const body = await response.json() as { capability: string; createdAt: string; endpoint: string; workspace?: string };
+    const body = await response.json() as {
+      capability: string;
+      createdAt: string;
+      expiresAt: string;
+      endpoint: string;
+      workspace?: string;
+    };
     expect(body.capability).toMatch(MCP_CAPABILITY_SHAPE);
+    expect(body.createdAt).toBe(new Date(clock).toISOString());
+    expect(body.expiresAt).toBe(new Date(clock + MCP_CAPABILITY_TTL_MS).toISOString());
     expect(body.endpoint).toBe('/mcp');
     expect(body.workspace).toBeUndefined();
-    await expect(capabilities.resolve(body.capability)).resolves.toBe(workspaceCollection('mcp-owner@example.com'));
+    await expect(capabilities.resolve(body.capability, clock)).resolves.toBe(workspaceCollection('mcp-owner@example.com'));
   });
 
   it('requires CSRF and refuses to revoke a capability belonging to another workspace', async () => {
@@ -134,7 +156,7 @@ describe('workspace MCP capability API', () => {
     expect((await post(jar, '/api/workspace/mcp/capabilities/revoke', {
       capability: foreign.capability,
     })).status).toBe(404);
-    await expect(capabilities.resolve(foreign.capability)).resolves.toBe(workspaceCollection('somebody-else@example.com'));
+    await expect(capabilities.resolve(foreign.capability, clock)).resolves.toBe(workspaceCollection('somebody-else@example.com'));
   });
 
   it('revokes its own bearer and rejects body smuggling', async () => {
@@ -149,7 +171,29 @@ describe('workspace MCP capability API', () => {
     expect((await post(jar, '/api/workspace/mcp/capabilities/revoke', {
       capability: body.capability,
     })).status).toBe(204);
-    await expect(capabilities.resolve(body.capability)).resolves.toBeNull();
+    await expect(capabilities.resolve(body.capability, clock)).resolves.toBeNull();
+  });
+
+  it('refuses to revoke a capability once its explicit lifetime has elapsed', async () => {
+    const jar = await signedIn();
+    const issued = await post(jar, '/api/workspace/mcp/capabilities', {});
+    const body = await issued.json() as { capability: string; expiresAt: string };
+    clock = Date.parse(body.expiresAt);
+    // Sessions and MCP capabilities both default to 30 days. Refresh the
+    // account session so this request exercises capability expiry, not the
+    // earlier session guard.
+    const signedInAgain = await post(jar, '/api/auth/signin', {
+      email: 'mcp-owner@example.com',
+      password: 'correct horse battery staple',
+    });
+    expect(signedInAgain.status).toBe(200);
+
+    const response = await post(jar, '/api/workspace/mcp/capabilities/revoke', {
+      capability: body.capability,
+    });
+    expect(response.status).toBe(404);
+    await expect(capabilities.resolve(body.capability, clock)).resolves.toBeNull();
+    expect(capabilities.records.get(body.capability)?.revokedAt).toBeNull();
   });
 
   it('bounds capability issuance per workspace and returns Retry-After', async () => {

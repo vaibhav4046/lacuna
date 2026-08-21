@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1920, height=1080">
-    <title>Lacuna — recommended agents that really run</title>
+    <title>Lacuna — memory to bounded scheduled work</title>
     <style>
       @font-face {
         font-family: "JetBrains Mono";
@@ -22,127 +22,164 @@
         width: 1920px;
         height: 1080px;
         transform-origin: 0 0;
+        will-change: transform, opacity;
       }
       #b06-definitions, #b06-run, #b06-work { opacity: 0; }
-      .b06-frame {
+      .b06-frame { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.08); pointer-events: none; }
+      .b06-safety {
         position: absolute;
-        inset: 0;
-        pointer-events: none;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+        right: 58px;
+        top: 42px;
+        padding: 12px 14px;
+        border-left: 2px solid #8053ff;
+        background: #030303;
+        color: #fff;
+        font: 500 12px/1 "JetBrains Mono", monospace;
+        letter-spacing: 0.16em;
       }
+      .b06-safety span { color: #8053ff; }
+      .b06-focus {
+        position: absolute;
+        border: 1px solid #8053ff;
+        opacity: 0;
+        pointer-events: none;
+      }
+      #b06-recommend-focus { left: 318px; top: 374px; width: 1214px; height: 294px; }
+      #b06-definitions-focus { left: 306px; top: 256px; width: 1304px; height: 616px; }
+      #b06-run-focus { left: 296px; top: 506px; width: 1390px; height: 332px; }
+      #b06-work-focus { left: 378px; top: 366px; width: 1308px; height: 390px; }
       .b06-rail {
         position: absolute;
         left: 58px;
         right: 58px;
         bottom: 38px;
-        height: 68px;
+        height: 62px;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        align-items: stretch;
-        padding: 7px;
-        border: 1px solid rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.15);
         background: #030303;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 12px;
+        font: 500 12px/1 "JetBrains Mono", monospace;
         letter-spacing: 0.13em;
       }
       .b06-phase {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 11px;
+        gap: 10px;
         color: #9a9a9a;
-        opacity: 0.44;
+        opacity: 0.38;
         border-right: 1px solid rgba(255,255,255,0.09);
       }
       .b06-phase:last-child { border-right: 0; }
-      .b06-index { color: #8053ff; }
+      .b06-phase strong { color: #8053ff; font-weight: 500; }
       .b06-active {
         position: absolute;
-        left: 7px;
-        bottom: 4px;
-        width: calc((100% - 14px) / 4);
+        left: 0;
+        bottom: -1px;
+        width: 25%;
         height: 2px;
-        background: #8052ff;
-        transform-origin: left center;
+        background: #8053ff;
       }
     </style>
   </head>
   <body>
-    <div data-hf-id="hf-9by2" id="b06-root" data-composition-id="beat-06-agents" data-start="0" data-width="1920" data-height="1080" data-duration="19" data-fps="30">
-      <section data-hf-id="hf-mgxk" id="b06-scene" class="clip b06-fill" data-start="0" data-duration="19" data-track-index="1">
-        <img data-hf-id="hf-6fyd" id="b06-recommendations" class="b06-shot" src="assets/screens/live-agent-recommendations-v8-1920x1080.png" alt="Captured Lacuna memory-derived agent recommendations with evidence counts, bounded run, and no-write safety">
-        <img data-hf-id="hf-2mwy" id="b06-definitions" class="b06-shot" src="assets/screens/live-agents-v8-1920x1080.png" alt="Captured Lacuna Researcher and Reviewer role definitions with permissions, budgets, and completed-run status">
-        <img data-hf-id="hf-rhbr" id="b06-run" class="b06-shot" src="assets/screens/live-agents-1920x1080.png" alt="Captured Lacuna completed agent run with retrieval, compilation, review, context pack, handoff, draft, and verdict">
-        <img data-hf-id="hf-wtuk" id="b06-work" class="b06-shot" src="assets/screens/live-work-v8-1920x1080.png" alt="Captured Lacuna Work surface with a daily schedule and completed persisted run ledger">
-        <div data-hf-id="hf-w6y0" class="b06-frame"></div>
-        <div data-hf-id="hf-nbb6" id="b06-rail" class="b06-rail" data-layout-allow-caption-zone="">
-          <span data-hf-id="hf-galo" id="b06-phase-recommend" class="b06-phase"><span data-hf-id="hf-j4m3" class="b06-index">01</span> MEMORY SUGGESTS</span>
-          <span data-hf-id="hf-y12r" id="b06-phase-bounds" class="b06-phase"><span data-hf-id="hf-iqb2" class="b06-index">02</span> ROLES ARE BOUNDED</span>
-          <span data-hf-id="hf-xiox" id="b06-phase-run" class="b06-phase"><span data-hf-id="hf-ic01" class="b06-index">03</span> RUN IS PERSISTED</span>
-          <span data-hf-id="hf-px13" id="b06-phase-schedule" class="b06-phase"><span data-hf-id="hf-hxp0" class="b06-index">04</span> DAILY · 06:00 UTC</span>
-          <span data-hf-id="hf-4ya7" id="b06-active" class="b06-active"></span>
+    <div data-hf-id="b06-root" id="b06-root" data-composition-id="beat-06-agents" data-start="0" data-width="1920" data-height="1080" data-duration="19" data-fps="30">
+      <section data-hf-id="b06-scene" id="b06-scene" class="clip b06-fill" data-start="0" data-duration="19" data-track-index="1">
+        <img data-hf-id="b06-recommendations" id="b06-recommendations" class="b06-shot" src="assets/screens/live-agent-recommendations-v8-1920x1080.png" alt="Captured Lacuna memory-derived agent recommendations with evidence reasons, bounded runs, and zero write grants">
+        <img data-hf-id="b06-definitions" id="b06-definitions" class="b06-shot" src="assets/screens/live-agents-v8-1920x1080.png" alt="Captured Lacuna Researcher and Reviewer definitions with bounded context, budgets, tools, and no-write policy">
+        <img data-hf-id="b06-run" id="b06-run" class="b06-shot" src="assets/screens/live-agents-1920x1080.png" alt="Captured Lacuna completed Researcher to Reviewer run with persisted lifecycle and no authoritative write">
+        <img data-hf-id="b06-work" id="b06-work" class="b06-shot" src="assets/screens/live-work-v8-1920x1080.png" alt="Captured Lacuna Work page showing a daily 06:00 UTC schedule and persisted completed run">
+        <div data-hf-id="b06-recommend-focus" id="b06-recommend-focus" class="b06-focus"></div>
+        <div data-hf-id="b06-definitions-focus" id="b06-definitions-focus" class="b06-focus"></div>
+        <div data-hf-id="b06-run-focus" id="b06-run-focus" class="b06-focus"></div>
+        <div data-hf-id="b06-work-focus" id="b06-work-focus" class="b06-focus"></div>
+        <div data-hf-id="b06-frame" class="b06-frame"></div>
+        <div data-hf-id="b06-safety" class="b06-safety"><span data-hf-id="hf-rhtf">BOUNDARY</span> · NO AUTHORITATIVE WRITE</div>
+        <div data-hf-id="b06-rail" class="b06-rail" data-layout-allow-caption-zone="">
+          <span data-hf-id="b06-phase-recommend" id="b06-phase-recommend" class="b06-phase"><strong data-hf-id="hf-c73h">01</strong> MEMORY RECOMMENDS</span>
+          <span data-hf-id="b06-phase-agents" id="b06-phase-agents" class="b06-phase"><strong data-hf-id="hf-de0k">02</strong> AGENTS ARE BOUNDED</span>
+          <span data-hf-id="b06-phase-run" id="b06-phase-run" class="b06-phase"><strong data-hf-id="hf-czpj">03</strong> RUN IS PERSISTED</span>
+          <span data-hf-id="b06-phase-schedule" id="b06-phase-schedule" class="b06-phase"><strong data-hf-id="hf-e6mm">04</strong> DAILY · 06:00 UTC</span>
+          <span data-hf-id="b06-active" id="b06-active" class="b06-active"></span>
         </div>
       </section>
     </div>
     <script>
       window.__timelines = window.__timelines || {};
-      const b06 = gsap.timeline({ paused: true });
-      const b06Phases = [
-        "#b06-phase-recommend",
-        "#b06-phase-bounds",
-        "#b06-phase-run",
-        "#b06-phase-schedule",
-      ];
+      const b06 = gsap.timeline({ paused: true, defaults: { ease: "power3.inOut" } });
 
       b06.addLabel("recommend", 0);
-      b06.to(b06Phases[0], { opacity: 1, duration: 0.2 }, 0);
+      b06.fromTo("#b06-phase-recommend", { opacity: 0.38 }, { opacity: 1, duration: 0.22 }, 0);
       b06.fromTo(
         "#b06-recommendations",
-        { x: -25, y: -12, scale: 1.02 },
-        { x: -66, y: -38, scale: 1.08, duration: 3.7, ease: "power2.inOut" },
+        { x: 0, y: 0, scale: 1 },
+        { x: -283, y: 201, scale: 1.13, duration: 2.7 },
         0.35,
       );
+      b06.fromTo(
+        "#b06-recommend-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.32, ease: "power3.out" },
+        2.3,
+      );
 
-      b06.addLabel("bounds", 4.2);
-      b06.to(b06Phases[0], { opacity: 0.44, duration: 0.18 }, 4.2);
-      b06.to(b06Phases[1], { opacity: 1, duration: 0.18 }, 4.2);
-      b06.to("#b06-active", { x: 448, duration: 0.4, ease: "power3.out" }, 4.2);
-      b06.to("#b06-recommendations", { opacity: 0, duration: 0.3 }, 4.2);
+      b06.addLabel("definitions", 4.05);
+      b06.to("#b06-recommend-focus", { opacity: 0, duration: 0.2 }, 4.05);
+      b06.to("#b06-phase-recommend", { opacity: 0.38, duration: 0.18 }, 4.05);
+      b06.to("#b06-phase-agents", { opacity: 1, duration: 0.18 }, 4.05);
+      b06.to("#b06-active", { x: 451, duration: 0.48, ease: "power3.out" }, 4.05);
+      b06.to("#b06-recommendations", { opacity: 0, x: -390, duration: 0.42, ease: "power3.in" }, 4.05);
       b06.fromTo(
         "#b06-definitions",
-        { opacity: 0, x: -19, y: -11, scale: 1.02 },
-        { opacity: 1, x: -305, y: 91, scale: 1.15, duration: 1.65, ease: "power3.inOut" },
-        4.2,
+        { opacity: 0, x: -170, y: 60, scale: 1.08 },
+        { opacity: 1, x: -345, y: 10, scale: 1.22, duration: 1.5, ease: "power3.out" },
+        4.05,
+      );
+      b06.fromTo(
+        "#b06-definitions-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.32, ease: "power3.out" },
+        5.35,
       );
 
-      b06.addLabel("run", 8.25);
-      b06.to(b06Phases[1], { opacity: 0.44, duration: 0.18 }, 8.25);
-      b06.to(b06Phases[2], { opacity: 1, duration: 0.18 }, 8.25);
-      b06.to("#b06-active", { x: 896, duration: 0.4, ease: "power3.out" }, 8.25);
-      b06.to("#b06-definitions", { opacity: 0, duration: 0.3 }, 8.25);
+      b06.addLabel("run", 8.1);
+      b06.to("#b06-definitions-focus", { opacity: 0, duration: 0.2 }, 8.1);
+      b06.to("#b06-phase-agents", { opacity: 0.38, duration: 0.18 }, 8.1);
+      b06.to("#b06-phase-run", { opacity: 1, duration: 0.18 }, 8.1);
+      b06.to("#b06-active", { x: 902, duration: 0.48, ease: "power3.out" }, 8.1);
+      b06.to("#b06-definitions", { opacity: 0, x: -440, duration: 0.42, ease: "power3.in" }, 8.1);
       b06.fromTo(
         "#b06-run",
-        { opacity: 0, x: -19, y: -11, scale: 1.02 },
-        { opacity: 1, x: -279, y: -168, scale: 1.18, duration: 1.7, ease: "power3.inOut" },
-        8.25,
+        { opacity: 0, x: -250, y: -520, scale: 1.2 },
+        { opacity: 1, x: -390, y: -640, scale: 1.3, duration: 1.55, ease: "power3.out" },
+        8.1,
       );
+      b06.fromTo(
+        "#b06-run-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.32, ease: "power3.out" },
+        9.45,
+      );
+      b06.to("#b06-run", { x: -414, y: -664, scale: 1.315, duration: 2.1, ease: "sine.inOut" }, 10.0);
 
-      b06.addLabel("schedule", 13.15);
-      b06.to(b06Phases[2], { opacity: 0.44, duration: 0.18 }, 13.15);
-      b06.to(b06Phases[3], { opacity: 1, duration: 0.18 }, 13.15);
-      b06.to("#b06-active", { x: 1344, duration: 0.4, ease: "power3.out" }, 13.15);
-      b06.to("#b06-run", { opacity: 0, duration: 0.3 }, 13.15);
+      b06.addLabel("schedule", 12.65);
+      b06.to("#b06-run-focus", { opacity: 0, duration: 0.2 }, 12.65);
+      b06.to("#b06-phase-run", { opacity: 0.38, duration: 0.18 }, 12.65);
+      b06.to("#b06-phase-schedule", { opacity: 1, duration: 0.18 }, 12.65);
+      b06.to("#b06-active", { x: 1353, duration: 0.48, ease: "power3.out" }, 12.65);
+      b06.to("#b06-run", { opacity: 0, x: -520, duration: 0.42, ease: "power3.in" }, 12.65);
       b06.fromTo(
         "#b06-work",
-        { opacity: 0, x: -19, y: -11, scale: 1.02 },
-        { opacity: 1, x: -140, y: 298, scale: 1.1, duration: 1.55, ease: "power3.inOut" },
-        13.15,
+        { opacity: 0, x: -70, y: 210, scale: 1.08 },
+        { opacity: 1, x: -220, y: 300, scale: 1.18, duration: 1.5, ease: "power3.out" },
+        12.65,
       );
-      b06.to(
-        "#b06-work",
-        { x: 0, y: 0, scale: 1, duration: 1.8, ease: "power3.inOut" },
-        16.2,
+      b06.to("#b06-work", { x: -279, y: -50, scale: 1.18, duration: 2.05, ease: "power3.inOut" }, 14.75);
+      b06.fromTo(
+        "#b06-work-focus",
+        { opacity: 0, scale: 0.99 },
+        { opacity: 1, scale: 1, duration: 0.32, ease: "power3.out" },
+        16.55,
       );
 
       window.__timelines["beat-06-agents"] = b06;

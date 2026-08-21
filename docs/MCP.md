@@ -4,23 +4,28 @@ Lacuna exposes its answer path over the Model Context Protocol, so an MCP client
 can ask the corpus a question and get back the answer together with the claim it
 came from, the quotations that support it, and the reads that produced it.
 
-The verified public surface exposes five read-only tools. It has no write,
-reset, delete, agent-run, or scheduler tool, and the server holds no session
-state between calls.
+The verified public surface exposes seven read-only tools. A live production
+`tools/list` call on 2026-08-21 returned all seven in the order documented
+below. It has no public write, reset, delete, agent-run or scheduler tool, and
+the server holds no session state between calls.
 
 The current working tree also contains a private `lacuna_remember` path guarded
-by a random revocable capability. Its listener, persistence, authenticated
-issue/revoke routes, cross-workspace refusal and limits are tested and fail
-closed. Production deployment and an external-client probe remain acceptance
-gates. Until those pass, the public endpoint below is the only remote MCP
-surface this document calls verified.
+by a random, digest-only capability. It expires 30 days after issue and can be
+revoked earlier. Its listener, persistence, authenticated issue/revoke routes,
+cross-workspace refusal, expiry and limits are tested and fail closed.
+Production deployment and an external-client probe remain acceptance gates.
+Until those pass, the public endpoint below is the only remote MCP surface this
+document calls verified.
 
 ## Running it
 
-Both transports come from one entry point, [`scripts/mcp.ts`](../scripts/mcp.ts).
-It loads `.env.local` from the repository root, which must supply
-`HYDRA_HTTP_URL`, `HYDRA_NAMESPACE`, `HYDRA_GRAPH`, `HYDRA_CELL` and
-`HYDRA_TOKEN`. The graph must already be seeded; see [INGEST.md](INGEST.md).
+Both local transports come from one entry point,
+[`scripts/mcp.ts`](../scripts/mcp.ts). It requires and loads a gitignored
+`.env.local` from the repository root. That file can select a self-hosted node
+with `HYDRA_HTTP_URL`, `HYDRA_NAMESPACE`, `HYDRA_GRAPH`, `HYDRA_CELL` and
+`HYDRA_TOKEN`, or HydraDB Cloud with `LACUNA_PROFILE=cloud` and the four
+`HYDRA_CLOUD_*`/database/collection values. The selected store must already be
+seeded; see [INGEST.md](INGEST.md).
 
 ```
 npm run mcp -- --stdio
@@ -58,12 +63,22 @@ answers 406 without it.
 
 Production exposes the public seeded workspace at
 `https://lacuna-five.vercel.app/mcp`. This endpoint has been exercised with an
-SDK client. Signed-in candidate users can mint a private capability from the
-Tools screen or `POST /api/workspace/mcp/capabilities`, then send it as
+SDK client and returned the seven-tool catalog in a live 2026-08-21 probe.
+Signed-in candidate users can mint a private capability from the Tools screen
+or `POST /api/workspace/mcp/capabilities`. Issuance returns the raw capability
+once, plus `createdAt` and `expiresAt`. Send it as
 `Authorization: Bearer <capability>` to `/mcp`. The path form
 `/mcp/w/<capability>` exists only for clients that cannot set headers and may
-expose the bearer in infrastructure logs. Deployment and an external-client
-issue/use/revoke probe are not complete.
+expose the bearer in infrastructure logs. A capability fails at `expiresAt`
+even if it was never revoked. Version-1 capabilities fail closed after this
+rollout and must be reminted. Deployment and an external-client
+issue/use/revoke/expiry probe are not complete, so private write is not part of
+the verified public claim.
+
+Exact ChatGPT, Claude, Claude Code, REST and CLI setup is in
+[CONNECT_CLIENTS.md](CONNECT_CLIENTS.md). Those named-client instructions are
+provider-contract instructions, not evidence that either product has completed
+a Lacuna session.
 
 ## The tools
 
@@ -73,6 +88,8 @@ issue/use/revoke probe are not complete.
 | `lacuna_ask` | `subject`, `predicate`, optional `via` | nothing, this is the envelope |
 | `lacuna_explain` | same | `explanation`, `trace` |
 | `lacuna_timeline` | same | `considered`, every claim about the predicate, oldest first |
+| `search` | `query` | matching subject ids, titles and links; empty when nothing matches |
+| `fetch` | an id from `search` | the subject's full temporal record with current, replaced, disputed and proposed states |
 | `lacuna_health` | none | a different shape: `reachable`, `error` |
 
 Candidate private tool, not in the verified public claim:
@@ -80,6 +97,11 @@ Candidate private tool, not in the verified public claim:
 | Tool | Input | Boundary |
 | --- | --- | --- |
 | `lacuna_remember` | bounded transcript/source fields | requires a resolved private capability; route issuance and production proof pending |
+
+The seven public tools are `lacuna_ask`, `lacuna_explain`,
+`lacuna_timeline`, `lacuna_read_question`, `search`, `fetch` and
+`lacuna_health`. `search` and `fetch` are intentionally unprefixed because
+hosted connector clients recognize that retrieval contract.
 
 `via` is a single hop. When set, the predicate is read on the entity the
 subject's claims name through that relation rather than on the subject itself.
@@ -172,10 +194,12 @@ provide a global Vercel quota without a durable gateway.
 
 **Private workspace names are not credentials.** The candidate private route
 accepts only a 256-bit random capability, stores its SHA-256 digest, and asks an
-injected authorizer for the bound workspace. A caller-supplied collection or
-deterministic workspace id is never treated as proof. With no authorizer, every
-private request is 401. This is source-and-test evidence until router/deployment
-acceptance is complete.
+injected authorizer for the bound workspace. Issuance records `createdAt` and
+`expiresAt`; authorization accepts the record only before its exact 30-day
+expiry and before any earlier revocation. Legacy version-1 records are rejected
+and must be reminted. A caller-supplied collection or deterministic workspace
+id is never treated as proof. With no authorizer, every private request is 401.
+This is source-and-test evidence until router/deployment acceptance is complete.
 
 ## Errors
 

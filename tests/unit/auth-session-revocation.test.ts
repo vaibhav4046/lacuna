@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CloudAccounts, FileAccounts, type Accounts } from '../../src/auth/accounts.js';
-import { AccountStore, newSessionVersion, type Account } from '../../src/auth/store.js';
+import { AccountStore, CredentialChanged, newSessionVersion, type Account } from '../../src/auth/store.js';
 import type { AppRecord, HydraCloud, IngestResult, InspectedSource } from '../../src/hydra/cloud.js';
 
 const EMAIL = 'sessions@example.com';
@@ -49,7 +49,7 @@ async function provesRevocation(accounts: Accounts): Promise<{
 }> {
   const now = Date.now();
   expect(await accounts.create(ACCOUNT)).not.toBeNull();
-  const oldSession = await accounts.startSession(EMAIL, now);
+  const oldSession = await accounts.startSession(EMAIL, now, ACCOUNT.sessionVersion);
   expect(await accounts.sessionFor(oldSession, now + 1)).not.toBeNull();
 
   const version = newSessionVersion();
@@ -57,12 +57,29 @@ async function provesRevocation(accounts: Accounts): Promise<{
   await accounts.update({ ...ACCOUNT, sessionVersion: version });
   expect(await accounts.sessionFor(oldSession, now + 2)).toBeNull();
 
-  const newSession = await accounts.startSession(EMAIL, now + 3);
+  const newSession = await accounts.startSession(EMAIL, now + 3, version);
   await expect(accounts.sessionFor(newSession, now + 4)).resolves.toMatchObject({
     email: EMAIL,
     sessionVersion: version,
   });
   return { oldSession, newSession, now };
+}
+
+async function provesStaleAuthenticationCannotMint(accounts: Accounts): Promise<void> {
+  const now = Date.now();
+  const authenticatedVersion = newSessionVersion();
+  const rotatedVersion = newSessionVersion();
+  const authenticated: Account = { ...ACCOUNT, sessionVersion: authenticatedVersion };
+  expect(await accounts.create(authenticated)).not.toBeNull();
+
+  // This is the interleaving that used to preserve access after recovery:
+  // sign-in authenticated one epoch, then recovery rotated it before issue.
+  const stale = await accounts.find(EMAIL);
+  expect(stale?.sessionVersion).toBe(authenticatedVersion);
+  await accounts.update({ ...authenticated, sessionVersion: rotatedVersion });
+
+  await expect(accounts.startSession(EMAIL, now, stale?.sessionVersion))
+    .rejects.toBeInstanceOf(CredentialChanged);
 }
 
 describe('credential-bound session versions', () => {
@@ -84,5 +101,15 @@ describe('credential-bound session versions', () => {
     const cold = new CloudAccounts(cloud as unknown as HydraCloud);
     await expect(cold.sessionFor(sessions.oldSession, sessions.now + 5)).resolves.toBeNull();
     await expect(cold.sessionFor(sessions.newSession, sessions.now + 5)).resolves.toMatchObject({ email: EMAIL });
+  });
+
+  it('refuses a file-backed session when recovery rotates credentials after authentication', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'lacuna-session-race-'));
+    directories.push(directory);
+    await provesStaleAuthenticationCannotMint(new FileAccounts(new AccountStore(directory)));
+  });
+
+  it('refuses a Hydra-backed session when recovery rotates credentials after authentication', async () => {
+    await provesStaleAuthenticationCannotMint(new CloudAccounts(new RecordCloud() as unknown as HydraCloud));
   });
 });

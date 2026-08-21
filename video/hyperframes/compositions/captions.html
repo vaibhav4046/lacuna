@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Lacuna narration captions</title>
+    <style>
+      @font-face {
+        font-family: "Space Grotesk";
+        src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+        font-weight: 400 700;
+        font-display: block;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+      #caption-root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: transparent;
+        pointer-events: none;
+      }
+      .caption-line {
+        position: absolute;
+        left: 150px;
+        right: 150px;
+        bottom: 126px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        visibility: hidden;
+      }
+      .caption-copy {
+        max-width: 1480px;
+        padding: 12px 20px 13px;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 6px;
+        background: rgba(0,0,0,0.84);
+        color: #f7f5ff;
+        font: 600 40px/1.16 "Space Grotesk", sans-serif;
+        letter-spacing: -0.018em;
+        text-align: center;
+        text-wrap: balance;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.92);
+      }
+      .caption-copy .accent { color: #a98dff; }
+    </style>
+  </head>
+  <body>
+    <main data-hf-id="hf-bvkv" id="caption-root" data-composition-id="lacuna-captions" data-start="0" data-width="1920" data-height="1080" data-duration="179" data-fps="30"></main>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var SECTIONS = [
+        { start: 0, end: 9.2, text: "Agents do not fail only because they forget. They fail when yesterday's truth is remembered as if it were still true." },
+        { start: 9.2, end: 25.4, text: "One source says Redis. A proposal says Postgres. The pull request implements Postgres. Retrieval returns every sentence. Lacuna keeps the sources, marks what changed, exposes conflict, and refuses to turn missing evidence into a confident answer." },
+        { start: 25.4, end: 38.4, text: "We built Lacuna, a provenance-first memory layer on HydraDB. Conversations become evidence, claims, entities, and relationships. Lacuna resolves what stands now, then compiles the context the next agent needs." },
+        { start: 38.4, end: 59.2, text: "Here is the deployed product. I ask, Who is the runbook owner for billing-gate? Lacuna says the sources disagree, keeps both claims at equal weight, and attaches a contradiction trace. Ask for Foxglove's connection-pool size. Nothing states one, so Lacuna returns never stated, instead of guessing." },
+        { start: 59.2, end: 75, text: "The answer stays inspectable. A table keeps every memory readable. On the accepted public build, the overview measured four hundred fifty-three nodes and six hundred eighty-two edges. The proof view follows one exact source-to-evidence-to-claim-to-entity path." },
+        { start: 75, end: 91.8, text: "Memory becomes bounded work. Lacuna includes two built-in, no-write roles: Researcher and Reviewer. A production run persisted eight events, tool calls, handoff, artifacts, and its final verdict. A daily schedule persists. Cross-instance exactly-once dispatch is not claimed." },
+        { start: 91.8, end: 115.8, text: "One resolved context reaches web, C L I, and M C P. The parity sweep sends all sixty-four questions through the C L I and both M C P transports, then compares every field. They match. The H T T P A P I is live. A packaged S D K is not shipped." },
+        { start: 115.8, end: 131.8, text: "The voice surface models fifteen explicit states, including listening, interruption, and typed fallback. This narration uses the verified Vaibhav Lalwani professional clone. The product's live voice round-trip remains separately gated until its server key is configured." },
+        { start: 131.8, end: 152, text: "HydraDB is the retrieval substrate, not a results bucket. A correction becomes a supersession edge. Provenance is the path from session to message to evidence span to claim. Disagreement is structural. Multi-hop answers traverse a bridge entity. No claim means absence, not a low similarity score." },
+        { start: 152, end: 167, text: "On the labelled generated evaluation, Lacuna answers sixty-four of sixty-four with zero unsupported answers using about eighteen context tokens. The strongest tuned baseline reaches sixty-three using about eighteen hundred. Self-hosted and HydraDB Cloud matched field by field." },
+        { start: 167, end: 177.3975, text: "Models can change. Agents can change. The memory stays current, inspectable, and portable. Lacuna: memory that knows what changed." }
+      ];
+
+      function chunks(text) {
+        return text.split(/(?<=[.!?])\s+/).map(function (sentence) {
+          return sentence.trim().split(/\s+/).filter(Boolean);
+        });
+      }
+
+      function marked(words) {
+        return words.map(function (word) {
+          var plain = word.replace(/[^A-Za-z0-9-]/g, "");
+          var accent = /^(Lacuna|HydraDB|Redis|Postgres|never|sixty-four|eighteen|Researcher|Reviewer)$/i.test(plain);
+          return accent ? '<span class="accent">' + word + '</span>' : word;
+        }).join(" ");
+      }
+
+      var root = document.getElementById("caption-root");
+      var groups = [];
+      SECTIONS.forEach(function (section) {
+        var parts = chunks(section.text);
+        var weights = parts.map(function (part) { return part.length; });
+        var total = weights.reduce(function (sum, value) { return sum + value; }, 0);
+        var cursor = section.start;
+        parts.forEach(function (part, index) {
+          var span = (section.end - section.start) * weights[index] / total;
+          var line = document.createElement("div");
+          line.className = "caption-line";
+          line.setAttribute("data-layout-allow-overlap", "");
+          line.setAttribute("data-layout-allow-occlusion", "");
+          line.innerHTML = '<div class="caption-copy">' + marked(part) + '</div>';
+          root.appendChild(line);
+          groups.push({ element: line, start: cursor, end: cursor + span });
+          cursor += span;
+        });
+      });
+
+      var tl = gsap.timeline({ paused: true });
+      groups.forEach(function (group) {
+        var enterEnd = Math.min(group.start + 0.16, group.end - 0.12);
+        var exitStart = Math.max(enterEnd, group.end - 0.13);
+        tl.set(group.element, { opacity: 0, visibility: "visible", y: 10 }, group.start);
+        tl.to(group.element, { opacity: 1, y: 0, duration: Math.max(0.01, enterEnd - group.start), ease: "power2.out" }, group.start);
+        tl.to(group.element, { opacity: 0, y: -5, duration: Math.max(0.01, group.end - exitStart), ease: "power2.in" }, exitStart);
+        tl.set(group.element, { opacity: 0, visibility: "hidden" }, group.end);
+      });
+      window.__timelines["lacuna-captions"] = tl;
+    </script>
+  </body>
+</html>

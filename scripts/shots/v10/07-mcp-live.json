@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "v10-mcp-live",
+  "url": "http://127.0.0.1:4174/explore/mcp",
+  "output": "video/hyperframes-v10/assets/captures/07-mcp-live.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "7 · lacuna_ask · lacuna_explain" },
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "SERVER · LIVE" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 550 },
+    { "type": "click", "selector": "main button:not([type])", "settleMs": 950 },
+    { "type": "wait", "durationMs": 800 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "7 TOOLS · lacuna_ask" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

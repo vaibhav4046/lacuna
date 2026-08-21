@@ -530,16 +530,8 @@ describe('the public board asks the corpus that ships here', () => {
   });
 });
 
-/**
- * The public run, which is public because it writes nothing.
- *
- * The router here is built without an `agent`, so these check the shape of the
- * route rather than a model: that it exists, that it says so plainly when the
- * deployment has no provider, that it judges the request before spending
- * anything, and that it needs no CSRF token, because a route that required one
- * would be unusable from the page it exists for.
- */
-describe('a run over the public corpus', () => {
+/** The public proof corpus exposes accepted runs but never creates new ones. */
+describe('the read-only public agent preview', () => {
   async function post(path: string, body: unknown): Promise<Response> {
     return fetch(`${base}${path}`, {
       method: 'POST',
@@ -548,17 +540,14 @@ describe('a run over the public corpus', () => {
     });
   }
 
-  it('is reachable without a session or a CSRF token', async () => {
+  it('refuses an anonymous run before provider or body processing', async () => {
     const response = await post('/api/explore/agent/run', { task: 'What is the storage?' });
-    // 501 is this deployment having no model provider, which is the honest
-    // answer. What matters is that it is not 401 and not 403: no session was
-    // sent and no token was, and neither was the reason.
-    expect(response.status).toBe(501);
-    expect(await response.json()).toEqual({ error: 'no model provider is configured on this deployment' });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'public_preview_read_only' });
   });
 
-  it('answers on the old name too', async () => {
-    expect((await post('/api/demo/agent/run', { task: 'anything' })).status).toBe(501);
+  it('keeps the old public name read only too', async () => {
+    expect((await post('/api/demo/agent/run', { task: 'anything' })).status).toBe(403);
   });
 
   it('is not a GET', async () => {

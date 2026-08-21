@@ -91,6 +91,9 @@ const SESSIONS_FILE = 'sessions.jsonl';
 
 export class StoreUnavailable extends Error {}
 
+/** The credentials changed after a caller authenticated them. Fail closed. */
+export class CredentialChanged extends Error {}
+
 export function hashToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
@@ -245,9 +248,12 @@ export class AccountStore {
   }
 
   /** Returns the raw token. Only the hash is stored. */
-  startSession(email: string, now: number): string {
+  startSession(email: string, now: number, expectedSessionVersion: string | undefined): string {
     const account = this.#accounts.get(email);
     if (account === undefined) throw new StoreUnavailable('cannot start a session for a missing account');
+    if ((account.sessionVersion ?? '') !== (expectedSessionVersion ?? '')) {
+      throw new CredentialChanged('credentials changed before the session was created');
+    }
     const token = mintToken();
     const record: SessionRecord = {
       tokenHash: hashToken(token),

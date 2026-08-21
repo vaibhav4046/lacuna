@@ -5,7 +5,7 @@ const TOKEN_PATH = '/v1/single-use-token/realtime_scribe';
 const DEFAULT_TTS_MODEL = 'eleven_flash_v2_5';
 const DEFAULT_OUTPUT_FORMAT = 'mp3_44100_128';
 const MAX_SPOKEN_CHARS = 5_000;
-const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+export const MAX_STREAMING_AUDIO_BYTES = 12 * 1024 * 1024;
 
 export const VOICE_TOKEN_LIMIT = Object.freeze({ limit: 8, windowMs: 60_000, maxKeys: 8_192 });
 export const VOICE_TTS_LIMIT = Object.freeze({ limit: 20, windowMs: 60_000, maxKeys: 8_192 });
@@ -98,9 +98,64 @@ export function validStreamingAudio(response: Response): string | null {
   const statedLength = response.headers.get('content-length');
   if (statedLength !== null) {
     const bytes = Number(statedLength);
-    if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > MAX_AUDIO_BYTES) return null;
+    if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > MAX_STREAMING_AUDIO_BYTES) return null;
   }
   return contentType;
+}
+
+/** Count each streamed chunk as it crosses the server, including chunked bodies. */
+export function addStreamingAudioBytes(current: number, chunkBytes: number): number | null {
+  if (!Number.isSafeInteger(current) || current < 0
+    || !Number.isSafeInteger(chunkBytes) || chunkBytes < 0) return null;
+  const next = current + chunkBytes;
+  return Number.isSafeInteger(next) && next <= MAX_STREAMING_AUDIO_BYTES ? next : null;
+}
+
+/**
+ * Preserve backpressure while enforcing the byte ceiling even when the
+ * provider omits Content-Length and uses chunked transfer encoding.
+ */
+export function boundedStreamingAudio(response: Response): Response | null {
+  const contentType = validStreamingAudio(response);
+  const source = response.body;
+  if (contentType === null || source === null) return null;
+  const reader = source.getReader();
+  let bytes = 0;
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    reader.releaseLock();
+  };
+  const bounded = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const chunk = await reader.read();
+        if (chunk.done) {
+          release();
+          controller.close();
+          return;
+        }
+        const nextBytes = addStreamingAudioBytes(bytes, chunk.value.byteLength);
+        if (nextBytes === null) {
+          await reader.cancel().catch(() => undefined);
+          release();
+          controller.error(new Error('streaming audio limit exceeded'));
+          return;
+        }
+        bytes = nextBytes;
+        controller.enqueue(chunk.value);
+      } catch {
+        release();
+        controller.error(new Error('streaming audio failed'));
+      }
+    },
+    async cancel(reason) {
+      await reader.cancel(reason).catch(() => undefined);
+      release();
+    },
+  });
+  return new Response(bounded, { status: 200, headers: { 'Content-Type': contentType } });
 }
 
 export class ElevenLabsVoiceProvider {
@@ -149,10 +204,10 @@ export class ElevenLabsVoiceProvider {
         ...(signal === undefined ? {} : { signal }),
       });
       if (response.status === 429) return { ok: false, failure: 'rate_limited' };
-      const contentType = validStreamingAudio(response);
-      return contentType === null
+      const bounded = boundedStreamingAudio(response);
+      return bounded === null
         ? { ok: false, failure: 'provider_unavailable' }
-        : { ok: true, response, contentType };
+        : { ok: true, response: bounded, contentType: 'audio/mpeg' };
     } catch (error) {
       return signal?.aborted === true || (error instanceof Error && error.name === 'AbortError')
         ? { ok: false, failure: 'interrupted' }

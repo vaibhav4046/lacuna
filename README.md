@@ -12,75 +12,107 @@ sentence. It cannot tell you that the fact it just used was overwritten three
 sessions ago, it cannot show you which message the fact came from, and when the
 answer is simply not in the history it invents one rather than saying so.
 
-Lacuna stores memory as an immutable evidence graph instead. Every claim keeps
+Lacuna stores memory as an immutable evidence model instead. Every claim keeps
 the span it came from. Corrections do not overwrite; they attach a `SUPERSEDES`
 edge, so the old claim stays queryable and the timeline stays honest. Retrieval
-is a bounded graph traversal that returns a proof path, not a similarity score.
-And when the evidence does not support an answer, Lacuna abstains with a
-machine-readable reason instead of guessing.
+is bounded relationship resolution that returns a proof path, not a similarity
+score. The self-hosted adapter performs native Cypher reads; the production
+HydraDB Cloud adapter fetches deterministic addressed records and Lacuna applies
+the same temporal and relationship policy in application code. When the
+evidence does not support an answer, Lacuna abstains with a machine-readable
+reason instead of guessing.
 
 The name is the thesis: a lacuna is a gap. Knowing where the gaps are is the
 part everyone skips.
 
-## V8 product
+## Product evidence
 
-The current product is wider than the original resolver without weakening its
-rules:
+These are automated captures of the current candidate, not concept renders.
 
-- **Ask** turns a plain-English question into a bounded subject and predicate,
-  answers only from standing evidence, and returns the interpretation, proof,
-  timeline and abstention reason as inspectable artifacts.
-- **Memory and Graph** expose the same live HydraDB-backed workspace as a
-  searchable table, a state-shaped overview field, and a deterministic
-  provenance DAG. The seeded public workspace measured 453 graph nodes and 682
-  edges on the V8 acceptance deployment, paged with server-signed cursors.
-- **Agents and Work** persist a governed Researcher → Reviewer run. A completed
-  production run records eight lifecycle events from `CREATED` to `COMPLETED`,
-  the exact context pack, reviewer verdict, tool use, latency, and no
-  authoritative writeback. The shipped catalogue is two built-in roles, not a
-  general user-created agent platform. Memory-derived recommendations are a
-  release candidate until their API and production flow are rerun.
-- **Schedules** persist daily context-health definitions. Vercel invokes a
-  bearer-protected dispatcher and workspace identifiers are enumerated
-  server-side. The file adapter serializes locally, but HydraDB currently
-  provides no compare-and-swap operation, so hosted multi-instance execution is
-  not claimed to be distributed exactly-once.
-- **Voice** implements the browser state machine, realtime Scribe and streamed
-  TTS routes, interruption, and text fallback. The provider boundary is covered
-  by fixtures, not an end-to-end production voice session. Production returns
-  `speech_unavailable` until `ELEVENLABS_API_KEY` and
-  `ELEVENLABS_VOICE_ID` are supplied as server-only environment variables.
-- **Everywhere** is the same read contract over the browser, CLI, stdio MCP,
-  and public Streamable HTTP MCP. The repository does not ship a packaged
-  Lacuna SDK. Private MCP now has authenticated issue/revoke routes, random
-  revocable digest-only capabilities, and a fail-closed listener. Deployment
-  and named-client proof remain acceptance gates.
+![Lacuna landing page with the persistent Memory Gravity Field](artifacts/visual-v10/preview/hero-desktop-1920.png)
 
-The quickest judge path is [the live public workspace](https://lacuna-five.vercel.app/explore).
-The exact V8 capability boundary is in
-[docs/FINAL_CAPABILITY_MATRIX.md](docs/FINAL_CAPABILITY_MATRIX.md), and the
-current evidence is indexed in [docs/EVIDENCE_INDEX.md](docs/EVIDENCE_INDEX.md).
+![Lacuna interactive memory graph](artifacts/screens/live/live-graph-1920x1080.png)
+
+The complete responsive landing audit, including all 20 desktop chapters,
+seven priority mobile chapters, Context Pack hover/click/expansion and the
+handoff overlap check, is recorded in
+[`landing-audit.json`](artifacts/visual-v10/preview/landing-audit.json).
+
+For Track 03, the concrete wedge is narrow and testable: preserve temporal
+change, expose unresolved contradictions, return exact evidence, abstain when
+the graph cannot support an answer, and keep that result identical across the
+deployed web, CLI and MCP read surfaces.
+
+## V10 product
+
+Lacuna is one evidence contract projected through several real surfaces:
+
+- **Ask** reads a plain-English question into a bounded subject and predicate,
+  then returns the answer, interpretation, evidence, revision history and a
+  machine-readable abstention reason.
+- **Memory and Graph** expose the same HydraDB-backed workspace as a searchable
+  table, an interactive overview and an exact provenance DAG. A live production
+  probe on 2026-08-21 returned 453 nodes and 682 edges with opaque, signed cursor
+  pages.
+- **Agents and Work** ship two governed roles, Researcher and Reviewer. The
+  accepted production record contains one completed run with eight lifecycle
+  events, its bounded Context Pack and no authoritative writeback.
+- **Everywhere** projects the same read contract through the web app, the nine
+  CLI commands, stdio MCP and public Streamable HTTP MCP. A live `tools/list`
+  call on 2026-08-21 returned seven read-only tools, including connector-shaped
+  `search` and `fetch`.
+- **HydraDB** is the persistent context layer, not a decorative export. The
+  production adapter stores collection-scoped sources and graph-shaped entity
+  records in HydraDB Cloud and fetches them by deterministic id; Lacuna applies
+  temporal standing, contradiction, abstention and multi-hop resolution after
+  that fetch. Cloud query and relations power search and the store-comparison
+  view. A separate self-hosted adapter stores native nodes/edges and executes
+  bounded Cypher traversals.
+
+The quickest judge path is the
+[live public workspace](https://lacuna-five.vercel.app/explore). The exact
+2026-08-21 release boundary is in
+[docs/V10_RELEASE_STATUS.md](docs/V10_RELEASE_STATUS.md), current proof is in
+[docs/EVIDENCE_INDEX.md](docs/EVIDENCE_INDEX.md), and client setup is in
+[docs/CONNECT_CLIENTS.md](docs/CONNECT_CLIENTS.md).
 
 ### Release acceptance boundary
 
-The last clean production acceptance run passed web smoke 9/9, demo smoke
-30/30, and password-account smoke 12/12. The current working tree contains
-security and runtime hardening that must be rebuilt, deployed, and rerun before
-those changes may inherit the same label.
+The V10 production build passed web smoke 9/9, demo/API smoke 30/30 and the
+Google OAuth boundary 15/15. Its full unit suite passed 1,376/1,376, its build
+transformed 124 modules, and the two-hour Vercel release window contained no
+runtime error clusters or error/fatal logs. ChatGPT then called all seven public
+MCP tools against HydraDB Cloud; the redacted result ledger is in
+[`artifacts/verification/2026-08-21-v10`](artifacts/verification/2026-08-21-v10).
 
-Google sign-in is not release-accepted at this point. A security review found
-that the deployed callback could merge a verified Google identity into an
-existing password account on email equality alone. The candidate now binds the
-provider and Google subject, verifies JWKS/RS256 claims, uses PKCE and a nonce,
-hardens redirect caching, and passes negative HTTP account-merge tests. It is
-not a production claim until deployment and a fresh-identity browser pass.
-Hosted password signup is disabled because the current HydraDB identity store
-cannot atomically enforce a unique email; existing password sign-in remains.
+The repository does not publish an `@lacuna/sdk` package. The public read-only
+ChatGPT connector is accepted; Claude has not been tested. Google OAuth is
+accepted through the real account chooser but not through a completed human
+identity callback. Private MCP writes and provider-backed voice retain named
+production gates. Text and Custom ingestion are `AVAILABLE`. GitHub, GitLab,
+Linear, Jira, Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API,
+Webhook and Database source are `PLANNED`; none is `CONNECTED` or `SYNCING`.
+Spotify is not in the connector catalogue and is not implemented.
 
-The continuity artifact proves agreement among Lacuna's deployed web endpoint,
-its CLI, and its MCP process. It is not evidence that ChatGPT or Claude has
-connected. No ChatGPT/Claude cross-client result, Supademo walkthrough, accepted
-final MP4, YouTube upload, Spotify sync, or other native connector is claimed.
+The public workspace exposes accepted agent run records for inspection but is
+not a shared scratchpad. The current candidate returns
+`403 public_preview_read_only` for anonymous `POST /api/explore/agent/run` and
+its `/api/demo` alias. Authenticated, CSRF-protected
+`POST /api/workspace/agent/run` remains a real persisted capability. This
+security patch still needs a fresh production deployment gate.
+
+The candidate private MCP credential is a random bearer stored only by digest.
+It expires 30 days after issue and can be revoked sooner; issuance returns
+`createdAt` and `expiresAt`. The `Authorization` header at `/mcp` is preferred
+because `/mcp/w/<capability>` URLs may be logged. Version-1 capabilities now fail
+closed in production and must be reminted; the installed private ChatGPT
+connector demonstrated that refusal. A signed-in version-2 issue/use/revoke
+probe is still required before private `remember` is accepted.
+
+The earlier 179-second V8 film is historical, was rejected by the owner, and is
+not submission media or a fallback master. The V10 cue sheet requires live
+product motion and claim-mapped evidence; YouTube upload and signed-out playback
+remain owner actions.
 
 **Thirty seconds, no account.** Open
 [lacuna-five.vercel.app](https://lacuna-five.vercel.app) and ask it something in
@@ -94,7 +126,8 @@ The question is read into a subject and a predicate before anything is
 resolved, and the reading is printed next to the answer, because a parser that
 guessed wrong would otherwise produce a fully evidenced answer to a question
 nobody asked. No model is involved in any of that: the parser is a closed
-vocabulary and the resolver is a graph traversal.
+vocabulary and the resolver applies deterministic temporal and relationship
+policy over the records returned by the configured HydraDB adapter.
 
 **The clearest evidence is on one screen.** HydraDB Cloud builds its own graph
 out of the same transcripts, and [/explore/hydra](https://lacuna-five.vercel.app/explore/hydra)
@@ -139,7 +172,9 @@ supersedes which because it was told. That is a fair test of what to do with a
 claim graph and it is not a claim about building one from arbitrary text. The
 LongMemEval integration is the one path that runs extraction end to end, and
 `docs/BENCHMARK_LONGMEMEVAL.md` records exactly how far that goes and what it
-still needs.
+still needs. **No official LongMemEval score has been produced.** The generated
+64-question evaluation below is a repository correctness check, not that
+benchmark.
 
 ## The deployed copy
 
@@ -261,10 +296,15 @@ it from the seed `lacuna-demo-v1` against a fixed epoch, with no clock and no
 sessions, 5246 messages, 86 entities and 174 claims. A different seed yields a
 different corpus of the same shape.
 
-What comes back out is not generated. Traversals, blast radius, revision chains,
-contradictions, evidence paths and abstentions are computed against the graph
-when the question is asked. The expected answers exist only in the evaluation
-harness, and
+What comes back out is not copied from the answer key. Relationship traversals,
+the four generated gold blast-radius cases, revision chains, contradictions,
+evidence paths and abstentions are computed from stored records when the
+question is asked. That does not prove an arbitrary blast workflow: the exact
+399-character `package-session` request in
+[`package-session-proof-audit.json`](artifacts/verification/2026-08-21-v10/package-session-proof-audit.json)
+is `NOT_PROVEN`. The subject is absent, the prompt exceeds the 300-character
+sentence contract, and Web, CLI and MCP expose no general blast command. The
+expected answers exist only in the evaluation harness, and
 [tests/unit/ground-truth-isolation.test.ts](tests/unit/ground-truth-isolation.test.ts)
 holds that separation structurally: the query path reaches no module that
 carries them, and ingestion plans a byte-identical graph when every expected
@@ -286,8 +326,14 @@ node bin/lacuna.js ask Bellwether beta_partner
 npm run mcp -- --stdio
 ```
 
-[docs/CLI.md](docs/CLI.md) covers the commands, the flags and the exit codes.
-[docs/MCP.md](docs/MCP.md) covers the four tools and both transports.
+[docs/CLI.md](docs/CLI.md) covers all nine commands, flags and exit codes.
+[docs/MCP.md](docs/MCP.md) covers the seven public tools and both transports.
+
+The nine commands are `doctor`, `status`, `profile`, `shell`, `read`, `ask`,
+`explain`, `timeline` and `bench`. The seven live public MCP tools are
+`lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`,
+`search`, `fetch` and `lacuna_health`. Neither catalog contains ingest, agent
+run, schedule or voice control.
 
 Both build their result from one shared projection,
 [`src/contract/result.ts`](src/contract/result.ts), so agreement between them is
@@ -310,11 +356,12 @@ render their own markup rather than the projection.
 
 ## Status
 
-V8 is release-candidate software. The live deployment, current gates, shipped
-capabilities and named limitations are recorded in
-[docs/FINAL_EXECUTION_STATE.md](docs/FINAL_EXECUTION_STATE.md). Historical
-audits remain in the repository as dated evidence; that file and
-[RELEASE_GATE.md](RELEASE_GATE.md) are the current release truth.
+V10 is a release candidate. Accepted production proof, current worktree gates
+and named limitations are separated in
+[docs/V10_RELEASE_STATUS.md](docs/V10_RELEASE_STATUS.md). Older V8 audits remain
+in the repository as dated evidence and do not transfer to V10 without a rerun.
+The public repository must contain the exact accepted source before submission;
+an uncommitted working tree is not reproducible evidence.
 
 Nothing in this README describes a feature that does not exist. If a claim here
 is not backed by a command you can run, it is a bug in the README.

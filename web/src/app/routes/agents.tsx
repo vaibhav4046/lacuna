@@ -189,7 +189,17 @@ export function Agents() {
         </article>
       ))}
 
-      {researcher === null ? null : (
+      {scope.demo && researcher !== null ? (
+        <section style={{ borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '22px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
+          <div style={head}>ACCEPTED RUN · READ ONLY</div>
+          <p style={{ margin: 0, color: '#BDBDBD', fontSize: '13.5px', lineHeight: 1.65, maxWidth: '72ch' }}>
+            This public proof workspace preserves the accepted Researcher → Reviewer run below.
+            Sign in to create work inside an isolated workspace with CSRF protection and a durable run budget.
+          </p>
+        </section>
+      ) : null}
+
+      {researcher === null || scope.demo ? null : (
         <section style={{ borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={head}>RUN RESEARCHER → REVIEWER</div>
           <textarea

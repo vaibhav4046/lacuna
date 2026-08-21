@@ -1,111 +1,300 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
-  <title>Lacuna · one store, every client</title>
-  <style>
-    @font-face{font-family:"Space Grotesk";src:url("assets/fonts/space-grotesk-latin.woff2") format("woff2");font-weight:300 700;font-display:block}
-    @font-face{font-family:"JetBrains Mono";src:url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");font-weight:400 500;font-display:block}
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:1920px;height:1080px;overflow:hidden;background:#000;color:#fff}
-    body{font-family:"Space Grotesk",sans-serif}
-    #beat-09-everywhere{position:relative;width:1920px;height:1080px;overflow:hidden}
-    .fill{position:absolute;inset:0;background:#000}
-    .scene{position:absolute;inset:0;overflow:hidden}
-    .kicker,.artifact-label,.client,.code-label,.truth,.path{font-family:"JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.17em}
-    .kicker{position:absolute;left:72px;top:48px;font-size:15px;color:#8052ff}
-    .title{position:absolute;left:72px;top:92px;font-size:56px;line-height:1;font-weight:300;letter-spacing:-.03em}
-    .artifact{position:absolute;left:72px;top:188px;width:1132px;height:790px;background:#0a0a0a;border:1px solid rgba(255,255,255,.16);overflow:hidden}
-    .artifact-label{height:54px;padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.12);font-size:11px;color:#9a9a9a}
-    .artifact-body{padding:22px 26px 18px}
-    .source-row{display:grid;grid-template-columns:106px 1fr;gap:18px;padding:8px 0;font-family:"JetBrains Mono",monospace;font-size:15px;line-height:1.4;color:#bdbdbd}
-    .client{font-size:11px;color:#9a9a9a;padding-top:3px}
-    .source-row strong{color:#fff;font-weight:500}
-    .rule{height:1px;margin:12px 0;background:rgba(255,255,255,.12)}
-    .result{display:grid;grid-template-columns:232px 120px 1fr 86px;gap:14px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);font-family:"JetBrains Mono",monospace;font-size:14px;color:#bdbdbd}
-    .result strong{color:#fff;font-weight:500}
-    .status-answer{color:#fff}.status-gap{color:#9a9a9a}.status-conflict{color:#ffb829}
-    .parity{margin-top:20px;padding:17px 20px;border-left:3px solid #8052ff;background:#030303;font-family:"JetBrains Mono",monospace;font-size:25px;color:#8052ff;letter-spacing:.04em}
-    .right-rail{position:absolute;right:72px;top:188px;width:576px;height:790px;display:flex;flex-direction:column;gap:18px}
-    .code-card{padding:25px;background:#030303;border:1px solid rgba(255,255,255,.16)}
-    .code-label{font-size:11px;color:#9a9a9a}
-    .endpoint{margin-top:18px;font-family:"JetBrains Mono",monospace;font-size:18px;line-height:1.55;color:#fff;word-break:break-word}
-    .method{color:#8052ff}
-    .transport{margin-top:17px;font-size:18px;color:#bdbdbd;line-height:1.45}
-    .truth-card{flex:1;padding:26px;border:1px solid rgba(128,82,255,.55);background:#000;display:flex;flex-direction:column;justify-content:space-between}
-    .truth{font-size:11px;color:#8052ff}
-    .truth-title{font-size:40px;font-weight:300;line-height:1.08;letter-spacing:-.025em}
-    .truth-copy{font-size:21px;line-height:1.45;color:#bdbdbd}
-    .not-shipped{padding-top:20px;border-top:1px solid rgba(255,255,255,.12);font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:#9a9a9a}
-    .not-shipped strong,.not-shipped span{display:block}.not-shipped strong{color:#fff;font-weight:500}
-    .trace{position:absolute;left:1164px;top:558px;width:148px;height:2px;background:#8052ff;transform-origin:left center}
-    .path{position:absolute;left:72px;bottom:24px;font-size:11px;color:#757575}
-  </style>
-</head>
-<body>
-  <div data-hf-id="hf-eq83" id="beat-09-everywhere" data-composition-id="beat-09-everywhere" data-start="0" data-width="1920" data-height="1080" data-duration="20" data-fps="30">
-    <div data-hf-id="hf-4qej" class="fill"></div>
-    <section data-hf-id="hf-7xl1" id="b09-scene" class="clip scene" data-start="0" data-duration="20" data-track-index="1">
-      <p data-hf-id="hf-dy29" class="kicker">09 · One store, every client</p>
-      <h1 data-hf-id="hf-np2j" id="b09-title" class="title">One recorded run. Three real clients.</h1>
-      <article data-hf-id="hf-93uf" id="b09-artifact" class="artifact">
-        <p data-hf-id="hf-r5l8" class="artifact-label">RECORDED ACCEPTANCE ARTIFACT · assets/continuity.txt</p>
-        <div data-hf-id="hf-9g07" class="artifact-body">
-          <div data-hf-id="hf-d2as" id="b09-source-web" class="source-row"><span data-hf-id="hf-zfs6" class="client">WEB</span><span data-hf-id="hf-uckh"><strong data-hf-id="hf-0lui">https://lacuna-five.vercel.app</strong></span></div>
-          <div data-hf-id="hf-3qic" id="b09-source-cli" class="source-row"><span data-hf-id="hf-5sn6" class="client">CLI</span><span data-hf-id="hf-8lf4">this machine, <strong data-hf-id="hf-iruu">LACUNA_PROFILE=cloud</strong></span></div>
-          <div data-hf-id="hf-jane" id="b09-source-mcp" class="source-row"><span data-hf-id="hf-5244" class="client">MCP</span><span data-hf-id="hf-wkhn">subprocess over stdio, <strong data-hf-id="hf-0yve">LACUNA_PROFILE=cloud</strong></span></div>
-          <div data-hf-id="hf-2f01" id="b09-source-store" class="source-row"><span data-hf-id="hf-iwdt" class="client">STORE</span><span data-hf-id="hf-phtq"><strong data-hf-id="hf-zi9h">HydraDB Cloud</strong>, database lacuna, collection backend</span></div>
-          <div data-hf-id="hf-a46i" class="rule"></div>
-          <div data-hf-id="hf-ddcc" id="b09-result-1" class="result"><strong data-hf-id="hf-gkw9">q-stable-01</strong><span data-hf-id="hf-pd4l" class="status-answer">ANSWERED</span><span data-hf-id="hf-j4kw">25 July 2026</span><span data-hf-id="hf-g77x">1 cited</span></div>
-          <div data-hf-id="hf-o8tz" id="b09-result-2" class="result"><strong data-hf-id="hf-1ddo">q-revised-01</strong><span data-hf-id="hf-jlrd" class="status-answer">ANSWERED</span><span data-hf-id="hf-rl2h">Halverd</span><span data-hf-id="hf-5k8x">1 cited</span></div>
-          <div data-hf-id="hf-kapy" id="b09-result-3" class="result"><strong data-hf-id="hf-kg10">q-retracted-01</strong><span data-hf-id="hf-ynal" class="status-gap">NO_EVIDENCE</span><span data-hf-id="hf-p4kj">retracted</span><span data-hf-id="hf-bu9o">2 cited</span></div>
-          <div data-hf-id="hf-sylt" id="b09-result-4" class="result"><strong data-hf-id="hf-yk8o">q-contradicted-01</strong><span data-hf-id="hf-n2ns" class="status-conflict">CONFLICT</span><span data-hf-id="hf-2ce1">contradicted</span><span data-hf-id="hf-pylw">2 cited</span></div>
-          <div data-hf-id="hf-s6y0" id="b09-result-5" class="result"><strong data-hf-id="hf-0rg7">q-multi_hop-01</strong><span data-hf-id="hf-ksog" class="status-answer">ANSWERED</span><span data-hf-id="hf-i3a3">Farah Haddad</span><span data-hf-id="hf-orot">2 cited</span></div>
-          <div data-hf-id="hf-0utv" id="b09-result-6" class="result"><strong data-hf-id="hf-2uk5">q-out_of_scope-01</strong><span data-hf-id="hf-3qqp" class="status-gap">NO_EVIDENCE</span><span data-hf-id="hf-tbea">out_of_scope</span><span data-hf-id="hf-8xky">0 cited</span></div>
-          <div data-hf-id="hf-dozg" id="b09-parity" class="parity">ONE_CONTEXT_IDENTICAL: true</div>
-        </div>
-      </article>
-      <div data-hf-id="hf-7gbf" id="b09-trace" class="trace" data-layout-ignore="true"></div>
-      <aside data-hf-id="hf-ef9c" class="right-rail">
-        <section data-hf-id="hf-avs3" id="b09-endpoint" class="code-card">
-          <p data-hf-id="hf-ostp" class="code-label">REMOTE MCP · PUBLIC READ</p>
-          <p data-hf-id="hf-bpoz" class="endpoint"><span data-hf-id="hf-tupw" class="method">POST</span> https://lacuna-five.vercel.app/mcp</p>
-          <p data-hf-id="hf-gtoq" class="transport">Streamable HTTP and stdio share the same tool implementation.</p>
+  <head>
+    <meta charset="UTF-8">
+    <title>Lacuna — Beat 09 — CLI and MCP parity</title>
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Space Grotesk";
+          src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+          font-weight: 300 700;
+          font-display: block;
+        }
+        @font-face {
+          font-family: "JetBrains Mono";
+          src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+          font-weight: 400 500;
+          font-display: block;
+        }
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          background: #000000;
+          color: #ffffff;
+          font-family: "Space Grotesk", Arial, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        .b09-scene {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          background: #000000;
+        }
+        .b09-topline {
+          position: absolute;
+          top: 34px;
+          left: 72px;
+          right: 72px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-bottom: 18px;
+          border-bottom: 1px solid #26232d;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 11px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+        .b09-topline strong { color: #8052ff; font-weight: 500; }
+        .b09-topline span { color: #9f9aa6; }
+        .b09-verdict {
+          position: absolute;
+          top: 94px;
+          left: 72px;
+          right: 72px;
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 50px;
+        }
+        .b09-verdict h1 {
+          color: #ffffff;
+          font-size: 58px;
+          font-weight: 300;
+          line-height: 1;
+          letter-spacing: -0.045em;
+        }
+        .b09-verdict h1 span { color: #8052ff; }
+        .b09-verdict p {
+          color: #aaa5b0;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 12px;
+          letter-spacing: 0.13em;
+          text-transform: uppercase;
+        }
+        .b09-columns {
+          position: absolute;
+          top: 200px;
+          left: 72px;
+          right: 72px;
+          bottom: 112px;
+          display: grid;
+          grid-template-columns: 58% 42%;
+        }
+        .b09-cli,
+        .b09-parity {
+          min-width: 0;
+          overflow: hidden;
+        }
+        .b09-cli { padding: 8px 52px 0 0; }
+        .b09-parity {
+          padding: 8px 0 0 52px;
+          border-left: 1px solid #302b3a;
+        }
+        .b09-label {
+          margin-bottom: 21px;
+          color: #8052ff;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+        .b09-terminal {
+          color: #c8c4ce;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 17px;
+          line-height: 1.52;
+          white-space: pre-wrap;
+        }
+        .b09-terminal .prompt,
+        .b09-terminal .answer { color: #ffffff; }
+        .b09-terminal .proof { color: #8052ff; }
+        .b09-terminal .dim { color: #86818d; }
+        .b09-clients {
+          display: grid;
+          grid-template-columns: 86px 1fr;
+          row-gap: 9px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid #26232d;
+          color: #aaa5b0;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 13px;
+          line-height: 1.35;
+        }
+        .b09-clients strong { color: #ffffff; font-weight: 500; }
+        .b09-clients .client { color: #8052ff; letter-spacing: 0.14em; }
+        .b09-results { margin-top: 18px; }
+        .b09-result {
+          position: relative;
+          display: grid;
+          grid-template-columns: 188px 118px 1fr 68px;
+          gap: 11px;
+          min-height: 41px;
+          align-items: center;
+          border-bottom: 1px solid #1d1b22;
+          color: #aaa5b0;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 12px;
+        }
+        .b09-result strong { color: #ffffff; font-weight: 500; }
+        .b09-result .state { color: #bdb8c3; }
+        .b09-check {
+          position: absolute;
+          left: 0;
+          bottom: -1px;
+          width: 100%;
+          height: 1px;
+          background: #8052ff;
+          transform-origin: left center;
+        }
+        .b09-parity-path {
+          margin-top: 22px;
+          color: #8052ff;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 20px;
+          letter-spacing: 0.04em;
+        }
+        .b09-sdk {
+          position: absolute;
+          left: 72px;
+          right: 72px;
+          bottom: 28px;
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 42px;
+          padding-top: 18px;
+          border-top: 1px solid #302b3a;
+          font-family: "JetBrains Mono", Consolas, monospace;
+          font-size: 13px;
+          line-height: 1.4;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .b09-sdk strong { color: #ffffff; font-weight: 500; }
+        .b09-sdk span { color: #9e99a5; }
+        .b09-sdk em { color: #8052ff; font-style: normal; }
+        .b09-flow {
+          position: absolute;
+          z-index: 3;
+          left: 1010px;
+          top: 420px;
+          width: 196px;
+          height: 2px;
+          background: #8052ff;
+          transform-origin: left center;
+        }
+        .b09-handoff {
+          position: absolute;
+          z-index: 8;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+          height: 2px;
+          background: #8052ff;
+          transform-origin: right center;
+        }
+      </style>
+
+      <div id="root" data-hf-id="hf-b09-root" data-composition-id="beat-09-everywhere" data-start="0" data-width="1920" data-height="1080" data-duration="20" data-fps="30">
+        <section data-hf-id="hf-liyd" id="b09-scene" class="clip b09-scene" data-start="0" data-duration="20" data-track-index="1">
+          <header data-hf-id="hf-gykn" class="b09-topline"><strong data-hf-id="hf-3pvi">09 · recorded CLI / MCP acceptance</strong><span data-hf-id="hf-y7df">assets/continuity.txt · artifacts/cli/session.txt</span></header>
+
+          <div data-hf-id="hf-udxz" class="b09-verdict">
+            <h1 data-hf-id="hf-kae8">ONE_CONTEXT_IDENTICAL: <span data-hf-id="hf-4sq1">true</span></h1>
+            <p data-hf-id="hf-7041">web · CLI · MCP · one HydraDB Cloud collection</p>
+          </div>
+
+          <div data-hf-id="hf-8kgt" class="b09-columns">
+            <article data-hf-id="hf-zmcz" id="b09-cli" class="b09-cli">
+              <p data-hf-id="hf-tnph" class="b09-label">Cloud CLI · committed session</p>
+              <div data-hf-id="hf-axfn" class="b09-terminal"><span data-hf-id="hf-k6wl" class="prompt">$ lacuna status</span>
+
+  profile  <span data-hf-id="hf-fkso" class="answer">cloud</span>
+  store    <span data-hf-id="hf-al1z" class="answer">HydraDB Cloud, database lacuna, collection backend</span>
+
+<span data-hf-id="hf-7czt" class="prompt">$ lacuna ask Bellwether beta_partner</span>
+
+Q  Bellwether beta_partner
+<span data-hf-id="hf-kelo" class="answer">A  Halverd</span>
+   This replaced 2 earlier values and nothing has superseded it.
+
+   Cited from
+     Data planning call, 2025-04-20, user
+       <span data-hf-id="hf-tjqk" class="proof">“Correction on Bellwether: the beta partner is now Halverd.”</span>
+
+   <span data-hf-id="hf-vpdw" class="dim">1 query, 443.1ms</span></div>
+            </article>
+
+            <article data-hf-id="hf-vtab" id="b09-parity" class="b09-parity">
+              <p data-hf-id="hf-8nbm" class="b09-label">Three clients · exact recorded output</p>
+              <div data-hf-id="hf-edxc" class="b09-clients">
+                <span data-hf-id="hf-zfs6" class="client">WEB</span><strong data-hf-id="hf-0lui">https://lacuna-five.vercel.app</strong>
+                <span data-hf-id="hf-5sn6" class="client">CLI</span><span data-hf-id="hf-ezdf">this machine · LACUNA_PROFILE=cloud</span>
+                <span data-hf-id="hf-5244" class="client">MCP</span><span data-hf-id="hf-epck">subprocess over stdio · LACUNA_PROFILE=cloud</span>
+                <span data-hf-id="hf-iwdt" class="client">STORE</span><strong data-hf-id="hf-4xsj">HydraDB Cloud · lacuna / backend</strong>
+              </div>
+              <div data-hf-id="hf-b0j2" class="b09-results">
+                <div data-hf-id="hf-q4vr" class="b09-result"><strong data-hf-id="hf-gkw9">q-stable-01</strong><span data-hf-id="hf-sv3f" class="state">ANSWERED</span><span data-hf-id="hf-j4kw">25 July 2026</span><span data-hf-id="hf-g77x">1 cited</span><i data-hf-id="hf-zvic" id="b09-check-1" class="b09-check"></i></div>
+                <div data-hf-id="hf-o4dz" class="b09-result"><strong data-hf-id="hf-1ddo">q-revised-01</strong><span data-hf-id="hf-szez" class="state">ANSWERED</span><span data-hf-id="hf-rl2h">Halverd</span><span data-hf-id="hf-5k8x">1 cited</span><i data-hf-id="hf-aqzz" id="b09-check-2" class="b09-check"></i></div>
+                <div data-hf-id="hf-nq2y" class="b09-result"><strong data-hf-id="hf-kg10">q-retracted-01</strong><span data-hf-id="hf-04c5" class="state">NO_EVIDENCE</span><span data-hf-id="hf-p4kj">retracted</span><span data-hf-id="hf-bu9o">2 cited</span><i data-hf-id="hf-4la6" id="b09-check-3" class="b09-check"></i></div>
+                <div data-hf-id="hf-nbrx" class="b09-result"><strong data-hf-id="hf-yk8o">q-contradicted-01</strong><span data-hf-id="hf-0t9u" class="state">CONFLICT</span><span data-hf-id="hf-2ce1">contradicted</span><span data-hf-id="hf-pylw">2 cited</span><i data-hf-id="hf-fgrt" id="b09-check-4" class="b09-check"></i></div>
+                <div data-hf-id="hf-q3x4" class="b09-result"><strong data-hf-id="hf-0rg7">q-multi_hop-01</strong><span data-hf-id="hf-sl3y" class="state">ANSWERED</span><span data-hf-id="hf-i3a3">Farah Haddad</span><span data-hf-id="hf-orot">2 cited</span><i data-hf-id="hf-ep40" id="b09-check-5" class="b09-check"></i></div>
+                <div data-hf-id="hf-ppm3" class="b09-result"><strong data-hf-id="hf-2uk5">q-out_of_scope-01</strong><span data-hf-id="hf-z415" class="state">NO_EVIDENCE</span><span data-hf-id="hf-tbea">out_of_scope</span><span data-hf-id="hf-8xky">0 cited</span><i data-hf-id="hf-nczv" id="b09-check-6" class="b09-check"></i></div>
+              </div>
+              <p data-hf-id="hf-y84i" class="b09-parity-path">ONE_CONTEXT_IDENTICAL: true</p>
+            </article>
+          </div>
+
+          <div data-hf-id="hf-ymsr" id="b09-flow" class="b09-flow" data-layout-ignore="true"></div>
+          <p data-hf-id="hf-wesd" id="b09-sdk" class="b09-sdk"><strong data-hf-id="hf-h5rm">Packaged Lacuna SDK: <em data-hf-id="hf-d7ef">not shipped</em></strong><span data-hf-id="hf-wl8e">The repository exposes HTTP, CLI, and MCP surfaces.</span></p>
+          <div data-hf-id="hf-2g9p" id="b09-handoff" class="b09-handoff" data-layout-ignore="true"></div>
         </section>
-        <section data-hf-id="hf-9krr" id="b09-truth" class="truth-card">
-          <p data-hf-id="hf-fqtf" class="truth">WHAT THIS PROVES</p>
-          <h2 data-hf-id="hf-7c8x" class="truth-title">The answer contract survives the client.</h2>
-          <p data-hf-id="hf-jjvc" class="truth-copy">Web, CLI, and MCP read one HydraDB Cloud collection and agree on the recorded cases.</p>
-          <p data-hf-id="hf-nm0k" class="not-shipped"><strong data-hf-id="hf-s93u">Packaged Lacuna SDK: not shipped.</strong><span data-hf-id="hf-wl8e">The repository exposes HTTP, CLI, and MCP surfaces.</span></p>
-        </section>
-      </aside>
-      <p data-hf-id="hf-mqlz" class="path">OUTPUT · artifacts/continuity/one-context.json</p>
-    </section>
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    const b09 = gsap.timeline({paused:true});
-    b09.fromTo("#b09-title",{y:24,opacity:0},{y:0,opacity:1,duration:.75,ease:"power3.out"},0.1)
-      .fromTo("#b09-artifact",{x:-60,opacity:0},{x:0,opacity:1,duration:.9,ease:"power3.out"},0.45)
-      .fromTo("#b09-source-web",{x:-22,opacity:0},{x:0,opacity:1,duration:.45,ease:"power3.out"},1.35)
-      .fromTo("#b09-source-cli",{x:-22,opacity:0},{x:0,opacity:1,duration:.45,ease:"power3.out"},1.75)
-      .fromTo("#b09-source-mcp",{x:-22,opacity:0},{x:0,opacity:1,duration:.45,ease:"power3.out"},2.15)
-      .fromTo("#b09-source-store",{x:-22,opacity:0},{x:0,opacity:1,duration:.45,ease:"power3.out"},2.55)
-      .fromTo("#b09-result-1",{y:13,opacity:0},{y:0,opacity:1,duration:.35,ease:"power2.out"},3.45)
-      .fromTo("#b09-result-2",{y:13,opacity:0},{y:0,opacity:1,duration:.35,ease:"power2.out"},4.0)
-      .fromTo("#b09-result-3",{y:13,opacity:0},{y:0,opacity:1,duration:.35,ease:"power2.out"},4.55)
-      .fromTo("#b09-result-4",{y:13,opacity:0},{y:0,opacity:1,duration:.35,ease:"power2.out"},5.1)
-      .fromTo("#b09-result-5",{y:13,opacity:0},{y:0,opacity:1,duration:.35,ease:"power2.out"},5.65)
-      .fromTo("#b09-result-6",{y:13,opacity:0},{y:0,opacity:1,duration:.35,ease:"power2.out"},6.2)
-      .fromTo("#b09-parity",{x:-18,opacity:0},{x:0,opacity:1,duration:.65,ease:"power3.out"},7.15)
-      .fromTo("#b09-endpoint",{x:50,opacity:0},{x:0,opacity:1,duration:.8,ease:"power3.out"},8.05)
-      .fromTo("#b09-trace",{scaleX:0,opacity:0},{scaleX:1,opacity:1,duration:.75,ease:"power2.inOut"},8.45)
-      .fromTo("#b09-truth",{x:50,opacity:0},{x:0,opacity:1,duration:.8,ease:"power3.out"},9.15)
-      .to("#b09-parity",{backgroundColor:"#080613",borderColor:"#8052ff",duration:1.2,ease:"power1.inOut",repeat:3,yoyo:true},10.3)
-      .to("#b09-artifact",{x:-8,duration:8.4,ease:"none"},11.2)
-      .to("#b09-trace",{scaleX:.88,duration:4.2,ease:"power1.inOut",repeat:1,yoyo:true},11.2);
-    window.__timelines["beat-09-everywhere"] = b09;
-  </script>
-</body>
+      </div>
+
+      <script>
+        (() => {
+          const id = "beat-09-everywhere";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#b09-handoff", { scaleX: 1 }, {
+            scaleX: 0.09, duration: 1.1, ease: "power3.inOut"
+          }, 0);
+          tl.fromTo("#b09-flow", { scaleX: 0, opacity: 0 }, {
+            scaleX: 1, opacity: 1, duration: 0.8, ease: "power3.out"
+          }, 1.1);
+          tl.fromTo("#b09-cli", { x: -12 }, {
+            x: 8, duration: 18.2, ease: "none"
+          }, 0.25);
+          tl.fromTo("#b09-parity", { x: 12 }, {
+            x: -8, duration: 18.2, ease: "none"
+          }, 0.25);
+
+          const checks = ["#b09-check-1", "#b09-check-2", "#b09-check-3", "#b09-check-4", "#b09-check-5", "#b09-check-6"];
+          checks.forEach((selector, index) => {
+            tl.fromTo(selector, { scaleX: 0, opacity: 0 }, {
+              scaleX: 1, opacity: 1, duration: 0.48, ease: "power2.out", immediateRender: false
+            }, 2.0 + index * 0.72);
+          });
+          tl.fromTo("#b09-sdk", { y: 12, opacity: 0.72 }, {
+            y: 0, opacity: 1, duration: 0.65, ease: "power3.out"
+          }, 7.0);
+          tl.to("#b09-flow", { x: 132, duration: 4.6, ease: "power1.inOut" }, 8.0);
+          tl.to("#b09-flow", { x: 0, duration: 4.6, ease: "power1.inOut" }, 12.6);
+          tl.to("#b09-handoff", { scaleX: 1, duration: 1.25, ease: "power3.inOut" }, 18.55);
+
+          window.__timelines = window.__timelines || {};
+          window.__timelines[id] = tl;
+        })();
+      </script>
+    </template>
+  </body>
 </html>

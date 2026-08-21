@@ -1,5 +1,10 @@
 # Product reality audit
 
+> **Historical V8 audit.** Use
+> [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md) for the current boundary. The
+> 179-second judges-master described below was rejected and is not submission
+> media.
+
 > **V8 superseding audit — 2026-08-20.** The original audit below is retained
 > because it is useful change history, but its statements that Work, Tools,
 > Scheduler and Voice were absent are no longer current.
@@ -52,8 +57,8 @@ The limitations are narrower and explicit:
   not publish a Lacuna SDK, and neither surface exposes agent lifecycle
   commands.
 - The existing continuity proof is web + CLI + MCP. ChatGPT and Claude have not
-  been connected. Supademo is not assembled, and the current film is an
-  unapproved preview, not a final master.
+  been connected. Supademo is not assembled. The metadata-verified 179-second
+  V8 judges-master was rejected; no accepted V10 master or publication exists.
 
 Current details: `docs/FINAL_EXECUTION_STATE.md`,
 `docs/FINAL_CAPABILITY_MATRIX.md`, and `docs/SCREENSHOT_EVIDENCE_PLAN.md`.

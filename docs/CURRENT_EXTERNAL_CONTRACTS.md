@@ -1,6 +1,6 @@
 # Current external contracts
 
-Checked on 2026-08-20. This file records the provider boundary Lacuna builds
+Checked on 2026-08-21. This file records the provider boundary Lacuna builds
 against. Provider documentation is kept separate from Lacuna integration proof.
 A documented capability is not marked as a Lacuna success until this release
 has probed it.
@@ -48,28 +48,34 @@ Sources:
 
 ## ChatGPT
 
-The account available for a future V8 proof is ChatGPT Pro. OpenAI currently permits
-Pro accounts to connect custom MCP apps with read and fetch permissions in
-developer mode. Full MCP write and modify actions are currently limited to
+The account used for the accepted public proof is ChatGPT Pro. OpenAI currently
+permits Pro accounts to connect custom MCP apps with read and fetch permissions
+in developer mode. Full MCP write and modify actions are currently limited to
 Business and Enterprise/Edu. ChatGPT connects to remote MCP servers, not a
-loopback-only server.
+loopback-only server. `search` and `fetch` are no longer mandatory server tool
+names, although Lacuna exposes both for connector-shaped retrieval. Agent mode
+does not use custom apps; deep research uses read/fetch actions only.
 
 Lacuna therefore scopes any ChatGPT proof to read and fetch. A write
 proof belongs in Claude or another client that exposes the write tool. The
-product must not describe a ChatGPT Pro write as available. No ChatGPT client
-has connected to Lacuna in the current evidence set.
+product must not describe a ChatGPT Pro write as available. On 2026-08-21 the
+ChatGPT Lacuna app called all seven public read tools against production; this
+does not accept the private `remember` tool or any write action.
 
 Source: <https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt>
 
 ## Claude
 
-Anthropic documents MCP support in Claude Code, Claude.ai, Claude Desktop, and
-the Messages API. Lacuna's public Streamable HTTP endpoint is protocol-shaped
-for those clients, but no Claude product has connected in the current evidence
-set. The local candidate exposes `remember` only after an authenticated random
-capability resolves to the session-owned workspace. Deployment and client
-permission proof are still pending. None of that is inferred from Anthropic's
-documentation.
+Anthropic documents MCP support in Claude Code, Claude.ai, Claude Desktop and
+the Messages API. Claude and Claude Desktop accept remote Streamable HTTP
+servers through Settings, Connectors, Add custom connector. Claude Code accepts
+the same transport with `claude mcp add --transport http`. Lacuna's public
+endpoint is protocol-shaped for those clients, but no Claude product has
+connected in the current evidence set. The candidate `remember` tool is offered
+only after a random, digest-only capability resolves to the session-owned
+workspace. It expires 30 days after issue or on earlier revocation; legacy
+version-1 credentials fail closed and must be reminted. Production
+issue/use/revoke/expiry and client-permission proof are still pending.
 
 Source: <https://docs.anthropic.com/en/docs/mcp>
 
@@ -95,14 +101,17 @@ Sources:
 
 ## Vercel
 
-The live team was read through the Vercel API on 2026-08-20. It is an active
+The live team was read through the Vercel API on 2026-08-21. It is an active
 Hobby account. Current Hobby limits allow 100 cron jobs per project, but each
 expression may run no more than once per day and the invocation may occur at
-any point in the selected hour. Vercel does not retry a failed cron invocation.
+any point in the selected hour. Vercel does not retry a failed cron invocation,
+may deliver the same cron event more than once, and recommends both locking and
+idempotency rather than assuming exactly-once execution.
 
-Lacuna may persist and display multiple schedules. On this account, hosted cron
-execution is daily and imprecise. Shorter intervals are product definitions for
-an external worker or a future plan, not a promise made by this deployment.
+Lacuna persists and displays daily schedules. On this account, hosted cron
+execution is daily and imprecise. Its dispatch keys, bounded leases and retries
+reduce duplicates, but HydraDB Cloud exposes no compare-and-swap seam here, so
+those controls are not a distributed exactly-once guarantee.
 
 Sources:
 

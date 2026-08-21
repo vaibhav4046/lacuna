@@ -1,6 +1,6 @@
 {
   "about": "Every claim this project makes about itself, with the state of the thing claimed, where its numbers came from, and the file that proves it. The two state vocabularies are the ones in src/model/capability.ts and nowhere else, so a state cannot appear here that the interface pages do not also know. Checked by tests/unit/claims.test.ts, which fails if a state is invented, an id repeats, or an evidence path does not exist on disk.",
-  "generated_at": "2026-08-20",
+  "generated_at": "2026-08-21",
   "states_from": "src/model/capability.ts",
   "capability_states": [
     "NOT_STARTED",
@@ -37,7 +37,28 @@
         "artifacts/hydradb/metrics-ready.txt"
       ],
       "reproduce": "bash scripts/hydra-node.sh start && bash scripts/hydra-node.sh status",
-      "caveat": "The node runs on this machine. The public URL in the deployment claim below replays recorded answers from this node; it does not host one."
+      "caveat": "The node runs on this machine and is the native Cypher proof. Production does not replay this node or host it: the deployed adapter reads deterministic addressed records from HydraDB Cloud, then Lacuna applies temporal and relationship resolution in application code."
+    },
+    {
+      "id": "hydradb-cloud-answer-path",
+      "claim": "Production stores collection-scoped sources and graph-shaped entity records in HydraDB Cloud, fetches deterministic addressed records for each answer, and applies temporal standing, contradiction, abstention and multi-hop resolution in Lacuna code.",
+      "capability": "VERIFIED",
+      "data": "RECORDED",
+      "measured": {
+        "cloud_records_written": 159,
+        "cloud_records_indexed": 159,
+        "gold_questions_identical_to_node": 64,
+        "native_cypher_in_production_answer_path": false
+      },
+      "evidence": [
+        "src/hydra/cloud-graph.ts",
+        "src/hydra/cloud-source.ts",
+        "artifacts/hydra/cloud-ingest.json",
+        "artifacts/hydra/cloud-parity.json",
+        "docs/HYDRADB_GRAPH_AUDIT.md"
+      ],
+      "reproduce": "npm run ingest:cloud && npm run parity:cloud",
+      "caveat": "HydraDB Cloud supplies persistent addressed records, semantic query and extracted relations. It does not execute Lacuna's current/superseded or contradiction policy. The separate self-hosted NodeSource executes native Cypher; that genuine proof is not the deployed Cloud answer path."
     },
     {
       "id": "cypher-subset",
@@ -87,7 +108,7 @@
     },
     {
       "id": "resolver-determinism",
-      "claim": "The verdict on a question is decided by which edges exist between claims. No model reads the stored text.",
+      "claim": "The verdict on a question is decided from explicit claim relationships and temporal fields. No model reads the stored text on the deterministic Ask path.",
       "capability": "VERIFIED",
       "data": "SEEDED_DEMO",
       "evidence": [
@@ -96,7 +117,7 @@
         "artifacts/eval/report.txt"
       ],
       "reproduce": "npm test && npm run eval",
-      "caveat": "Deterministic means the same graph gives the same verdict, not that the verdict is right about the world. What it is right about is the corpus, which is what the evaluation measures."
+      "caveat": "Deterministic means the same stored claim records give the same verdict, not that the verdict is right about the world. On the self-hosted adapter those records come from native Cypher reads; on production Cloud they come from addressed inspect reads and Lacuna performs the resolution. What the verdict is right about is the generated corpus, which is what the evaluation measures."
     },
     {
       "id": "evaluation",
@@ -130,7 +151,7 @@
         "artifacts/eval/cases.json"
       ],
       "reproduce": "npm run eval",
-      "caveat": "64 questions over one generated corpus. A hundred per cent on a set this size is a statement about this corpus and this question set, not a general accuracy figure."
+      "caveat": "64 questions over one generated corpus. A hundred per cent on a set this size is a statement about this corpus and this question set, not a general accuracy figure. The four blast-radius cases use known generated subjects and the evaluation API; they do not prove the exact 399-character package-session request or a general Web, CLI or MCP blast command."
     },
     {
       "id": "abstention",
@@ -213,14 +234,14 @@
       "capability": "VERIFIED",
       "data": "FIXTURE",
       "measured": {
-        "files": 39,
-        "tests": 893,
-        "duration_seconds": 15.4,
-        "run_on": "2026-08-18"
+        "files": 83,
+        "tests": 1376,
+        "duration_seconds": 54.68,
+        "run_on": "2026-08-21"
       },
       "evidence": [
         "tests/unit",
-        "artifacts/verification/2026-08-18/unit.txt"
+        "artifacts/verification/2026-08-21-v10/README.md"
       ],
       "reproduce": "npm test",
       "caveat": "Negative paths are asserted, so the run prints handled errors to stderr on purpose. A green summary line with error text above it is the expected shape."
@@ -367,7 +388,7 @@
         "tests/unit/voice-browser.test.ts"
       ],
       "reproduce": "npm test",
-      "caveat": "The Vaibhav Lalwani professional clone has been selected for the final narration, but no provider voice id or production audio proof is committed."
+      "caveat": "The verified Vaibhav Lalwani Professional clone, voice id GAeq3X4y41cIseBkBfsS, was used for the separate film narration. That recorded audio is not a product TTS session and does not change this production capability state."
     },
     {
       "id": "metered-voice-fallback",
@@ -397,34 +418,41 @@
     },
     {
       "id": "password-auth",
-      "claim": "Email/password signup, durable session state, onboarding, workspace persistence, sign-out, sign-in and wrong-password refusal passed the twelve-step production smoke.",
-      "capability": "VERIFIED",
+      "claim": "Password-account persistence has historical production proof, while the current hosted release deliberately refuses new password accounts and requires Google for signup.",
+      "capability": "PARTIAL",
       "data": "RECORDED",
       "measured": {
-        "checks": "12/12",
-        "surface": "production"
+        "historical_checks": "12/12",
+        "current_hosted_signup": "403 google_required"
       },
       "evidence": [
         "scripts/smoke-auth.ts",
         "docs/FINAL_EXECUTION_STATE.md"
       ],
-      "reproduce": "npm run smoke:auth -- https://lacuna-five.vercel.app",
-      "caveat": "This is historical production proof for existing password accounts. Hosted password creation is disabled in the candidate because HydraDB cannot atomically enforce a unique email. The result does not prove ownership of an email address and does not transfer to Google OAuth."
+      "reproduce": "npm run smoke:google -- https://lacuna-five.vercel.app",
+      "caveat": "The 12/12 password run is historical proof for an existing password account, not a current signup path. Hosted password creation is disabled because the HydraDB document boundary cannot atomically enforce a unique email. Existing password identities remain isolated from Google identities."
     },
     {
       "id": "google-auth",
-      "claim": "Google sign-in is a security candidate, not a production-accepted capability. The candidate replaces the old email-only merge with provider/subject binding, signed-token verification, PKCE, nonce and non-cacheable redirects.",
+      "claim": "The deployed Google sign-in boundary uses provider/subject binding, signed-token verification, PKCE S256, nonce/state binding, hardened cookies and non-cacheable redirects; its pre-chooser production gate passed 15/15.",
       "capability": "PARTIAL",
-      "data": "UNAVAILABLE",
+      "data": "LIVE",
+      "measured": {
+        "production_boundary_checks": "15/15",
+        "account_chooser_reached": true,
+        "completed_provider_callback": false
+      },
       "evidence": [
         "src/auth/google.ts",
         "src/auth/identity.ts",
         "tests/unit/google-auth.test.ts",
         "tests/unit/auth-identity.test.ts",
-        "tests/unit/google-auth-api.test.ts"
+        "tests/unit/google-auth-api.test.ts",
+        "scripts/smoke-google-auth.ts",
+        "artifacts/verification/2026-08-21-v10/google-auth-boundary.txt"
       ],
-      "reproduce": "npx vitest run tests/unit/google-auth.test.ts tests/unit/auth-identity.test.ts tests/unit/google-auth-api.test.ts",
-      "caveat": "Provider/subject binding, JWKS/RS256, PKCE, nonce, no-store redirects and negative HTTP account-merge tests pass locally. Deployment and a fresh-identity production browser pass remain required; legacy unbound Google records fail closed."
+      "reproduce": "npm run smoke:google -- https://lacuna-five.vercel.app",
+      "caveat": "The production proof intentionally stops before the human chooses a Google identity. It does not claim a newly created account or accepted provider callback. Legacy unbound Google records fail closed."
     },
     {
       "id": "agent-runtime",
@@ -433,17 +461,96 @@
       "data": "RECORDED",
       "measured": {
         "built_in_roles": 2,
-        "accepted_production_runs": 1,
+        "accepted_production_runs": 2,
         "lifecycle_events": 8
       },
       "evidence": [
         "src/agent/run.ts",
         "src/agent/store.ts",
         "artifacts/screens/v8/agents-live.png",
-        "artifacts/screens/v8/work-live.png"
+        "artifacts/screens/v8/work-live.png",
+        "artifacts/verification/2026-08-21-v10/agent-conflict-run.json"
       ],
       "reproduce": "npx vitest run tests/unit/agent-run.test.ts tests/unit/agent-persistence.test.ts",
-      "caveat": "This is not an arbitrary user-created agent platform. CLI and MCP do not expose lifecycle commands. Memory-derived recommendations in the candidate are read-only suggestions until their integrated production gate passes."
+      "caveat": "This is not an arbitrary user-created agent platform. CLI and MCP do not expose lifecycle commands. The latest accepted run was produced after removing a hand-written predicate subset that had omitted `runbook_owner`; it now carries both conflicting claims and no authoritative writeback. Accepted public records are inspectable, but the current candidate no longer allows anonymous visitors to create a persisted run."
+    },
+    {
+      "id": "public-agent-read-only",
+      "claim": "The current candidate makes the public preview read-only: anonymous explore/demo agent-run POSTs return 403, while the signed-in CSRF-protected workspace route still creates and persists real workspace-scoped runs.",
+      "capability": "PARTIAL",
+      "data": "FIXTURE",
+      "measured": {
+        "public_status": 403,
+        "public_error": "public_preview_read_only",
+        "signed_in_workspace_run_status": 200,
+        "fresh_production_acceptance": false
+      },
+      "evidence": [
+        "src/api/router.ts",
+        "tests/unit/demo-api.test.ts",
+        "tests/unit/agent-recommendations-api.test.ts"
+      ],
+      "reproduce": "npx vitest run tests/unit/demo-api.test.ts tests/unit/agent-recommendations-api.test.ts",
+      "caveat": "The accepted public run records remain readable. NO_WRITE means no authoritative memory mutation; a run record itself is operational state, which is why anonymous creation now fails closed. This patch is unit-tested but still requires a fresh production deployment gate."
+    },
+    {
+      "id": "connector-catalogue",
+      "claim": "Text and Custom ingestion are AVAILABLE; every catalogued external, file and data-source connector is PLANNED, with none marked CONNECTED or SYNCING.",
+      "capability": "PARTIAL",
+      "data": "LIVE",
+      "measured": {
+        "available": [
+          "Text",
+          "Custom ingestion"
+        ],
+        "planned": [
+          "GitHub",
+          "GitLab",
+          "Linear",
+          "Jira",
+          "Slack",
+          "Notion",
+          "Gmail",
+          "Confluence",
+          "PDF",
+          "Markdown",
+          "Documents",
+          "API",
+          "Webhook",
+          "Database source"
+        ],
+        "connected": [],
+        "syncing": [],
+        "spotify_catalogued": false
+      },
+      "evidence": [
+        "web/src/design/connectors.ts",
+        "web/src/app/routes/ingest.tsx",
+        "src/api/ingest.ts",
+        "tests/unit/ingest-source.test.ts"
+      ],
+      "reproduce": "npx vitest run tests/unit/ingest-source.test.ts && open /explore/conn",
+      "caveat": "AVAILABLE means a person can provide text through the implemented ingestion path; it does not mean an external service is connected or syncing. Spotify is not in the catalogue and is not implemented."
+    },
+    {
+      "id": "package-session-blast-request",
+      "claim": "The exact 399-character package-session blast-radius request is NOT_PROVEN by the shipped Web, agent, MCP or CLI surfaces.",
+      "capability": "BLOCKED",
+      "data": "RECORDED",
+      "measured": {
+        "verdict": "NOT_PROVEN",
+        "request_characters": 399,
+        "sentence_contract_max_characters": 300,
+        "subject_present": false,
+        "web_blast_route": false,
+        "mcp_blast_tool": false,
+        "cli_blast_command": false
+      },
+      "evidence": [
+        "artifacts/verification/2026-08-21-v10/package-session-proof-audit.json"
+      ],
+      "reproduce": "Inspect artifacts/verification/2026-08-21-v10/package-session-proof-audit.json and repeat its listed Web, agent, MCP and CLI probes.",
+      "caveat": "This negative verdict is about that exact subject and full workflow. It does not negate the four generated gold blast-radius evaluation cases, the in-process pact-check proof, or the fixed tenant-router impact comparison; none of those exposes the requested arbitrary cross-channel blast workflow."
     },
     {
       "id": "scheduler",
@@ -467,43 +574,74 @@
       "id": "private-mcp",
       "claim": "Private MCP uses signed-in CSRF-protected issue/revoke routes, a 256-bit random bearer stored digest-only, cross-workspace refusal, bounded streamed bodies and rate-limited calls.",
       "capability": "PARTIAL",
-      "data": "FIXTURE",
+      "data": "LIVE",
+      "measured": {
+        "capability_schema": 2,
+        "ttl_days": 30,
+        "legacy_v1_rejected_in_chatgpt": true,
+        "production_issue_use_revoke": false
+      },
       "evidence": [
         "src/auth/mcp-capability.ts",
         "src/auth/mcp-capability-store.ts",
         "src/mcp/http.ts",
         "tests/unit/mcp-capability-store.test.ts",
         "tests/unit/mcp-http.test.ts",
-        "tests/unit/mcp-capability-api.test.ts"
+        "tests/unit/mcp-capability-api.test.ts",
+        "artifacts/verification/2026-08-21-v10/README.md"
       ],
       "reproduce": "npx vitest run tests/unit/mcp-capability-store.test.ts tests/unit/mcp-http.test.ts tests/unit/mcp-capability-api.test.ts",
-      "caveat": "Router and deployment wiring pass locally. Production issue/use/revoke and a named external-client probe remain pending. Process-local rate limits are not a distributed quota. Public MCP remains the verified remote surface."
+      "caveat": "Production correctly rejected the installed legacy version-1 ChatGPT capability after the security migration. A signed-in owner must mint a version-2 capability before production issue/use/revoke can be accepted. Process-local rate limits are not a distributed quota. Public MCP is the verified remote surface."
     },
     {
       "id": "external-client-proof",
-      "claim": "No ChatGPT or Claude product has connected to Lacuna in the current evidence set.",
-      "capability": "NOT_STARTED",
-      "data": "UNAVAILABLE",
+      "claim": "The ChatGPT Lacuna app called the production public MCP health, ask, timeline, explain, sentence-read, search and fetch tools against HydraDB Cloud.",
+      "capability": "VERIFIED",
+      "data": "LIVE",
+      "measured": {
+        "client": "ChatGPT",
+        "public_tools_called": 7,
+        "write_tools_advertised": 0,
+        "hydra_store": "cloud"
+      },
       "evidence": [
         "docs/END_TO_END_MATRIX.md",
-        "docs/CURRENT_EXTERNAL_CONTRACTS.md"
+        "docs/CURRENT_EXTERNAL_CONTRACTS.md",
+        "artifacts/verification/2026-08-21-v10/chatgpt-public-connector.json"
       ],
-      "reproduce": "No command exists yet. A named-client capture is required.",
-      "caveat": "ONE_CONTEXT_IDENTICAL proves agreement among Lacuna web, CLI and MCP. MCP Inspector proves protocol interoperability. Neither artifact is a ChatGPT or Claude session."
+      "reproduce": "Connect ChatGPT developer mode to https://lacuna-five.vercel.app/mcp and repeat the seven calls listed in the evidence JSON.",
+      "caveat": "This is a read-only public-corpus ChatGPT proof. It is not a Claude proof and not a private `lacuna_remember` proof. The installed private connector still holds a legacy capability and must be reminted."
     },
     {
       "id": "submission-media",
-      "claim": "An older draft MP4, a 175.2-second composition preview and a draft SRT exist. There is no accepted final master, Supademo walkthrough or YouTube URL.",
+      "claim": "A metadata-verified 179-second historical V8 MP4 exists with the Vaibhav Lalwani Professional narration and burned-in sentence captions; the owner rejected it and it is not submission media.",
       "capability": "PARTIAL",
       "data": "RECORDED",
+      "measured": {
+        "file": "video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4",
+        "seconds": 179.0,
+        "width": 1920,
+        "height": 1080,
+        "fps": 30,
+        "bytes": 126468170,
+        "sha256": "c941fda5f1d40856fbcb1c2d18816c6e4c917924740b78b80351d940e5bdfd28",
+        "has_audio": true,
+        "narration_seconds": 177.3975,
+        "narration_sha256": "FF7472F1C136C7C4FAE8C72F09F90D6D74EA503366D6CDD3F2F398F6604A263A"
+      },
       "evidence": [
+        "artifacts/video/final-metadata.json",
         "video/hyperframes/meta.json",
-        "video/hyperframes/renders/lacuna-demo.srt",
+        "video/hyperframes/narration.json",
+        "video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.srt",
+        "artifacts/video/judges-master/contact-sheet-1.jpg",
+        "artifacts/video/judges-master/contact-sheet-2.jpg",
+        "artifacts/video/judges-master/contact-sheet-3.jpg",
         "docs/VIDEO_SCRIPT.md",
-        "docs/SCREENSHOT_EVIDENCE_PLAN.md"
+        "docs/VIDEO_CLAIM_MAP.md"
       ],
-      "reproduce": "Inspect video/hyperframes/renders and video/hyperframes/meta.json",
-      "caveat": "The owner rejected the preview's visual direction. Final production recapture, selected-voice narration, preview approval, render and upload remain undone."
+      "reproduce": "Inspect artifacts/video/final-metadata.json and run Get-FileHash -Algorithm SHA256 video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4",
+      "caveat": "The artifact is retained only as historical V8 evidence. It must not be uploaded, described as a V10 candidate, or used as a fallback submission master. The clean clone MP3 is local and gitignored to avoid redistributing biometric source audio; its hash, duration, model and generation recipe remain recorded. The burned-in captions use deterministic sentence timing and the matching SRT ends at 00:02:57,398."
     },
     {
       "id": "mcp-server",
@@ -578,7 +716,7 @@
         "vercel.json"
       ],
       "reproduce": "curl -s https://lacuna-five.vercel.app/api/health",
-      "caveat": "This described the deployment as answering from a recorded snapshot, which was true of an earlier build and stopped being true when the cloud source landed. The snapshot still exists and is served by npm run serve:snapshot, which is not what the deployment runs. The route names in the old text (/memory, /bench, /hydradb, /interface) belong to the HTML server."
+      "caveat": "This described the deployment as answering from a recorded snapshot, which was true of an earlier build and stopped being true when the cloud source landed. Production now fetches deterministic addressed records from HydraDB Cloud and Lacuna performs temporal and relationship resolution in application code. The self-hosted native Cypher path remains separate proof. The snapshot still exists under npm run serve:snapshot and is not what the deployment runs."
     },
     {
       "id": "graph-store-durability",
@@ -605,17 +743,17 @@
     },
     {
       "id": "secret-hygiene",
-      "claim": "No credential is committed, in the working tree or anywhere in the history.",
+      "claim": "No credential is tracked or committed in the repository or its reachable history.",
       "capability": "VERIFIED",
       "data": null,
-      "why_no_data": "This is a property of the repository, not a value any page shows.",
+      "why_no_data": "This is a property of tracked repository content and reachable commit history, not a value any page shows.",
       "evidence": [
         ".gitignore",
         "docs/THREAT_MODEL.md",
         "NEEDS_VAIBHAV.md"
       ],
-      "reproduce": "git log --all -p | grep -Ein 'sk-[a-z0-9]{20}|xi-api-key|gsk_' || echo 'no hits'",
-      "caveat": "Two vendor keys are staged in a gitignored .env.local on the author's machine and no code here reads either. They should be revoked once the submission window closes. NEEDS_VAIBHAV.md item 8."
+      "reproduce": "git grep -Ein 'sk-[a-z0-9]{20}|xi-api-key|gsk_' -- . || true; git log --all -p | grep -Ein 'sk-[a-z0-9]{20}|xi-api-key|gsk_' || echo 'no committed-history hits'",
+      "caveat": "Ignored local environment files are outside this tracked-content claim. Two vendor keys exist in a gitignored .env.local on the author's machine and no code here reads either; they should be revoked once the submission window closes. NEEDS_VAIBHAV.md item 8."
     },
     {
       "id": "prompt-injection-surface",

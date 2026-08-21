@@ -165,6 +165,12 @@ export class VoiceController {
     const generation = this.#begin('request_permission');
     const signal = this.#abort!.signal;
     try {
+      // Establish the server-side/provider boundary before asking for the
+      // microphone. An unavailable provider must not make the browser capture
+      // audio or show a permission prompt it cannot use.
+      const token = await this.#runtime.singleUseToken(signal);
+      if (generation !== this.#generation || signal.aborted) return;
+
       let openedMicrophone: MicrophoneSession | null = null;
       const microphone = await this.#runtime.openMicrophone(signal, (frame) => {
         if (generation !== this.#generation || openedMicrophone?.live !== true) return;
@@ -179,8 +185,6 @@ export class VoiceController {
       if (!microphone.live) throw new VoiceRuntimeError('permission_denied');
       this.#microphone = microphone;
 
-      const token = await this.#runtime.singleUseToken(signal);
-      if (generation !== this.#generation || signal.aborted) return;
       const transcriptSession = await this.#runtime.openTranscript(token, microphone, {
         partial: (text) => this.#onPartial(generation, text),
         committed: (text) => { void this.#onCommitted(generation, text); },

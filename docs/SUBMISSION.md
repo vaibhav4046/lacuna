@@ -42,6 +42,10 @@ resolver performs a bounded graph traversal and returns the current value,
 source quotations, revision timeline, exact proof path and a machine-readable
 abstention reason.
 
+That is the Track 03 wedge: temporal change, explicit contradictions, exact
+evidence and abstention are one read contract across the deployed web, CLI and
+MCP surfaces.
+
 The working product includes a no-account public workspace, plain-English Ask,
 a searchable memory table, an interactive overview graph, an exact provenance
 DAG, authenticated private workspaces, two bounded no-write agent roles, Work
@@ -52,14 +56,15 @@ fallback.
 
 The public demo corpus is generated from a fixed seed: 72 sessions, 5,246
 messages, 174 claims and 86 entities. The seeded public graph measured 453
-display nodes and 682 display edges on the accepted V8 deployment. Those are
-demo-workspace counts, not a universal scale result.
+display nodes and 682 display edges in a live production probe on 2026-08-21.
+Those are demo-workspace counts, not a universal scale result.
 
 On this generated 64-question evaluation, Lacuna answered 64/64 with zero
 unsupported answers and used 18 mean context tokens. The strongest of 51 tested
 flat-retrieval configurations answered 63/64 with 1,843. This is a one-question
-lead on one synthetic corpus, not a public benchmark or a general accuracy
-claim. The raw results are committed in artifacts/bench/results.json.
+lead on one synthetic corpus, not official LongMemEval, a public benchmark or a
+general accuracy claim. No LongMemEval score has been produced. The raw results
+are committed in artifacts/bench/results.json.
 ```
 
 ## Deployed project
@@ -132,24 +137,25 @@ https://github.com/vaibhav4046/lacuna
 PENDING OWNER UPLOAD. No YouTube URL exists yet.
 ```
 
-The repository contains an older draft MP4, a 175.2-second checked preview and a
-draft SRT. The owner rejected the preview's visual direction, so it is not the
-submission master. The final film must use fresh production captures, the
-selected Vaibhav Lalwani professional clone, a reviewed preview and a final
-claim check. Videos longer than three minutes are not acceptable.
+The earlier 179-second V8 candidate was rejected and is not the submission
+master. The V10 cut is specified in `docs/V10_VIDEO_PITCH.md`: real product
+motion, the approved private Vaibhav Lalwani Professional voice, sentence
+captions, a verified runtime below 180 seconds and a claim-mapped owner review.
+No YouTube URL exists until the owner approves and uploads that master.
 
 ## Claims deliberately excluded
 
 - Google sign-in until the provider/subject-bound flow is integrated and
   reverified in production.
-- Private MCP until capability issue, use and revoke are wired and probed.
+- Private MCP until issue, use, early revoke, exact 30-day expiry and legacy-v1
+  remint behavior are deployed and probed.
 - Distributed exactly-once schedules. HydraDB persistence has no CAS or
   transaction seam for an atomic multi-instance claim.
 - Working production voice until real STT, selected-clone TTS, playback and
   interruption are accepted.
 - ChatGPT or Claude continuity. The existing continuity artifact covers Lacuna
   web, CLI and MCP only.
-- Supademo, final MP4 and YouTube until those artifacts exist.
+- Supademo, an owner-approved submission master and YouTube until each exists.
 - Spotify, Slack, Notion, Gmail, Linear or any other native connector.
 - Arbitrary user-created agents. The proved runtime has two built-in roles and
   one bounded production run.

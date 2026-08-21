@@ -1,11 +1,13 @@
-# V8 demo video, superseded preview script
+# V8 demo video, rejected historical script
 
-This is the script for the 175.2-second composition preview built by
-`video/hyperframes/build.mjs`. Its runtime/layout/motion checks passed, but the
-owner rejected its visual direction. It is retained as work history and is not
-the accepted final film. Fresh production captures, the selected Vaibhav
-professional clone, preview approval, a final render and a new claim review are
-still required.
+> Superseded by [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md). The V8 candidate was
+> rejected and is not submission media.
+
+This is the script for the superseded 175.2-second composition preview built by
+`video/hyperframes/build.mjs`. It remains only as work history. The rebuilt
+narration and shot contract live in `video/hyperframes/SCRIPT.md` and
+`video/hyperframes/STORYBOARD.md`. The metadata-verified 179-second V8 candidate
+is retained only as rejected work history.
 
 ## Required coverage
 
@@ -50,6 +52,9 @@ voice frame proves a UI fallback, not audible provider output.
   preview and must be regenerated if timing or narration changes.
 - HyperFrames runtime, layout, motion and contrast checks must pass before the
   final render.
-- The final render still requires manual preview approval. No accepted master,
-  Supademo walkthrough, or YouTube URL exists. The owner will upload the final
-  file unlisted and must open it once without a signed-in session.
+- The old SRT does not describe the rebuilt candidate. The new render has
+  burned-in sentence captions and a matching SRT at
+  `video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.srt`.
+- The rebuilt V8 candidate was rejected. No Supademo walkthrough or YouTube URL
+  exists. Build the replacement from [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md),
+  then open the uploaded unlisted link once without a signed-in session.

@@ -31,8 +31,10 @@ Status values: `open`, `done`, `dropped`.
 
 - **Day 7 social package**, built from real recorded output, sitting unpublished
   in `social/day7/`. Nothing posts automatically.
-- **The demo film**, at `video/hyperframes/renders/lacuna-demo-master.mp4`. The
-  30MB master is over the browser tool's upload cap, so the upload is by hand.
+- **The demo film**, at
+  `video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4`. The
+  126,468,170-byte local candidate is over the browser tool's upload cap, so the
+  upload is by hand.
 - **The submission form**, with everything it asks for collected in
   `docs/SUBMISSION_FINAL.md`.
 
@@ -91,29 +93,18 @@ Status values: `open`, `done`, `dropped`.
 
 ## 3. Demo video
 
-- **Status:** open, and it is now the largest gap in the submission.
-- **Why it needs you:** uploading publishes content, and the decision below is
-  a judgement call about what to spend the three minutes on.
-- **What exists:** a rendered film at
-  `video/hyperframes/renders/lacuna-demo-master.mp4`, 2 minutes 28 seconds,
-  30MB, built 2026-08-19 at 06:09. Also a script for a spoken take at
-  [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md), eight shots cut to 2:49 with the
-  exact screens and URLs in order and a ranked cut list.
-- **The problem:** the film was rendered before the two screens that answer the
-  judges' hardest questions existed. It shows neither the extractor at
-  `/demo/memory`, which is where prose becomes claims and where a forged
-  `SYSTEM:` line visibly fails to become an answer, nor the graph walk at
-  `/demo/hydra`, which is the evidence that HydraDB is load bearing rather than
-  a key-value store. Grep for either in `video/hyperframes/SCRIPT.md` returns
-  nothing.
-- **The decision, which is yours:** ship the 2:28 film as it stands and lose
-  those two, or spend the time re-rendering with them in. There is room: the
-  cap is 3:00 and the film is 2:28, so roughly thirty seconds is available
-  without cutting anything.
-- **Hard constraint from the rules:** 3 minutes or less.
-- **Hard constraint from the rules:** 3 minutes or less, and "anything past the
-  3-minute mark may not be reviewed". Judges must be able to watch it without
-  requesting access, so unlisted YouTube is fine, Drive-with-permissions is not.
+- **Status:** open for owner approval and publication.
+- **Why it needs you:** the final full-length judgement and upload are owner
+  actions.
+- **What exists:** a metadata-verified film at
+  `video/hyperframes/renders/lacuna-v8-judges-master-vaibhav.mp4`, 179.0 seconds,
+  1920x1080 at 30 fps, with audio. It uses the verified Vaibhav Lalwani
+  Professional clone and burned-in sentence captions. Exact file metadata and
+  hashes are in `artifacts/video/final-metadata.json`.
+- **What to do:** watch once with sound, once muted for secret and caption
+  review, approve it, upload it as unlisted, then open the link while signed
+  out. Anything past three minutes may not be reviewed, and the candidate is
+  one second under that ceiling.
 
 ## 4. Submission form
 

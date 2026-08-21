@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "v10-landing-close",
+  "url": "http://127.0.0.1:4174/#hydra",
+  "output": "video/hyperframes-v10/assets/captures/12-landing-close.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "#hydra", "state": "attached", "timeoutMs": 25000 }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 600 },
+    { "type": "scroll", "selector": "#evals", "align": "center", "offsetPx": 0, "durationMs": 1600, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 600 },
+    { "type": "scroll", "selector": "[data-scene=\"final\"]", "align": "center", "offsetPx": 0, "durationMs": 2100, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 900 }
+  ],
+  "success": [
+    { "selector": "[data-scene=\"final\"]", "state": "visible", "timeoutMs": 5000, "textIncludes": "Give your agents a memory that survives the session." }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

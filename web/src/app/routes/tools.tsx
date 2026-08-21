@@ -18,6 +18,7 @@ function at(value: string | null): string {
 interface McpCapabilityResponse {
   readonly capability: string;
   readonly createdAt: string;
+  readonly expiresAt: string;
   readonly endpoint: string;
 }
 
@@ -69,7 +70,9 @@ function McpAccess() {
       <section style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '16px' }}>
         <div style={{ ...head, paddingBottom: '7px', color: '#B79BFF' }}>REMOTE MCP</div>
         <p style={{ fontSize: '13px', color: '#9A9A9A', lineHeight: 1.6, margin: 0 }}>
-          Public tools are read-only at <code>{endpoint}</code>. Sign in to mint a random, revocable capability for private memory reads and governed <code>remember</code> writes.
+          Public tools are read-only at <code>{endpoint}</code>. Sign in to mint a random capability
+          for private memory reads and governed <code>remember</code> writes. Lacuna stores only its
+          digest. It expires 30 days after issue and can be revoked earlier.
         </p>
       </section>
     );
@@ -79,7 +82,10 @@ function McpAccess() {
     <section aria-labelledby="mcp-access" style={{ border: '1px solid rgba(128,82,255,0.42)', borderRadius: '10px', padding: '16px', background: 'rgba(128,82,255,0.045)' }}>
       <div id="mcp-access" style={{ ...head, paddingBottom: '7px', color: '#B79BFF' }}>PRIVATE MCP ACCESS</div>
       <p style={{ fontSize: '13px', color: '#9A9A9A', lineHeight: 1.6, margin: '0 0 14px', maxWidth: '78ch' }}>
-        Mint a random bearer for this workspace. Lacuna stores only its digest; the raw value is shown in this browser once. Use it only in clients that support a custom Authorization header.
+        Mint a random bearer for this workspace. Lacuna stores only its digest; the raw value is
+        shown in this browser once, expires 30 days after issue and can be revoked earlier. Prefer
+        the Authorization header. The path form is only for clients that cannot set headers because
+        URLs may be recorded in infrastructure logs.
       </p>
       {issued === null ? (
         <button className="hv-violet" type="button" disabled={busy} onClick={() => { void issue(); }} style={{ border: 0, borderRadius: '7px', padding: '10px 14px', background: '#8052FF', color: '#FFFFFF', cursor: busy ? 'wait' : 'pointer' }}>
@@ -94,6 +100,12 @@ function McpAccess() {
           <div>
             <div style={head}>AUTHORIZATION</div>
             <code style={{ display: 'block', marginTop: '6px', color: '#FFB829', overflowWrap: 'anywhere', userSelect: 'all' }}>Bearer {issued.capability}</code>
+          </div>
+          <div>
+            <div style={head}>EXPIRES</div>
+            <time dateTime={issued.expiresAt} style={{ display: 'block', marginTop: '6px', color: '#BDBDBD', fontSize: '12px' }}>
+              {at(issued.expiresAt)} · 30 DAYS AFTER ISSUE
+            </time>
           </div>
           <pre style={{ margin: 0, padding: '12px', border: '1px solid rgba(255,255,255,0.10)', overflowX: 'auto', whiteSpace: 'pre-wrap', color: '#9A9A9A', fontFamily: MONO, fontSize: '10.5px', lineHeight: 1.55 }}>{`Authorization: Bearer ${issued.capability}\nContent-Type: application/json`}</pre>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>

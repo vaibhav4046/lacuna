@@ -1,0 +1,52 @@
+{
+  "capturedAt": "2026-08-21",
+  "deploymentId": "dpl_5kpU5GECQDi6UK71JjZp4Kj1q1in",
+  "runId": "run-efa1f375d761-d727acb3-c235-422a-95f4-bb29ae4938bb",
+  "task": "Review the unresolved billing-gate runbook owner. Cite every supported value, explain why no winner is safe, and state what evidence would resolve it.",
+  "status": "COMPLETED",
+  "lifecycle": [
+    "CREATED",
+    "QUEUED",
+    "RUNNING",
+    "WAITING_TOOL",
+    "RUNNING",
+    "HANDOFF",
+    "RUNNING",
+    "COMPLETED"
+  ],
+  "conflicts": [
+    "billing-gate runbook_owner"
+  ],
+  "conflictingEvidence": [
+    {
+      "value": "Rasmus Berg",
+      "standing": "current_conflicting",
+      "quote": "The runbook for billing-gate is maintained by Rasmus Berg."
+    },
+    {
+      "value": "Priya Raman",
+      "standing": "current_conflicting",
+      "quote": "The runbook for billing-gate is maintained by Priya Raman."
+    }
+  ],
+  "provider": {
+    "name": "groq",
+    "model": "groq/compound-mini"
+  },
+  "timingsMs": {
+    "context": 300,
+    "researcher": 1798,
+    "reviewer": 2017,
+    "total": 5352
+  },
+  "review": {
+    "approved": true,
+    "unsupportedClaims": 0
+  },
+  "writeback": {
+    "policy": "NO_WRITE",
+    "decision": "SKIPPED_POLICY",
+    "authoritativeMutation": false
+  },
+  "containsSecrets": false
+}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ElevenLabsVoiceProvider, VoiceBoundary, elevenLabsVoiceConfig, readSingleUseToken,
+  ElevenLabsVoiceProvider, MAX_STREAMING_AUDIO_BYTES, VoiceBoundary, addStreamingAudioBytes,
+  boundedStreamingAudio, elevenLabsVoiceConfig, readSingleUseToken,
   readSpokenAnswer, singleUseTokenRequest, streamingSpeechRequest, validStreamingAudio,
   validateVoiceAccess, type ElevenLabsVoiceConfig, type VoiceAccessRequest,
 } from '../../src/api/voice.js';
@@ -68,6 +69,47 @@ describe('ElevenLabs response guards', () => {
     }))).toBeNull();
   });
 
+  it('hard-caps chunked audio while it crosses the server', () => {
+    expect(addStreamingAudioBytes(0, 1)).toBe(1);
+    expect(addStreamingAudioBytes(MAX_STREAMING_AUDIO_BYTES - 1, 1))
+      .toBe(MAX_STREAMING_AUDIO_BYTES);
+    expect(addStreamingAudioBytes(MAX_STREAMING_AUDIO_BYTES, 1)).toBeNull();
+    expect(addStreamingAudioBytes(Number.MAX_SAFE_INTEGER, 1)).toBeNull();
+    expect(addStreamingAudioBytes(0, -1)).toBeNull();
+  });
+
+  it('cancels a chunked provider body before an over-limit chunk is exposed', async () => {
+    const chunkBytes = 64 * 1024;
+    let emitted = 0;
+    let cancelled = false;
+    const source = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        emitted += chunkBytes;
+        controller.enqueue(new Uint8Array(chunkBytes));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const bounded = boundedStreamingAudio(new Response(source, {
+      headers: { 'content-type': 'audio/mpeg' },
+    }));
+    expect(bounded).not.toBeNull();
+    const consume = async () => {
+      const reader = bounded!.body!.getReader();
+      let received = 0;
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) return received;
+        received += chunk.value.byteLength;
+        expect(received).toBeLessThanOrEqual(MAX_STREAMING_AUDIO_BYTES);
+      }
+    };
+    await expect(consume()).rejects.toThrow('streaming audio limit exceeded');
+    expect(emitted).toBeGreaterThan(MAX_STREAMING_AUDIO_BYTES);
+    expect(cancelled).toBe(true);
+  });
+
   it('maps malformed token JSON and provider rate limits without returning provider bodies', async () => {
     const malformed = new ElevenLabsVoiceProvider(CONFIG, async () => new Response('{', {
       status: 200, headers: { 'content-type': 'application/json' },
@@ -132,8 +174,9 @@ describe('voice endpoint access and limits', () => {
     const result = await boundary.speech(PRIVATE, { text: 'Supported answer.' });
     expect(result.kind).toBe('audio');
     if (result.kind === 'audio') {
-      expect(result.response).toBe(audio);
+      expect(result.response).not.toBe(audio);
       expect(result.response.body).not.toBeNull();
+      expect(result.response.headers.get('content-type')).toBe('audio/mpeg');
     }
   });
 });

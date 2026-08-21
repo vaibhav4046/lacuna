@@ -1,0 +1,22 @@
+Google auth boundary, against https://lacuna-five.vercel.app
+
+PASS  OAuth starts with a redirect                         302
+PASS  redirect is Google's authorization origin
+PASS  authorization-code flow is selected
+PASS  callback is pinned to this origin
+PASS  scopes are identity-only
+PASS  account selection is explicit
+PASS  PKCE S256 proof is present
+PASS  OIDC nonce is browser-bound
+PASS  CSRF state is high entropy
+PASS  PKCE verifier is high entropy
+PASS  transient cookies are hardened
+PASS  OAuth redirect is not cacheable
+PASS  wrong state fails before token exchange
+PASS  failed callback clears transient cookies
+PASS  hosted account creation is Google-only
+
+15 of 15 gates passed against https://lacuna-five.vercel.app
+
+This proof is non-destructive and stops before the human account chooser. It
+does not claim a completed provider callback or a newly created account.

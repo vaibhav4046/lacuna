@@ -125,7 +125,7 @@ export function Cli() {
         </div>
       </div>
       <div style={{ maxWidth: '1100px', margin: '22px auto 0', padding: '0 clamp(20px, 4.4vw, 72px)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>lacuna doctor · status · read · ask · explain · timeline · bench</span>
+        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>lacuna doctor · status · profile · shell · ask · read · explain · timeline · bench</span>
         <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' }}>EVERY COMMAND ABOVE EXISTS · LACUNA --HELP LISTS THE SAME SIX</span>
       </div>
     </section>

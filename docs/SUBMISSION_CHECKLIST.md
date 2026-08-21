@@ -1,4 +1,4 @@
-# Hack Hydra V8 submission checklist
+# Hack Hydra V10 submission checklist
 
 The final form submission is a human action. Nothing is marked complete from
 intent alone.
@@ -19,14 +19,17 @@ intent alone.
 
 ## Three-minute video
 
-- [ ] final edit duration below 180 seconds
-- [ ] final edit covers the problem
-- [ ] final edit covers the product
-- [ ] final edit shows a working production demo
-- [ ] final edit explains HydraDB's actual role
-- [ ] Vaibhav Lalwani professional clone selected and licensed for this use
-- [ ] captions embedded and sidecar checked
-- [ ] final frames manually approved before render
+- [ ] V10 final edit duration below 180 seconds
+- [ ] V10 final edit covers the problem
+- [ ] V10 final edit covers the product
+- [ ] V10 final edit shows moving production demo and recorded product artifacts
+- [ ] V10 final edit explains HydraDB's actual role
+- [ ] Vaibhav Lalwani Professional clone rendered as the narration
+- [ ] owner confirms clone-use authorization for publication
+- [ ] sentence captions embedded in the V10 render
+- [ ] matching sentence-level SRT is contiguous and ends with the V10 narration
+- [ ] complete caption read-through approved by the owner
+- [ ] complete rendered film manually approved by the owner
 - [ ] uploaded to YouTube as viewable unlisted video
 - [ ] YouTube URL opened from a signed-out/private window
 
@@ -36,7 +39,7 @@ intent alone.
 - [ ] ChatGPT reads current value, revision and evidence
 - [ ] product reflects the same correction
 - [ ] second correction is read consistently by both clients
-- [ ] Supademo walkthrough uses V8 production captures
+- [ ] Supademo walkthrough uses V10 production captures
 
 The existing `ONE_CONTEXT_IDENTICAL` artifact is web + CLI + MCP. It does not
 complete any ChatGPT or Claude box above.

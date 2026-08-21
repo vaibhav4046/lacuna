@@ -40,6 +40,10 @@ function cookieHeader(held: Readonly<Record<string, string>>): string {
   return Object.entries(held).map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('; ');
 }
 
+function oauthCookie(held: Readonly<Record<string, string>>, prefix: string): string | undefined {
+  return Object.entries(held).find(([name]) => name.startsWith(`${prefix}_`))?.[1];
+}
+
 function idToken(payload: Readonly<Record<string, unknown>>): string {
   const part = (value: unknown): string => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
   const input = `${part({ alg: 'RS256', kid: 'google-api-test-key' })}.${part(payload)}`;
@@ -87,9 +91,9 @@ describe('Google OAuth HTTP boundary', () => {
     expect(location.origin).toBe('https://accounts.google.com');
     expect(location.searchParams.get('code_challenge_method')).toBe('S256');
     expect(location.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(location.searchParams.get('nonce')).toBe(held['lacuna_google_nonce']);
-    expect(held['lacuna_google_state']).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(held['lacuna_google_pkce']).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(location.searchParams.get('nonce')).toBe(oauthCookie(held, 'lacuna_google_nonce'));
+    expect(oauthCookie(held, 'lacuna_google_state')).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(oauthCookie(held, 'lacuna_google_pkce')).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(response.headers.getSetCookie()).toHaveLength(3);
     for (const cookie of response.headers.getSetCookie()) {
       expect(cookie).toContain('HttpOnly');
@@ -112,6 +116,29 @@ describe('Google OAuth HTTP boundary', () => {
     for (const cookie of response.headers.getSetCookie()) expect(cookie).toContain('Max-Age=0');
   });
 
+  it('keeps overlapping Google sign-in attempts independently valid', async () => {
+    const first = await start();
+    const second = await start();
+    const firstLocation = new URL(first.headers.get('location') ?? '');
+    const state = firstLocation.searchParams.get('state');
+    if (state === null) throw new Error('first OAuth state missing');
+
+    // A person can double-click, use two tabs, or return from the older Google
+    // chooser after opening a newer one. The newer response must not erase the
+    // proof needed by the older, otherwise a legitimate callback is rejected
+    // before its authorization code is even checked.
+    const held = { ...cookies(first), ...cookies(second) };
+    vi.stubGlobal('fetch', (async () => Response.json({ id_token: 'not-a-token' })) as typeof fetch);
+
+    const response = await nativeFetch(`${base}/api/auth/google/callback?state=${encodeURIComponent(state)}&code=unused`, {
+      redirect: 'manual',
+      headers: { cookie: cookieHeader(held) },
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/signin?google=identity');
+  });
+
   it('does not merge a verified Google email into a password-owned account', async () => {
     const email = 'person@example.com';
     const account = {
@@ -129,9 +156,9 @@ describe('Google OAuth HTTP boundary', () => {
 
     const begun = await start();
     const held = cookies(begun);
-    const state = held['lacuna_google_state'];
-    const nonce = held['lacuna_google_nonce'];
-    const verifier = held['lacuna_google_pkce'];
+    const state = oauthCookie(held, 'lacuna_google_state');
+    const nonce = oauthCookie(held, 'lacuna_google_nonce');
+    const verifier = oauthCookie(held, 'lacuna_google_pkce');
     if (state === undefined || nonce === undefined || verifier === undefined) throw new Error('OAuth proof missing');
     let tokenBody = '';
     const providerFetch = (async (input: string | URL | Request, init?: RequestInit) => {

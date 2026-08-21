@@ -38,6 +38,10 @@ function cookieHeader(held: Readonly<Record<string, string>>): string {
   return Object.entries(held).map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
+function oauthCookie(held: Readonly<Record<string, string>>, prefix: string): string | undefined {
+  return Object.entries(held).find(([name]) => name.startsWith(`${prefix}_`))?.[1];
+}
+
 process.stdout.write(`Google auth boundary, against ${target}\n\n`);
 
 const begun = await fetch(`${target}/api/auth/google/start`, { redirect: 'manual' });
@@ -59,9 +63,9 @@ record(location?.searchParams.get('scope') === 'openid email profile', 'scopes a
 record(location?.searchParams.get('prompt') === 'select_account', 'account selection is explicit');
 record(location?.searchParams.get('code_challenge_method') === 'S256'
   && /^[A-Za-z0-9_-]{43}$/.test(location?.searchParams.get('code_challenge') ?? ''), 'PKCE S256 proof is present');
-record((location?.searchParams.get('nonce') ?? '') === held['lacuna_google_nonce'], 'OIDC nonce is browser-bound');
-record(/^[A-Za-z0-9_-]{43}$/.test(held['lacuna_google_state'] ?? ''), 'CSRF state is high entropy');
-record(/^[A-Za-z0-9_-]{43}$/.test(held['lacuna_google_pkce'] ?? ''), 'PKCE verifier is high entropy');
+record((location?.searchParams.get('nonce') ?? '') === oauthCookie(held, 'lacuna_google_nonce'), 'OIDC nonce is browser-bound');
+record(/^[A-Za-z0-9_-]{43}$/.test(oauthCookie(held, 'lacuna_google_state') ?? ''), 'CSRF state is high entropy');
+record(/^[A-Za-z0-9_-]{43}$/.test(oauthCookie(held, 'lacuna_google_pkce') ?? ''), 'PKCE verifier is high entropy');
 record(setCookies.length === 3
   && setCookies.every((cookie) => cookie.includes('HttpOnly')
     && cookie.includes('Secure') && cookie.includes('SameSite=Lax')), 'transient cookies are hardened');

@@ -74,16 +74,30 @@ import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } 
 
 /** Six attempts a minute per address is generous for a person and useless for a script. */
 /**
- * The state cookie for the Google round trip, and how long it may sit unused.
+ * One cookie namespace per Google round trip, and how long it may sit unused.
  *
- * Ten minutes is longer than a person needs to pick an account and shorter than
- * a browser left open overnight, and it is cleared on every outcome including
- * the failures.
+ * The state digest in each name lets two tabs keep independent PKCE and nonce
+ * proofs. A second click must not overwrite the first valid attempt. Ten
+ * minutes is longer than a person needs to pick an account and shorter than a
+ * browser left open overnight.
  */
 const GOOGLE_STATE_COOKIE = 'lacuna_google_state';
 const GOOGLE_PKCE_COOKIE = 'lacuna_google_pkce';
 const GOOGLE_NONCE_COOKIE = 'lacuna_google_nonce';
 const GOOGLE_STATE_TTL_SECONDS = 600;
+
+function googleAttemptCookies(state: string): {
+  readonly state: string;
+  readonly pkce: string;
+  readonly nonce: string;
+} {
+  const suffix = hashToken(state).slice(0, 24);
+  return {
+    state: `${GOOGLE_STATE_COOKIE}_${suffix}`,
+    pkce: `${GOOGLE_PKCE_COOKIE}_${suffix}`,
+    nonce: `${GOOGLE_NONCE_COOKIE}_${suffix}`,
+  };
+}
 
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 /** A question should not sit behind a browser spinner for longer than this. */
@@ -2088,18 +2102,19 @@ export class ApiRouter {
 
     const state = mintToken();
     const proof = newGoogleAuthorizationProof();
+    const names = googleAttemptCookies(state);
     return this.#redirect(response, authorizeUrl(google, state, proof), [
-      serialiseCookie(GOOGLE_STATE_COOKIE, state, {
+      serialiseCookie(names.state, state, {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
       }),
-      serialiseCookie(GOOGLE_PKCE_COOKIE, proof.codeVerifier, {
+      serialiseCookie(names.pkce, proof.codeVerifier, {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
       }),
-      serialiseCookie(GOOGLE_NONCE_COOKIE, proof.nonce, {
+      serialiseCookie(names.nonce, proof.nonce, {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
@@ -2120,10 +2135,12 @@ export class ApiRouter {
   ): Promise<Handled> {
     const google = this.#google;
     const url = new URL(request.url ?? '/', 'http://placeholder');
-    const clear = [
-      clearCookie(GOOGLE_STATE_COOKIE, this.#secure),
-      clearCookie(GOOGLE_PKCE_COOKIE, this.#secure),
-      clearCookie(GOOGLE_NONCE_COOKIE, this.#secure),
+    const state = url.searchParams.get('state');
+    const names = state === null ? null : googleAttemptCookies(state);
+    const clear = names === null ? [] : [
+      clearCookie(names.state, this.#secure),
+      clearCookie(names.pkce, this.#secure),
+      clearCookie(names.nonce, this.#secure),
     ];
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured', clear);
 
@@ -2132,8 +2149,7 @@ export class ApiRouter {
       return this.#redirect(response, '/signin?google=cancelled', clear);
     }
 
-    const state = url.searchParams.get('state');
-    const expected = cookies[GOOGLE_STATE_COOKIE];
+    const expected = names === null ? undefined : cookies[names.state];
     if (
       typeof expected !== 'string' || expected === '' || state === null
       || state.length !== expected.length
@@ -2147,8 +2163,8 @@ export class ApiRouter {
       return this.#redirect(response, '/signin?google=code', clear);
     }
 
-    const codeVerifier = cookies[GOOGLE_PKCE_COOKIE];
-    const expectedNonce = cookies[GOOGLE_NONCE_COOKIE];
+    const codeVerifier = names === null ? undefined : cookies[names.pkce];
+    const expectedNonce = names === null ? undefined : cookies[names.nonce];
     if (typeof codeVerifier !== 'string' || codeVerifier === ''
       || typeof expectedNonce !== 'string' || expectedNonce === '') {
       return this.#redirect(response, '/signin?google=state', clear);

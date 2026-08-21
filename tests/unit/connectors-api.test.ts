@@ -7,12 +7,18 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
-import type { IngestPreparedReport } from '../../src/api/ingest.js';
+import { IngestReadinessError, type IngestPreparedReport } from '../../src/api/ingest.js';
 import { workspaceCollection } from '../../src/api/ingest.js';
 import { FileAccounts } from '../../src/auth/accounts.js';
 import { AccountStore } from '../../src/auth/store.js';
 import { catalogue } from '../../src/connectors/catalog.js';
 import { FileConnectorService } from '../../src/connectors/files.js';
+import {
+  GitHubImportError,
+  type GitHubImporterBoundary,
+  type PreparedGitHubBatch,
+} from '../../src/connectors/github.js';
+import { prepareConnectorBatch } from '../../src/connectors/normalize.js';
 import { FilePreviewTokenService } from '../../src/connectors/preview-token.js';
 import { ConnectorRunner } from '../../src/connectors/run.js';
 import type {
@@ -70,8 +76,17 @@ let server: Server;
 let base: string;
 let directory: string;
 let connectorStore: MemoryConnectorStore;
-let runnerCalls: { readonly workspace: string; readonly awaitSearchable: boolean; readonly text: string }[];
+let runnerCalls: {
+  readonly workspace: string;
+  readonly connectorId: ConnectorId;
+  readonly awaitSearchable: boolean;
+  readonly text: string;
+  readonly sourceKey: string;
+}[];
 let fileBoundaryCalls: number;
+let githubBoundaryCalls: { readonly url: string; readonly aborted: boolean }[];
+let githubBoundaryFailure: Error | null;
+let readinessTimeout: boolean;
 let now: number;
 
 const SITE_ORIGIN = 'https://app.example.test';
@@ -125,17 +140,94 @@ async function postFile(
   return response;
 }
 
+async function postGitHub(
+  jar: Jar,
+  body: unknown,
+  overrides: Readonly<Record<string, string | null>> = {},
+): Promise<Response> {
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    cookie: jar.header(),
+    'x-csrf-token': token,
+    origin: SITE_ORIGIN,
+  };
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === null) delete headers[name];
+    else headers[name] = value;
+  }
+  const response = await fetch(`${base}/api/workspace/connectors/github/import`, {
+    method: 'POST', headers, body: JSON.stringify(body),
+  });
+  jar.absorb(response);
+  return response;
+}
+
+function preparedGitHubBatch(): PreparedGitHubBatch {
+  const commitSha = 'a'.repeat(40);
+  const blobSha = 'b'.repeat(40);
+  const batch = prepareConnectorBatch([{
+    title: 'README.md',
+    text: 'a: Atlas is owned by Priya.',
+    provenance: {
+      connectorId: 'github',
+      sourceUrl: `https://github.com/acme/atlas/blob/${commitSha}/README.md`,
+      mediaType: 'text/markdown',
+      observedAt: '2026-08-21T12:00:00.000Z',
+      github: {
+        repositoryUrl: 'https://github.com/acme/atlas',
+        commitSha,
+        path: 'README.md',
+        blobSha,
+        retrievedAt: '2026-08-21T12:00:00.000Z',
+        rawDigest: 'c'.repeat(64),
+        parserVersion: 'github-v1',
+      },
+    },
+  }]);
+  return {
+    ...batch,
+    repositoryUrl: 'https://github.com/acme/atlas',
+    commitSha,
+    snapshotDigest: 'd'.repeat(64),
+    consideredEntries: 2,
+    fetchedBlobs: 1,
+    skipped: [{ reason: 'unsupported_extension', count: 1 }],
+  };
+}
+
+async function listen(router: ApiRouter): Promise<void> {
+  server = createServer((request, response) => {
+    const path = new URL(request.url ?? '/', 'http://test.invalid').pathname;
+    void router.handle(request, response, path);
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server did not bind');
+  base = `http://127.0.0.1:${address.port}`;
+}
+
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'lacuna-connectors-api-'));
   connectorStore = new MemoryConnectorStore();
   runnerCalls = [];
   fileBoundaryCalls = 0;
+  githubBoundaryCalls = [];
+  githubBoundaryFailure = null;
+  readinessTimeout = false;
   now = Date.parse('2026-08-21T12:00:00.000Z');
   const runner = new ConnectorRunner({
     store: connectorStore,
     now: () => now,
     ingest: async (workspace, prepared, options): Promise<IngestPreparedReport> => {
-      runnerCalls.push({ workspace, awaitSearchable: options.awaitSearchable, text: prepared.text });
+      runnerCalls.push({
+        workspace,
+        connectorId: prepared.provenance.connectorId,
+        awaitSearchable: options.awaitSearchable,
+        text: prepared.text,
+        sourceKey: prepared.sourceKey,
+      });
+      if (readinessTimeout) throw new IngestReadinessError('timeout', 4, 0);
       return {
         sourceKey: prepared.sourceKey,
         collection: workspace,
@@ -163,23 +255,25 @@ beforeEach(async () => {
       return files.importFile(...args);
     },
   };
+  const githubImporter: GitHubImporterBoundary = {
+    importPublicRepo: async (url, signal) => {
+      githubBoundaryCalls.push({ url, aborted: signal.aborted });
+      if (githubBoundaryFailure !== null) throw githubBoundaryFailure;
+      return preparedGitHubBatch();
+    },
+  };
   const router = new ApiRouter({
     store: new FileAccounts(new AccountStore(directory)),
     secure: false,
     health: null,
     connectorStore,
-    connectorCatalog: () => catalogue({ webhookKey: 'configured', fileImport: true }),
+    connectorCatalog: () => catalogue({ webhookKey: 'configured', fileImport: true, githubImport: true }),
     fileConnector,
+    githubImporter,
+    connectorRunner: runner,
     siteOrigin: SITE_ORIGIN,
   });
-  server = createServer((request, response) => {
-    const path = new URL(request.url ?? '/', 'http://test.invalid').pathname;
-    void router.handle(request, response, path);
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  if (address === null || typeof address === 'string') throw new Error('server did not bind');
-  base = `http://127.0.0.1:${address.port}`;
+  await listen(router);
 });
 
 afterEach(async () => {
@@ -374,11 +468,12 @@ describe('workspace file preview and import API', () => {
     expect(result).toMatchObject({
       connectorId: 'text', acceptedDocuments: 1, searchableDocuments: 1, acceptedRecords: 4,
     });
-    expect(runnerCalls).toEqual([{
+    expect(runnerCalls).toEqual([expect.objectContaining({
       workspace: workspaceCollection('import@example.com'),
+      connectorId: 'text',
       awaitSearchable: true,
       text: 'a: Atlas is owned by Priya.\n',
-    }]);
+    })]);
     expect(connectorStore.puts).toBe(1);
     expect(JSON.stringify(result)).not.toContain('collection');
     expect(JSON.stringify(result)).not.toContain(source);
@@ -456,5 +551,193 @@ describe('workspace file preview and import API', () => {
 
     expect(runnerCalls).toEqual([]);
     expect(connectorStore.puts).toBe(0);
+  });
+});
+
+describe('workspace public GitHub import API', () => {
+  it('checks exact origin, CSRF, session, and request shape before upstream work', async () => {
+    const unsigned = new Jar();
+    unsigned.absorb(await fetch(`${base}/api/session`));
+    const noSession = await postGitHub(unsigned, { url: 'https://github.com/acme/atlas' });
+    expect(noSession.status).toBe(401);
+
+    const jar = await signedIn('github-early@example.com');
+    const noCsrf = await postGitHub(jar, { url: 'https://github.com/acme/atlas' }, {
+      'x-csrf-token': null,
+    });
+    expect(noCsrf.status).toBe(403);
+    const foreignOrigin = await postGitHub(jar, { url: 'https://github.com/acme/atlas' }, {
+      origin: 'https://attacker.example',
+    });
+    expect(foreignOrigin.status).toBe(403);
+    const missingOrigin = await postGitHub(jar, { url: 'https://github.com/acme/atlas' }, {
+      origin: null,
+    });
+    expect(missingOrigin.status).toBe(403);
+    for (const forbidden of [
+      { url: 'https://github.com/acme/atlas', token: 'github-secret' },
+      { url: 'https://github.com/acme/atlas', ref: 'main' },
+      { url: 'https://github.com/acme/atlas', headers: { authorization: 'secret' } },
+      { url: 'https://github.com/acme/atlas', apiBase: 'https://evil.example' },
+      { url: 'https://github.com/acme/atlas', redirects: true },
+    ]) {
+      const response = await postGitHub(jar, forbidden);
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({ error: 'invalid_github_request' });
+    }
+    expect(githubBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('ignores client workspace fields, uses the account workspace, and returns only a safe immutable summary', async () => {
+    const jar = await signedIn('github-owner@example.com');
+    const response = await postGitHub(jar, {
+      url: 'https://github.com/acme/atlas',
+      workspace: workspaceCollection('attacker@example.com'),
+      collection: 'public',
+    });
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      connectorId: 'github',
+      submittedDocuments: 1,
+      acceptedDocuments: 1,
+      searchableDocuments: 1,
+      acceptedRecords: 4,
+      snapshotCommit: 'a'.repeat(40),
+      snapshotDigest: 'd'.repeat(64),
+      consideredEntries: 2,
+      fetchedBlobs: 1,
+      skipped: [{ reason: 'unsupported_extension', count: 1 }],
+    });
+    expect(githubBoundaryCalls).toEqual([{ url: 'https://github.com/acme/atlas', aborted: false }]);
+    expect(runnerCalls).toEqual([expect.objectContaining({
+      workspace: workspaceCollection('github-owner@example.com'),
+      connectorId: 'github',
+      awaitSearchable: true,
+      text: 'a: Atlas is owned by Priya.',
+    })]);
+    expect(connectorStore.puts).toBe(1);
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain('github-owner@example.com');
+    expect(serialized).not.toContain('attacker@example.com');
+    expect(serialized).not.toContain('lacuna-ws-');
+    expect(serialized).not.toContain('api.github.com');
+    expect(serialized).not.toContain('Atlas is owned');
+    expect(serialized).not.toContain('repositoryUrl');
+    expect(serialized).not.toContain('sourceUrl');
+    expect(serialized).not.toContain('blobSha');
+    expect(serialized).not.toContain('rawDigest');
+  });
+
+  it('derives each account workspace independently even when client workspace fields are swapped', async () => {
+    const first = await signedIn('github-first@example.com');
+    const second = await signedIn('github-second@example.com');
+
+    expect((await postGitHub(first, {
+      url: 'https://github.com/acme/atlas',
+      workspace: workspaceCollection('github-second@example.com'),
+    })).status).toBe(200);
+    expect((await postGitHub(second, {
+      url: 'https://github.com/acme/atlas',
+      workspace: workspaceCollection('github-first@example.com'),
+    })).status).toBe(200);
+
+    expect(runnerCalls.map(({ workspace }) => workspace)).toEqual([
+      workspaceCollection('github-first@example.com'),
+      workspaceCollection('github-second@example.com'),
+    ]);
+  });
+
+  it('preserves accepted work when indexing readiness times out', async () => {
+    const jar = await signedIn('github-readiness@example.com');
+    readinessTimeout = true;
+
+    const response = await postGitHub(jar, { url: 'https://github.com/acme/atlas' });
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      connectorId: 'github',
+      acceptedDocuments: 1,
+      acceptedRecords: 4,
+      searchableDocuments: 0,
+      failure: 'readiness_timeout',
+    });
+    expect(connectorStore.state.github).toMatchObject({
+      importedDocuments: 1,
+      lastSuccessAt: expect.any(String),
+      lastFailure: 'readiness_timeout',
+    });
+    expect(JSON.stringify(body)).not.toContain('collection');
+  });
+
+  it('redacts typed and unknown upstream failures and performs zero runner writes', async () => {
+    const jar = await signedIn('github-errors@example.com');
+    githubBoundaryFailure = new GitHubImportError('github_integrity_failed');
+    const integrity = await postGitHub(jar, { url: 'https://github.com/acme/private-or-missing' });
+    expect(integrity.status).toBe(502);
+    expect(await integrity.json()).toEqual({ error: 'github_integrity_failed' });
+
+    githubBoundaryFailure = new Error('token=secret API /repos/private X-GitHub-Request-Id: raw');
+    const unknown = await postGitHub(jar, { url: 'https://github.com/acme/private-or-missing' });
+    expect(unknown.status).toBe(502);
+    expect(await unknown.json()).toEqual({ error: 'github_import_failed' });
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('returns the stable zero-document validation result without runner or store writes', async () => {
+    const jar = await signedIn('github-empty@example.com');
+    githubBoundaryFailure = new GitHubImportError('github_no_documents');
+
+    const response = await postGitHub(jar, { url: 'https://github.com/acme/empty' });
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: 'github_no_documents' });
+    expect(githubBoundaryCalls).toHaveLength(1);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('spends the private ingest budget before a fifth upstream request', async () => {
+    const jar = await signedIn('github-budget@example.com');
+    for (let count = 0; count < 4; count += 1) {
+      expect((await postGitHub(jar, { url: 'https://github.com/acme/atlas' })).status).toBe(200);
+    }
+    const limited = await postGitHub(jar, { url: 'https://github.com/acme/atlas' });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: 'workspace_ingest_budget' });
+    expect(githubBoundaryCalls).toHaveLength(4);
+    expect(runnerCalls).toHaveLength(4);
+  });
+
+  it('fails catalogue and route availability closed without both importer and runner', async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    const router = new ApiRouter({
+      store: new FileAccounts(new AccountStore(directory)),
+      secure: false,
+      health: null,
+      connectorStore,
+      connectorCatalog: () => catalogue({ webhookKey: 'configured', fileImport: true, githubImport: false }),
+      siteOrigin: SITE_ORIGIN,
+    });
+    await listen(router);
+    const jar = await signedIn('github-unavailable@example.com');
+
+    const response = await postGitHub(jar, { url: 'https://github.com/acme/atlas' });
+    expect(response.status).toBe(501);
+    expect(await response.json()).toEqual({ error: 'github_import_unavailable' });
+    const catalogueResponse = await fetch(`${base}/api/workspace/connectors`, {
+      headers: { cookie: jar.header() },
+    });
+    const body = await catalogueResponse.json() as { connectors: readonly Record<string, unknown>[] };
+    expect(body.connectors.find((entry) => entry['id'] === 'github')).toMatchObject({
+      availability: 'unavailable', reason: 'github_import_unavailable', state: 'idle',
+    });
+    expect(githubBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
   });
 });

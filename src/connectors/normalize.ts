@@ -17,6 +17,14 @@ const MEDIA_TYPES = new Set<ConnectorMediaType>([
 ]);
 const INPUT_KEYS = new Set(['title', 'text', 'provenance']);
 const PROVENANCE_KEYS = new Set(['connectorId', 'sourceUrl', 'mediaType', 'observedAt']);
+const GITHUB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'github']);
+const GITHUB_EVIDENCE_KEYS = new Set([
+  'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
+]);
+const GITHUB_REPOSITORY = /^https:\/\/github\.com\/[a-z0-9-]+\/[a-z0-9_.-]+$/u;
+const GITHUB_SHA = /^[0-9a-f]{40}$/u;
+const SHA256 = /^[0-9a-f]{64}$/u;
+const UNSAFE_GITHUB_PATH = /[\\\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 
 export type ConnectorMediaType =
   | 'text/plain'
@@ -30,6 +38,17 @@ export interface ConnectorProvenance {
   readonly sourceUrl: string | null;
   readonly mediaType: ConnectorMediaType;
   readonly observedAt: string;
+  readonly github?: GitHubConnectorEvidence;
+}
+
+export interface GitHubConnectorEvidence {
+  readonly repositoryUrl: string;
+  readonly commitSha: string;
+  readonly path: string;
+  readonly blobSha: string;
+  readonly retrievedAt: string;
+  readonly rawDigest: string;
+  readonly parserVersion: 'github-v1';
 }
 
 export interface ConnectorDocumentInput {
@@ -114,7 +133,7 @@ function canonicalUrl(value: unknown): string | null {
 }
 
 function normalizeProvenance(value: unknown): ConnectorProvenance {
-  if (!isRecord(value) || !hasExactKeys(value, PROVENANCE_KEYS)
+  if (!isRecord(value)
     || typeof value['connectorId'] !== 'string'
     || !CONNECTOR_IDS.has(value['connectorId'] as ConnectorId)
     || typeof value['mediaType'] !== 'string'
@@ -122,11 +141,52 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     || !canonicalInstant(value['observedAt'])) {
     throw new ConnectorNormalizationError('invalid_provenance');
   }
+  const github = value['connectorId'] === 'github';
+  if (!hasExactKeys(value, github ? GITHUB_PROVENANCE_KEYS : PROVENANCE_KEYS)) {
+    throw new ConnectorNormalizationError('invalid_provenance');
+  }
+  const normalizedSourceUrl = canonicalUrl(value['sourceUrl']);
+  let githubEvidence: GitHubConnectorEvidence | undefined;
+  if (github) {
+    const evidence = value['github'];
+    if (!isRecord(evidence) || !hasExactKeys(evidence, GITHUB_EVIDENCE_KEYS)
+      || typeof evidence['repositoryUrl'] !== 'string'
+      || !GITHUB_REPOSITORY.test(evidence['repositoryUrl'])
+      || typeof evidence['commitSha'] !== 'string' || !GITHUB_SHA.test(evidence['commitSha'])
+      || typeof evidence['blobSha'] !== 'string' || !GITHUB_SHA.test(evidence['blobSha'])
+      || typeof evidence['path'] !== 'string' || evidence['path'].length === 0
+      || evidence['path'].length > 512 || evidence['path'].startsWith('/')
+      || evidence['path'].endsWith('/') || evidence['path'].includes('//')
+      || UNSAFE_GITHUB_PATH.test(evidence['path']) || evidence['path'].normalize('NFC') !== evidence['path']
+      || evidence['path'].split('/').some((part) => part === '' || part === '.' || part === '..')
+      || !canonicalInstant(evidence['retrievedAt']) || evidence['retrievedAt'] !== value['observedAt']
+      || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
+      || evidence['parserVersion'] !== 'github-v1') {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    const expectedSourceUrl = `${evidence['repositoryUrl']}/blob/${evidence['commitSha']}/${evidence['path']
+      .split('/')
+      .map((part) => encodeURIComponent(part))
+      .join('/')}`;
+    if (normalizedSourceUrl !== expectedSourceUrl) {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    githubEvidence = Object.freeze({
+      repositoryUrl: evidence['repositoryUrl'],
+      commitSha: evidence['commitSha'],
+      path: evidence['path'],
+      blobSha: evidence['blobSha'],
+      retrievedAt: evidence['retrievedAt'],
+      rawDigest: evidence['rawDigest'],
+      parserVersion: evidence['parserVersion'],
+    });
+  }
   return Object.freeze({
     connectorId: value['connectorId'] as ConnectorId,
-    sourceUrl: canonicalUrl(value['sourceUrl']),
+    sourceUrl: normalizedSourceUrl,
     mediaType: value['mediaType'] as ConnectorMediaType,
     observedAt: value['observedAt'],
+    ...(githubEvidence === undefined ? {} : { github: githubEvidence }),
   });
 }
 
@@ -169,6 +229,16 @@ export function prepareConnectorDocument(input: ConnectorDocumentInput): Prepare
     connectorId: provenance.connectorId,
     sourceUrl: provenance.sourceUrl,
     mediaType: provenance.mediaType,
+    ...(provenance.github === undefined ? {} : {
+      github: {
+        repositoryUrl: provenance.github.repositoryUrl,
+        commitSha: provenance.github.commitSha,
+        path: provenance.github.path,
+        blobSha: provenance.github.blobSha,
+        rawDigest: provenance.github.rawDigest,
+        parserVersion: provenance.github.parserVersion,
+      },
+    }),
   }));
   const sourceKey = `src-${sha256(`${contentDigest}\n${provenanceKey}`)}`;
   return Object.freeze({ title, text, provenance, contentDigest, provenanceKey, sourceKey });

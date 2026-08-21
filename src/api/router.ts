@@ -62,7 +62,12 @@ import { VOICE_ROUTES } from '../voice/operations.js';
 import { MAX_VOICE_TRANSCRIPT_CHARS, type VoiceIntentPlan, type VoiceScope } from '../voice/intent.js';
 import { catalogue, mergeConnectorState } from '../connectors/catalog.js';
 import { FileConnectorError, type FileConnectorBoundary } from '../connectors/files.js';
+import {
+  GitHubImportError,
+  type GitHubImporterBoundary,
+} from '../connectors/github.js';
 import { PreviewTokenError } from '../connectors/preview-token.js';
+import { serializeConnectorRunResult, type ConnectorRunner } from '../connectors/run.js';
 import type { ConnectorDescriptor, ConnectorStore } from '../connectors/types.js';
 
 /**
@@ -319,6 +324,10 @@ export interface ApiOptions {
   readonly connectorCatalog?: () => readonly ConnectorDescriptor[];
   /** Authenticated preview/import boundary; absent unless parser, signer, runner, and store exist. */
   readonly fileConnector?: FileConnectorBoundary;
+  /** Anonymous public-repository reader with a hardwired GitHub API boundary. */
+  readonly githubImporter?: GitHubImporterBoundary;
+  /** Shared governed ingestion runner used after an adapter has prepared content. */
+  readonly connectorRunner?: Pick<ConnectorRunner, 'run'>;
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -676,6 +685,8 @@ export class ApiRouter {
   readonly #mcpCapabilities: McpCapabilities | undefined;
   readonly #connectorStore: ConnectorStore | undefined;
   readonly #fileConnector: FileConnectorBoundary | undefined;
+  readonly #githubImporter: GitHubImporterBoundary | undefined;
+  readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
   readonly #connectorCatalog: () => readonly ConnectorDescriptor[];
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
@@ -719,8 +730,13 @@ export class ApiRouter {
     this.#mcpCapabilities = options.mcpCapabilities;
     this.#connectorStore = options.connectorStore;
     this.#fileConnector = options.fileConnector;
+    this.#githubImporter = options.githubImporter;
+    this.#connectorRunner = options.connectorRunner;
     this.#connectorCatalog = options.connectorCatalog
-      ?? (() => catalogue({ fileImport: this.#fileConnector !== undefined }));
+      ?? (() => catalogue({
+        fileImport: this.#fileConnector !== undefined,
+        githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
+      }));
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
@@ -890,6 +906,82 @@ export class ApiRouter {
         } else {
           send(response, 502, { error: 'file_import_failed' });
         }
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/github/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'github_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const importer = this.#githubImporter;
+      const runner = this.#connectorRunner;
+      if (importer === undefined || runner === undefined) {
+        send(response, 501, { error: 'github_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const keys = body === null ? [] : Object.keys(body);
+      const allowedKeys = new Set(['url', 'workspace', 'collection']);
+      if (body === null || typeof body['url'] !== 'string'
+        || keys.some((key) => !allowedKeys.has(key))) {
+        send(response, 422, { error: 'invalid_github_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      const abort = () => control.abort();
+      request.once('aborted', abort);
+      try {
+        const batch = await importer.importPublicRepo(body['url'], control.signal);
+        const result = await runner.run(workspace, {
+          connectorId: 'github',
+          documents: batch.documents.map((document) => ({
+            title: document.title,
+            text: document.text,
+            provenance: document.provenance,
+          })),
+          awaitSearchable: true,
+        });
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          snapshotCommit: batch.commitSha,
+          snapshotDigest: batch.snapshotDigest,
+          consideredEntries: batch.consideredEntries,
+          fetchedBlobs: batch.fetchedBlobs,
+          skipped: batch.skipped.map(({ reason, count }) => ({ reason, count })),
+        });
+      } catch (error) {
+        if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
+        else send(response, 502, { error: 'github_import_failed' });
+      } finally {
+        request.off('aborted', abort);
+        control.abort();
       }
       return HANDLED;
     }

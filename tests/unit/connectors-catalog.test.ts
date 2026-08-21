@@ -5,7 +5,7 @@ import { CONNECTOR_GROUPS } from '../../web/src/design/connectors.js';
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookKey: 'configured', fileImport: true });
+    const entries = catalogue({ webhookKey: 'configured', fileImport: true, githubImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
       'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
@@ -20,6 +20,13 @@ describe('connector catalogue', () => {
       .toMatchObject({ availability: 'unavailable', reason: 'signing_not_configured' });
     expect(catalogue({ webhookKey: '' }).find((entry) => entry.id === 'webhook'))
       .toMatchObject({ availability: 'unavailable', reason: 'signing_not_configured' });
+  });
+
+  it('fails public GitHub import closed unless its importer and runner are both available', () => {
+    expect(catalogue({ githubImport: false }).find((entry) => entry.id === 'github'))
+      .toMatchObject({ availability: 'unavailable', reason: 'github_import_unavailable' });
+    expect(catalogue({ githubImport: true }).find((entry) => entry.id === 'github'))
+      .toMatchObject({ availability: 'available', reason: null });
   });
 
   it('keeps unimplemented account integrations planned in the public design vocabulary', () => {

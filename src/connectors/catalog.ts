@@ -26,6 +26,7 @@ const IMPLEMENTED: readonly Omit<ConnectorDescriptor, 'availability' | 'reason'>
 export interface ConnectorCatalogueOptions {
   readonly webhookKey?: string | undefined;
   readonly fileImport?: boolean | undefined;
+  readonly githubImport?: boolean | undefined;
 }
 
 /**
@@ -35,13 +36,19 @@ export interface ConnectorCatalogueOptions {
 export function catalogue(options: ConnectorCatalogueOptions = {}): readonly ConnectorDescriptor[] {
   const webhookConfigured = typeof options.webhookKey === 'string' && options.webhookKey.trim() !== '';
   const fileConfigured = options.fileImport === true;
+  const githubConfigured = options.githubImport === true;
   return IMPLEMENTED.map((entry): ConnectorDescriptor => {
     const file = entry.group === 'FILES';
-    const available = entry.id === 'webhook' ? webhookConfigured : !file || fileConfigured;
+    const available = entry.id === 'webhook' ? webhookConfigured
+      : entry.id === 'github' ? githubConfigured
+        : !file || fileConfigured;
     return Object.freeze({
       ...entry,
       availability: available ? 'available' : 'unavailable',
-      reason: available ? null : entry.id === 'webhook' ? 'signing_not_configured' : 'file_import_unavailable',
+      reason: available ? null
+        : entry.id === 'webhook' ? 'signing_not_configured'
+          : entry.id === 'github' ? 'github_import_unavailable'
+            : 'file_import_unavailable',
     });
   });
 }

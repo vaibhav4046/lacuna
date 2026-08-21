@@ -48,6 +48,7 @@ import { catalogue } from '../src/connectors/catalog.js';
 import { CloudConnectorStore } from '../src/connectors/store.js';
 import { ConnectorRunner } from '../src/connectors/run.js';
 import { FileConnectorService } from '../src/connectors/files.js';
+import { GitHubImporter } from '../src/connectors/github.js';
 import { FilePreviewTokenService, previewSigningKey } from '../src/connectors/preview-token.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
@@ -130,6 +131,7 @@ const connectorRunner = cloud === null || connectorStore === null ? null : new C
   store: connectorStore,
   ingest: (workspace, prepared, options) => ingestPreparedSource(cloud, workspace, prepared, options),
 });
+const githubImporter = connectorRunner === null ? null : new GitHubImporter();
 const fileConnector = connectorRunner === null || filePreviewKey === null ? null : new FileConnectorService({
   runner: connectorRunner,
   tokens: new FilePreviewTokenService({ key: filePreviewKey }),
@@ -200,9 +202,11 @@ const api = new ApiRouter({
   ...(mcpCapabilities === null ? {} : { mcpCapabilities }),
   ...(connectorStore === null ? {} : { connectorStore }),
   ...(fileConnector === null ? {} : { fileConnector }),
+  ...(githubImporter === null || connectorRunner === null ? {} : { githubImporter, connectorRunner }),
   connectorCatalog: () => catalogue({
     webhookKey: process.env['LACUNA_WEBHOOK_KEY'],
     fileImport: fileConnector !== null,
+    githubImport: githubImporter !== null && connectorRunner !== null,
   }),
   secure: true,
   health: cloudHealth,

@@ -310,6 +310,7 @@ export function VoiceDock() {
     <>
       <button
         ref={bubbleRef}
+        data-voice-launcher="1"
         type="button"
         aria-label="Open voice assistant"
         aria-expanded={dockOpen}
@@ -353,6 +354,7 @@ export function VoiceDock() {
           />
           <div
             id="voice-assistant-dialog"
+            data-voice-dialog="1"
             ref={dialogRef}
             role="dialog"
             tabIndex={-1}

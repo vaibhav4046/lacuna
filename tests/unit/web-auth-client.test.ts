@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getJson, postFor, postJson } from '../../web/src/api/client.js';
+import {
+  SessionEpochBus,
+  SessionReadCoordinator,
+  createSessionEpochMessage,
+  parseSessionEpochMessage,
+  type SessionState,
+} from '../../web/src/api/session-state.js';
+import * as sessionContracts from '../../web/src/api/session-state.js';
 import { googleProblem } from '../../web/src/auth/google-problem.js';
 
 afterEach(() => {
@@ -9,6 +17,188 @@ afterEach(() => {
 });
 
 describe('the browser auth client', () => {
+  it('accepts only the closed nonce-only cross-tab epoch message and emits canonical entropy', () => {
+    expect(createSessionEpochMessage((bytes) => {
+      bytes.set(Uint8Array.from({ length: 16 }, (_value, index) => index));
+      return bytes;
+    })).toEqual({ version: 1, nonce: '000102030405060708090a0b0c0d0e0f' });
+    expect(parseSessionEpochMessage({ version: 1, nonce: 'a'.repeat(32) }))
+      .toEqual({ version: 1, nonce: 'a'.repeat(32) });
+    for (const invalid of [
+      null,
+      { version: 1, nonce: 'A'.repeat(32) },
+      { version: 1, nonce: 'a'.repeat(31) },
+      { version: 2, nonce: 'a'.repeat(32) },
+      { version: 1, nonce: 'a'.repeat(32), binding: 'account-a' },
+      { version: 1, nonce: 'a'.repeat(32), secret: 'must-not-cross-tabs' },
+    ]) expect(parseSessionEpochMessage(invalid)).toBeNull();
+  });
+
+  it('deduplicates one remote epoch across channel and storage and removes every listener', () => {
+    type Listener = (event: { readonly data?: unknown; readonly key?: string | null; readonly newValue?: string | null }) => void;
+    const channelListeners = new Set<Listener>();
+    const storageListeners = new Set<Listener>();
+    const posted: unknown[] = [];
+    const stored: { key: string; value: string }[] = [];
+    let closed = false;
+    let remote = 0;
+    const bus = new SessionEpochBus({
+      channel: {
+        postMessage: (value) => posted.push(value),
+        addEventListener: (_type, listener) => channelListeners.add(listener),
+        removeEventListener: (_type, listener) => channelListeners.delete(listener),
+        close: () => { closed = true; },
+      },
+      storage: { setItem: (key, value) => stored.push({ key, value }) },
+      addStorageListener: (listener) => storageListeners.add(listener),
+      removeStorageListener: (listener) => storageListeners.delete(listener),
+      randomValues: (bytes) => { bytes.fill(0xab); return bytes; },
+    }, () => { remote += 1; });
+
+    const published = bus.publish();
+    expect(published).toEqual({ version: 1, nonce: 'ab'.repeat(16) });
+    expect(posted).toEqual([published]);
+    expect(stored).toEqual([{
+      key: 'lacuna_session_epoch_v1',
+      value: JSON.stringify(published),
+    }]);
+    const incoming = { version: 1, nonce: 'cd'.repeat(16) };
+    channelListeners.forEach((listener) => listener({ data: incoming }));
+    storageListeners.forEach((listener) => listener({
+      key: 'lacuna_session_epoch_v1', newValue: JSON.stringify(incoming),
+    }));
+    storageListeners.forEach((listener) => listener({
+      key: 'lacuna_session_epoch_v1', newValue: JSON.stringify({ ...incoming, email: 'owner@example.com' }),
+    }));
+    expect(remote).toBe(1);
+
+    bus.dispose();
+    expect({ channel: channelListeners.size, storage: storageListeners.size, closed })
+      .toEqual({ channel: 0, storage: 0, closed: true });
+  });
+
+  it('attempts both epoch transports even when one browser transport fails', () => {
+    const stored: string[] = [];
+    const bus = new SessionEpochBus({
+      channel: {
+        postMessage: () => { throw new Error('channel unavailable'); },
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        close: () => undefined,
+      },
+      storage: { setItem: (_key, value) => stored.push(value) },
+      addStorageListener: () => undefined,
+      removeStorageListener: () => undefined,
+      randomValues: (bytes) => { bytes.fill(0xef); return bytes; },
+    }, () => undefined);
+
+    expect(() => bus.publish()).toThrow('channel unavailable');
+    expect(stored).toEqual([JSON.stringify({ version: 1, nonce: 'ef'.repeat(16) })]);
+    bus.dispose();
+  });
+
+  it('makes the latest session read win and holds superseded callers until it settles', async () => {
+    type Deferred = {
+      readonly promise: Promise<SessionState>;
+      readonly resolve: (value: SessionState) => void;
+      readonly signal: AbortSignal;
+    };
+    const reads: Deferred[] = [];
+    const ready: SessionState[] = [];
+    const published: string[] = [];
+    let loading = 0;
+    const coordinator = new SessionReadCoordinator({
+      read: (signal) => new Promise<SessionState>((resolve) => reads.push({
+        promise: Promise.resolve({ signedIn: false }), resolve, signal,
+      })),
+      onLoading: () => { loading += 1; },
+      onReady: (value) => ready.push(value),
+      onFailed: () => { throw new Error('unexpected failure'); },
+      onValidatedTransition: (identity) => published.push(identity),
+    });
+
+    let firstSettled = false;
+    const first = coordinator.refresh('refresh').then(() => { firstSettled = true; });
+    const second = coordinator.refresh('refresh');
+    expect(reads).toHaveLength(2);
+    expect(reads[0]?.signal.aborted).toBe(true);
+    reads[0]?.resolve({ signedIn: true, session: {
+      email: 'a@example.com', binding: 'a'.repeat(64), workspace: 'A', onboarded: true,
+    } });
+    await Promise.resolve();
+    expect(firstSettled).toBe(false);
+    expect(ready).toEqual([]);
+
+    reads[1]?.resolve({ signedIn: true, session: {
+      email: 'b@example.com', binding: 'b'.repeat(64), workspace: 'B', onboarded: true,
+    } });
+    await Promise.all([first, second]);
+    expect(loading).toBe(2);
+    expect(ready).toEqual([{ signedIn: true, session: {
+      email: 'b@example.com', binding: 'b'.repeat(64), workspace: 'B', onboarded: true,
+    } }]);
+    expect(published).toEqual([`${'b'.repeat(64)}\u0000B`]);
+  });
+
+  it('invalidates synchronously for remote/focus reads without rebroadcasting unchanged or remote state', async () => {
+    const states: SessionState[] = [
+      { signedIn: true, session: {
+        email: 'a@example.com', binding: 'a'.repeat(64), workspace: 'A', onboarded: true,
+      } },
+      { signedIn: true, session: {
+        email: 'b@example.com', binding: 'b'.repeat(64), workspace: 'B', onboarded: true,
+      } },
+      { signedIn: true, session: {
+        email: 'b@example.com', binding: 'b'.repeat(64), workspace: 'B', onboarded: true,
+      } },
+    ];
+    const order: string[] = [];
+    const published: string[] = [];
+    const coordinator = new SessionReadCoordinator({
+      read: async () => states.shift() ?? { signedIn: false },
+      onLoading: () => order.push('loading'),
+      onReady: (value) => order.push(value.signedIn ? value.session.workspace ?? 'none' : 'signed-out'),
+      onFailed: () => order.push('failed'),
+      onValidatedTransition: (identity) => published.push(identity),
+    });
+
+    await coordinator.refresh('initial');
+    const remote = coordinator.refresh('remote');
+    expect(order.at(-1)).toBe('loading');
+    await remote;
+    await coordinator.refresh('focus');
+
+    expect(order).toEqual(['loading', 'A', 'loading', 'B', 'loading', 'B']);
+    expect(published).toEqual([`${'a'.repeat(64)}\u0000A`]);
+    coordinator.dispose();
+  });
+
+  it('commits removal of the old private tree before a revalidation can begin its fetch', async () => {
+    const teardown = Reflect.get(sessionContracts, 'synchronousSessionTeardown');
+    expect(teardown).toBeTypeOf('function');
+    if (typeof teardown !== 'function') return;
+    const oldPrivateTree = { isConnected: true };
+    const order: string[] = [];
+    const coordinator = new SessionReadCoordinator({
+      read: async () => {
+        order.push('fetch');
+        expect(oldPrivateTree.isConnected).toBe(false);
+        return { signedIn: false };
+      },
+      onLoading: () => teardown(
+        () => { oldPrivateTree.isConnected = false; order.push('private-tree-removed'); },
+        (commit: () => void) => commit(),
+      ),
+      onReady: () => order.push('ready'),
+      onFailed: () => order.push('failed'),
+      onValidatedTransition: () => undefined,
+    });
+
+    await coordinator.refresh('focus');
+    expect(order).toEqual(['private-tree-removed', 'fetch', 'ready']);
+    coordinator.dispose();
+  });
+
   it('does not promise recovery to an unbound legacy account that may not have a recovery code', () => {
     const problem = googleProblem('?google=legacy_unbound') ?? '';
 

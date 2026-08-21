@@ -35,7 +35,7 @@ export const SAMPLE_WORKSPACE = 'acme / backend';
 export default function Shell() {
   const go = useNavigate();
   const params = useParams();
-  const { loaded } = useSession();
+  const { loaded, identity } = useSession();
   const scope = useScope();
   const health = useHealth();
   const model = useModelLabel();
@@ -133,7 +133,7 @@ export default function Shell() {
             a single wide table takes the whole document sideways with it, and
             the reader loses the navigation as well as the table. */}
         <div data-shellcontent="1" style={{ flex: 1, minWidth: 0, overflowX: 'auto', padding: '40px 32px 84px' }}>
-          <RouteBody route={route} />
+          <RouteBody key={scope.demo ? 'explore' : identity ?? 'unvalidated'} route={route} />
         </div>
       </main>
         <VoiceDock />

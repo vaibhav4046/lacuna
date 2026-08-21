@@ -69,6 +69,7 @@ class MemoryConnectorStore implements ConnectorStore {
 
 class Jar {
   readonly values = new Map<string, string>();
+  binding = '';
 
   absorb(response: Response): void {
     for (const line of response.headers.getSetCookie()) {
@@ -161,7 +162,27 @@ async function signedIn(email = 'connector-owner@example.com'): Promise<Jar> {
   jar.absorb(session);
   const signup = await post(jar, '/api/auth/signup', { email, password: 'correct horse battery staple' });
   expect(signup.status).toBe(201);
+  const current = await fetch(`${base}/api/session`, { headers: { cookie: jar.header() } });
+  jar.absorb(current);
+  const state = await current.json() as { session?: { binding?: unknown } };
+  expect(state.session?.binding).toMatch(/^[0-9a-f]{64}$/u);
+  jar.binding = state.session?.binding as string;
   return jar;
+}
+
+function privateHeaders(
+  jar: Jar,
+  overrides: Readonly<Record<string, string | null>> = {},
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    cookie: jar.header(),
+    'x-lacuna-voice-binding': jar.binding,
+  };
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === null) delete headers[name];
+    else headers[name] = value;
+  }
+  return headers;
 }
 
 async function postFile(
@@ -176,7 +197,7 @@ async function postFile(
   if (previewToken !== undefined) form.set('preview_token', previewToken);
   const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
   const headers: Record<string, string> = {
-    cookie: jar.header(),
+    ...privateHeaders(jar),
     'x-csrf-token': token,
     origin: SITE_ORIGIN,
   };
@@ -197,7 +218,7 @@ async function postGitHub(
   const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
   const headers: Record<string, string> = {
     'content-type': 'application/json',
-    cookie: jar.header(),
+    ...privateHeaders(jar),
     'x-csrf-token': token,
     origin: SITE_ORIGIN,
   };
@@ -220,7 +241,7 @@ async function postHttps(
   const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
   const headers: Record<string, string> = {
     'content-type': 'application/json',
-    cookie: jar.header(),
+    ...privateHeaders(jar),
     'x-csrf-token': token,
     origin: SITE_ORIGIN,
   };
@@ -244,7 +265,7 @@ async function mutateWebhook(
 ): Promise<Response> {
   const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
   const headers: Record<string, string> = {
-    cookie: jar.header(),
+    ...privateHeaders(jar),
     'x-csrf-token': token,
     origin: SITE_ORIGIN,
   };
@@ -324,6 +345,7 @@ function disconnectableGitHubRequest(jar: Jar): {
       'content-type': 'application/json',
       'content-length': Buffer.byteLength(body),
       cookie: jar.header(),
+      'x-lacuna-voice-binding': jar.binding,
       'x-csrf-token': token,
       origin: SITE_ORIGIN,
     },
@@ -352,6 +374,7 @@ function disconnectableHttpsRequest(jar: Jar): {
       'content-type': 'application/json',
       'content-length': Buffer.byteLength(body),
       cookie: jar.header(),
+      'x-lacuna-voice-binding': jar.binding,
       'x-csrf-token': token,
       origin: SITE_ORIGIN,
     },
@@ -375,6 +398,7 @@ async function disconnectDuringGitHubBody(jar: Jar): Promise<void> {
         'content-type': 'application/json',
         'content-length': '4096',
         cookie: jar.header(),
+        'x-lacuna-voice-binding': jar.binding,
         'x-csrf-token': token,
         origin: SITE_ORIGIN,
       },
@@ -399,6 +423,7 @@ async function disconnectDuringHttpsBody(jar: Jar): Promise<void> {
         'content-type': 'application/json',
         'content-length': '4096',
         cookie: jar.header(),
+        'x-lacuna-voice-binding': jar.binding,
         'x-csrf-token': token,
         origin: SITE_ORIGIN,
       },
@@ -650,6 +675,53 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 
+describe('private connector exact-session binding', () => {
+  it('rejects every private connector operation before catalogue, adapter, runner, or lifecycle work', async () => {
+    const jar = await signedIn('binding-owner@example.com');
+    const unbound = { 'x-lacuna-voice-binding': null } as const;
+    const file = new File(['a: Atlas is owned by Priya.'], 'atlas.txt', { type: 'text/plain' });
+
+    const responses = [
+      await fetch(`${base}/api/workspace/connectors`, { headers: privateHeaders(jar, unbound) }),
+      await fetch(`${base}/api/workspace/connectors/webhook`, { headers: privateHeaders(jar, unbound) }),
+      await mutateWebhook(jar, 'POST', undefined, undefined, unbound),
+      await mutateWebhook(jar, 'DELETE', 'AAECAwQFBgcICQoLDA0ODw', undefined, unbound),
+      await postFile(jar, '/api/workspace/connectors/file/preview', file, undefined, unbound),
+      await postFile(jar, '/api/workspace/connectors/file/import', file, 'preview-token', unbound),
+      await postGitHub(jar, { url: 'https://github.com/acme/atlas' }, unbound),
+      await postHttps(jar, { url: 'https://api.example.com/data' }, unbound),
+    ];
+
+    expect(responses.map(({ status }) => status)).toEqual(Array(8).fill(401));
+    expect(connectorStore.reads).toEqual([]);
+    expect(fileBoundaryCalls).toBe(0);
+    expect(githubBoundaryCalls).toEqual([]);
+    expect(httpsBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+    expect(webhookCalls).toEqual([]);
+  });
+
+  it('rejects a valid account-A binding under account B before import or revoke work', async () => {
+    const accountA = await signedIn('binding-a@example.com');
+    const accountB = await signedIn('binding-b@example.com');
+    const stale = { 'x-lacuna-voice-binding': accountA.binding } as const;
+
+    const imported = await postGitHub(accountB, { url: 'https://github.com/acme/atlas' }, stale);
+    const revoked = await mutateWebhook(
+      accountB,
+      'DELETE',
+      'AAECAwQFBgcICQoLDA0ODw',
+      undefined,
+      stale,
+    );
+
+    expect([imported.status, revoked.status]).toEqual([401, 401]);
+    expect(githubBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+    expect(webhookCalls).toEqual([]);
+  });
+});
+
 describe('signed webhook lifecycle and public receiver API', () => {
   it('authenticates private lifecycle routes before service work and derives the workspace server-side', async () => {
     const anonymous = await fetch(`${base}/api/workspace/connectors/webhook`);
@@ -658,7 +730,7 @@ describe('signed webhook lifecycle and public receiver API', () => {
 
     const jar = await signedIn('webhook-owner@example.com');
     const state = await fetch(`${base}/api/workspace/connectors/webhook`, {
-      headers: { cookie: jar.header() },
+      headers: privateHeaders(jar),
     });
     expect(state.status).toBe(200);
     expect(await state.json()).toEqual({
@@ -772,7 +844,7 @@ describe('workspace connector catalogue API', () => {
 
     const response = await fetch(
       `${base}/api/workspace/connectors?workspace=${encodeURIComponent(workspaceCollection('somebody-else@example.com'))}`,
-      { headers: { cookie: jar.header() } },
+      { headers: privateHeaders(jar) },
     );
     const body = await response.json() as { connectors: readonly Record<string, unknown>[] };
 
@@ -811,7 +883,7 @@ describe('workspace connector catalogue API', () => {
       },
     };
 
-    const response = await fetch(`${base}/api/workspace/connectors`, { headers: { cookie: jar.header() } });
+    const response = await fetch(`${base}/api/workspace/connectors`, { headers: privateHeaders(jar) });
     const body = await response.json() as { connectors: readonly Record<string, unknown>[] };
 
     expect(body.connectors.find((entry) => entry['id'] === 'text')).toMatchObject({
@@ -827,7 +899,7 @@ describe('workspace connector catalogue API', () => {
     const jar = await signedIn('corrupt-state@example.com');
     connectorStore.failure = new Error('foreign payload containing owner@example.com and lacuna-ws-secret');
 
-    const response = await fetch(`${base}/api/workspace/connectors`, { headers: { cookie: jar.header() } });
+    const response = await fetch(`${base}/api/workspace/connectors`, { headers: privateHeaders(jar) });
     const body = await response.json() as Record<string, unknown>;
 
     expect(response.status).toBe(503);
@@ -981,7 +1053,7 @@ describe('workspace file preview and import API', () => {
     duplicate.append('file', new File(['two'], 'two.txt', { type: 'text/plain' }) as unknown as Blob);
     const duplicateResponse = await fetch(`${base}/api/workspace/connectors/file/preview`, {
       method: 'POST',
-      headers: { cookie: jar.header(), 'x-csrf-token': token, origin: SITE_ORIGIN },
+      headers: { ...privateHeaders(jar), 'x-csrf-token': token, origin: SITE_ORIGIN },
       body: duplicate,
     });
     expect(duplicateResponse.status).toBe(400);
@@ -1231,7 +1303,7 @@ describe('workspace public GitHub import API', () => {
     expect(response.status).toBe(501);
     expect(await response.json()).toEqual({ error: 'github_import_unavailable' });
     const catalogueResponse = await fetch(`${base}/api/workspace/connectors`, {
-      headers: { cookie: jar.header() },
+      headers: privateHeaders(jar),
     });
     const body = await catalogueResponse.json() as { connectors: readonly Record<string, unknown>[] };
     expect(body.connectors.find((entry) => entry['id'] === 'github')).toMatchObject({
@@ -1402,7 +1474,7 @@ describe('workspace pinned public HTTPS import API', () => {
     expect(response.status).toBe(501);
     expect(await response.json()).toEqual({ error: 'https_import_unavailable' });
     const catalogueResponse = await fetch(`${base}/api/workspace/connectors`, {
-      headers: { cookie: jar.header() },
+      headers: privateHeaders(jar),
     });
     const body = await catalogueResponse.json() as { connectors: readonly Record<string, unknown>[] };
     expect(body.connectors.find((entry) => entry['id'] === 'https_api')).toMatchObject({

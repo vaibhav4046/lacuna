@@ -31,6 +31,75 @@ describe('web product contracts', () => {
     expect(settings).not.toContain('TYPE THE NAME TO CONFIRM');
   });
 
+  it('preserves only allowlisted connector hashes across legacy aliases', () => {
+    const alias = Reflect.get(browserContracts, 'connectorAliasTarget');
+    expect(alias).toBeTypeOf('function');
+    if (typeof alias !== 'function') return;
+    expect(alias('/app/connectors', '#file')).toBe('/app/conn#file');
+    expect(alias('/explore/connectors', '#https-api')).toBe('/explore/conn#https-api');
+    expect(alias('/app/connectors', '#secret')).toBe('/app/conn');
+    expect(alias('/elsewhere', '#file')).toBeNull();
+  });
+
+  it('keeps private connector workflows structurally separate from zero-write Explore', () => {
+    const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
+    const body = readFileSync(new URL('../../web/src/app/RouteBody.tsx', import.meta.url), 'utf8');
+    const developers = readFileSync(new URL('../../web/src/app/routes/developers.tsx', import.meta.url), 'utf8');
+
+    expect(route).toContain('export function PrivateConnectors()');
+    expect(route).toContain('export function ExploreConnectors()');
+    const explore = route.slice(route.indexOf('export function ExploreConnectors()'));
+    expect(explore).not.toContain('/api/workspace/');
+    expect(body).toContain('<ConnectorsRoute />');
+    expect(developers).not.toContain('export function Connectors()');
+  });
+
+  it('uses truthful recorded observations, inert planned cards, and a contained one-time secret modal', () => {
+    const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
+    const observation = Reflect.get(browserContracts, 'REVIEWED_OBSERVATION_COPY');
+    expect(observation).toMatchObject({
+      importedDocuments: 'RECORDED ACCEPTED DOCUMENTS',
+      lastSuccessAt: 'LAST RECORDED ACCEPTANCE',
+      lastFailure: 'LAST RECORDED FAILURE',
+    });
+    expect(JSON.stringify(observation)).toContain('may lag');
+    expect(route).not.toMatch(/CUMULATIVE|TOTAL IMPORTED|LATEST ACCEPTANCE/u);
+    expect(route).toContain('aria-disabled="true"');
+    expect(route).toContain('ONE-TIME SIGNING SECRET');
+    expect(route).toContain('containVoiceModalBackground(regions)');
+    expect(route).toContain('[data-voice-modal-backdrop],[data-voice-dialog]');
+    expect(route).toContain('revealExclusiveSecret(');
+    expect(route).toContain('returnTarget={webhookTrigger}');
+    expect(route).toContain("if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); return; }");
+    expect(route).not.toContain('href={webhook.endpoint}');
+    expect(route).not.toMatch(/console\.|localStorage|sessionStorage|history\./u);
+  });
+
+  it('keeps connector controls keyboard-sized and single-column without 320px overflow', () => {
+    const styles = readFileSync(new URL('../../web/src/styles.css', import.meta.url), 'utf8');
+    expect(styles).toContain('.connector-workflow-grid');
+    expect(styles).toContain('grid-template-columns:repeat(2, minmax(0, 1fr))');
+    expect(styles).toContain('@media (max-width:700px)');
+    expect(styles).toContain('grid-template-columns:minmax(0, 1fr)');
+    expect(styles).toContain('min-height:44px');
+    expect(styles).toContain('padding-bottom:130px');
+    expect(styles).toContain('overflow-wrap:anywhere');
+  });
+
+  it('wires the browser-wide session epoch into the provider and exact private route key', () => {
+    const provider = readFileSync(new URL('../../web/src/api/session.tsx', import.meta.url), 'utf8');
+    const shell = readFileSync(new URL('../../web/src/app/Shell.tsx', import.meta.url), 'utf8');
+    expect(provider).toContain("new BroadcastChannel('lacuna-session-epoch-v1')");
+    expect(provider).toContain("localStorage.setItem(key, value)");
+    expect(provider).toContain("window.addEventListener('focus', onFocus)");
+    expect(provider).toContain("window.addEventListener('pageshow', onPageShow)");
+    expect(provider).toContain("window.removeEventListener('focus', onFocus)");
+    expect(provider).toContain("window.removeEventListener('pageshow', onPageShow)");
+    expect(provider).toContain("coordinator.refresh('remote')");
+    expect(provider).toContain('flushSync');
+    expect(shell).toContain("key={scope.demo ? 'explore' : identity ?? 'unvalidated'}");
+  });
+
   it('sends transcript writers to sign in instead of the read-only public memory', () => {
     const judge = readFileSync(new URL('../../web/src/pages/Judge.tsx', import.meta.url), 'utf8');
     expect(judge).toContain('<Link to="/signin" style={{ ...label, color: \'#9A9A9A\', textDecoration: \'none\' }}>SIGN IN TO PASTE A TRANSCRIPT</Link>');
@@ -39,7 +108,7 @@ describe('web product contracts', () => {
 
   it('does not claim onboarding ingests a source before the Memory form is open', () => {
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
-    expect(onboarding).toContain("b: 'After setup, paste a note or transcript in Memory. More connectors are planned.'");
+    expect(onboarding).toContain("b: 'After setup, paste a note in Memory or review a file, public GitHub snapshot, public HTTPS source, or signed webhook.'");
     expect(onboarding).not.toContain("b: 'Paste a note or transcript now. More connectors are planned.'");
   });
 

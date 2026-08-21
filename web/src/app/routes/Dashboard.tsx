@@ -81,7 +81,7 @@ export function Dashboard() {
 
       <div className="dashboard-actions" aria-label="Workspace actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingBottom: '4px' }}>
         {([
-          ['ADD CONTEXT', `${prefix}/memory`],
+          ['ADD CONTEXT', `${prefix}/conn#file`],
           ['ASK LACUNA', `${prefix}/ask`],
           ['RUN AGENT', `${prefix}/agents`],
           ['TALK TO LACUNA', `${prefix}/voice`],

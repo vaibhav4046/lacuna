@@ -7,7 +7,8 @@ import { Tools } from './routes/tools';
 import { Agents } from './routes/agents';
 import { Models } from './routes/models';
 import { VoiceRoute } from './routes/voice';
-import { Cli, Connectors, Mcp, Sdk } from './routes/developers';
+import { Cli, Mcp, Sdk } from './routes/developers';
+import { ConnectorsRoute } from './routes/connectors';
 import { Evaluations, HydraDb } from './routes/proof';
 import { Settings } from './routes/system';
 
@@ -34,7 +35,7 @@ export function RouteBody({ route }: { route: RouteKey }) {
     case 'mcp': return <Mcp />;
     case 'sdk': return <Sdk />;
     case 'cli': return <Cli />;
-    case 'conn': return <Connectors />;
+    case 'conn': return <ConnectorsRoute />;
     case 'evals': return <Evaluations />;
     case 'hydra': return <HydraDb />;
     case 'settings': return <Settings />;

@@ -18,7 +18,7 @@ const STEPS = [
   { l: 'CREATE WORKSPACE', t: 'Name your workspace.', b: 'One workspace holds the memory for a project or a team.' },
   { l: 'CHECK STORAGE', t: 'Check memory storage.', b: 'Lacuna checks that HydraDB is ready to store your project memory.' },
   { l: 'MODEL SETUP', t: 'Check model setup.', b: 'The server chooses the model for now. Switching models per workspace is planned.' },
-  { l: 'ADD MEMORY', t: 'Add memory after setup.', b: 'After setup, paste a note or transcript in Memory. More connectors are planned.' },
+  { l: 'ADD MEMORY', t: 'Add memory after setup.', b: 'After setup, paste a note in Memory or review a file, public GitHub snapshot, public HTTPS source, or signed webhook.' },
   { l: 'ASK SOMETHING', t: 'Ask something.', b: 'Ask a question and see the answer, its source, and any disagreements.' },
 ] as const;
 
@@ -116,9 +116,9 @@ export default function Onboarding() {
 
         {step === 3 ? (
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.14em' }}>
-            <span style={chip}>GITHUB · PLANNED</span>
-            <span style={chip}>SLACK · PLANNED</span>
-            <span style={chip}>PASTE A NOTE · AVAILABLE</span>
+            <span style={chip}>GITHUB SNAPSHOT · IMPLEMENTED</span>
+            <span style={chip}>TXT · MD · PDF · DOCX · IMPLEMENTED</span>
+            <span style={chip}>HTTPS + WEBHOOK · IMPLEMENTED</span>
           </div>
         ) : null}
 

@@ -337,6 +337,115 @@ summary:focus-visible {
   }
 }
 
+/* Connector truth is split into an exact receipt plane and a quieter recorded-observation plane. */
+.connectors-page {
+  width:min(1120px, 100%);
+  min-width:0;
+  margin:0 auto;
+  padding-bottom:110px;
+  display:grid;
+  gap:28px;
+}
+
+.connectors-hero { display:grid; gap:10px; max-width:760px; }
+.connectors-hero > span,
+.connector-kicker {
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:10px;
+  letter-spacing:.2em;
+  color:#9a7dff;
+}
+.connectors-hero h1 { margin:0; color:#fff; font-size:clamp(30px, 5vw, 58px); line-height:1.03; font-weight:400; letter-spacing:-.035em; }
+.connectors-hero p,
+.connector-card > p,
+.connector-observations p,
+.connector-modal p { margin:0; color:#9a9a9a; line-height:1.65; max-width:72ch; }
+
+.connector-alert,
+.connector-receipt {
+  min-width:0;
+  border:1px solid rgba(128,82,255,.55);
+  border-radius:12px;
+  padding:18px;
+  color:#bdbdbd;
+  overflow-wrap:anywhere;
+}
+.connector-receipt { display:grid; gap:14px; background:rgba(128,82,255,.055); }
+.connector-receipt strong { color:#fff; font-size:20px; font-weight:500; }
+.connector-receipt p { margin:0; color:#bdbdbd; overflow-wrap:anywhere; }
+.connector-counts { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin:0; }
+.connector-counts > div { border-top:1px solid rgba(255,255,255,.12); padding-top:10px; min-width:0; }
+.connector-counts dt,
+.connector-observations dt,
+.connector-review dt { color:#7a7a7a; font:9px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.13em; }
+.connector-counts dd { margin:4px 0 0; color:#fff; font-size:24px; }
+.connector-actions { display:flex; gap:10px; flex-wrap:wrap; }
+
+.connector-observations { display:grid; gap:16px; border-top:1px solid rgba(255,255,255,.13); padding-top:22px; }
+.connector-observations h2,
+.connector-planned h2 { color:#fff; font-weight:400; margin:7px 0; }
+.connector-observation-grid,
+.connector-workflow-grid,
+.connector-planned > div { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; min-width:0; }
+.connector-observation-grid article,
+.connector-planned article { min-width:0; padding:15px; border:1px solid rgba(255,255,255,.09); border-radius:9px; overflow-wrap:anywhere; }
+.connector-observation-grid h2,
+.connector-observation-grid h3,
+.connector-planned h3 { color:#fff; margin:8px 0; font-weight:450; }
+.connector-observation-grid dl { display:grid; gap:8px; margin:12px 0 0; }
+.connector-observation-grid dd { margin:2px 0 0; color:#bdbdbd; overflow-wrap:anywhere; }
+.connector-status { display:flex; gap:7px; align-items:center; color:#9a9a9a; font:9px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.13em; }
+.connector-status i { width:6px; height:6px; border-radius:50%; flex:0 0 auto; }
+
+.connector-card { min-width:0; scroll-margin-top:24px; padding:20px; border:1px solid rgba(255,255,255,.13); border-radius:12px; display:flex; flex-direction:column; gap:13px; overflow-wrap:anywhere; }
+.connector-card h2 { margin:0; color:#fff; font-weight:400; font-size:24px; }
+.connector-card label { color:#9a9a9a; font:10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.15em; margin-top:5px; }
+.connector-card input { box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid rgba(255,255,255,.18); border-radius:8px; background:#030303; color:#fff; }
+.connector-card button,
+.connector-receipt button,
+.connector-modal button { min-height:44px; padding:9px 14px; border:1px solid rgba(255,255,255,.18); border-radius:8px; background:transparent; color:#bdbdbd; cursor:pointer; font:10px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.12em; }
+.connector-card button:disabled { cursor:not-allowed; opacity:.45; }
+.connector-card button:focus-visible,
+.connector-receipt button:focus-visible,
+.connector-modal button:focus-visible,
+.connector-card input:focus-visible { outline:2px solid #b79bff; outline-offset:2px; }
+.connector-card .connector-primary,
+.connector-modal .connector-primary { border-color:#8052ff; background:#8052ff; color:#fff; }
+.connector-card .connector-danger { border-color:rgba(255,184,41,.65); color:#ffcc69; }
+.connector-review,
+.connector-confirm { min-width:0; display:grid; gap:10px; padding:14px; border:1px solid rgba(128,82,255,.35); border-radius:9px; background:rgba(128,82,255,.045); }
+.connector-review h3,
+.connector-confirm h3 { margin:0; color:#fff; font-weight:450; }
+.connector-review p,
+.connector-confirm p { margin:0; color:#bdbdbd; line-height:1.55; overflow-wrap:anywhere; }
+.connector-review code { color:#b79bff; white-space:normal; overflow-wrap:anywhere; }
+.connector-review dl { display:flex; gap:20px; flex-wrap:wrap; margin:0; }
+.connector-review dd { margin:3px 0 0; color:#fff; }
+.connector-planned { display:grid; gap:12px; padding-top:18px; border-top:1px solid rgba(255,255,255,.12); }
+.connector-planned article { opacity:.68; }
+.connector-planned article > span { color:#9a9a9a; font:9px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.14em; }
+
+.connector-modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:16px; background:rgba(0,0,0,.88); }
+.connector-modal { box-sizing:border-box; width:min(620px, 100%); max-height:calc(100vh - 32px); overflow:auto; display:grid; gap:16px; padding:clamp(18px, 4vw, 30px); border:1px solid #8052ff; border-radius:12px; background:#050505; color:#fff; box-shadow:0 28px 80px rgba(0,0,0,.65); }
+.connector-modal h2 { margin:0; font-weight:400; font-size:clamp(25px, 5vw, 38px); }
+.connector-modal > div { min-width:0; display:grid; gap:7px; }
+.connector-modal > div > span { color:#7a7a7a; font:9px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.14em; }
+.connector-modal code { display:block; padding:10px; border:1px solid rgba(255,255,255,.12); border-radius:7px; white-space:normal; overflow-wrap:anywhere; color:#b79bff; }
+.sr-only { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0, 0, 0, 0) !important; white-space:nowrap !important; border:0 !important; }
+
+@media (max-width:700px) {
+  .connector-observation-grid,
+  .connector-workflow-grid,
+  .connector-planned > div { grid-template-columns:minmax(0, 1fr); }
+  .connector-counts { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .connectors-page { gap:22px; padding-bottom:130px; }
+  .connector-card { padding:16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connectors-page *, .connector-modal * { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
+}
+
 /* ------------------------------------------------------------------ *
  * V8 landing. The open spiral is an aperture through the whole page:
  * one stable object, eight changing records. Essential content is never

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
-import { CONNECTOR_GROUPS, dotFor } from '../../design/connectors';
-import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { DEVCODE } from '../../landing/copy';
 import { CLI_COMMAND_NAMES, MCP_TOOLS_LIST_REQUEST, mcpToolNames } from '../product-contracts';
@@ -17,7 +15,6 @@ import { McpProbeCoordinator, mcpServerStatus } from '../mcp-status';
  * is real.
  */
 
-const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#7A7A7A' } as const;
 
 async function readMcpToolNames(signal?: AbortSignal): Promise<readonly string[]> {
@@ -230,60 +227,6 @@ export function Cli() {
       </div>
       <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.12em', color: '#7A7A84' }}>{CLI_COMMAND_NAMES.map((command) => `lacuna ${command}`).join(' · ')}</span>
       <span style={note}>THESE ARE THE COMMANDS THAT EXIST · THE DESIGNED SET IS LARGER AND LANDS AS EACH ONE IS BUILT</span>
-    </div>
-  );
-}
-
-interface ConnectorRow {
-  readonly n: string;
-  readonly g: string;
-  readonly st: string;
-  readonly scope: string;
-  readonly sync: string;
-}
-
-const CONN_GRID = '0.9fr 0.7fr 1fr 0.8fr 0.8fr';
-
-/** The catalogue, flattened, with the same states the landing page shows. */
-const ROWS: readonly ConnectorRow[] = CONNECTOR_GROUPS.flatMap((group) =>
-  group.items.map((item) => ({ n: item.n, g: group.h, st: item.st, scope: '—', sync: '—' })),
-);
-
-export function Connectors() {
-  const [search, setSearch] = useState('');
-  const order = ['CONNECTED', 'SYNCING', 'AVAILABLE', 'PLANNED'];
-  const shown = ROWS
-    .filter((r) => search.trim() === '' || r.n.toLowerCase().includes(search.trim().toLowerCase()))
-    .slice()
-    .sort((a, b) => order.indexOf(a.st) - order.indexOf(b.st));
-
-  return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input className="fv-violet" type="text" placeholder="Search connectors" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: '200px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontFamily: MONO, fontSize: '12px', outline: 'none' }} />
-        <span style={note}>CONNECTED FIRST · THEN AVAILABLE · THEN PLANNED</span>
-      </div>
-      <div>
-        <div style={{ display: 'grid', gridTemplateColumns: CONN_GRID, gap: '16px', padding: '8px 4px', borderBottom: '1px solid rgba(255,255,255,0.14)', ...head }}>
-          <span>CONNECTOR</span><span>GROUP</span><span>STATUS</span><span>SCOPE</span><span>LAST SYNC</span>
-        </div>
-        {shown.map((c) => (
-          <div key={c.n} className="hv-surface3" style={{ display: 'grid', gridTemplateColumns: CONN_GRID, gap: '16px', alignItems: 'baseline', padding: '14px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', transition: 'background 140ms ease' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-              <span style={icStyle(c.n, 14)}></span>
-              <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{c.n}</span>
-            </span>
-            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A' }}>{c.g}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotFor(c.st) }}></span>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#BDBDBD' }}>{c.st}</span>
-            </span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#9A9A9A' }}>{c.scope}</span>
-            <span style={{ fontFamily: MONO, fontSize: '11px', color: '#7A7A7A' }}>{c.sync}</span>
-          </div>
-        ))}
-      </div>
-      <span style={note}>EXACT LIVE SUPPORT VERIFIED AGAINST HYDRADB BEFORE ANY CONNECTOR IS MARKED CONNECTED</span>
     </div>
   );
 }

@@ -569,6 +569,22 @@ function voiceBindingOk(
   return verdict === 'matching' || (!required && verdict === 'absent');
 }
 
+function isPrivateConnectorOperation(path: string, method: string): boolean {
+  if (method === 'GET') {
+    return path === '/api/workspace/connectors'
+      || path === '/api/workspace/connectors/webhook';
+  }
+  if (method === 'POST') {
+    return path === '/api/workspace/connectors/webhook'
+      || path === '/api/workspace/connectors/file/preview'
+      || path === '/api/workspace/connectors/file/import'
+      || path === '/api/workspace/connectors/github/import'
+      || path === '/api/workspace/connectors/api/import';
+  }
+  return method === 'DELETE'
+    && /^\/api\/workspace\/connectors\/webhook\/[A-Za-z0-9_-]{22}$/u.test(path);
+}
+
 /**
  * The address a rate limit key is built from. Behind a proxy this is the
  * socket, which is the proxy, so the forwarded header is used when present.
@@ -886,6 +902,11 @@ export class ApiRouter {
 
     const cookies = parseCookies(request.headers.cookie);
     const method = request.method ?? 'GET';
+
+    if (isPrivateConnectorOperation(path, method) && !voiceBindingOk(request, cookies, true)) {
+      send(response, 401, { error: 'voice_binding' });
+      return HANDLED;
+    }
 
     if (path === '/api/workspace/connectors/webhook' && method === 'GET') {
       const account = await this.#accountFor(cookies);

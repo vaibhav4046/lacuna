@@ -690,24 +690,21 @@ git commit -m "feat(connectors): expose truthful private import workflows"
 
 **Files:**
 - Modify: `src/retrieval/resolve.ts`
+- Create: `src/hydra/impact-read.ts`
 - Modify: `src/hydra/cloud.ts`
 - Modify: `src/hydra/client.ts`
-- Modify: `src/hydra/source.ts`
 - Modify: `src/hydra/cloud-source.ts`
 - Modify: `src/hydra/node-source.ts`
-- Modify: `src/hydra/relations.ts`
+- Create: `src/api/workspace-impact.ts`
 - Modify: `src/api/graph.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
-- Modify: `src/api/impact.ts`
 - Modify: `web/src/app/routes/proof.tsx`
+- Create: `tests/unit/hydra-impact-read.test.ts`
+- Create: `tests/unit/workspace-impact-domain.test.ts`
 - Test: `tests/unit/graph-impact.test.ts`
 - Test: `tests/unit/graph-api.test.ts`
 - Test: `tests/unit/retrieval-resolve.test.ts`
-- Test: `tests/unit/client.test.ts`
-- Test: `tests/unit/cloud-source.test.ts`
-- Test: `tests/unit/ingest-source.test.ts`
-- Test: `tests/unit/relations.test.ts`
 - Create: `tests/unit/hydra-cloud-impact-transport.test.ts`
 - Create: `tests/unit/workspace-impact-api.test.ts`
 - Create: `tests/unit/workspace-impact-ui.test.tsx`
@@ -715,16 +712,21 @@ git commit -m "feat(connectors): expose truthful private import workflows"
 
 **Interfaces:**
 - Adds: `GET /api/workspace/impact?subject=<bounded-name>`
-- Adds: required `HydraReadControl { signal, deadlineMs, maxResponseBytes,
-  byteBudget }` on
-  `HydraCloud.query`, `relations`, and `inspect`, and on
-  `HydraSource.subject` plus both source implementations and every typed fake
-- Consumes: workspace-scoped `HydraCloud.withCollection(collection).query(...,
-  { type: 'all', maxResults: 6 }, control)`, `.relations(128, control)`, and
-  `HydraSource.subject(..., control)` views
+- Adds: separate impact-only `HydraImpactReadControl`,
+  `HydraImpactSubjectSource`, and `HydraImpactReadPort` in
+  `src/hydra/impact-read.ts`; every method requires the control and owns an
+  exact endpoint cap
+- Adds: distinct `queryForImpact`, `relationsForImpact`, and
+  `inspectForImpact` methods on `HydraCloud`, `queryForImpact` on
+  `HydraClient`, and `subjectForImpact` on concrete `CloudSource` and
+  `NodeSource`; none overloads or changes a legacy method
+- Consumes: one workspace-scoped `HydraImpactReadPort` whose fixed query is
+  `type: 'all', maxResults: 6`, whose fixed relation limit is 128, and whose
+  subject reads are from the same server-derived collection
 - Produces: one target-level `evaluateTargetStanding` policy consumed by
-  `resolve.ts`, `impact.ts`, and both public/private proof construction in
-  `src/api/graph.ts`
+  source-backed `resolve.ts`, private `workspace-impact.ts`, and private proof
+  construction in `src/api/graph.ts`; public `src/api/impact.ts` and the
+  bundled Explore graph retain their legacy policy and bytes
 - Produces: bounded raw Hydra relationship/chunk/source provenance plus
   accepted, rejected, duplicate, affected, depth, elapsed, and exact reached
   accounting; it never returns a provider envelope or workspace identifier
@@ -762,8 +764,14 @@ is the bounded stable union of independently supplied `source_id` followed by
 `{ relationshipId, source, target, predicate, chunkId, context }`:
 `chunkId` comes only from provider `chunk_id`. Test singular source id, array
 source ids, both, neither, relationship/chunk id present and absent, and the
-same exact duplicate occurrence twice. Preserve every occurrence until schema
-validation, repeated-id consistency checking, canonical ordering, and
+same exact duplicate occurrence twice. Preserve bounded decoded source/target
+and predicate values exactly, including null versus the empty string, until a
+raw occurrence identity has been assigned. Before entity canonicalization,
+predicate-to-internal mapping, or semantic direction, frame the raw nullable
+source, raw nullable target, normalized raw predicate, nullable real provider
+relationship id, nullable chunk id, and nullable context with the versioned
+tagged length-delimited encoding in Step 5. Preserve every occurrence until
+schema validation, repeated-id consistency checking, canonical ordering, and
 accounting are complete.
 
 Cover shuffled claims and candidates, current/historical/retracted/negative
@@ -777,21 +785,50 @@ occurrence has exactly one outcome. Provider/schema over-cap is a generic
 request failure, while a valid candidate excluded by a traversal budget is a
 `budget_excluded` rejection and participates in that arithmetic.
 
+In `workspace-impact-domain.test.ts`, cover the occurrence matrix explicitly:
+two byte-identical malformed rows without ids are one classified rejection plus
+one duplicate; two malformed rows that differ by null versus empty endpoint are
+two distinct rejections; two unknown predicates that map to the same semantic
+`not_structural` outcome but have different normalized raw values remain two
+distinct rejections; an exact repeated row with the same real id is one outcome
+plus one duplicate; otherwise-identical rows with different real ids, or one
+with an id and one without, are distinct; and one real id reused with any
+different framed field fails the whole request. Assert the arithmetic after
+each case, including when the first occurrence is rejected.
+
 - [ ] **Step 2: Run focused graph tests and verify RED**
 
-Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/client.test.ts tests/unit/relations.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx --maxWorkers=1`
+Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/hydra-impact-read.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/workspace-impact-domain.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx --maxWorkers=1`
 
-Expected: the shared target policy, strict bounded transport, private endpoint,
-and scope-aware proof fixture are absent.
+Expected: the private source-backed target policy, separate strict bounded
+impact transport, private endpoint, raw occurrence identity, and scope-aware
+proof fixture are absent.
 
 - [ ] **Step 3: Extract one canonical entity and target-standing policy**
 
 Expose one `canonicalEntityName(raw)` helper and one pure
 `evaluateTargetStanding(subjectView, internalPredicate, targetKey)` evaluator
-from the resolver policy module. `resolve.ts`, `impact.ts`, and
-`src/api/graph.ts` must call these helpers; remove their local first-match,
-contradiction, mention, case, and whitespace variants. This is a target-level
-decision, not “the predicate has some current claim.”
+from the resolver policy module. Use them only where authentic, source-backed
+`SubjectView` data exists: `resolve.ts`, private `workspace-impact.ts`, and the
+private impact-proof conversion added to `src/api/graph.ts`. Remove local
+first-match, contradiction, mention, case, and whitespace variants from those
+source-backed paths. This is a target-level decision, not “the predicate has
+some current claim.”
+
+Do not migrate the bundled public Explore corpus to this evaluator. Its
+`Inventory` fixture does not contain the authentic `SubjectView.mentions`
+needed to prove the exact claim/predicate/target rule. Leave
+`src/api/impact.ts`, the public graph builder/serializer, the
+`/api/explore/impact` closure, fixture bytes, JSON ordering, and rendered copy
+on their existing legacy policy byte-for-byte. Do not synthesize a `Mention`
+from a claim, inventory row, graph edge, or label, and do not claim that the
+public demo and private workspace use one standing policy or prove parity.
+`graph-impact.test.ts`, `graph-api.test.ts`, and `workspace-impact-ui.test.tsx`
+must pin the pre-change public response and render bytes, assert no public
+`missing_mention`/fabricated-Mention field or new divergence copy appears, and
+separately prove the private source-backed path refuses a real claim lacking its
+real matching `Mention`. A future public migration requires authentic bundled
+`SubjectView` data and its own reviewed contract; it is outside Task 8.
 
 The entity grammar is exact. Reject unpaired surrogates, NUL, C0/C1 controls,
 and U+202A..U+202E/U+2066..U+2069 bidi controls. NFC-normalize; map each
@@ -831,37 +868,126 @@ positive while another live target exists is `historical`. Otherwise it is
 accepted-edge provenance cannot drift to a different claim, predicate, target,
 or display name.
 
-- [ ] **Step 4: Make every Hydra read bounded, abortable, and strictly decoded**
+- [ ] **Step 4: Add a separate bounded impact-read API without migrating legacy callers**
 
-Define one required read-control shape:
+Create the following impact-only contract in `src/hydra/impact-read.ts`:
 
 ```ts
-interface HydraReadControl {
+export interface HydraImpactReadControl {
   readonly signal: AbortSignal;
-  readonly deadlineMs: number;       // absolute Date.now() deadline
-  readonly maxResponseBytes: number; // endpoint body, success or error
+  readonly deadlineMs: number; // absolute Date.now() deadline
   readonly byteBudget: {
-    consume(chunkBytes: number): void; // one shared monotonic request counter
+    consume(chunkBytes: number): void; // one shared monotonic route counter
   };
 }
+
+export interface HydraImpactSubjectSource {
+  readonly kind: 'node' | 'cloud';
+  subjectForImpact(
+    name: string,
+    control: HydraImpactReadControl,
+  ): Promise<Read<SubjectView>>;
+}
+
+export interface HydraImpactChunk {
+  readonly chunkId: string | null;
+  readonly text: string;
+  readonly score: number | null;
+  readonly sourceIds: readonly string[];
+  readonly sourceTitle: string | null;
+  readonly sourceType: string | null;
+  readonly observedAt: string | null;
+}
+
+export interface HydraImpactRelationOccurrence {
+  readonly relationshipId: string | null;
+  readonly source: string | null;
+  readonly target: string | null;
+  readonly predicate: string | null;
+  readonly chunkId: string | null;
+  readonly context: string | null;
+}
+
+export interface HydraImpactQuery {
+  readonly chunks: readonly HydraImpactChunk[];
+  readonly relations: readonly HydraImpactRelationOccurrence[];
+}
+
+export interface HydraImpactReadPort {
+  queryForImpact(
+    text: string,
+    control: HydraImpactReadControl,
+  ): Promise<HydraImpactQuery>;
+  relationsForImpact(
+    control: HydraImpactReadControl,
+  ): Promise<readonly HydraImpactRelationOccurrence[]>;
+  subjectForImpact(
+    name: string,
+    control: HydraImpactReadControl,
+  ): Promise<Read<SubjectView>>;
+}
+
+export function createCloudImpactReadPort(
+  scopedCloud: HydraCloud,
+): HydraImpactReadPort;
 ```
 
-Thread it through `HydraCloud.query`, `relations`, and `inspect`,
-`HydraSource.subject`, `CloudSource`, `NodeSource`, and all fakes/callers
-affected by the interface. Pass it into the node `HydraClient.query` transport
-used by NodeSource as well; the old timeout field alone is insufficient.
-Existing ingest/status controls remain separate.
-The cloud sender clips its timer to `deadlineMs - Date.now()`, checks an already
-aborted signal before dispatch, streams and counts response bytes before fatal
-UTF-8 and strict JSON decode, enforces the same ceiling on non-2xx error bodies
-without returning those bytes, and cleans its relay listener and timer on every
-exit. For each stream chunk, check the per-response total and call the shared
+The production factory accepts one already collection-bound `HydraCloud` and
+internally constructs its `CloudSource`; it does not accept a separately scoped
+source, collection, or database. Thus all three reads are necessarily bound to
+the same cloud object. `NodeSource.subjectForImpact` exists for the self-hosted
+source contract and transport tests but is not accepted by this cloud workspace
+factory. The port's query method always sends
+exactly `type: 'all'`, `graph_context: true`, and `max_results: 6`; its relation
+method always sends limit 128. Callers cannot provide either option. Export
+fixed endpoint ceilings from the same module: query 1,048,576 bytes, relations
+1,048,576 bytes, and each inspect or node-subject query response 524,288 bytes.
+Those ceilings apply to success and non-2xx bodies and are not properties a
+caller may raise.
+
+Add distinct required-control methods only:
+`HydraCloud.queryForImpact(text: string, control:
+HydraImpactReadControl): Promise<HydraImpactQuery>`,
+`HydraCloud.relationsForImpact(control:
+HydraImpactReadControl): Promise<readonly HydraImpactRelationOccurrence[]>`,
+`HydraCloud.inspectForImpact(id: string, control:
+HydraImpactReadControl): Promise<InspectedSource | null>`,
+`HydraClient.queryForImpact(request: PreparedQuery, control:
+HydraImpactReadControl): Promise<QueryPage>`, and concrete
+`CloudSource.subjectForImpact(name, control)` /
+`NodeSource.subjectForImpact(name, control)` matching
+`HydraImpactSubjectSource`. Do not overload or alter
+`HydraCloud.query`, `relations`, or `inspect`; `HydraClient.queryPage`, `query`,
+and `queryObjects`; the `HydraSource` interface; or legacy
+`CloudSource.subject` / `NodeSource.subject`. Do not add optional control,
+timeout fallback, or a branch from an impact method to a legacy method.
+Existing ingest/status controls remain separate. Only the new Task 8 port and
+its dedicated fakes implement this interface; no legacy caller or fake is
+migrated.
+
+`hydra-impact-read.test.ts` must source-contract those unchanged signatures,
+prove legacy calls still take their existing byte-identical request path, and
+prove every impact method refuses a missing/undefined control before transport.
+It must also prove `CloudSource.subjectForImpact` uses only
+`inspectForImpact` for the entity record, index fallback, and canonical retry,
+while `NodeSource.subjectForImpact` uses only `HydraClient.queryForImpact` for
+entity/canonical/claim/Mention fan-out; legacy method sentinels remain zero.
+The private route accepts only `HydraImpactReadPort`, so there is no structural
+cast or runtime fallback from a legacy `HydraSource`.
+
+The impact-only cloud/node sender clips its timer to
+`deadlineMs - Date.now()`, checks an already aborted signal before dispatch,
+streams and counts response bytes before fatal UTF-8 and strict JSON decode,
+enforces its fixed endpoint ceiling on non-2xx error bodies without returning
+those bytes, and cleans its relay listener and timer on every exit. For each
+stream chunk, check the per-response total and call the shared
 `byteBudget.consume(chunk.byteLength)` before buffering it; either overflow
 cancels/drains the reader and aborts peers. The node client does the same. The
-node source checks abort/deadline before and after each store fan-out and drains
-peer store operations before rejecting.
+node impact source checks abort/deadline before and after each store fan-out and
+drains peer store operations before rejecting.
 
-Use strict closed decoders, not `String(...)`, `asArray(...)`, filtering, or
+Use the new impact port's strict closed decoders, not `String(...)`,
+`asArray(...)`, filtering, or
 “unknown means empty.” The query response permits at most 6 chunks, 8 source
 ids per chunk, 32 `query_paths`, 8 triplets per path, and 128 triplets total.
 The relation response permits at most 64 containers, 8 nested rows per
@@ -874,11 +1000,13 @@ array is an honest empty result. A structurally valid relation occurrence with
 a null/empty endpoint or predicate becomes one `malformed_candidate` rejection;
 it is not silently dropped.
 
-Expose separate collection-accepting graph functions from `api/index.ts`; do
-not change the public demo closures. Construct all query/relation/source
-closures from `cloud.withCollection(serverDerivedWorkspace)`. Query with
-`type: 'all'` and `maxResults: 6`; the request boolean is
-`graph_context: true`, while `graph_context` is never used as a context `type`.
+Expose separate collection-accepting private graph functions from
+`api/index.ts`; do not change the public demo closures. Construct one
+`HydraImpactReadPort` from
+`cloud.withCollection(serverDerivedWorkspace)` and its same-collection concrete
+impact subject source. The fixed port—not route options—sets `type: 'all'`,
+`max_results: 6`, and `graph_context: true`; `graph_context` is never used as a
+context `type`.
 Start query and relations under sibling controllers linked to the caller and
 the one route deadline. On first failure/abort/over-cap, abort the peer, await
 both with `Promise.allSettled`, detach every listener, and then return a generic
@@ -887,7 +1015,7 @@ subject, timer, or listener running.
 
 - [ ] **Step 5: Implement canonical BFS and exact budget arithmetic**
 
-Pin these constants in `src/api/impact.ts` and assert every exact value:
+Pin these constants in `src/api/workspace-impact.ts` and assert every exact value:
 
 | Budget | Exact cap |
 |---|---:|
@@ -917,18 +1045,45 @@ later frontier and is included in `reached` arithmetic. A response-body
 overflow discovered after construction also fails rather than slicing fields.
 
 Retain the 128 query-triplet occurrences followed by the 128 inventory-row
-occurrences before validation or deduplication. Normalize direction and entity
-keys, validate all occurrences, and reject inconsistent reuse of a real
-relationship id before walking. The identity key is the real relationship id
-when present; otherwise it is the canonical tuple
-`(effectiveSourceKey, effectiveTargetKey, internalPredicate, direction,
-chunkId-or-empty, sha256(context-or-empty))`. A second identical occurrence is
-`duplicates += 1` even if the first was rejected. Do not silently collapse it.
+occurrences before validation or deduplication. Assign every decoded row an
+identity **before** entity canonicalization, closed-predicate mapping, endpoint
+reversal, or any malformed/non-structural classification. First run the exact
+raw-predicate normalizer—trim/collapse only U+0020/TAB/CR/LF, then
+locale-independent ECMAScript lowercase, preserving null as null and the empty
+string as a present empty string and rechecking the 64-byte cap. Do not replace
+an unknown predicate with `not_structural` or an internal predicate in the
+identity.
+
+Encode the occurrence as bytes with prefix
+`lacuna-impact-occurrence-v1\0` followed in this fixed order by six frames:
+tag `0x01` raw nullable source endpoint, `0x02` raw nullable target endpoint,
+`0x03` nullable normalized raw predicate, `0x04` nullable real provider
+relationship id, `0x05` nullable provider chunk id, and `0x06` nullable raw
+context. Each frame is exactly `one-byte tag || one-byte kind || uint32be byte
+length || value bytes`, where kind `0x00` means null and requires length zero,
+and kind `0x01` means a present UTF-8 string (including length zero). Hash the
+complete encoding with SHA-256; that digest is the occurrence identity. The
+origin and occurrence ordinal are deliberately not encoded, so an exact query
+and inventory repeat is a duplicate, while distinct provider ids, id-present
+versus id-absent, null versus empty, distinct malformed endpoints, and distinct
+unknown raw predicates remain distinct. Bounded values are framed directly;
+never delimiter-join or stringify them.
+
+Before walking, separately index each non-null real relationship id to the
+SHA-256 of the same frames excluding tag `0x04`. Reuse of that id with any
+different source, target, normalized raw predicate, chunk id, or context is
+malformed provider data and fails the whole request generically. Reuse with
+identical fields has the same occurrence identity and is a duplicate when
+reached. The first reached occurrence for an identity receives its normal
+accepted/rejected outcome; each later reached occurrence with that identity is
+`duplicates += 1` even if the first was malformed or non-structural. Do not
+silently collapse any decoded row.
 
 Canonical ordering is independent of provider/claim arrival: sort each
 frontier by canonical entity key; sort candidates by effective source key,
-effective target key, internal predicate, direction, relationship id or tuple
-key, chunk id, context digest, origin (`query` before `inventory`), then original
+effective target key, internal predicate-or-normalized-raw-predicate, direction,
+occurrence-identity digest, chunk id, context digest, origin (`query` before
+`inventory`), then original
 path/row occurrence ordinal. Both query triplets and inventory rows are
 considered exactly once, at the earliest depth at which their mapped effective
 source is in the frontier; this preserves second and third hops already present
@@ -968,7 +1123,12 @@ temporal standing. Task 7's exact-session/epoch client rules apply: account
 swap or logout aborts and discards the response, refresh re-fetches private
 truth, and no private response enters local/session storage. Public Explore
 continues using only `/api/explore/impact` and its bundled fixture; it never
-calls or displays the private workspace route.
+calls or displays the private workspace route. The private standing/provenance
+copy is not added to public Explore, because public has no authentic bundled
+`SubjectView`/`Mention` source. Public copy must not claim it shares the exact
+private resolver policy, must not report `missing_mention`, and must not imply a
+private/public divergence comparison. No adapter may fabricate a `Mention` to
+make the public fixture satisfy the private policy.
 
 Add a private UI fixture whose query graph contains both
 `Root -> Superseded` and `Root -> Current`, whose workspace subject view marks
@@ -976,9 +1136,9 @@ the first historical and supports the second with the exact live positive
 claim plus matching `Mention`, and whose relation inventory contains
 `Current -> SecondHop`. Assert the old edge is visibly rejected with its
 provenance, the current and second-hop edges alone are accepted, the three
-accounting terms balance, and affected/depth copy matches the JSON. Copy these
-decisive metamorphic assertions into `graph-impact.test.ts` and
-`workspace-impact-ui.test.tsx`:
+accounting terms balance, and affected/depth copy matches the JSON. Put these
+decisive private metamorphic assertions in `workspace-impact-domain.test.ts`
+and `workspace-impact-ui.test.tsx`:
 
 1. Remove only the live current claim: `Current` and `SecondHop` disappear from
    accepted/affected and the first edge becomes `unstated` or `historical` as
@@ -993,24 +1153,28 @@ decisive metamorphic assertions into `graph-impact.test.ts` and
    nodes/order remain byte-identical and only `duplicates` and `reached` rise
    by one.
 6. Run the same private fixture beside public Explore: the public request,
-   response, graph, copy, and endpoint remain byte-identical.
+   response, graph, copy, and endpoint remain byte-identical to their pinned
+   pre-Task-8 bytes; the public path never constructs `SubjectView`/`Mention`,
+   never emits `missing_mention`, and makes no shared-policy/divergence claim.
 
 - [ ] **Step 7: Run focused graph/UI tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/client.test.ts tests/unit/cloud-source.test.ts tests/unit/ingest-source.test.ts tests/unit/relations.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/hydra-impact-read.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/workspace-impact-domain.test.ts tests/unit/client.test.ts tests/unit/cloud-source.test.ts tests/unit/ingest-source.test.ts tests/unit/relations.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx tests/unit/web-product-contracts.test.ts --maxWorkers=1`
 
 Run: `npm run typecheck`
 
 Run: `npm --prefix web run build`
 
-Expected: exact-cap/cap+1, cancellation/drain, strict wire mapping, standing
-metamorphics, two-account isolation, private UI causality, and unchanged public
-Explore all pass; no request survives settlement.
+Expected: exact-cap/cap+1, cancellation/drain, strict wire mapping, raw
+occurrence-identity arithmetic, private source-backed standing metamorphics,
+legacy-read non-migration, two-account isolation, private UI causality, and
+byte-identical public Explore all pass; no request survives settlement and no
+public `Mention` is fabricated.
 
 - [ ] **Step 8: Commit the graph-native workspace feature**
 
 ```bash
-git add src/retrieval/resolve.ts src/hydra/cloud.ts src/hydra/client.ts src/hydra/source.ts src/hydra/cloud-source.ts src/hydra/node-source.ts src/hydra/relations.ts src/api/graph.ts src/api/router.ts api/index.ts src/api/impact.ts web/src/app/routes/proof.tsx tests/unit/retrieval-resolve.test.ts tests/unit/client.test.ts tests/unit/cloud-source.test.ts tests/unit/ingest-source.test.ts tests/unit/relations.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx tests/unit/web-product-contracts.test.ts
+git add src/retrieval/resolve.ts src/hydra/impact-read.ts src/hydra/cloud.ts src/hydra/client.ts src/hydra/cloud-source.ts src/hydra/node-source.ts src/api/workspace-impact.ts src/api/graph.ts src/api/router.ts api/index.ts web/src/app/routes/proof.tsx tests/unit/retrieval-resolve.test.ts tests/unit/hydra-impact-read.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/workspace-impact-domain.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx tests/unit/web-product-contracts.test.ts
 git commit -m "feat(hydra): scope native graph impact to private memory"
 ```
 

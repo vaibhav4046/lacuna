@@ -156,4 +156,23 @@ describe('deterministic voice intent parser', () => {
     expect(operation('go to memory', '/explore/dash', 'public')).toMatchObject({ available: true, effect: 'navigation' });
     expect(operation('what changed?', '/explore/dash', 'public')).toMatchObject({ available: true, effect: 'read' });
   });
+
+  it('fails public confirmation closed while preserving exact cancel and connector navigation', () => {
+    expect(operation('confirm', '/explore/dash', 'public')).toMatchObject({
+      operation: { version: 1, kind: 'confirm' },
+      effect: 'read',
+      available: false,
+      reason: 'public_read_only',
+    });
+    expect(operation('cancel', '/explore/dash', 'public')).toMatchObject({
+      operation: { version: 1, kind: 'cancel' },
+      available: true,
+      reason: null,
+    });
+    expect(operation('go to connectors', '/explore/dash', 'public')).toMatchObject({
+      operation: { version: 1, kind: 'navigate', route: 'conn' },
+      available: true,
+      reason: null,
+    });
+  });
 });

@@ -95,7 +95,7 @@ function planned(operation: VoiceOperation, currentRoute: string, scope: VoiceSc
   let available = fixed.available;
   let reason: VoiceIntentReason | null = fixed.reason;
 
-  if (available && effect === 'write' && scope === 'public') {
+  if (available && scope === 'public' && (effect === 'write' || operation.kind === 'confirm')) {
     available = false;
     reason = 'public_read_only';
   } else if (available && operation.kind === 'navigate' && currentRouteKey(currentRoute) === operation.route) {

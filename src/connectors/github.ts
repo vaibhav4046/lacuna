@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { MAX_SOURCE_CHARS } from '../api/ingest.js';
+import { isCanonicalGitHubPath } from './evidence.js';
 import {
   prepareConnectorBatch,
   type ConnectorDocumentInput,
@@ -26,12 +27,12 @@ const SHA256 = /^[0-9a-f]{64}$/u;
 const OWNER = /^(?!-)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/u;
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}$/u;
 const BRANCH = /^[A-Za-z0-9._/-]{1,255}$/u;
-const UNSAFE_PATH = /[\\\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 const BINARY_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
 const EXCLUDED_DIRECTORIES = new Set([
   '.cache', '.git', '.next', '.nuxt', '.output', '.parcel-cache', '.turbo',
-  'bower_components', 'build', 'cache', 'coverage', 'dist', 'generated',
-  'node_modules', 'obj', 'out', 'target', 'vendor', 'vendors',
+  '.bundle', '.venv', 'bower_components', 'build', 'cache', 'coverage', 'dependencies',
+  'deps', 'dist', 'env', 'generated', 'node_modules', 'obj', 'out', 'site-packages',
+  'target', 'third-party', 'third_party', 'vendor', 'vendors', 'venv',
 ]);
 const SENSITIVE_DIRECTORIES = new Set([
   '.aws', '.azure', '.docker', '.gnupg', '.kube', '.ssh',
@@ -255,19 +256,15 @@ function decodeJson(bytes: Uint8Array): unknown {
   }
 }
 
-function validPath(path: string): boolean {
-  if (path.length === 0 || path.length > 512 || Buffer.byteLength(path, 'utf8') > 1_024
-    || path.startsWith('/') || path.endsWith('/') || path.includes('//')
-    || UNSAFE_PATH.test(path) || path.normalize('NFC') !== path) return false;
-  return path.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
-}
-
 function secretFilename(name: string): boolean {
   const lower = name.toLowerCase();
   return lower === '.env' || lower.startsWith('.env.')
     || /(?:^|[._-])(?:credential|credentials|password|passwd|secret|secrets|token|private[-_]?key)(?:[._-]|$)/u.test(lower)
     || /(?:^|[._-])api[-_]?key(?:[._-]|$)/u.test(lower)
     || lower === '.gitconfig' || lower === '.netrc' || lower === '.npmrc' || lower === '.pypirc'
+    || lower === 'auth.json' || lower === 'service-account.json' || lower === 'service_account.json'
+    || lower === 'credentials.json' || lower === 'secrets.json'
+    || lower === 'application_default_credentials.json' || lower === 'pip.conf'
     || lower === 'id_rsa' || lower === 'id_ed25519';
 }
 
@@ -443,7 +440,7 @@ export class GitHubImporter implements GitHubImporterBoundary {
       const paths = new Set<string>();
       const foldedPaths = new Set<string>();
       for (const raw of treeResponse['tree']) {
-        if (!isRecord(raw) || typeof raw['path'] !== 'string' || !validPath(raw['path'])
+        if (!isRecord(raw) || !isCanonicalGitHubPath(raw['path'])
           || typeof raw['mode'] !== 'string' || typeof raw['type'] !== 'string'
           || typeof raw['sha'] !== 'string' || !SHA1.test(raw['sha'])) {
           throw new GitHubImportError('github_snapshot_invalid');

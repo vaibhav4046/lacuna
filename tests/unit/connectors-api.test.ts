@@ -1,13 +1,17 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { File } from 'node:buffer';
-import { createServer, type Server } from 'node:http';
+import { createServer, request as httpRequest, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
-import { IngestReadinessError, type IngestPreparedReport } from '../../src/api/ingest.js';
+import {
+  IngestReadinessError,
+  type IngestPreparedOptions,
+  type IngestPreparedReport,
+} from '../../src/api/ingest.js';
 import { workspaceCollection } from '../../src/api/ingest.js';
 import { FileAccounts } from '../../src/auth/accounts.js';
 import { AccountStore } from '../../src/auth/store.js';
@@ -87,6 +91,22 @@ let fileBoundaryCalls: number;
 let githubBoundaryCalls: { readonly url: string; readonly aborted: boolean }[];
 let githubBoundaryFailure: Error | null;
 let readinessTimeout: boolean;
+let pauseGitHubImporter: boolean;
+let githubImporterStarted: Promise<void>;
+let markGitHubImporterStarted: (() => void) | undefined;
+let releaseGitHubImporter: (() => void) | undefined;
+let githubImporterReleased: Promise<void>;
+let githubImporterFinished: Promise<void>;
+let markGitHubImporterFinished: (() => void) | undefined;
+let githubImporterAborted: Promise<void>;
+let markGitHubImporterAborted: (() => void) | undefined;
+let pauseRunnerReadiness: boolean;
+let runnerReadinessStarted: Promise<void>;
+let markRunnerReadinessStarted: (() => void) | undefined;
+let releaseRunnerReadiness: (() => void) | undefined;
+let runnerReadinessReleased: Promise<void>;
+let runnerReadinessAborted: Promise<void>;
+let markRunnerReadinessAborted: (() => void) | undefined;
 let now: number;
 
 const SITE_ORIGIN = 'https://app.example.test';
@@ -163,6 +183,58 @@ async function postGitHub(
   return response;
 }
 
+function disconnectableGitHubRequest(jar: Jar): {
+  readonly close: () => void;
+  readonly closed: Promise<void>;
+} {
+  const target = new URL(base);
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  const body = JSON.stringify({ url: 'https://github.com/acme/atlas' });
+  let markClosed: (() => void) | undefined;
+  const closed = new Promise<void>((resolve) => { markClosed = resolve; });
+  const request = httpRequest({
+    hostname: target.hostname,
+    port: target.port,
+    path: '/api/workspace/connectors/github/import',
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'content-length': Buffer.byteLength(body),
+      cookie: jar.header(),
+      'x-csrf-token': token,
+      origin: SITE_ORIGIN,
+    },
+  }, (response) => response.resume());
+  request.once('error', () => markClosed?.());
+  request.once('close', () => markClosed?.());
+  request.end(body);
+  return { close: () => request.destroy(), closed };
+}
+
+async function disconnectDuringGitHubBody(jar: Jar): Promise<void> {
+  const target = new URL(base);
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  await new Promise<void>((resolve) => {
+    const request = httpRequest({
+      hostname: target.hostname,
+      port: target.port,
+      path: '/api/workspace/connectors/github/import',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': '4096',
+        cookie: jar.header(),
+        'x-csrf-token': token,
+        origin: SITE_ORIGIN,
+      },
+    });
+    request.once('error', () => resolve());
+    request.write('{"url":"https://github.com/acme/atlas"');
+    setTimeout(() => request.destroy(), 5);
+  });
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+}
+
 function preparedGitHubBatch(): PreparedGitHubBatch {
   const commitSha = 'a'.repeat(40);
   const blobSha = 'b'.repeat(40);
@@ -215,6 +287,15 @@ beforeEach(async () => {
   githubBoundaryCalls = [];
   githubBoundaryFailure = null;
   readinessTimeout = false;
+  pauseGitHubImporter = false;
+  githubImporterStarted = new Promise<void>((resolve) => { markGitHubImporterStarted = resolve; });
+  githubImporterReleased = new Promise<void>((resolve) => { releaseGitHubImporter = resolve; });
+  githubImporterFinished = new Promise<void>((resolve) => { markGitHubImporterFinished = resolve; });
+  githubImporterAborted = new Promise<void>((resolve) => { markGitHubImporterAborted = resolve; });
+  pauseRunnerReadiness = false;
+  runnerReadinessStarted = new Promise<void>((resolve) => { markRunnerReadinessStarted = resolve; });
+  runnerReadinessReleased = new Promise<void>((resolve) => { releaseRunnerReadiness = resolve; });
+  runnerReadinessAborted = new Promise<void>((resolve) => { markRunnerReadinessAborted = resolve; });
   now = Date.parse('2026-08-21T12:00:00.000Z');
   const runner = new ConnectorRunner({
     store: connectorStore,
@@ -228,6 +309,24 @@ beforeEach(async () => {
         sourceKey: prepared.sourceKey,
       });
       if (readinessTimeout) throw new IngestReadinessError('timeout', 4, 0);
+      if (pauseRunnerReadiness) {
+        markRunnerReadinessStarted?.();
+        const signal = (options as IngestPreparedOptions).signal;
+        await new Promise<void>((resolve, reject) => {
+          const onAbort = () => {
+            cleanup();
+            markRunnerReadinessAborted?.();
+            reject(new IngestReadinessError('failed', 4, 0));
+          };
+          const onRelease = () => { cleanup(); resolve(); };
+          const cleanup = () => signal?.removeEventListener('abort', onAbort);
+          if (signal?.aborted === true) onAbort();
+          else {
+            signal?.addEventListener('abort', onAbort, { once: true });
+            void runnerReadinessReleased.then(onRelease);
+          }
+        });
+      }
       return {
         sourceKey: prepared.sourceKey,
         collection: workspace,
@@ -259,6 +358,15 @@ beforeEach(async () => {
     importPublicRepo: async (url, signal) => {
       githubBoundaryCalls.push({ url, aborted: signal.aborted });
       if (githubBoundaryFailure !== null) throw githubBoundaryFailure;
+      if (pauseGitHubImporter) {
+        markGitHubImporterStarted?.();
+        const onAbort = () => markGitHubImporterAborted?.();
+        if (signal.aborted) onAbort();
+        else signal.addEventListener('abort', onAbort, { once: true });
+        await githubImporterReleased;
+        signal.removeEventListener('abort', onAbort);
+      }
+      markGitHubImporterFinished?.();
       return preparedGitHubBatch();
     },
   };
@@ -555,6 +663,52 @@ describe('workspace file preview and import API', () => {
 });
 
 describe('workspace public GitHub import API', () => {
+  it('does no upstream, runner, or observation work when the client disconnects before import', async () => {
+    const jar = await signedIn('github-disconnect-body@example.com');
+
+    await disconnectDuringGitHubBody(jar);
+
+    expect(githubBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('does not enter the runner when the response socket closes after preparation', async () => {
+    const jar = await signedIn('github-disconnect-prepared@example.com');
+    pauseGitHubImporter = true;
+    const request = disconnectableGitHubRequest(jar);
+    await githubImporterStarted;
+
+    request.close();
+    await request.closed;
+    await githubImporterAborted;
+    releaseGitHubImporter?.();
+    await githubImporterFinished;
+
+    expect(githubBoundaryCalls).toHaveLength(1);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('stops readiness on disconnect but records exact accepted work without claiming rollback', async () => {
+    const jar = await signedIn('github-disconnect-readiness@example.com');
+    pauseRunnerReadiness = true;
+    const request = disconnectableGitHubRequest(jar);
+    await runnerReadinessStarted;
+
+    request.close();
+    await request.closed;
+    await runnerReadinessAborted;
+    releaseRunnerReadiness?.();
+    await vi.waitFor(() => expect(connectorStore.puts).toBe(1));
+
+    expect(connectorStore.state.github).toMatchObject({
+      importedDocuments: 1,
+      lastSuccessAt: expect.any(String),
+      lastFailure: 'readiness_failed',
+    });
+  });
+
   it('checks exact origin, CSRF, session, and request shape before upstream work', async () => {
     const unsigned = new Jar();
     unsigned.absorb(await fetch(`${base}/api/session`));

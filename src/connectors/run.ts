@@ -1,5 +1,9 @@
 import type { IngestFailure, IngestPreparedOptions, IngestPreparedReport } from '../api/ingest.js';
-import { IngestReadinessError, MAX_SOURCE_CHARS } from '../api/ingest.js';
+import {
+  IngestCancelledError,
+  IngestReadinessError,
+  MAX_SOURCE_CHARS,
+} from '../api/ingest.js';
 import { HydraDecodeError, HydraTransportError } from '../hydra/errors.js';
 import {
   ConnectorNormalizationError,
@@ -29,6 +33,18 @@ export interface ConnectorRunRequest {
   readonly connectorId: ConnectorId;
   readonly documents: readonly ConnectorDocumentInput[];
   readonly awaitSearchable: boolean;
+}
+
+export interface ConnectorRunOptions {
+  readonly signal?: AbortSignal;
+}
+
+export class ConnectorRunCancelledError extends Error {
+  override readonly name = 'ConnectorRunCancelledError';
+
+  constructor() {
+    super('cancelled');
+  }
 }
 
 export interface ConnectorRunResult {
@@ -64,6 +80,7 @@ interface DocumentOutcome {
   readonly acceptedRecords: number;
   readonly refusedRecords: number;
   readonly failure: ConnectorFailureCode | null;
+  readonly cancelled?: boolean;
 }
 
 function failureCode(error: unknown): ConnectorFailureCode {
@@ -94,6 +111,10 @@ function assertConnectorRequest(value: unknown): asserts value is ConnectorRunRe
 
 function iso(now: () => number): string {
   return new Date(now()).toISOString();
+}
+
+function isAborted(signal?: AbortSignal): boolean {
+  return signal?.aborted === true;
 }
 
 async function mapConcurrent<T, U>(
@@ -173,9 +194,14 @@ export class ConnectorRunner {
     this.#now = options.now ?? Date.now;
   }
 
-  async run(workspace: string, request: ConnectorRunRequest): Promise<ConnectorRunResult> {
+  async run(
+    workspace: string,
+    request: ConnectorRunRequest,
+    options: ConnectorRunOptions = {},
+  ): Promise<ConnectorRunResult> {
     if (!WORKSPACE_SHAPE.test(workspace)) throw new Error('invalid workspace');
     assertConnectorRequest(request);
+    if (isAborted(options.signal)) throw new ConnectorRunCancelledError();
     const startedAt = iso(this.#now);
 
     let duplicateDocuments = 0;
@@ -189,10 +215,15 @@ export class ConnectorRunner {
       if (batch.documents.some((document) => document.text.length > MAX_SOURCE_CHARS)) {
         throw new ConnectorNormalizationError('document_too_long');
       }
+      if (isAborted(options.signal)) throw new ConnectorRunCancelledError();
       duplicateDocuments = batch.duplicates;
       outcomes = await mapConcurrent(batch.documents, 2, async (document): Promise<DocumentOutcome> => {
         try {
-          const report = await this.#ingest(workspace, document, { awaitSearchable: request.awaitSearchable });
+          if (isAborted(options.signal)) throw new IngestCancelledError();
+          const report = await this.#ingest(workspace, document, {
+            awaitSearchable: request.awaitSearchable,
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
+          });
           if (typeof report === 'string') {
             return {
               accepted: false,
@@ -203,6 +234,18 @@ export class ConnectorRunner {
             };
           }
           const refusedRecords = report.refused.length;
+          if (isAborted(options.signal)) {
+            if (report.accepted > 0) {
+              return {
+                accepted: true,
+                searchable: false,
+                acceptedRecords: report.accepted,
+                refusedRecords,
+                failure: 'readiness_failed',
+              };
+            }
+            throw new IngestCancelledError();
+          }
           return {
             accepted: report.accepted > 0,
             searchable: report.searchable,
@@ -211,6 +254,16 @@ export class ConnectorRunner {
             failure: refusedRecords > 0 ? 'receipt_refused' : null,
           };
         } catch (error) {
+          if (error instanceof IngestCancelledError) {
+            return {
+              accepted: false,
+              searchable: false,
+              acceptedRecords: 0,
+              refusedRecords: 0,
+              failure: 'readiness_failed',
+              cancelled: true,
+            };
+          }
           if (error instanceof IngestReadinessError) {
             return {
               accepted: error.acceptedRecords > 0,
@@ -229,8 +282,23 @@ export class ConnectorRunner {
           };
         }
       });
+      const acceptedBeforeCancellation = outcomes.some((outcome) => outcome.accepted);
+      if (outcomes.some((outcome) => outcome.cancelled === true) && !acceptedBeforeCancellation) {
+        throw new ConnectorRunCancelledError();
+      }
+      if (isAborted(options.signal)) {
+        if (!acceptedBeforeCancellation) throw new ConnectorRunCancelledError();
+        outcomes = outcomes.map((outcome) => ({
+          ...outcome,
+          searchable: false,
+          failure: outcome.failure ?? 'readiness_failed',
+        }));
+      }
       failure = outcomes.find((outcome) => outcome.failure !== null)?.failure ?? null;
     } catch (error) {
+      if (error instanceof ConnectorRunCancelledError || error instanceof IngestCancelledError) {
+        throw new ConnectorRunCancelledError();
+      }
       failure = failureCode(error);
     }
 

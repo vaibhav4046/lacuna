@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { HydraCloud, type AppRecord } from '../../src/hydra/cloud.js';
+import { CloudSource } from '../../src/hydra/cloud-source.js';
 import { HydraDecodeError, HydraQueryError } from '../../src/hydra/errors.js';
 import { INDEX_ID } from '../../src/hydra/cloud-graph.js';
 import {
@@ -68,11 +69,13 @@ function cloudThatRecords(sent: Sent[]): HydraCloud {
 function statefulAdversarialCloud(options: { readonly blockReadiness?: boolean } = {}): {
   readonly cloud: HydraCloud;
   readonly stored: Map<string, string>;
+  readonly storedMetadata: Map<string, Readonly<Record<string, string | number>>>;
   readonly readinessStarted: Promise<void>;
   readonly releaseReadiness: () => void;
   readonly writeCalls: () => number;
 } {
   const stored = new Map<string, string>();
+  const storedMetadata = new Map<string, Readonly<Record<string, string | number>>>();
   let writes = 0;
   let firstMissingIndexRead = true;
   let releaseFirstIndexRead: (() => void) | undefined;
@@ -94,7 +97,21 @@ function statefulAdversarialCloud(options: { readonly blockReadiness?: boolean }
         if (init?.method === 'GET') {
           if (url.pathname.endsWith('/context/status')) {
             markReadinessStarted?.();
-            if (options.blockReadiness === true) await readinessReleased;
+            if (options.blockReadiness === true) {
+              await new Promise<void>((resolve, reject) => {
+                const signal = init.signal;
+                const onAbort = () => {
+                  cleanup();
+                  reject(new DOMException('cancelled readiness fixture', 'AbortError'));
+                };
+                const cleanup = () => signal?.removeEventListener('abort', onAbort);
+                if (signal?.aborted === true) onAbort();
+                else {
+                  signal?.addEventListener('abort', onAbort, { once: true });
+                  void readinessReleased.then(() => { cleanup(); resolve(); });
+                }
+              });
+            }
             return Response.json({
               data: {
                 statuses: url.searchParams.getAll('ids').map((id) => ({
@@ -127,10 +144,17 @@ function statefulAdversarialCloud(options: { readonly blockReadiness?: boolean }
         const form = init?.body as FormData;
         const app = form.get('app_knowledge');
         const records = typeof app === 'string'
-          ? (JSON.parse(app) as { id: string; content: { text: string } }[])
+          ? (JSON.parse(app) as {
+            id: string;
+            content: { text: string };
+            additional_metadata?: Readonly<Record<string, string | number>>;
+          }[])
           : [];
         writes += 1;
-        for (const record of records) stored.set(record.id, record.content.text);
+        for (const record of records) {
+          stored.set(record.id, record.content.text);
+          storedMetadata.set(record.id, record.additional_metadata ?? {});
+        }
         return Response.json({
           data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
         });
@@ -140,6 +164,7 @@ function statefulAdversarialCloud(options: { readonly blockReadiness?: boolean }
   return {
     cloud,
     stored,
+    storedMetadata,
     readinessStarted,
     releaseReadiness: () => releaseReadiness?.(),
     writeCalls: () => writes,
@@ -445,6 +470,74 @@ describe('prepared connector ingestion', () => {
       .toEqual(repeatedSent.flatMap((call) => call.records.map((record) => record.id)));
   });
 
+  it('round-trips the exact allowlisted GitHub evidence through Hydra persistence and retrieval', async () => {
+    const controlled = statefulAdversarialCloud();
+    const workspace = workspaceCollection('github-evidence@example.com');
+    const document = prepareConnectorDocument({
+      title: 'docs/README.md',
+      text: 'a: Atlas is owned by Priya.',
+      provenance: {
+        connectorId: 'github',
+        sourceUrl: `https://github.com/acme/atlas/blob/${'a'.repeat(40)}/docs/README.md`,
+        mediaType: 'text/markdown',
+        observedAt: '2026-08-21T10:00:00.000Z',
+        github: {
+          repositoryUrl: 'https://github.com/acme/atlas',
+          commitSha: 'a'.repeat(40),
+          path: 'docs/README.md',
+          blobSha: 'b'.repeat(40),
+          retrievedAt: '2026-08-21T10:00:00.000Z',
+          rawDigest: 'c'.repeat(64),
+          parserVersion: 'github-v1',
+        },
+      },
+    });
+    const untrusted = {
+      ...document,
+      providerHeaders: { authorization: 'Bearer provider-secret' },
+      workspace: 'attacker@example.com',
+      collection: 'public-demo',
+    } as never;
+
+    await ingestPreparedSource(controlled.cloud, workspace, untrusted, { awaitSearchable: false });
+    const source = new CloudSource(controlled.cloud.withCollection(workspace));
+    const subject = await source.subject('Atlas', 5_000);
+    const claim = subject.value.claims[0];
+    if (claim === undefined) throw new Error('missing round-tripped claim');
+    const evidence = await source.evidence(claim.id, 5_000);
+
+    expect(evidence.value).toHaveLength(1);
+    expect(evidence.value[0]?.connector).toEqual({
+      schemaVersion: 1,
+      connectorId: 'github',
+      repositoryUrl: 'https://github.com/acme/atlas',
+      commitSha: 'a'.repeat(40),
+      path: 'docs/README.md',
+      blobSha: 'b'.repeat(40),
+      rawDigest: 'c'.repeat(64),
+      contentDigest: document.contentDigest,
+      parserVersion: 'github-v1',
+    });
+    const sessionMetadata = [...controlled.storedMetadata.entries()]
+      .find(([id]) => id.startsWith('lacuna:session:'))?.[1];
+    expect(sessionMetadata).toEqual({
+      lacuna_record: 'session',
+      lacuna_connector_schema: 1,
+      lacuna_connector_id: 'github',
+      lacuna_github_repository_url: 'https://github.com/acme/atlas',
+      lacuna_github_commit_sha: 'a'.repeat(40),
+      lacuna_github_path: 'docs/README.md',
+      lacuna_github_blob_sha: 'b'.repeat(40),
+      lacuna_github_raw_sha256: 'c'.repeat(64),
+      lacuna_content_sha256: document.contentDigest,
+      lacuna_connector_parser_version: 'github-v1',
+    });
+    const persisted = JSON.stringify([...controlled.stored, ...controlled.storedMetadata]);
+    expect(persisted).not.toContain('provider-secret');
+    expect(persisted).not.toContain('attacker@example.com');
+    expect(persisted).not.toContain('public-demo');
+  });
+
   it('waits for terminal completed indexing when requested', async () => {
     const result = await ingestPreparedSource(
       cloudWithIndexingStatus('completed'),
@@ -552,6 +645,39 @@ describe('prepared connector ingestion', () => {
     controlled.releaseReadiness();
 
     await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+  });
+
+  it('stops readiness on cancellation after exact receipts while retaining accepted counts', async () => {
+    const controlled = statefulAdversarialCloud({ blockReadiness: true });
+    const controller = new AbortController();
+    const running = ingestPreparedSource(
+      controlled.cloud,
+      workspaceCollection('cancelled-readiness@example.com'),
+      prepared(),
+      { awaitSearchable: true, signal: controller.signal },
+    );
+    await controlled.readinessStarted;
+    controller.abort();
+    const outcome = await Promise.race([
+      running.then(
+        (value) => ({ kind: 'resolved' as const, value }),
+        (error: unknown) => ({ kind: 'rejected' as const, error }),
+      ),
+      new Promise<{ kind: 'pending' }>((resolve) => setTimeout(() => resolve({ kind: 'pending' }), 50)),
+    ]);
+    controlled.releaseReadiness();
+    if (outcome.kind === 'pending') await running;
+
+    expect(outcome).toMatchObject({
+      kind: 'rejected',
+      error: {
+        name: 'IngestReadinessError',
+        reason: 'failed',
+        acceptedRecords: 4,
+        refusedRecords: 0,
+      },
+    });
+    expect(controlled.writeCalls()).toBe(1);
   });
 });
 

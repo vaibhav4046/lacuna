@@ -161,6 +161,35 @@ describe('reading one entity', () => {
     await expect(new CloudSource(cloud).subject(withClaims.name, 5_000))
       .rejects.toBeInstanceOf(RetrievalDecodeError);
   });
+
+  it('fails closed on unknown connector evidence without rejecting legacy evidence that omits it', async () => {
+    const id = entityRecordId(withClaims.name);
+    const held = records.get(id);
+    if (held === undefined) throw new Error('missing entity fixture');
+    const parsed = JSON.parse(held.text) as {
+      evidence: Record<string, { connector?: unknown }[]>;
+    };
+    const first = Object.values(parsed.evidence).find((entries) => entries.length > 0)?.[0];
+    if (first === undefined) throw new Error('missing evidence fixture');
+    first.connector = {
+      schemaVersion: 2,
+      connectorId: 'github',
+      providerHeaders: { authorization: 'provider-secret' },
+    };
+    const broken = new Map(records);
+    broken.set(id, { ...held, text: JSON.stringify(parsed) });
+
+    await expect(new CloudSource(serving(broken).cloud).subject(withClaims.name, 5_000))
+      .rejects.toBeInstanceOf(RetrievalDecodeError);
+
+    const legacy = new CloudSource(serving().cloud);
+    const subject = await legacy.subject(withClaims.name, 5_000);
+    const claim = subject.value.claims[0];
+    if (claim === undefined) throw new Error('missing legacy claim');
+    await expect(legacy.evidence(claim.id, 5_000)).resolves.toMatchObject({
+      value: expect.arrayContaining([expect.not.objectContaining({ connector: expect.anything() })]),
+    });
+  });
 });
 
 describe('citations', () => {

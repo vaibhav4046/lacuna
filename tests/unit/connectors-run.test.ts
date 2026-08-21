@@ -92,6 +92,73 @@ function tickingClock(): () => number {
 }
 
 describe('ConnectorRunner', () => {
+  it('cancels before ingestion without writing connector observation state', async () => {
+    let reads = 0;
+    let writes = 0;
+    let ingests = 0;
+    const controller = new AbortController();
+    controller.abort();
+    const runner = new ConnectorRunner({
+      store: {
+        get: async () => { reads += 1; return {}; },
+        put: async () => { writes += 1; return 'stored'; },
+      },
+      ingest: async (_workspace, prepared) => {
+        ingests += 1;
+        return report(prepared.sourceKey);
+      },
+    });
+
+    await expect(runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('cancelled')], awaitSearchable: true,
+    }, { signal: controller.signal })).rejects.toMatchObject({ name: 'ConnectorRunCancelledError' });
+    expect({ reads, writes, ingests }).toEqual({ reads: 0, writes: 0, ingests: 0 });
+  });
+
+  it('propagates cancellation through readiness while preserving accepted receipts and observation truth', async () => {
+    const controller = new AbortController();
+    const store = new MemoryStore();
+    let receivedSignal: AbortSignal | undefined;
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => { markStarted = resolve; });
+    let release: (() => void) | undefined;
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, _prepared, options) => {
+        receivedSignal = options.signal;
+        markStarted?.();
+        await released;
+        if (options.signal?.aborted) throw new IngestReadinessError('failed', 4, 0);
+        return report('src-cancelled-readiness');
+      },
+    });
+
+    const running = runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('accepted-before-cancel')], awaitSearchable: true,
+    }, { signal: controller.signal });
+    await started;
+    controller.abort();
+    release?.();
+    const result = await running;
+
+    expect(receivedSignal).toBe(controller.signal);
+    expect(result).toMatchObject({
+      acceptedDocuments: 1,
+      acceptedRecords: 4,
+      searchableDocuments: 0,
+      failedDocuments: 1,
+      failure: 'readiness_failed',
+      observationWrite: 'stored',
+    });
+    expect(store.writes[0]?.next).toMatchObject({
+      importedDocuments: 1,
+      lastSuccessAt: expect.any(String),
+      lastFailure: 'readiness_failed',
+    });
+  });
+
   it('normalizes and deduplicates before running at most two document jobs', async () => {
     const store = new MemoryStore('stored', {
       text: {

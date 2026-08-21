@@ -129,6 +129,10 @@ export class HydraCloud {
 
   async #send(path: string, init: RequestInit, timeoutMs: number): Promise<{ body: unknown; latencyMs: number }> {
     const controller = new AbortController();
+    const callerSignal = init.signal ?? undefined;
+    const relayAbort = () => controller.abort();
+    if (callerSignal?.aborted === true) relayAbort();
+    else callerSignal?.addEventListener('abort', relayAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const started = performance.now();
     try {
@@ -154,6 +158,7 @@ export class HydraCloud {
       throw new HydraTransportError(aborted ? `${path} did not answer in ${timeoutMs}ms` : `${path} could not be reached`);
     } finally {
       clearTimeout(timer);
+      callerSignal?.removeEventListener('abort', relayAbort);
     }
   }
 
@@ -257,6 +262,7 @@ export class HydraCloud {
     id: string,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     collection = this.#config.collection,
+    signal?: AbortSignal,
   ): Promise<InspectedSource | null> {
     const query = new URLSearchParams({
       database: this.#config.database,
@@ -267,7 +273,11 @@ export class HydraCloud {
     let body: unknown;
     let latencyMs: number;
     try {
-      ({ body, latencyMs } = await this.#send(`/context/inspect?${query.toString()}`, { method: 'GET' }, timeoutMs));
+      ({ body, latencyMs } = await this.#send(
+        `/context/inspect?${query.toString()}`,
+        { method: 'GET', ...(signal === undefined ? {} : { signal }) },
+        timeoutMs,
+      ));
     } catch (error) {
       // A record that is not there is an answer, not a fault: it is what an
       // out of scope name looks like when the store is addressed by id. The
@@ -292,14 +302,18 @@ export class HydraCloud {
    * FILE_NOT_FOUND for a source that ingested successfully, which reads like a
    * service fault and is a scoping mistake.
    */
-  async statusOf(ids: readonly string[]): Promise<readonly SourceStatus[]> {
+  async statusOf(ids: readonly string[], signal?: AbortSignal): Promise<readonly SourceStatus[]> {
     const query = new URLSearchParams({
       database: this.#config.database,
       collection: this.#config.collection,
     });
     for (const id of ids) query.append('ids', id);
 
-    const { body } = await this.#send(`/context/status?${query.toString()}`, { method: 'GET' }, DEFAULT_TIMEOUT_MS);
+    const { body } = await this.#send(
+      `/context/status?${query.toString()}`,
+      { method: 'GET', ...(signal === undefined ? {} : { signal }) },
+      DEFAULT_TIMEOUT_MS,
+    );
     const statuses = pick(pick(body, 'data'), 'statuses');
     if (!Array.isArray(statuses)) return [];
     return statuses.map((entry): SourceStatus => {
@@ -316,15 +330,19 @@ export class HydraCloud {
   /** Polls until every id is terminal, or the deadline passes. */
   async waitForIndexing(
     ids: readonly string[],
-    options: { readonly timeoutMs?: number; readonly intervalMs?: number } = {},
+    options: {
+      readonly timeoutMs?: number;
+      readonly intervalMs?: number;
+      readonly signal?: AbortSignal;
+    } = {},
   ): Promise<readonly SourceStatus[]> {
     const deadline = Date.now() + (options.timeoutMs ?? 300_000);
     const interval = options.intervalMs ?? 5_000;
     for (;;) {
-      const statuses = await this.statusOf(ids);
+      const statuses = await this.statusOf(ids, options.signal);
       if (statuses.length > 0 && statuses.every((s) => s.done)) return statuses;
       if (Date.now() >= deadline) return statuses;
-      await new Promise((resolve) => setTimeout(resolve, interval));
+      await abortableDelay(interval, options.signal);
     }
   }
 
@@ -383,6 +401,23 @@ export class HydraCloud {
     const data = pick(body, 'data');
     return asArray(pick(data, 'relations') ?? data);
   }
+}
+
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted === true) return Promise.reject(new DOMException('aborted', 'AbortError'));
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(new DOMException('aborted', 'AbortError'));
+    };
+    const cleanup = () => signal?.removeEventListener('abort', abort);
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 async function errorCode(response: Response): Promise<string> {

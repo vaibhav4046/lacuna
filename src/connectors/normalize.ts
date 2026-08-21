@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { isCanonicalGitHubPath } from './evidence.js';
 import type { ConnectorId } from './types.js';
 
 export const MAX_CONNECTOR_DOCUMENTS = 30;
@@ -24,7 +25,6 @@ const GITHUB_EVIDENCE_KEYS = new Set([
 const GITHUB_REPOSITORY = /^https:\/\/github\.com\/[a-z0-9-]+\/[a-z0-9_.-]+$/u;
 const GITHUB_SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
-const UNSAFE_GITHUB_PATH = /[\\\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 
 export type ConnectorMediaType =
   | 'text/plain'
@@ -154,11 +154,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
       || !GITHUB_REPOSITORY.test(evidence['repositoryUrl'])
       || typeof evidence['commitSha'] !== 'string' || !GITHUB_SHA.test(evidence['commitSha'])
       || typeof evidence['blobSha'] !== 'string' || !GITHUB_SHA.test(evidence['blobSha'])
-      || typeof evidence['path'] !== 'string' || evidence['path'].length === 0
-      || evidence['path'].length > 512 || evidence['path'].startsWith('/')
-      || evidence['path'].endsWith('/') || evidence['path'].includes('//')
-      || UNSAFE_GITHUB_PATH.test(evidence['path']) || evidence['path'].normalize('NFC') !== evidence['path']
-      || evidence['path'].split('/').some((part) => part === '' || part === '.' || part === '..')
+      || !isCanonicalGitHubPath(evidence['path'])
       || !canonicalInstant(evidence['retrievedAt']) || evidence['retrievedAt'] !== value['observedAt']
       || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
       || evidence['parserVersion'] !== 'github-v1') {

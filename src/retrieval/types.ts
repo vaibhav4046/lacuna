@@ -1,4 +1,5 @@
 import type { AbstentionReason } from '../model/abstention.js';
+import type { PersistedConnectorEvidence } from '../connectors/evidence.js';
 
 /**
  * What retrieval reads out of the graph, and what it decides from it.
@@ -115,6 +116,8 @@ export interface EvidenceRecord {
   readonly ts: string;
   readonly sessionId: number;
   readonly sessionTitle: string;
+  /** Closed, versioned source identity for connector-backed evidence. */
+  readonly connector?: PersistedConnectorEvidence;
 }
 
 /**

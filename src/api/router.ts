@@ -67,7 +67,11 @@ import {
   type GitHubImporterBoundary,
 } from '../connectors/github.js';
 import { PreviewTokenError } from '../connectors/preview-token.js';
-import { serializeConnectorRunResult, type ConnectorRunner } from '../connectors/run.js';
+import {
+  ConnectorRunCancelledError,
+  serializeConnectorRunResult,
+  type ConnectorRunner,
+} from '../connectors/run.js';
 import type { ConnectorDescriptor, ConnectorStore } from '../connectors/types.js';
 
 /**
@@ -955,10 +959,18 @@ export class ApiRouter {
         return HANDLED;
       }
       const control = new AbortController();
-      const abort = () => control.abort();
-      request.once('aborted', abort);
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) control.abort();
+      };
+      request.once('aborted', abortIfPremature);
+      response.once('close', abortIfPremature);
+      request.socket.once('close', abortIfPremature);
+      if ((response.destroyed || request.socket.destroyed)
+        && !response.writableEnded && !response.writableFinished) control.abort();
       try {
+        if (control.signal.aborted) return HANDLED;
         const batch = await importer.importPublicRepo(body['url'], control.signal);
+        if (control.signal.aborted) return HANDLED;
         const result = await runner.run(workspace, {
           connectorId: 'github',
           documents: batch.documents.map((document) => ({
@@ -967,7 +979,8 @@ export class ApiRouter {
             provenance: document.provenance,
           })),
           awaitSearchable: true,
-        });
+        }, { signal: control.signal });
+        if (control.signal.aborted) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),
           snapshotCommit: batch.commitSha,
@@ -977,11 +990,13 @@ export class ApiRouter {
           skipped: batch.skipped.map(({ reason, count }) => ({ reason, count })),
         });
       } catch (error) {
+        if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
         if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
         else send(response, 502, { error: 'github_import_failed' });
       } finally {
-        request.off('aborted', abort);
-        control.abort();
+        request.off('aborted', abortIfPremature);
+        response.off('close', abortIfPremature);
+        request.socket.off('close', abortIfPremature);
       }
       return HANDLED;
     }

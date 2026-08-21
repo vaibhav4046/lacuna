@@ -1,4 +1,5 @@
 import { canonicalName } from './canonical.js';
+import { decodePersistedConnectorEvidence } from '../connectors/evidence.js';
 import type { HydraCloud } from './cloud.js';
 import {
   entityRecordId,
@@ -215,6 +216,18 @@ function parseEntity(text: string | null, name: string): EntityRecord | null {
     // Strict for the same reason the node's decoder is: a half read record
     // would travel to a screen and sit under a citation looking like an answer.
     throw new RetrievalDecodeError(`the record for "${name}" is missing required fields`);
+  }
+  for (const entries of Object.values(record.evidence)) {
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      if (typeof entry !== 'object' || entry === null
+        || !Object.prototype.hasOwnProperty.call(entry, 'connector')) continue;
+      const decoded = decodePersistedConnectorEvidence((entry as { connector?: unknown }).connector);
+      if (decoded === null) {
+        throw new RetrievalDecodeError(`the record for "${name}" has invalid connector evidence`);
+      }
+      (entry as { connector?: unknown }).connector = decoded;
+    }
   }
   return record as EntityRecord;
 }

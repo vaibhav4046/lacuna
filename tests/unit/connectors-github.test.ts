@@ -354,9 +354,42 @@ describe('bounded public GitHub repository importer', () => {
     expect(transport.requests.some((request) => request.url.includes('/git/blobs/'))).toBe(false);
   });
 
+  it('rejects Unicode paths before Straße and STRASSE can become ambiguous while accepting the ASCII path', async () => {
+    const ascii = Buffer.from('a: Atlas is owned by Priya.', 'utf8');
+    const asciiSha = gitBlobSha(ascii);
+    const mixed = fixture({}, [
+      { path: 'docs/Straße.md', mode: '100644', type: 'blob', sha: 'd'.repeat(40), size: 4 },
+      { path: 'docs/STRASSE.md', mode: '100644', type: 'blob', sha: asciiSha, size: ascii.length },
+    ]);
+    await expectCode(importer(mixed.transport).importPublicRepo(
+      'https://github.com/acme/atlas', new AbortController().signal,
+    ), 'github_snapshot_invalid');
+    expect(mixed.transport.requests.some((request) => request.url.includes('/git/blobs/'))).toBe(false);
+
+    const canonical = fixture({ 'docs/STRASSE.md': ascii });
+    const accepted = await importer(canonical.transport).importPublicRepo(
+      'https://github.com/acme/atlas', new AbortController().signal,
+    );
+    expect(accepted.documents.map((document) => document.title)).toEqual(['docs/STRASSE.md']);
+
+    const prepared = accepted.documents[0];
+    if (prepared === undefined || prepared.provenance.github === undefined) {
+      throw new Error('missing canonical GitHub provenance');
+    }
+    const github = prepared.provenance.github;
+    expect(() => prepareConnectorDocument({
+      title: 'docs/Straße.md',
+      text: prepared.text,
+      provenance: {
+        ...prepared.provenance,
+        sourceUrl: `https://github.com/acme/atlas/blob/${COMMIT_SHA}/docs/Stra%C3%9Fe.md`,
+        github: { ...github, path: 'docs/Straße.md' },
+      },
+    })).toThrow(/invalid_provenance/u);
+  });
+
   it('filters unsafe kinds, directories, names, locks, executables, and unsupported files into stable counts', async () => {
     const safe = Buffer.from('a: Atlas is owned by Priya.', 'utf8');
-    const safeSha = gitBlobSha(safe);
     const extra: TreeEntry[] = [
       { path: 'link.md', mode: '120000', type: 'blob', sha: '1'.repeat(40), size: 4 },
       { path: 'module', mode: '160000', type: 'commit', sha: '2'.repeat(40) },
@@ -368,25 +401,47 @@ describe('bounded public GitHub repository importer', () => {
       { path: '.docker/config.json', mode: '100644', type: 'blob', sha: 'a'.repeat(40), size: 4 },
       { path: '.netrc', mode: '100644', type: 'blob', sha: 'b'.repeat(40), size: 4 },
       { path: 'api_key.json', mode: '100644', type: 'blob', sha: 'c'.repeat(40), size: 4 },
+      { path: '.venv/lib/python.py', mode: '100644', type: 'blob', sha: 'd'.repeat(40), size: 4 },
+      { path: 'venv/lib/python.py', mode: '100644', type: 'blob', sha: 'e'.repeat(40), size: 4 },
+      { path: 'env/settings.py', mode: '100644', type: 'blob', sha: 'f'.repeat(40), size: 4 },
+      { path: 'site-packages/pkg.py', mode: '100644', type: 'blob', sha: '1'.repeat(40), size: 4 },
+      { path: 'third_party/lib.ts', mode: '100644', type: 'blob', sha: '2'.repeat(40), size: 4 },
+      { path: 'third-party/lib.ts', mode: '100644', type: 'blob', sha: '3'.repeat(40), size: 4 },
+      { path: 'deps/lib.ts', mode: '100644', type: 'blob', sha: '4'.repeat(40), size: 4 },
+      { path: 'dependencies/lib.ts', mode: '100644', type: 'blob', sha: '5'.repeat(40), size: 4 },
+      { path: '.bundle/vendor.rb', mode: '100644', type: 'blob', sha: '6'.repeat(40), size: 4 },
+      { path: 'node_modules/pkg.js', mode: '100644', type: 'blob', sha: '7'.repeat(40), size: 4 },
+      { path: 'bower_components/pkg.js', mode: '100644', type: 'blob', sha: '8'.repeat(40), size: 4 },
+      { path: 'auth.json', mode: '100644', type: 'blob', sha: '9'.repeat(40), size: 4 },
+      { path: 'service-account.json', mode: '100644', type: 'blob', sha: 'a'.repeat(40), size: 4 },
+      { path: 'service_account.json', mode: '100644', type: 'blob', sha: 'b'.repeat(40), size: 4 },
+      { path: 'secrets.json', mode: '100644', type: 'blob', sha: 'c'.repeat(40), size: 4 },
+      { path: 'application_default_credentials.json', mode: '100644', type: 'blob', sha: 'd'.repeat(40), size: 4 },
+      { path: '.npmrc', mode: '100644', type: 'blob', sha: 'e'.repeat(40), size: 4 },
+      { path: '.pypirc', mode: '100644', type: 'blob', sha: 'f'.repeat(40), size: 4 },
+      { path: 'pip.conf', mode: '100644', type: 'blob', sha: '1'.repeat(40), size: 4 },
+      { path: 'id_rsa', mode: '100644', type: 'blob', sha: '2'.repeat(40), size: 4 },
+      { path: 'id_ed25519', mode: '100644', type: 'blob', sha: '3'.repeat(40), size: 4 },
+      { path: '.aws/credentials', mode: '100644', type: 'blob', sha: '4'.repeat(40), size: 4 },
+      { path: '.aws/config', mode: '100644', type: 'blob', sha: '5'.repeat(40), size: 4 },
       { path: 'package-lock.json', mode: '100644', type: 'blob', sha: '8'.repeat(40), size: 4 },
       { path: 'logo.png', mode: '100644', type: 'blob', sha: '9'.repeat(40), size: 4 },
-      { path: 'README.md', mode: '100644', type: 'blob', sha: safeSha, size: safe.length },
     ];
-    const { transport } = fixture({}, extra);
-    transport.setJson(`${API_ROOT}/git/blobs/${safeSha}`, {
-      sha: safeSha, size: safe.length, encoding: 'base64', content: safe.toString('base64'),
-    });
+    const { transport } = fixture({
+      'README.md': safe,
+      'config.json': '{"theme":"dark"}',
+    }, extra);
 
     const result = await importer(transport).importPublicRepo(
       'https://github.com/acme/atlas', new AbortController().signal,
     );
 
-    expect(result.documents.map((document) => document.title)).toEqual(['README.md']);
+    expect(result.documents.map((document) => document.title)).toEqual(['README.md', 'config.json']);
     expect(result.skipped).toEqual([
-      { reason: 'excluded_directory', count: 2 },
+      { reason: 'excluded_directory', count: 13 },
       { reason: 'executable', count: 1 },
       { reason: 'lockfile', count: 1 },
-      { reason: 'secret_filename', count: 5 },
+      { reason: 'secret_filename', count: 17 },
       { reason: 'submodule', count: 1 },
       { reason: 'symlink', count: 1 },
       { reason: 'unsupported_extension', count: 1 },

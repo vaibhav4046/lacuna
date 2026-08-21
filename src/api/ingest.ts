@@ -14,6 +14,7 @@ import {
   prepareConnectorDocument,
   type PreparedConnectorDocument,
 } from '../connectors/normalize.js';
+import { decodePersistedConnectorEvidence, persistedEvidenceFor } from '../connectors/evidence.js';
 
 /**
  * A transcript somebody pasted, turned into memory they can then ask about.
@@ -68,6 +69,15 @@ export interface IngestPreparedReport extends IngestReport {
 export interface IngestPreparedOptions {
   readonly awaitSearchable: boolean;
   readonly readiness?: { readonly timeoutMs?: number; readonly intervalMs?: number };
+  readonly signal?: AbortSignal;
+}
+
+export class IngestCancelledError extends Error {
+  override readonly name = 'IngestCancelledError';
+
+  constructor() {
+    super('cancelled');
+  }
 }
 
 export class IngestReadinessError extends Error {
@@ -181,11 +191,24 @@ function storedEntity(text: string): EntityRecord {
     || Array.isArray(value['evidence'])) {
     throw new HydraDecodeError('stored entity is missing required fields');
   }
+  for (const entries of Object.values(value['evidence'])) {
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      if (typeof entry !== 'object' || entry === null
+        || !Object.prototype.hasOwnProperty.call(entry, 'connector')) continue;
+      const decoded = decodePersistedConnectorEvidence((entry as { connector?: unknown }).connector);
+      if (decoded === null) throw new HydraDecodeError('stored entity has invalid connector evidence');
+    }
+  }
   return value as unknown as EntityRecord;
 }
 
-async function mergeIndex(scoped: HydraCloud, graph: BuiltGraph): Promise<BuiltGraph> {
-  const source = await scoped.inspect(INDEX_ID, 15_000);
+async function mergeIndex(
+  scoped: HydraCloud,
+  graph: BuiltGraph,
+  signal?: AbortSignal,
+): Promise<BuiltGraph> {
+  const source = await scoped.inspect(INDEX_ID, 15_000, scoped.collection, signal);
   const text = storedText(source, 'index');
   const existing = text === null ? null : storedIndex(text);
   if (existing === null) return graph;
@@ -225,9 +248,10 @@ async function mergeEntities(
   /** `subject predicate` for every pair this source explicitly corrects. */
   corrections: ReadonlySet<string>,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<BuiltGraph> {
   const merged = await Promise.all(graph.entities.map(async (entity): Promise<EntityRecord> => {
-    const source = await scoped.inspect(entityRecordId(entity.name), timeoutMs);
+    const source = await scoped.inspect(entityRecordId(entity.name), timeoutMs, scoped.collection, signal);
     const text = storedText(source, 'entity');
     const held = text === null ? null : storedEntity(text);
     if (held === null) return entity;
@@ -332,25 +356,55 @@ interface MutationReceipts {
   readonly refused: readonly { readonly id: string; readonly error: string }[];
 }
 
+function isAborted(signal?: AbortSignal): boolean {
+  return signal?.aborted === true;
+}
+
 async function writeGraph(
   cloud: HydraCloud,
   collection: string,
   graph: BuiltGraph,
   corrections: ReadonlySet<string>,
+  signal?: AbortSignal,
 ): Promise<MutationReceipts> {
   return serializeWorkspaceMutation(collection, async () => {
     const scoped = cloud.withCollection(collection);
-    const merged = await mergeEntities(scoped, await mergeIndex(scoped, graph), corrections, 15_000);
+    if (isAborted(signal)) throw new IngestCancelledError();
+    let merged: BuiltGraph;
+    try {
+      merged = await mergeEntities(
+        scoped,
+        await mergeIndex(scoped, graph, signal),
+        corrections,
+        15_000,
+        signal,
+      );
+    } catch (error) {
+      if (isAborted(signal)) throw new IngestCancelledError();
+      throw error;
+    }
+    if (isAborted(signal)) throw new IngestCancelledError();
     const records = toAppRecords(merged);
     const accepted: string[] = [];
     const refused: { id: string; error: string }[] = [];
     for (let at = 0; at < records.length; at += BATCH) {
+      if (isAborted(signal)) {
+        if (accepted.length > 0 || refused.length > 0) {
+          throw new IngestReadinessError('failed', accepted.length, refused.length);
+        }
+        throw new IngestCancelledError();
+      }
       const batch = records.slice(at, at + BATCH);
+      // Once submitted, await the exact receipt. Aborting this request would
+      // turn a possibly durable write into unknown state.
       const results: readonly IngestResult[] = await scoped.ingestApp(batch, collection);
       assertCompleteReceipts(batch, results);
       for (const result of results) {
         if (result.error === null || result.error === '') accepted.push(result.id);
         else refused.push({ id: result.id, error: result.error });
+      }
+      if (isAborted(signal)) {
+        throw new IngestReadinessError('failed', accepted.length, refused.length);
       }
     }
     return { accepted, refused };
@@ -366,6 +420,7 @@ async function preparedIngest(
   now: () => number,
   legacyTruncated = false,
 ): Promise<IngestPreparedReport | IngestFailure> {
+  if (isAborted(options.signal)) throw new IngestCancelledError();
   if (prepared.text.length > MAX_SOURCE_CHARS) {
     throw new ConnectorNormalizationError('document_too_long');
   }
@@ -381,23 +436,30 @@ async function preparedIngest(
     title: prepared.title,
     startedAt: prepared.provenance.observedAt,
   });
-  const graph = buildCloudGraph(buildPlan(corpus));
+  const graph = buildCloudGraph(buildPlan(corpus), persistedEvidenceFor(prepared));
   const corrections = new Set(
     extraction.claims
       .filter((claim) => claim.mode === 'CORRECTION')
       .map((claim) => `${claim.subject}\u0000${claim.predicate}`),
   );
-  const receipts = await writeGraph(cloud, collection, graph, corrections);
+  if (isAborted(options.signal)) throw new IngestCancelledError();
+  const receipts = await writeGraph(cloud, collection, graph, corrections, options.signal);
+  if (isAborted(options.signal)) {
+    throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
+  }
 
   let searchable = false;
   let indexing: 'accepted' | 'completed' = 'accepted';
   if (options.awaitSearchable && receipts.accepted.length > 0) {
     let statuses: readonly SourceStatus[];
     try {
-      statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, options.readiness);
+      statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, {
+        ...options.readiness,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      });
     } catch {
-      // No caller AbortSignal crosses this boundary. Once exact receipts exist,
-      // provider query, transport, and internal timeout errors are readiness failures.
+      // Once exact receipts exist, caller cancellation and provider
+      // query/transport failures are count-carrying readiness failures.
       throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
     }
     if (statuses.some((status) => status.indexingStatus === 'failed' || status.indexingStatus === 'errored')) {

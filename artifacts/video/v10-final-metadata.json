@@ -1,0 +1,60 @@
+{
+  "schema": "lacuna.video.acceptance.v10",
+  "file": "video/hyperframes-v10/renders/lacuna-v10-hack-hydra-final.mp4",
+  "sha256": "e73e6e0bf1de598b3c1c998a43057ac06e8dcb3b492a19d3ac8623c8d9cb9d96",
+  "bytes": 26107722,
+  "durationSeconds": 178.5,
+  "ceilingSeconds": 179,
+  "video": {
+    "codec": "h264",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "fullDecode": "passed"
+  },
+  "audio": {
+    "codec": "aac",
+    "sampleRateHz": 48000,
+    "channels": 2,
+    "durationSeconds": 178.5,
+    "meanVolumeDb": -26.5,
+    "maxVolumeDb": -6.3,
+    "silenceAtOrAboveTwoSecondsBelowMinus45Db": false,
+    "voice": "Vaibhav Lalwani Professional",
+    "rawBiometricAudioTracked": false
+  },
+  "captions": {
+    "mode": "burned-in sentence captions",
+    "generator": "video/hyperframes-v10/generate-srt.mjs",
+    "sidecar": "video/hyperframes-v10/renders/lacuna-v10-hack-hydra-final.srt",
+    "cueCount": 45,
+    "firstCue": "00:00:00,000",
+    "lastCueEnd": "00:02:57,398"
+  },
+  "composition": {
+    "tool": "HyperFrames 0.8.5",
+    "timelineSeconds": 178.5,
+    "movingProductVideoUnionSeconds": 164.2,
+    "movingProductTimelinePercent": 91.99,
+    "videoTracks": 12,
+    "voiceTracks": 11,
+    "artifactValidation": "passed"
+  },
+  "visualReview": {
+    "sampledRenderedFrames": [6, 54, 125, 172],
+    "sampleResult": "passed",
+    "ownerFullLengthWatch": "required_before_upload"
+  },
+  "sourceRelease": {
+    "productCommit": "a3c6a6c1682088ea9a397af178dd80894ca77a92",
+    "deploymentId": "dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h",
+    "immutableUrl": "https://lacuna-8fvg3jka2-vaibhav4046s-projects.vercel.app",
+    "stableUrl": "https://lacuna-five.vercel.app"
+  },
+  "publication": {
+    "uploaded": false,
+    "submitted": false,
+    "ownerVoiceAuthorizationConfirmation": "required_before_upload"
+  },
+  "verifiedAt": "2026-08-21T05:56:14Z"
+}

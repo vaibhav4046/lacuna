@@ -1,0 +1,197 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 100 800;
+      font-display: block;
+    }
+
+    #root {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      isolation: isolate;
+      color: #ffffff;
+    }
+
+    [id="04-conflict-then-absence-ground"] {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: #000000;
+    }
+
+    [id="04-conflict-then-absence-video"] {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      will-change: transform;
+    }
+
+    [id="04-conflict-then-absence-live-rail"] {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    [id="04-conflict-then-absence-live-label"] {
+      position: absolute;
+      top: 15px;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 28px;
+      padding: 0 12px;
+      border: 1px solid #282726;
+      background: rgba(0, 0, 0, 0.88);
+      color: #ffffff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    [id="04-conflict-then-absence-live-mark"] {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      background: #ffb829;
+    }
+
+    [id="04-conflict-then-absence-final-callout"] {
+      position: absolute;
+      top: 742px;
+      left: 642px;
+      z-index: 5;
+      width: 430px;
+      pointer-events: none;
+    }
+
+    [id="04-conflict-then-absence-final-copy"] {
+      color: #ffffff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      line-height: 1.5;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    [id="04-conflict-then-absence-final-rule"] {
+      width: 36px;
+      height: 2px;
+      margin-top: 10px;
+      background: #ffb829;
+    }
+  </style>
+
+  <div
+    id="root"
+    data-composition-id="04-conflict-then-absence"
+    data-width="1920"
+    data-height="1080"
+    data-start="0"
+    data-duration="21.2"
+  >
+    <div
+      id="04-conflict-then-absence-ground"
+      class="clip"
+      data-start="0"
+      data-duration="21.2"
+      data-track-index="0"
+    ></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div
+      id="04-conflict-then-absence-live-rail"
+      class="clip"
+      data-start="0"
+      data-duration="21.2"
+      data-track-index="2"
+      data-layout-allow-occlusion
+    >
+      <div id="04-conflict-then-absence-live-label">
+        <span id="04-conflict-then-absence-live-mark"></span>
+        <span>Live product</span>
+      </div>
+    </div>
+
+    <div
+      id="04-conflict-then-absence-final-callout"
+      class="clip"
+      data-start="17.4"
+      data-duration="3.8"
+      data-track-index="3"
+    >
+      <div id="04-conflict-then-absence-final-copy">No claim &rarr; no answer</div>
+      <div id="04-conflict-then-absence-final-rule"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+
+    const video = document.getElementById("04-conflict-then-absence-video");
+    const finalCallout = document.getElementById("04-conflict-then-absence-final-callout");
+    const finalRule = document.getElementById("04-conflict-then-absence-final-rule");
+
+    const tl = gsap.timeline({ paused: true });
+
+    tl.addLabel("scene-1-live-first-ask", 0);
+    tl.addLabel("scene-2-conflict", 5.4);
+    tl.fromTo(
+      video,
+      { scale: 1, transformOrigin: "50% 50%" },
+      {
+        scale: 1.14,
+        transformOrigin: "50% 50%",
+        duration: 0.72,
+        ease: "power3.inOut",
+        immediateRender: false
+      },
+      5.4
+    );
+
+    tl.addLabel("scene-3-second-ask", 11.2);
+    tl.addLabel("scene-4-no-evidence", 16);
+    tl.fromTo(
+      finalCallout,
+      { opacity: 0, y: 14 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.42,
+        ease: "power3.out"
+      },
+      17.42
+    );
+    tl.fromTo(
+      finalRule,
+      { scaleX: 0, transformOrigin: "left center" },
+      {
+        scaleX: 1,
+        transformOrigin: "left center",
+        duration: 0.62,
+        ease: "power4.out"
+      },
+      17.58
+    );
+
+    window.__timelines["04-conflict-then-absence"] = tl;
+  </script>
+</template>

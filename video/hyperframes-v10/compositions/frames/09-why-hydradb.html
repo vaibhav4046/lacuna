@@ -1,0 +1,333 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 100 800;
+      font-display: block;
+    }
+
+    #root {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      isolation: isolate;
+      color: #ffffff;
+    }
+
+    [id="09-why-hydradb-ground"] {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: #000000;
+    }
+
+    [id="09-why-hydradb-video"] {
+      position: absolute;
+      z-index: 1;
+      object-fit: cover;
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
+
+    [id="09-why-hydradb-truth-rail"] {
+      position: absolute;
+      top: 88px;
+      left: 26px;
+      z-index: 5;
+      display: grid;
+      gap: 11px;
+      width: 178px;
+      padding: 15px 14px 16px;
+      border-top: 1px solid #282726;
+      border-bottom: 1px solid #282726;
+      border-left: 2px solid #ffb829;
+      background: rgba(0, 0, 0, 0.94);
+      color: #ffffff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      line-height: 1.25;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    [id="09-why-hydradb-truth-rail"] span {
+      display: block;
+    }
+
+    [id="09-why-hydradb-truth-resolution"] {
+      color: #ffb829;
+    }
+
+    [id="09-why-hydradb-supersession"],
+    [id="09-why-hydradb-provenance"],
+    [id="09-why-hydradb-relation-walk"],
+    [id="09-why-hydradb-structural-conflict"],
+    [id="09-why-hydradb-bridge-entity"],
+    [id="09-why-hydradb-no-claim"] {
+      position: absolute;
+      left: 26px;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      width: 178px;
+      min-height: 38px;
+      padding: 0 12px;
+      border-top: 1px solid #282726;
+      border-bottom: 1px solid #282726;
+      border-left: 2px solid #ffb829;
+      background: rgba(0, 0, 0, 0.95);
+      color: #ffffff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.13em;
+      line-height: 1.25;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    [id="09-why-hydradb-supersession"],
+    [id="09-why-hydradb-relation-walk"],
+    [id="09-why-hydradb-structural-conflict"] {
+      top: 520px;
+    }
+
+    [id="09-why-hydradb-provenance"],
+    [id="09-why-hydradb-bridge-entity"] {
+      top: 570px;
+    }
+
+    [id="09-why-hydradb-no-claim"] {
+      top: 620px;
+    }
+
+    [id="09-why-hydradb-relation-walk"] {
+      min-height: 54px;
+      align-items: flex-start;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    [id="09-why-hydradb-relation-walk-kicker"] {
+      color: #ffb829;
+      font-size: 9px;
+    }
+  </style>
+
+  <div
+    id="root"
+    data-composition-id="09-why-hydradb"
+    data-width="1920"
+    data-height="1080"
+    data-start="0"
+    data-duration="20.7"
+  >
+    <div
+      id="09-why-hydradb-ground"
+      class="clip"
+      data-start="0"
+      data-duration="20.7"
+      data-track-index="0"
+    ></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div
+      id="09-why-hydradb-truth-rail"
+      class="clip"
+      data-start="0"
+      data-duration="20.7"
+      data-track-index="2"
+      data-layout-allow-occlusion
+    >
+      <span>Cloud records</span>
+      <span id="09-why-hydradb-truth-resolution">Lacuna resolution</span>
+      <span>Explicit relations</span>
+    </div>
+
+    <div
+      id="09-why-hydradb-supersession"
+      class="clip"
+      data-start="5"
+      data-duration="6.5"
+      data-track-index="3"
+    >Supersession edge</div>
+
+    <div
+      id="09-why-hydradb-provenance"
+      class="clip"
+      data-start="8.1"
+      data-duration="3.4"
+      data-track-index="4"
+    >Provenance path</div>
+
+    <div
+      id="09-why-hydradb-relation-walk"
+      class="clip"
+      data-start="11.5"
+      data-duration="5.3"
+      data-track-index="5"
+    >
+      <span id="09-why-hydradb-relation-walk-kicker">Lacuna relation walk</span>
+      <span>Used / rejected edges</span>
+    </div>
+
+    <div
+      id="09-why-hydradb-structural-conflict"
+      class="clip"
+      data-start="16.8"
+      data-duration="3.9"
+      data-track-index="6"
+    >Structural conflict</div>
+
+    <div
+      id="09-why-hydradb-bridge-entity"
+      class="clip"
+      data-start="17.65"
+      data-duration="3.05"
+      data-track-index="7"
+    >Bridge entity</div>
+
+    <div
+      id="09-why-hydradb-no-claim"
+      class="clip"
+      data-start="18.5"
+      data-duration="2.2"
+      data-track-index="8"
+    >No claim = absence</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+
+    const root = document.querySelector('[data-composition-id="09-why-hydradb"]');
+    const hydraVideo = document.querySelector('[id="09-why-hydradb-video"]');
+    const truthRail = root.querySelector('[id="09-why-hydradb-truth-rail"]');
+    const supersession = root.querySelector('[id="09-why-hydradb-supersession"]');
+    const provenance = root.querySelector('[id="09-why-hydradb-provenance"]');
+    const relationWalk = root.querySelector('[id="09-why-hydradb-relation-walk"]');
+    const structuralConflict = root.querySelector('[id="09-why-hydradb-structural-conflict"]');
+    const bridgeEntity = root.querySelector('[id="09-why-hydradb-bridge-entity"]');
+    const noClaim = root.querySelector('[id="09-why-hydradb-no-claim"]');
+
+    const camera = { scale: 1, x: 0, y: 0 };
+
+    function applyCamera() {
+      if (!hydraVideo) return;
+      hydraVideo.style.transform =
+        `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`;
+    }
+
+    applyCamera();
+
+    const tl = gsap.timeline({ paused: true });
+
+    tl.addLabel("scene-1-cloud-records", 0);
+    tl.fromTo(
+      truthRail,
+      { opacity: 0, x: -14 },
+      { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" },
+      0.08
+    );
+    tl.to(
+      camera,
+      {
+        scale: 1.025,
+        x: -8,
+        y: -6,
+        duration: 4.35,
+        ease: "power1.inOut",
+        onUpdate: applyCamera
+      },
+      0.35
+    );
+
+    tl.addLabel("scene-2-selected-conflict", 5);
+    tl.to(
+      camera,
+      {
+        scale: 1.075,
+        x: -44,
+        y: -32,
+        duration: 1.05,
+        ease: "power3.inOut",
+        onUpdate: applyCamera
+      },
+      5
+    );
+    tl.fromTo(
+      supersession,
+      { opacity: 0, x: -12 },
+      { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" },
+      5.18
+    );
+    tl.fromTo(
+      provenance,
+      { opacity: 0, x: -12 },
+      { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" },
+      8.1
+    );
+
+    tl.addLabel("scene-3-relation-walk", 11.5);
+    tl.to(
+      camera,
+      {
+        scale: 1.1,
+        x: -70,
+        y: -46,
+        duration: 1.25,
+        ease: "power2.inOut",
+        onUpdate: applyCamera
+      },
+      11.5
+    );
+    tl.fromTo(
+      relationWalk,
+      { opacity: 0, x: -12 },
+      { opacity: 1, x: 0, duration: 0.44, ease: "power3.out" },
+      11.66
+    );
+    tl.to(
+      camera,
+      {
+        scale: 1.11,
+        x: -82,
+        y: -48,
+        duration: 1.1,
+        ease: "power4.out",
+        onUpdate: applyCamera
+      },
+      15.7
+    );
+
+    tl.addLabel("scene-4-structural-proof", 16.8);
+    tl.fromTo(
+      structuralConflict,
+      { opacity: 0, x: -12 },
+      { opacity: 1, x: 0, duration: 0.38, ease: "power3.out" },
+      16.8
+    );
+    tl.fromTo(
+      bridgeEntity,
+      { opacity: 0, x: -12 },
+      { opacity: 1, x: 0, duration: 0.38, ease: "power3.out" },
+      17.65
+    );
+    tl.fromTo(
+      noClaim,
+      { opacity: 0, x: -12 },
+      { opacity: 1, x: 0, duration: 0.38, ease: "power3.out" },
+      18.5
+    );
+
+    window.__timelines["09-why-hydradb"] = tl;
+  </script>
+</template>

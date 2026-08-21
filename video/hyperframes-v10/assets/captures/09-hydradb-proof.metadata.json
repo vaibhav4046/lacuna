@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-hydradb-proof",
+  "capturedAt": "2026-08-21T03:25:43.538Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/explore/hydra",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 30000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 30000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "09-hydradb-proof.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 5.867,
+    "bytes": 748810,
+    "sha256": "633f5ca39c6bb668567859952d8e107df0a4245b8422d71e082c884b9e6e58e1",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 176,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 185,
+    "savedFrames": 123,
+    "acknowledgedFrames": 185,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 62,
+    "targetFrames": 176,
+    "uniqueSourceFramesUsed": 123,
+    "duplicatedTargetFrames": 53,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 14,
+    "longestSourceGapMs": 120,
+    "uniqueSourcePayloads": 23,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 8,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/graph",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/relations",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/expansion",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/impact",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 8,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/relations",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/expansion",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/graph",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/impact",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 8,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/relations",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/expansion",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/graph",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/impact",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 450
+      },
+      "startedAtMs": 155,
+      "durationMs": 455,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "type",
+        "selector": "input[placeholder=\"Search proof, source or date\"]",
+        "value": "[REDACTED]",
+        "source": "literal",
+        "clear": true,
+        "delayMs": 45,
+        "settleMs": 550
+      },
+      "startedAtMs": 610,
+      "durationMs": 2156,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "click",
+        "selector": "svg[aria-label=\"Layered evidence provenance graph\"] g[role=\"button\"]:has(circle)[aria-label*=\"runbook\"]",
+        "settleMs": 700
+      },
+      "startedAtMs": 2766,
+      "durationMs": 837,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "click",
+        "selector": "button[aria-label=\"Zoom proof graph in\"]",
+        "settleMs": 350
+      },
+      "startedAtMs": 3603,
+      "durationMs": 468,
+      "ok": true
+    },
+    {
+      "index": 4,
+      "action": {
+        "type": "wait",
+        "durationMs": 850
+      },
+      "startedAtMs": 4071,
+      "durationMs": 849,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

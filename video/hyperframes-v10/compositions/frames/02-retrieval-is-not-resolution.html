@@ -1,0 +1,251 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Space Grotesk";
+      src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 900;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: block;
+    }
+
+    #root {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #ffffff;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    [id="02-retrieval-is-not-resolution-ground"] {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+    }
+
+    [id="02-retrieval-is-not-resolution-capture"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    [id="02-retrieval-is-not-resolution-rail-layer"],
+    [id="02-retrieval-is-not-resolution-verdict-layer"] {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    [id="02-retrieval-is-not-resolution-rail"] {
+      position: absolute;
+      top: 5.5cqw;
+      left: 5.5cqw;
+      width: 16.6cqw;
+      box-sizing: border-box;
+      padding: 1.05cqw 1.15cqw 1.15cqw;
+      border-top: 1px solid #282726;
+      background: rgba(0, 0, 0, 0.92);
+    }
+
+    [id="02-retrieval-is-not-resolution-rail-kicker"] {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.72cqw;
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffb829;
+    }
+
+    [id="02-retrieval-is-not-resolution-steps"] {
+      position: relative;
+      display: grid;
+      gap: 0.42cqw;
+      margin-top: 0.9cqw;
+      padding-left: 0.9cqw;
+    }
+
+    [id="02-retrieval-is-not-resolution-rail-marker"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 1.42cqw;
+      background: #ffb829;
+      transform-origin: 50% 50%;
+    }
+
+    [id="02-retrieval-is-not-resolution-source"],
+    [id="02-retrieval-is-not-resolution-proposal"],
+    [id="02-retrieval-is-not-resolution-implemented"] {
+      display: grid;
+      grid-template-columns: 2.2cqw 1fr;
+      align-items: center;
+      min-height: 1.42cqw;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.72cqw;
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffffff;
+    }
+
+    [id="02-retrieval-is-not-resolution-source-index"],
+    [id="02-retrieval-is-not-resolution-proposal-index"],
+    [id="02-retrieval-is-not-resolution-implemented-index"] {
+      color: #9a9a9a;
+      letter-spacing: 0.08em;
+    }
+
+    [id="02-retrieval-is-not-resolution-verdict"] {
+      position: absolute;
+      left: 5.5cqw;
+      top: 69.5cqh;
+      width: max-content;
+      max-width: 72cqw;
+      box-sizing: border-box;
+      padding: 1.05cqw 1.45cqw 1.15cqw;
+      overflow: hidden;
+      background: #ffb829;
+      color: #000000;
+      transform-origin: 0 50%;
+    }
+
+    [id="02-retrieval-is-not-resolution-verdict-copy"] {
+      display: block;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 2.8cqw;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+  </style>
+
+  <div
+    id="root"
+    data-composition-id="02-retrieval-is-not-resolution"
+    data-width="1920"
+    data-height="1080"
+    data-start="0"
+    data-duration="16.6"
+  >
+    <div
+      id="02-retrieval-is-not-resolution-ground"
+      class="clip"
+      data-start="0"
+      data-duration="16.6"
+      data-track-index="0"
+    ></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div
+      id="02-retrieval-is-not-resolution-rail-layer"
+      class="clip"
+      data-start="0"
+      data-duration="4"
+      data-track-index="2"
+    >
+      <section id="02-retrieval-is-not-resolution-rail" aria-label="Source state sequence">
+        <div id="02-retrieval-is-not-resolution-rail-kicker">standing</div>
+        <div id="02-retrieval-is-not-resolution-steps">
+          <span id="02-retrieval-is-not-resolution-rail-marker" aria-hidden="true"></span>
+          <div id="02-retrieval-is-not-resolution-source">
+            <span id="02-retrieval-is-not-resolution-source-index">01</span>
+            <span>source</span>
+          </div>
+          <div id="02-retrieval-is-not-resolution-proposal">
+            <span id="02-retrieval-is-not-resolution-proposal-index">02</span>
+            <span>proposal</span>
+          </div>
+          <div id="02-retrieval-is-not-resolution-implemented">
+            <span id="02-retrieval-is-not-resolution-implemented-index">03</span>
+            <span>implemented</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div
+      id="02-retrieval-is-not-resolution-verdict-layer"
+      class="clip"
+      data-start="10.4"
+      data-duration="6.2"
+      data-track-index="2"
+    >
+      <div id="02-retrieval-is-not-resolution-verdict">
+        <span id="02-retrieval-is-not-resolution-verdict-copy">missing ≠ low confidence</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-composition-id="02-retrieval-is-not-resolution"]');
+      const source = root.querySelector('[id="02-retrieval-is-not-resolution-source"]');
+      const proposal = root.querySelector('[id="02-retrieval-is-not-resolution-proposal"]');
+      const implemented = root.querySelector('[id="02-retrieval-is-not-resolution-implemented"]');
+      const marker = root.querySelector('[id="02-retrieval-is-not-resolution-rail-marker"]');
+      const verdict = root.querySelector('[id="02-retrieval-is-not-resolution-verdict"]');
+      const verdictCopy = root.querySelector('[id="02-retrieval-is-not-resolution-verdict-copy"]');
+
+      const timeline = gsap.timeline({ paused: true });
+
+      timeline.fromTo(
+        source,
+        { autoAlpha: 0, x: -24 },
+        { autoAlpha: 1, x: 0, duration: 0.42, ease: "power3.out" },
+        0.14
+      );
+      timeline.fromTo(
+        proposal,
+        { autoAlpha: 0, x: -24 },
+        { autoAlpha: 1, x: 0, duration: 0.42, ease: "power3.out" },
+        1.38
+      );
+      timeline.to(marker, { y: 35, duration: 0.48, ease: "power2.inOut" }, 1.34);
+      timeline.fromTo(
+        implemented,
+        { autoAlpha: 0, x: -24 },
+        { autoAlpha: 1, x: 0, duration: 0.42, ease: "power3.out" },
+        2.72
+      );
+      timeline.to(marker, { y: 70, duration: 0.48, ease: "power2.inOut" }, 2.68);
+
+      timeline.fromTo(
+        verdict,
+        { autoAlpha: 0, clipPath: "inset(0 100% 0 0)" },
+        {
+          autoAlpha: 1,
+          clipPath: "inset(0 0% 0 0)",
+          duration: 0.62,
+          ease: "power3.inOut"
+        },
+        12.45
+      );
+      timeline.fromTo(
+        verdictCopy,
+        { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: "power3.out" },
+        12.7
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["02-retrieval-is-not-resolution"] = timeline;
+    })();
+  </script>
+</template>

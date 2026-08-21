@@ -79,7 +79,7 @@ The quickest judge path is the
 ### Release acceptance boundary
 
 The V10 production build passed web smoke 9/9, demo/API smoke 30/30 and the
-Google OAuth boundary 15/15. Its full unit suite passed 1,376/1,376, its build
+Google OAuth boundary 15/15. Its full unit suite passed 1,380/1,380, its build
 transformed 124 modules, and the two-hour Vercel release window contained no
 runtime error clusters or error/fatal logs. ChatGPT then called all seven public
 MCP tools against HydraDB Cloud; the redacted result ledger is in

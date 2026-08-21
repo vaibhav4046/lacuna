@@ -1,0 +1,222 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Space Grotesk";
+      src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 900;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+    }
+
+    #root {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      container-type: size;
+      color: #ffffff;
+      isolation: isolate;
+    }
+
+    #root,
+    #root * {
+      box-sizing: border-box;
+    }
+
+    #root [data-f03-role="ground"] {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+    }
+
+    #root [data-f03-role="product"] {
+      position: absolute;
+      left: 0;
+      top: 82px;
+      width: 1920px;
+      height: 806px;
+      object-fit: cover;
+      object-position: center center;
+    }
+
+    #root [data-f03-role="top-rail"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 82px;
+      border-bottom: 1px solid #282726;
+      background: #000000;
+    }
+
+    #root [data-f03-role="rail-labels"] {
+      position: absolute;
+      inset: 0 5.5cqw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.72cqw;
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    #root [data-f03-role="live-label"] {
+      color: #ffb829;
+    }
+
+    #root [data-f03-role="hydra-label"] {
+      color: #9a9a9a;
+    }
+
+    #root [data-f03-role="crop-rail"] {
+      position: absolute;
+      top: 82px;
+      left: 0;
+      width: 576px;
+      height: 806px;
+      overflow: hidden;
+      border-right: 1px solid #282726;
+      background: #000000;
+    }
+
+    #root [data-f03-role="annotation"] {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    #root [data-f03-role="evidence-label"] {
+      position: absolute;
+      left: 5.5cqw;
+      top: 564px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.72cqw;
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffb829;
+      white-space: nowrap;
+    }
+
+    #root [data-f03-role="link-svg"] {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 888px;
+      overflow: visible;
+    }
+
+    #root [data-f03-role="link-path"] {
+      fill: none;
+      stroke: #ffb829;
+      stroke-width: 1;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
+    }
+  </style>
+
+  <div id="root" data-composition-id="03-what-lacuna-built" data-width="1920" data-height="1080" data-start="0" data-duration="13.5">
+    <div
+      class="clip"
+      data-f03-role="ground"
+      data-start="0"
+      data-duration="13.5"
+      data-track-index="0"
+    ></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div
+      class="clip"
+      data-f03-role="top-rail"
+      data-start="0"
+      data-duration="13.5"
+      data-track-index="2"
+    >
+      <div data-f03-role="rail-labels">
+        <span data-f03-role="live-label">LIVE PRODUCT</span>
+        <span data-f03-role="hydra-label">HYDRADB-BACKED</span>
+      </div>
+    </div>
+
+    <div
+      class="clip"
+      data-f03-role="crop-rail"
+      data-start="3.6"
+      data-duration="9.9"
+      data-track-index="3"
+      data-layout-allow-overflow
+    ></div>
+
+    <div
+      class="clip"
+      data-f03-role="annotation"
+      data-start="8.2"
+      data-duration="5.3"
+      data-track-index="4"
+    >
+      <span data-f03-role="evidence-label">EVIDENCE → CLAIM → ENTITY</span>
+      <svg
+        data-f03-role="link-svg"
+        viewBox="0 0 1920 888"
+        aria-hidden="true"
+      >
+        <path
+          data-f03-role="link-path"
+          d="M 1340 628 H 742 L 702 592 H 372"
+        ></path>
+      </svg>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const frame = document.querySelector('[data-composition-id="03-what-lacuna-built"]');
+      const roleNodes = [...frame.querySelectorAll("[data-f03-role]")];
+      const pick = (role) => roleNodes.find((node) => node.dataset.f03Role === role);
+      const timeline = gsap.timeline({ paused: true });
+
+      timeline.fromTo(
+        pick("top-rail"),
+        { opacity: 0, y: -18 },
+        { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" },
+        0.12
+      );
+      timeline.fromTo(
+        pick("crop-rail"),
+        { x: -576 },
+        { x: 0, duration: 0.82, ease: "power3.inOut" },
+        3.6
+      );
+      timeline.fromTo(
+        pick("link-path"),
+        { strokeDasharray: 1200, strokeDashoffset: 1200 },
+        { strokeDashoffset: 0, duration: 0.9, ease: "power2.inOut" },
+        8.2
+      );
+      timeline.fromTo(
+        pick("evidence-label"),
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" },
+        8.52
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["03-what-lacuna-built"] = timeline;
+    })();
+  </script>
+</template>

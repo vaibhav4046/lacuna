@@ -234,9 +234,9 @@
       "capability": "VERIFIED",
       "data": "FIXTURE",
       "measured": {
-        "files": 83,
-        "tests": 1376,
-        "duration_seconds": 54.68,
+        "files": 84,
+        "tests": 1380,
+        "duration_seconds": 94.74,
         "run_on": "2026-08-21"
       },
       "evidence": [
@@ -484,7 +484,7 @@
         "public_error": "public_preview_read_only",
         "signed_in_workspace_run_status": 200,
         "fresh_production_acceptance": true,
-        "deployment_id": "dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW"
+        "deployment_id": "dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h"
       },
       "evidence": [
         "src/api/router.ts",

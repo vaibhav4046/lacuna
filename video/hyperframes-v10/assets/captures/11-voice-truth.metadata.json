@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-voice-truth",
+  "capturedAt": "2026-08-21T03:28:08.403Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/explore/voice",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "11-voice-truth.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 6.533,
+    "bytes": 150181,
+    "sha256": "97d9ad4ea5b4842eebb2866856978f6c5e34b970e20df19f158f9a659f528ce0",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 196,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 242,
+    "savedFrames": 142,
+    "acknowledgedFrames": 242,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 100,
+    "targetFrames": 196,
+    "uniqueSourceFramesUsed": 141,
+    "duplicatedTargetFrames": 55,
+    "discardedSourceFramesDuringEncode": 1,
+    "estimatedMissingFramesAt30Fps": 21,
+    "longestSourceGapMs": 523,
+    "uniqueSourcePayloads": 43,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [
+      {
+        "path": "/api/explore/voice/speech",
+        "status": 403
+      }
+    ],
+    "apiResponseCount": 5,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/api/explore/query",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/api/explore/voice/speech",
+        "status": 403
+      }
+    ],
+    "apiFailureCount": 3,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 3,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 450
+      },
+      "startedAtMs": 134,
+      "durationMs": 455,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "type",
+        "selector": "input[aria-label=\"Typed question fallback\"]",
+        "value": "[REDACTED]",
+        "source": "literal",
+        "clear": true,
+        "delayMs": 30,
+        "settleMs": 150
+      },
+      "startedAtMs": 589,
+      "durationMs": 2100,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "click",
+        "selector": "input[aria-label=\"Typed question fallback\"] + button",
+        "settleMs": 1800
+      },
+      "startedAtMs": 2689,
+      "durationMs": 1896,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "wait",
+        "durationMs": 900
+      },
+      "startedAtMs": 4585,
+      "durationMs": 908,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

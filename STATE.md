@@ -7,10 +7,10 @@ dated evidence.
 
 ## Accepted product gate
 
-- 83 unit test files and 1,376 tests passed with no skips.
+- 84 unit test files and 1,380 tests passed with no skips.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 124 modules. The entry is 286.42 kB,
-  94.08 kB gzip.
+- The production web bundle builds from 124 modules. The entry is 286.94 kB,
+  94.25 kB gzip.
 - Copy lint scans 57 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
@@ -29,6 +29,8 @@ dated evidence.
   S256 and nonce, and binds an account to the provider's stable subject.
 - Password recovery rotates a credential epoch and invalidates every older
   30-day session.
+- Workspace/profile updates are isolated from credential records, so an
+  in-flight rename cannot restore a pre-recovery password or session epoch.
 - Hosted password signup is disabled. HydraDB's current writer cannot provide
   the atomic unique create needed to make same-email password signup safe.
 - Private MCP uses a 256-bit random bearer stored digest-only. It expires 30
@@ -62,8 +64,8 @@ dated evidence.
 ## Accepted production
 
 The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
-deployment `dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW`, built from product commit
-`c2012ddca176b8e59370020c1de84caedc442d72`. Web passed 9/9, demo/API passed
+deployment `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h`, built from product commit
+`a3c6a6c1682088ea9a397af178dd80894ca77a92`. Web passed 9/9, demo/API passed
 30/30, Google OAuth's pre-chooser boundary passed 15/15, and both normal and
 reduced-motion route sweeps passed 198/198. The anonymous-agent 403 boundary
 was also probed directly on that deployment. The public release branch contains

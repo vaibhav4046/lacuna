@@ -9,13 +9,13 @@ not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, accepted product tree | 83 files, 1,376 tests passed | terminal run on 2026-08-21 after the public-agent security fix |
+| full unit gate, accepted product tree | 84 files, 1,380 tests passed | terminal run on 2026-08-21 after credential/profile isolation |
 | root and web typecheck | both exit 0 | terminal run on 2026-08-21 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
 | native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
 | accepted public agent record | completed, 8 lifecycle events; readable evidence with no authoritative memory writeback | production Work and Agents screens |
-| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
 | connector truth table | `AVAILABLE`: Text, Custom ingestion; all catalogued external/file/data connectors are `PLANNED`; Spotify is absent | `web/src/design/connectors.ts` |

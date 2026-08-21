@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #FFFFFF;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="178.5"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div
+        id="el-01-yesterdays-truth"
+        class="scene"
+        data-composition-id="01-yesterdays-truth"
+        data-composition-src="compositions/frames/01-yesterdays-truth.html"
+        data-start="0"
+        data-duration="9.7"
+        data-track-index="0"
+      ></div>
+      <audio
+        id="el-01-yesterdays-truth-voice"
+        src="assets/private-voice/01-vaibhav.wav"
+        data-start="0"
+        data-duration="9.2"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-02-retrieval-is-not-resolution"
+        class="scene"
+        data-composition-id="02-retrieval-is-not-resolution"
+        data-composition-src="compositions/frames/02-retrieval-is-not-resolution.html"
+        data-start="9.2"
+        data-duration="16.6"
+        data-track-index="1"
+      ></div>
+      <audio
+        id="el-02-retrieval-is-not-resolution-voice"
+        src="assets/private-voice/02-vaibhav.wav"
+        data-start="9.2"
+        data-duration="16.2"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-03-what-lacuna-built"
+        class="scene"
+        data-composition-id="03-what-lacuna-built"
+        data-composition-src="compositions/frames/03-what-lacuna-built.html"
+        data-start="25.4"
+        data-duration="13.5"
+        data-track-index="0"
+      ></div>
+      <audio
+        id="el-03-what-lacuna-built-voice"
+        src="assets/private-voice/03-vaibhav.wav"
+        data-start="25.4"
+        data-duration="13"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-04-conflict-then-absence"
+        class="scene"
+        data-composition-id="04-conflict-then-absence"
+        data-composition-src="compositions/frames/04-conflict-then-absence.html"
+        data-start="38.4"
+        data-duration="21.2"
+        data-track-index="1"
+      ></div>
+      <audio
+        id="el-04-conflict-then-absence-voice"
+        src="assets/private-voice/04-vaibhav.wav"
+        data-start="38.4"
+        data-duration="20.8"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-05-inspect-the-structure"
+        class="scene"
+        data-composition-id="05-inspect-the-structure"
+        data-composition-src="compositions/frames/05-inspect-the-structure.html"
+        data-start="59.2"
+        data-duration="16.3"
+        data-track-index="0"
+      ></div>
+      <audio
+        id="el-05-inspect-the-structure-voice"
+        src="assets/private-voice/05-vaibhav.wav"
+        data-start="59.2"
+        data-duration="15.8"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-06-bounded-work"
+        class="scene"
+        data-composition-id="06-bounded-work"
+        data-composition-src="compositions/frames/06-bounded-work.html"
+        data-start="75"
+        data-duration="17.2"
+        data-track-index="1"
+      ></div>
+      <audio
+        id="el-06-bounded-work-voice"
+        src="assets/private-voice/06-vaibhav.wav"
+        data-start="75"
+        data-duration="16.8"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-07-one-contract"
+        class="scene"
+        data-composition-id="07-one-contract"
+        data-composition-src="compositions/frames/07-one-contract.html"
+        data-start="91.8"
+        data-duration="24.5"
+        data-track-index="0"
+      ></div>
+      <audio
+        id="el-07-one-contract-voice"
+        src="assets/private-voice/07-vaibhav.wav"
+        data-start="91.8"
+        data-duration="24"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-08-voice-honestly-gated"
+        class="scene"
+        data-composition-id="08-voice-honestly-gated"
+        data-composition-src="compositions/frames/08-voice-honestly-gated.html"
+        data-start="115.8"
+        data-duration="16.4"
+        data-track-index="1"
+      ></div>
+      <audio
+        id="el-08-voice-honestly-gated-voice"
+        src="assets/private-voice/08-vaibhav.wav"
+        data-start="115.8"
+        data-duration="16"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-09-why-hydradb"
+        class="scene"
+        data-composition-id="09-why-hydradb"
+        data-composition-src="compositions/frames/09-why-hydradb.html"
+        data-start="131.8"
+        data-duration="20.7"
+        data-track-index="0"
+      ></div>
+      <audio
+        id="el-09-why-hydradb-voice"
+        src="assets/private-voice/09-vaibhav.wav"
+        data-start="131.8"
+        data-duration="20.2"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-10-generated-evaluation"
+        class="scene"
+        data-composition-id="10-generated-evaluation"
+        data-composition-src="compositions/frames/10-generated-evaluation.html"
+        data-start="152"
+        data-duration="15.6"
+        data-track-index="1"
+      ></div>
+      <audio
+        id="el-10-generated-evaluation-voice"
+        src="assets/private-voice/10-vaibhav.wav"
+        data-start="152"
+        data-duration="15"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <div
+        id="el-11-what-stays"
+        class="scene"
+        data-composition-id="11-what-stays"
+        data-composition-src="compositions/frames/11-what-stays.html"
+        data-start="167"
+        data-duration="11.5"
+        data-track-index="0"
+      ></div>
+      <audio
+        id="el-11-what-stays-voice"
+        src="assets/private-voice/11-vaibhav.wav"
+        data-start="167"
+        data-duration="11.5"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <!-- Real recorded product footage. These clips are direct children of the
+           host root so HyperFrames can seek them deterministically. -->
+      <video id="01-yesterdays-truth-product" src="assets/cuts/12-frame1-6.4.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:576px;top:70px;width:1344px;height:756px;object-fit:cover"
+        data-start="2.8"
+        data-duration="6.4"
+        data-track-index="1001"
+      ></video>
+
+      <video id="02-retrieval-is-not-resolution-capture" src="assets/cuts/01-frame2-16.2.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="9.2"
+        data-duration="16.2"
+        data-track-index="2001"
+      ></video>
+
+      <video id="03-what-lacuna-built-product" src="assets/cuts/02-frame3-13.0.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:82px;width:1920px;height:998px;object-fit:cover"
+        data-start="25.4"
+        data-duration="13"
+        data-track-index="3001"
+      ></video>
+
+      <video id="04-conflict-then-absence-video" src="assets/cuts/03-frame4-20.8.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="38.4"
+        data-duration="20.8"
+        data-track-index="4001"
+      ></video>
+
+      <video id="05-inspect-the-structure-product" src="assets/cuts/04-frame5-15.8.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="59.2"
+        data-duration="15.8"
+        data-track-index="5001"
+      ></video>
+
+      <video id="06-bounded-work-recommendations" src="assets/cuts/05-frame6a-5.0.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="75"
+        data-duration="5"
+        data-track-index="6001"
+      ></video>
+
+      <video id="06-bounded-work-run" src="assets/cuts/06-frame6b-11.8.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="80"
+        data-duration="11.8"
+        data-track-index="6002"
+      ></video>
+
+      <video id="07-one-contract-cli-video" src="assets/cuts/08-frame7a-14.6.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="91.8"
+        data-duration="14.6"
+        data-track-index="7001"
+      ></video>
+
+      <video id="07-one-contract-mcp-video" src="assets/cuts/07-frame7b-18.0.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:975px;top:178px;width:885px;height:498px;object-fit:cover"
+        data-start="97.8"
+        data-duration="18"
+        data-track-index="7002"
+      ></video>
+
+      <video id="08-voice-honestly-gated-video" src="assets/cuts/11-frame8-16.0.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="115.8"
+        data-duration="16"
+        data-track-index="8001"
+      ></video>
+
+      <video id="09-why-hydradb-video" src="assets/cuts/09-frame9-20.2.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="131.8"
+        data-duration="20.2"
+        data-track-index="9001"
+      ></video>
+
+      <video id="10-generated-evaluation-video" src="assets/cuts/10-frame10-15.0.mp4" preload="auto" data-media-start="0" data-layout-allow-occlusion muted playsinline
+        class="clip"
+        style="position:absolute;left:0px;top:0px;width:1920px;height:1080px;object-fit:cover"
+        data-start="152"
+        data-duration="15"
+        data-track-index="10001"
+      ></video>
+
+      <!-- captions -->
+      <div
+        id="el-captions"
+        class="scene"
+        data-composition-id="captions"
+        data-composition-src="compositions/captions.html"
+        data-start="0"
+        data-duration="178.5"
+        data-track-index="2"
+      ></div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+      // ── frame transitions (injected by transitions.mjs) ──
+      (function () { var tl = window.__timelines["main"];
+        tl.to("#el-01-yesterdays-truth", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 9.2);
+        tl.fromTo("#el-02-retrieval-is-not-resolution", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 9.2);
+        tl.to("#el-02-retrieval-is-not-resolution", { scale: 2.5, opacity: 0, filter: "blur(8px)", duration: 0.4, ease: "power3.in" }, 25.4);
+        tl.fromTo("#el-03-what-lacuna-built", { scale: 0.5, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }, 25.4);
+        tl.to("#el-03-what-lacuna-built", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 38.4);
+        tl.fromTo("#el-04-conflict-then-absence", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 38.4);
+        tl.to("#el-04-conflict-then-absence", { scale: 2.5, opacity: 0, filter: "blur(8px)", duration: 0.4, ease: "power3.in" }, 59.2);
+        tl.fromTo("#el-05-inspect-the-structure", { scale: 0.5, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }, 59.2);
+        tl.to("#el-05-inspect-the-structure", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 75);
+        tl.fromTo("#el-06-bounded-work", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 75);
+        tl.to("#el-06-bounded-work", { scaleX: 0, transformOrigin: "left center", duration: 0.4, ease: "power3.inOut" }, 91.8);
+        tl.fromTo("#el-07-one-contract", { scaleX: 0, transformOrigin: "right center", opacity: 1 }, { scaleX: 1, transformOrigin: "right center", duration: 0.4, ease: "power3.inOut" }, 91.8);
+        tl.to("#el-07-one-contract", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 115.8);
+        tl.fromTo("#el-08-voice-honestly-gated", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 115.8);
+        tl.to("#el-08-voice-honestly-gated", { scale: 2.5, opacity: 0, filter: "blur(8px)", duration: 0.4, ease: "power3.in" }, 131.8);
+        tl.fromTo("#el-09-why-hydradb", { scale: 0.5, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }, 131.8);
+        tl.to("#el-09-why-hydradb", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 152);
+        tl.fromTo("#el-10-generated-evaluation", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 152);
+        tl.to("#el-10-generated-evaluation", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.6, ease: "power2.inOut" }, 167);
+        tl.fromTo("#el-11-what-stays", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.6, ease: "power2.inOut" }, 167);
+        tl.to({}, { duration: 178.5 }, 0); // full-span anchor — main.duration() == composition total (Studio master duration)
+      })();
+    </script>
+  </body>
+</html>

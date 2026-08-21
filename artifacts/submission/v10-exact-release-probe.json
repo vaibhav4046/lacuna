@@ -1,0 +1,105 @@
+{
+  "schema": "lacuna.submission.release-probe.v1",
+  "capturedAt": "2026-08-21T05:45:25.0144116Z",
+  "containsSecrets": false,
+  "release": {
+    "productCommit": "a3c6a6c1682088ea9a397af178dd80894ca77a92",
+    "acceptanceDocsCommit": "695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf",
+    "publicMainCommit": "695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf",
+    "deploymentId": "dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h",
+    "deploymentStatus": "READY",
+    "immutableUrl": "https://lacuna-8fvg3jka2-vaibhav4046s-projects.vercel.app",
+    "stableUrl": "https://lacuna-five.vercel.app",
+    "stableAliasResolvedDeploymentId": "dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h",
+    "repository": "https://github.com/vaibhav4046/lacuna"
+  },
+  "repositoryEvidence": {
+    "earliestParticipantAuthoredCommit": "d27fb89035407faf5bcf5096aa088aacfbee337c",
+    "earliestParticipantAuthoredAt": "2026-08-12T21:22:04+01:00",
+    "readmePresent": true,
+    "setupInstructionsPresent": true,
+    "hydraExplanationPresent": true,
+    "license": "Apache-2.0",
+    "thirdPartyManifestPresent": true,
+    "sourceLogPresent": true
+  },
+  "publicHttp": {
+    "stableRoot": 200,
+    "stableJudge": 200,
+    "immutableRoot": 200,
+    "repository": 200
+  },
+  "hydraHealth": {
+    "ok": true,
+    "checks": 4,
+    "warnings": 0,
+    "profile": "HydraDB Cloud",
+    "database": "lacuna",
+    "collection": "backend",
+    "reachable": true,
+    "roundTrip": true,
+    "observedTimingMs": 176
+  },
+  "publicGraph": {
+    "mode": "overview",
+    "limit": 1,
+    "totalNodes": 453,
+    "totalEdges": 682,
+    "orphanEdges": 0
+  },
+  "publicMcp": {
+    "transport": "Streamable HTTP",
+    "authentication": "none; public read-only corpus",
+    "toolCount": 7,
+    "tools": [
+      "lacuna_ask",
+      "lacuna_explain",
+      "lacuna_timeline",
+      "lacuna_read_question",
+      "search",
+      "fetch",
+      "lacuna_health"
+    ],
+    "writeTools": 0
+  },
+  "publicAgents": {
+    "roleCount": 2,
+    "roles": [
+      "Researcher",
+      "Reviewer"
+    ],
+    "rolesWithWritePermission": 0,
+    "readableRunRecords": 6,
+    "runStatuses": [
+      "COMPLETED",
+      "FAILED",
+      "COMPLETED",
+      "COMPLETED",
+      "COMPLETED",
+      "COMPLETED"
+    ]
+  },
+  "publicWriteBoundary": {
+    "postExploreAgentRun": 403,
+    "postDemoAgentRun": 403
+  },
+  "probeScope": [
+    "public read-only endpoints only",
+    "no human identity was selected",
+    "no private MCP capability was issued or used",
+    "no provider-backed voice session was claimed",
+    "no video was uploaded",
+    "no hackathon form was submitted"
+  ],
+  "commands": [
+    "git ls-remote origin refs/heads/main",
+    "vercel inspect lacuna-five.vercel.app --scope vaibhav4046s-projects",
+    "GET /api/health",
+    "GET /api/explore/graph?mode=overview&limit=1",
+    "GET /api/explore/agents",
+    "GET /api/explore/runs",
+    "POST /mcp tools/list",
+    "POST /api/explore/agent/run",
+    "POST /api/demo/agent/run"
+  ]
+}

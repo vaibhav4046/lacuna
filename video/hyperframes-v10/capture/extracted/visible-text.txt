@@ -1,0 +1,17 @@
+LACUNA
+Memory that knows what changed.
+
+Agents fail when yesterday's truth is remembered as current. Lacuna preserves
+the source, time, standing, contradiction, retraction and absence behind every
+answer, then compiles the bounded context the next agent needs.
+
+The final V10 judge film must prove this with the accepted product: changed
+facts with exact sources; unresolved contradictions; structural NO_EVIDENCE
+abstention; interactive graph and readable table; one context across web, CLI
+and MCP; HydraDB Cloud records, explicit relations and deterministic inspect;
+governed no-write roles; truthful provider-unavailable voice fallback; and a
+labelled generated 64-question evaluation that is not LongMemEval.
+
+The exact Lacuna mark is a white open spiral with one #FFB829 amber origin dot
+on black. Purple may exist inside authentic product capture, but never on the
+mark or in the film's framing system.

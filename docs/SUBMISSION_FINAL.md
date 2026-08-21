@@ -1,129 +1,204 @@
-# V10 submission handoff: Hack Hydra Track 03
+# Hack Hydra final submission handoff
 
-Everything the form asks for, with the state of each item.
+This is the canonical owner handoff for the protected V10 release. It is
+paste-ready except for the YouTube URL, which only the owner adds after the
+local film passes owner review and is uploaded. The V10 machine gates now pass;
+nothing in this file means the video
+was uploaded or the form was submitted.
 
-| Field | Value | State |
-| --- | --- | --- |
-| Project | Lacuna | ready |
-| Track | 03 — Memory and Context Retrieval | ready |
-| Repository | https://github.com/vaibhav4046/lacuna | public, Apache-2.0 for Lacuna code |
-| Deployed | https://lacuna-five.vercel.app | live, no account needed, ask it a question on the landing |
-| Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six computed on load, plus one the reader types |
-| Whole product, read only | https://lacuna-five.vercel.app/explore/dash | public seeded workspace; accepted run records are inspectable, anonymous run creation is disabled in production |
-| Video | no accepted V10 master yet | the earlier 179-second V8 render is historical and rejected; use `V10_VIDEO_PITCH.md` and replace this row only after final media gates pass |
-| Captions | pending V10 master | require burned-in sentence captions plus a matching final SRT |
-| Supademo | no public walkthrough | not assembled |
-| YouTube | no URL | owner will upload after final approval |
+## Release identity
 
-## What is left, and why it is left
+| Item | Accepted value |
+| --- | --- |
+| Track | 03 — Memory and Context Retrieval |
+| Product commit | `a3c6a6c1682088ea9a397af178dd80894ca77a92` |
+| Acceptance-doc commit | `695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf` |
+| Immutable deployment | `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h` |
+| Immutable URL | <https://lacuna-8fvg3jka2-vaibhav4046s-projects.vercel.app> |
+| Stable URL | <https://lacuna-five.vercel.app> |
+| No-account judge path | <https://lacuna-five.vercel.app/judge> |
+| Public repository | <https://github.com/vaibhav4046/lacuna> |
+| Public `main` at final audit | `695b55e63dd3a28ff6ee2f6f83ec3919bf6f0eaf` |
 
-**Building, approving and publishing the video.** The 179-second V8 render is
-historical, was rejected, and is not submission media or a fallback master. The
-V10 master must follow
-`V10_VIDEO_PITCH.md`, use real moving product capture and the approved private
-Vaibhav Lalwani Professional voice, then pass metadata, caption, secret, claim
-map and full-length owner review. The owner uploads it and verifies the link
-while signed out.
+The machine-readable release probe is
+[`artifacts/submission/v10-exact-release-probe.json`](../artifacts/submission/v10-exact-release-probe.json).
+Later local commits do not inherit this deployment gate.
 
-**Security acceptance.** Google sign-in passed its 15-step production boundary
-through the real account chooser; a human identity selection and accepted fresh
-callback remain open. Private MCP version 2 is deployed and legacy version 1
-fails closed, but signed-in issue/use/revoke still remains open. Public MCP is
-the proved remote path, including a seven-tool ChatGPT client run. Hosted signup
-is Google-only; new password accounts are deliberately refused.
+## Paste-ready official form answers
 
-**Public-agent read-only boundary.** Accepted public run records remain visible
-as evidence. Production returns `403 public_preview_read_only` for
-anonymous `POST /api/explore/agent/run` and `/api/demo/agent/run`; it does not
-persist a visitor's task or spend provider calls. Signed-in,
-CSRF-protected `/api/workspace/agent/run` remains a real persisted capability.
-Both public route names were probed directly on the accepted deployment.
+### Project name
 
-**Submitting the form.** Same reason. Every field it asks for is in this file.
+```text
+Lacuna
+```
 
-**Preview protection.** Vercel preview deployments sit behind SSO, so a preview
-link 302s for anyone who is not you. Production is public and is what the links
-above point at. One toggle at
-`vercel.com/vaibhav4046s-projects/lacuna/settings/deployment-protection` turns
-it off if you want preview links to open too.
+### Short project description
 
-## Suggested video description
+```text
+Lacuna is temporal, provenance-first memory for long-running agents, built on
+HydraDB. It keeps corrections, contradictions and exact source evidence as a
+queryable graph, returns the current supported answer, and names the reason
+when the history cannot support one.
+```
 
-> Lacuna is a context layer for long-running agents, built on HydraDB. It reads
-> conversations, turns them into claims that carry a time and a source, and
-> answers from the claims rather than from the text: what is current, what was
-> replaced, what two sources disagree about, and what nobody ever said.
->
-> Every screen in this video is a capture of the deployed product answering a
-> real question. Try it without an account: https://lacuna-five.vercel.app/judge
->
-> Source, evaluation artifacts and the claim-by-claim map behind every number
-> here: https://github.com/vaibhav4046/lacuna
->
-> Measured against five retrieval baselines over 64 questions: the strongest
-> baseline reaches 63 and spends 1843 context tokens; Lacuna answers 64 on 18.
-> This is one generated corpus and question set, not official LongMemEval or a
-> public benchmark. No LongMemEval score has been produced. Raw results in
-> artifacts/bench/results.json.
+### Problem being addressed
 
-## How HydraDB is used
+```text
+Long-running agents do not only forget. They confidently retrieve facts that
+were later corrected, treat proposals as decisions, collapse two disagreeing
+sources into one answer, and invent answers for facts that were never stated.
+Similarity search can rank relevant passages, but it does not establish which
+claim is current, what it replaced, or whether the evidence is missing.
 
-Not decoratively, and through two deliberately separate adapters.
+Lacuna gives cross-session memory an explicit temporal and provenance model so
+another model receives a small, evidence-bearing Context Pack instead of an
+unresolved transcript.
+```
 
-The 72 generated conversations go in as knowledge sources, which is what the
-service's vector search and its own graph extraction see. The claim graph
-derived from them goes in as 86 entity records plus an index, addressed by ids
-derived from the graph, read back with `GET /context/inspect`. Evidence and
-claims are stored apart because they are different kinds of thing, and a store
-that conflates them cannot tell you what changed.
+### What was built
 
-The deployed product reads those addressed records for every answer. Lacuna,
-not HydraDB Cloud, applies current/superseded standing, contradiction,
-abstention and multi-hop resolution after the fetch. HydraDB Cloud's query and
-relations endpoints separately support semantic search and the live
-store-comparison screen.
-`artifacts/hydra/cloud-ingest.json` records the write; `artifacts/hydra/cloud-parity.json`
-records that a self-hosted node and HydraDB Cloud return identical answers to
-all 64 gold questions, compared field by field.
+```text
+Lacuna ingests conversations as immutable source evidence and claim records.
+Corrections create explicit supersession history instead of overwriting old
+facts. A deterministic resolver returns current answers, source quotations,
+revisions, conflicts, proof paths and machine-readable abstention reasons.
 
-The self-hosted adapter is the native graph proof: it stores nodes and edges in
-HydraDB v0.1.1 and executes bounded Cypher through `NodeSource`. The 162-query
-compatibility record is real, but neither that node nor its Cypher traversal is
-the deployed Cloud answer path.
+The product includes a deployed no-account judge workspace, plain-English Ask,
+a searchable memory table, an interactive overview graph, an exact evidence
+DAG, a nine-command CLI, stdio MCP, a live seven-tool read-only HTTP MCP
+endpoint, and two bounded no-write agent roles with persisted Work records and
+handoffs. Signed-in workspaces and daily schedule definitions exist; the public
+preview remains read-only.
 
-The public graph count of 453 nodes and 682 edges belongs to the seeded demo
-workspace measured on the acceptance deployment. It is not a general scale
-claim and it is not a count from a private user's memory.
+The reproducible demo corpus contains 72 generated sessions, 5,246 messages,
+174 claims and 86 entities. On its generated 64-question evaluation, Lacuna
+answered 64/64 with zero false or unsupported answers and used 18.27 mean
+estimated context tokens. The strongest tested flat-retrieval configuration
+answered 63/64 with 1,842.57. This is a single generated corpus, not official
+LongMemEval or a general accuracy claim. No LongMemEval score was produced.
+```
 
-## Claims intentionally excluded from the form
+### Deployed project link
 
-- ChatGPT public read is complete across seven tools. Claude and private
-  ChatGPT `remember` are not complete.
-- No packaged Lacuna SDK is published. The repository uses the official MCP SDK
-  internally.
-- The CLI and MCP do not expose agent lifecycle commands.
-- The product has two built-in agent roles and two accepted production runs,
-  not a marketplace
-  or arbitrary bot builder. Public run records are read-only in the current
-  candidate; creating a new run requires a signed-in workspace.
-- Hosted schedules persist state but have no distributed compare-and-swap, so
-  exactly-once execution is not claimed.
-- Voice is unavailable in production until server-only ElevenLabs credentials
-  and a real audio acceptance run exist.
-- Text and Custom ingestion are `AVAILABLE`. GitHub, GitLab, Linear, Jira,
-  Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API, Webhook and
-  Database source are `PLANNED`; none is `CONNECTED` or `SYNCING`. Spotify is
-  not catalogued or implemented.
-- The exact 399-character `package-session` blast-radius request is
-  `NOT_PROVEN`. It is outside the shipped subject and sentence contracts, and
-  there is no Web, CLI or MCP blast command exposing that full workflow. This
-  is separate from the four generated gold blast-radius cases and the fixed
-  `tenant-router` impact proof.
+```text
+https://lacuna-five.vercel.app
+```
 
-## Reproducing every number
+Optional direct judge link:
 
-    npm ci
-    npm run ingest:cloud          write the corpus and graph to HydraDB Cloud
-    npm run parity:cloud          both stores, 64 questions, field by field
-    npm run bench                 the retrieval comparison
-    npm run smoke:demo -- https://lacuna-five.vercel.app
+```text
+https://lacuna-five.vercel.app/judge
+```
+
+### How the project uses the HydraDB Open Source Repo
+
+```text
+HydraDB is Lacuna's persistent context substrate, not a decorative export. In
+the accepted production profile, 72 generated conversation sources, 86
+addressed entity records and one index record were accepted and indexed in a
+workspace-scoped HydraDB Cloud collection. The answer path fetches those
+deterministically addressed records; HydraDB's query and relations surfaces
+separately expose semantic and graph context. Lacuna then applies temporal
+standing, contradiction handling, abstention and bounded relationship
+resolution in application code.
+
+The repository also includes a self-hosted adapter pinned to HydraDB v0.1.1.
+That adapter stores nodes and edges and executes bounded native Cypher through
+NodeSource; 162 compatibility probes are retained. Native Cypher is genuine
+self-hosted proof, but it is not the deployed Cloud answer path.
+
+The two adapters returned field-for-field identical outcomes on all 64
+generated questions. Without HydraDB, the deployed product loses its durable,
+collection-scoped source and claim records, relation inspection, graph context
+and shared retrieval seam. Lacuna's policy layer is deliberately separate: it
+decides what is current or unsupported after HydraDB returns the evidence.
+```
+
+### Tech stack used
+
+```text
+TypeScript, Node.js 20.11+, HydraDB over HTTP, React 19, React Router, Vite,
+the official Model Context Protocol SDK, Vitest, hash-wasm and HyperFrames.
+Lacuna code is Apache-2.0. HydraDB is AGPL-3.0 and runs as a separate service.
+```
+
+### Team members and individual contributions
+
+```text
+Vaibhav Lalwani — solo builder: product design, temporal memory model, HydraDB
+adapters and evaluation, web product, CLI and MCP surfaces, agent runtime,
+testing, deployment, documentation and demo direction.
+```
+
+### GitHub repository link
+
+```text
+https://github.com/vaibhav4046/lacuna
+```
+
+### Three-minute demo video link
+
+```text
+[OWNER: PASTE THE VERIFIED UNLISTED YOUTUBE URL HERE]
+```
+
+Do not use an earlier V8 render. The accepted V10 master must be at most 179
+seconds, carry the Vaibhav Lalwani Professional narration, contain burned-in
+captions, and pass the local metadata and full-length review gates. Publication
+of the clone narration also requires the owner's confirmation that its use is
+authorized.
+
+Local V10 master: `video/hyperframes-v10/renders/lacuna-v10-hack-hydra-final.mp4`
+(178.500 seconds; SHA-256
+`e73e6e0bf1de598b3c1c998a43057ac06e8dcb3b492a19d3ac8623c8d9cb9d96`).
+Machine acceptance is recorded in
+[`artifacts/video/v10-final-metadata.json`](../artifacts/video/v10-final-metadata.json).
+
+## Claims deliberately excluded
+
+- Production Cloud does not execute the self-hosted native-Cypher answer path.
+- The exact 399-character `package-session` request is `NOT_PROVEN`.
+- Text and Custom ingestion are available. Native GitHub, GitLab, Linear,
+  Jira, Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API,
+  Webhook and Database connectors are planned, not connected. Spotify is not
+  implemented.
+- ChatGPT is proved only for the seven-tool public read-only corpus. Private
+  `remember` is not accepted. Claude was not tested.
+- No packaged Lacuna SDK is published. The official MCP SDK is an internal
+  dependency.
+- Production provider-backed voice was not accepted; typed Ask is the fallback.
+- Google OAuth passed the pre-chooser security boundary. Human account
+  selection and a fresh accepted callback remain owner actions.
+- Hosted schedules are persistent; distributed exactly-once execution is not
+  claimed.
+- The evaluation is generated and is not LongMemEval. No official benchmark
+  score exists.
+
+## Exact owner-only finish
+
+1. Open the final local MP4 and its matching V10 metadata/SRT; confirm duration
+   is at most 179 seconds, audio and captions are complete, no secret or private
+   identifier appears, and every claim matches
+   [V10_FINAL_EVIDENCE_MAP.md](V10_FINAL_EVIDENCE_MAP.md).
+2. Watch the entire film once without scrubbing. Confirm the Vaibhav clone is
+   authorized for publication.
+3. Upload that exact MP4 to YouTube as **Unlisted**. Do not upload the rejected
+   V8 film.
+4. Open the YouTube URL in a signed-out/private window, confirm it plays without
+   an access request, and verify YouTube displays a runtime below 3:00.
+5. Paste the URL above, copy the official answers into the form, re-open the
+   production and repository links signed out, then submit and retain the
+   confirmation.
+
+Optional proof improvements such as completing a fresh Google identity callback
+or reminting a private MCP capability are not required to submit and must not be
+described as complete unless separately captured.
+
+## Current submission state
+
+The repository and product links are public and verified, and the local V10
+master passes codec, duration, decode, audio, SRT and sampled-frame gates. The
+official entry is still incomplete until the owner watches and authorizes the
+film, uploads it, inserts its
+viewable URL, and submits the form. No upload or submission was performed while
+preparing this handoff.

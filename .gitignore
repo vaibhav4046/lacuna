@@ -103,7 +103,14 @@ video/hyperframes-v10/.media/
 video/hyperframes-v10/renders/
 video/hyperframes-v10/snapshots/
 video/hyperframes-v10/review/
+video/hyperframes-v10/review-clean/
 video/hyperframes-v10/.thumbnails/
+# HyperFrames' local agent packets and instruction mirrors are authoring state,
+# not release source. The declarative brief, storyboard, composition and
+# capture metadata remain tracked explicitly.
+video/hyperframes-v10/.hyperframes/
+video/hyperframes-v10/AGENTS.md
+video/hyperframes-v10/CLAUDE.md
 .env.cloud
 
 # The LongMemEval dataset, downloaded not committed. 15MB to 2.7GB.

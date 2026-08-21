@@ -40,7 +40,7 @@ Production: <https://lacuna-five.vercel.app>
 
 | Surface | Evidence accepted for the current production deployment |
 | --- | --- |
-| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The post-promotion demo gate measured the context store ready in 93 ms. |
+| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The hardened release probe measured the context store ready in 176 ms. |
 | Public graph | `GET /api/explore/graph?mode=overview&limit=1` returned 453 total nodes, 682 total edges, zero orphan edges and a signed next cursor on 2026-08-21. |
 | Public MCP | `POST /mcp` with `tools/list` returned seven read-only tools on 2026-08-21: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health`. |
 | Web | The accepted production sweep passed web smoke 9/9 and demo smoke 30/30. |
@@ -64,13 +64,13 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-Deployment `dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW` is the accepted production
-deployment for product commit `c2012ddca176b8e59370020c1de84caedc442d72`.
-Root typecheck, 83 unit files / 1,376 tests, the 124-module production build,
+Deployment `dpl_CTX86J1VMR2gXuB9aTAL6wAqiE9h` is the accepted production
+deployment for product commit `a3c6a6c1682088ea9a397af178dd80894ca77a92`.
+Root typecheck, 84 unit files / 1,380 tests, the 124-module production build,
 web 9/9, demo/API 30/30, Google boundary 15/15, public-agent 403 probes, and
 normal/reduced route sweeps of 198/198 all target this product tree. The stable
 alias points to the immutable URL
-`https://lacuna-ccl2b6750-vaibhav4046s-projects.vercel.app`. The seven-tool
+`https://lacuna-8fvg3jka2-vaibhav4046s-projects.vercel.app`. The seven-tool
 ChatGPT public connector proof targets the same public contract. A media render
 does not grant a product gate; the V10 film remains a separate artifact with its
 own acceptance steps.

@@ -280,13 +280,12 @@ const api = new ApiRouter({
  * who can ask and not what can be read. The public endpoint is read-only. A
  * private capability can additionally call the governed `remember` ingest.
  *
- * `allowAnyOrigin` is on because the Origin check in the transport exists to
- * stop a browser page reaching a server bound to loopback. That is a real
- * attack against a local process and not one against a public HTTPS endpoint
- * that clients are meant to call directly.
+ * The deployed web origin is allowed explicitly. MCP clients such as a CLI do
+ * not send Origin and remain supported, but another web page cannot reach the
+ * public corpus or present a workspace capability from an arbitrary origin.
  */
 const mcp = cloud === null || mcpCapabilities === null ? null : createMcpListener({
-  allowAnyOrigin: true,
+  allowedOrigins: [SITE_ORIGIN],
   context: {
     source: new CloudSource(cloud),
     node: { namespace: cloud.database, graph: cloud.collection, cell: 'cloud' },

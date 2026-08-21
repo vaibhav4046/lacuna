@@ -88,6 +88,40 @@ describe('MCP HTTP authorization', () => {
     await expect(response.json()).resolves.toMatchObject({ result: { serverInfo: { name: 'lacuna' } } });
   });
 
+  it('accepts a configured production Origin but rejects a foreign private request before capability lookup', async () => {
+    const capability = mintMcpCapability();
+    let capabilityLookups = 0;
+    const base = await serving({
+      allowedOrigins: ['https://lacuna-five.vercel.app'],
+      authorizeWorkspace: (candidate) => {
+        capabilityLookups += 1;
+        return candidate === capability ? WRITABLE : null;
+      },
+    });
+
+    const sameOrigin = await post(base, INITIALIZE, { origin: 'https://lacuna-five.vercel.app' });
+    expect(sameOrigin.status).toBe(200);
+
+    capabilityLookups = 0;
+    const foreignOrigin = await fetch(`${base}/mcp/w/${capability}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        origin: 'https://untrusted-origin.example',
+      },
+      body: JSON.stringify(INITIALIZE),
+    });
+    expect(foreignOrigin.status).toBe(403);
+    expect(capabilityLookups).toBe(0);
+  });
+
+  it('accepts a loopback browser Origin without an explicit production allowlist', async () => {
+    const base = await serving();
+    const response = await post(base, INITIALIZE, { origin: 'http://localhost:5173' });
+    expect(response.status).toBe(200);
+  });
+
   it('fails closed for the deterministic collection handles previously used as write authority', async () => {
     const base = await serving({
       // The legacy callback may still be passed by old deployment wiring, but

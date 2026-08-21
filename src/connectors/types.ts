@@ -15,7 +15,7 @@ export type ConnectorFailureCode =
   | 'readiness_timeout'
   | 'signing_not_configured';
 
-export type ConnectorAvailabilityReason = 'signing_not_configured';
+export type ConnectorAvailabilityReason = 'signing_not_configured' | 'file_import_unavailable';
 
 export type ConnectorGroup = 'CODE' | 'FILES' | 'DATA';
 

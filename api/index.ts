@@ -33,7 +33,7 @@ import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
-import { ingestSource } from '../src/api/ingest.js';
+import { ingestPreparedSource, ingestSource } from '../src/api/ingest.js';
 import { runAgents } from '../src/agent/run.js';
 import { builtInAgents } from '../src/agent/registry.js';
 import { CloudAgentRuntimeStore, FileAgentRuntimeStore } from '../src/agent/store.js';
@@ -46,6 +46,9 @@ import { PREDICATE_NAMES } from '../src/corpus/types.js';
 import { planVoiceIntent } from '../src/voice/intent.js';
 import { catalogue } from '../src/connectors/catalog.js';
 import { CloudConnectorStore } from '../src/connectors/store.js';
+import { ConnectorRunner } from '../src/connectors/run.js';
+import { FileConnectorService } from '../src/connectors/files.js';
+import { FilePreviewTokenService, previewSigningKey } from '../src/connectors/preview-token.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -122,6 +125,15 @@ const store = cloud === null
   : new CloudAccounts(cloud);
 const mcpCapabilities = cloud === null ? null : new CloudMcpCapabilities(cloud);
 const connectorStore = cloud === null ? null : new CloudConnectorStore(cloud);
+const filePreviewKey = previewSigningKey(process.env['LACUNA_FILE_PREVIEW_KEY']);
+const connectorRunner = cloud === null || connectorStore === null ? null : new ConnectorRunner({
+  store: connectorStore,
+  ingest: (workspace, prepared, options) => ingestPreparedSource(cloud, workspace, prepared, options),
+});
+const fileConnector = connectorRunner === null || filePreviewKey === null ? null : new FileConnectorService({
+  runner: connectorRunner,
+  tokens: new FilePreviewTokenService({ key: filePreviewKey }),
+});
 
 async function cloudHealth(): Promise<unknown> {
   if (cloud === null) {
@@ -184,7 +196,11 @@ const api = new ApiRouter({
   allowPasswordSignup: false,
   ...(mcpCapabilities === null ? {} : { mcpCapabilities }),
   ...(connectorStore === null ? {} : { connectorStore }),
-  connectorCatalog: () => catalogue({ webhookKey: process.env['LACUNA_WEBHOOK_KEY'] }),
+  ...(fileConnector === null ? {} : { fileConnector }),
+  connectorCatalog: () => catalogue({
+    webhookKey: process.env['LACUNA_WEBHOOK_KEY'],
+    fileImport: fileConnector !== null,
+  }),
   secure: true,
   health: cloudHealth,
   voice,

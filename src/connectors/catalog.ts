@@ -25,6 +25,7 @@ const IMPLEMENTED: readonly Omit<ConnectorDescriptor, 'availability' | 'reason'>
 
 export interface ConnectorCatalogueOptions {
   readonly webhookKey?: string | undefined;
+  readonly fileImport?: boolean | undefined;
 }
 
 /**
@@ -33,11 +34,16 @@ export interface ConnectorCatalogueOptions {
  */
 export function catalogue(options: ConnectorCatalogueOptions = {}): readonly ConnectorDescriptor[] {
   const webhookConfigured = typeof options.webhookKey === 'string' && options.webhookKey.trim() !== '';
-  return IMPLEMENTED.map((entry): ConnectorDescriptor => Object.freeze({
-    ...entry,
-    availability: entry.id !== 'webhook' || webhookConfigured ? 'available' : 'unavailable',
-    reason: entry.id === 'webhook' && !webhookConfigured ? 'signing_not_configured' : null,
-  }));
+  const fileConfigured = options.fileImport === true;
+  return IMPLEMENTED.map((entry): ConnectorDescriptor => {
+    const file = entry.group === 'FILES';
+    const available = entry.id === 'webhook' ? webhookConfigured : !file || fileConfigured;
+    return Object.freeze({
+      ...entry,
+      availability: available ? 'available' : 'unavailable',
+      reason: available ? null : entry.id === 'webhook' ? 'signing_not_configured' : 'file_import_unavailable',
+    });
+  });
 }
 
 /** Merge durable observations without confusing successful one-off imports with connections. */

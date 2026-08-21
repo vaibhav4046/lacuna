@@ -61,6 +61,8 @@ import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } 
 import { VOICE_ROUTES } from '../voice/operations.js';
 import { MAX_VOICE_TRANSCRIPT_CHARS, type VoiceIntentPlan, type VoiceScope } from '../voice/intent.js';
 import { catalogue, mergeConnectorState } from '../connectors/catalog.js';
+import { FileConnectorError, type FileConnectorBoundary } from '../connectors/files.js';
+import { PreviewTokenError } from '../connectors/preview-token.js';
 import type { ConnectorDescriptor, ConnectorStore } from '../connectors/types.js';
 
 /**
@@ -164,6 +166,7 @@ const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
 /** Private spend ceilings are keyed by the server-derived workspace id. */
 const PRIVATE_RUN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const PRIVATE_INGEST_LIMIT = { limit: 4, windowMs: 5 * 60_000, maxKeys: 4_096 };
+const PRIVATE_FILE_LIMIT = { limit: 12, windowMs: 5 * 60_000, maxKeys: 4_096 };
 const PRIVATE_MCP_ISSUE_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const PRIVATE_VOICE_INTENT_LIMIT = { limit: 30, windowMs: 60_000, maxKeys: 4_096 };
 
@@ -314,6 +317,8 @@ export interface ApiOptions {
   readonly connectorStore?: ConnectorStore;
   /** Deployment-specific availability over the closed server catalogue. */
   readonly connectorCatalog?: () => readonly ConnectorDescriptor[];
+  /** Authenticated preview/import boundary; absent unless parser, signer, runner, and store exist. */
+  readonly fileConnector?: FileConnectorBoundary;
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -670,6 +675,7 @@ export class ApiRouter {
   readonly #allowPasswordSignup: boolean;
   readonly #mcpCapabilities: McpCapabilities | undefined;
   readonly #connectorStore: ConnectorStore | undefined;
+  readonly #fileConnector: FileConnectorBoundary | undefined;
   readonly #connectorCatalog: () => readonly ConnectorDescriptor[];
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
@@ -703,6 +709,7 @@ export class ApiRouter {
   readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
   readonly #privateRunLimit = new WorkspaceRunWindow(PRIVATE_RUN_LIMIT);
   readonly #privateIngestLimit = new FixedWindow(PRIVATE_INGEST_LIMIT);
+  readonly #privateFileLimit = new FixedWindow(PRIVATE_FILE_LIMIT);
   readonly #privateMcpIssueLimit = new FixedWindow(PRIVATE_MCP_ISSUE_LIMIT);
   readonly #privateVoiceIntentLimit = new FixedWindow(PRIVATE_VOICE_INTENT_LIMIT);
 
@@ -711,7 +718,9 @@ export class ApiRouter {
     this.#allowPasswordSignup = options.allowPasswordSignup ?? true;
     this.#mcpCapabilities = options.mcpCapabilities;
     this.#connectorStore = options.connectorStore;
-    this.#connectorCatalog = options.connectorCatalog ?? (() => catalogue());
+    this.#fileConnector = options.fileConnector;
+    this.#connectorCatalog = options.connectorCatalog
+      ?? (() => catalogue({ fileImport: this.#fileConnector !== undefined }));
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
@@ -829,6 +838,61 @@ export class ApiRouter {
 
     const cookies = parseCookies(request.headers.cookie);
     const method = request.method ?? 'GET';
+
+    const fileMode = path === '/api/workspace/connectors/file/preview' ? 'preview'
+      : path === '/api/workspace/connectors/file/import' ? 'import'
+        : null;
+    if (fileMode !== null && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'file_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const files = this.#fileConnector;
+      if (files === undefined) {
+        send(response, 503, { error: 'file_import_unavailable' });
+        return HANDLED;
+      }
+      const sessionToken = cookies[SESSION_COOKIE];
+      if (typeof sessionToken !== 'string' || sessionToken === '') {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateFileLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_file_budget');
+        return HANDLED;
+      }
+      try {
+        const context = { workspace, sessionBinding: hashToken(sessionToken) };
+        const result = fileMode === 'preview'
+          ? await files.preview(request, context)
+          : await files.importFile(request, context);
+        send(response, 200, result);
+      } catch (error) {
+        if (error instanceof FileConnectorError) {
+          send(response, error.status, { error: error.code });
+        } else if (error instanceof PreviewTokenError) {
+          send(response, 409, { error: error.code });
+        } else {
+          send(response, 502, { error: 'file_import_failed' });
+        }
+      }
+      return HANDLED;
+    }
 
     if (path === '/api/workspace/connectors' && method === 'GET') {
       const account = await this.#accountFor(cookies);

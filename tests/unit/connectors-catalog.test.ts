@@ -5,7 +5,7 @@ import { CONNECTOR_GROUPS } from '../../web/src/design/connectors.js';
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookKey: 'configured' });
+    const entries = catalogue({ webhookKey: 'configured', fileImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
       'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',

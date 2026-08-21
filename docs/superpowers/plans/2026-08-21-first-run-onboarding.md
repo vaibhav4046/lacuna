@@ -15,7 +15,7 @@
 - Workspace identity comes only from the authenticated account.
 - A workspace label never selects data. Authenticated reads/writes always use the current account collection; only `/api/explore/*` may use bundled/public data.
 - Workspace creation, preview, ingest, and Ask are separate durable operations.
-- Workspace creation does not complete onboarding. Completion is an exact-readback account mutation after a terminal private Ask or explicit Skip; guards use `session.onboarded`.
+- Workspace creation does not complete onboarding. Completion is an exact-readback account mutation after a qualifying evidence-backed private Ask or explicit Skip; guards use `session.onboarded`.
 - No sample fact is stored without an explicit `Use an example` and `Store` action.
 - Preview and store share title/text normalization and a short-lived token bound to the current session binding, workspace digest, normalized input digest, version, and nonce. It is process-locally consumed and cross-instance retries rely only on deterministic upsert convergence; no global one-time claim is made.
 - A timed-out write is reported as ambiguous, not as definitely absent.
@@ -34,9 +34,12 @@
 - Modify: `src/api/workspace.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
+- Modify: `web/src/app/routes/ingest.tsx`
+- Modify: `web/src/app/routes/context.tsx`
 - Test: `tests/unit/onboarding-api.test.ts`
 - Test: `tests/unit/ingest-source.test.ts`
 - Create: `tests/unit/workspace-api.test.ts`
+- Test: `tests/unit/web-product-contracts.test.ts`
 
 **Interfaces:**
 - Produces: `prepareSourceInput(title, rawText): PreparedSourceInput | IngestFailure`
@@ -77,7 +80,10 @@ workspace-keyed preview quota, `503` when the complete token service is absent,
 and `200` for a real statement. Inject extraction,
 quota, and ingest spies to prove every refusal performs zero extraction/write.
 Reject—not ignore—`workspace`, `collection`, and every unknown body field. An
-account swap during extraction discards the response.
+account swap during extraction discards the response. Require the existing
+signed-in Memory `AddSource` surface to use this same preview/token/review/
+explicit-confirm flow; no current caller may remain on a legacy `{title,text}`
+write after the server route requires a token.
 
 - [ ] **Step 3: Run the preview tests and verify RED**
 
@@ -110,7 +116,7 @@ interface AuthenticatedExtractionPreview extends ExtractionPreview {
 route wraps it as `AuthenticatedExtractionPreview`. The token is an
 authenticated, expiring capability bound to the current session
 token hash, server-derived workspace digest, normalized title/text digest,
-schema version, and a random nonce. Derive its signing subkey from the validated
+exact purpose `onboarding | memory`, schema version, and a random nonce. Derive its signing subkey from the validated
 file-preview root key with the exact domain above; never reuse the file-token
 MAC domain or fall back to Hydra/session/OAuth material. Its replay cache is
 explicitly bounded/process-local; a cross-instance
@@ -124,22 +130,30 @@ the public address limiter), and returns `Cache-Control: no-store` plus `nosniff
 Keep the exported `ingestSource` signature compatible, but have it call
 `prepareSourceInput` before extraction. Add an internal `ingestPreparedSource`
 function so connector and onboarding code can prove preview/store digest parity
-without duplicating normalization. The private store route accepts exact
-`{ title, text, previewToken, awaitSearchable: true }`, reparses/reprepares the
+without duplicating normalization. Preview and store accept the same exact
+purpose. The private store route accepts exact
+`{ title, text, previewToken, awaitSearchable: true, purpose: 'onboarding' | 'memory' }`, reparses/reprepares the
 input, verifies the current session/workspace/digest/expiry/nonce binding, then
 acquires the private write quota and revalidates the session immediately before
 the first durable write. A used/replayed/foreign/stale token performs zero writes.
 
+Migrate `web/src/app/routes/ingest.tsx` (as mounted by `context.tsx`) to the same
+two-phase client contract in this task: preview, render kept/unread, then distinct
+confirmation with the exact title/text/token and `purpose: 'memory'`. Preserve its Memory-page UX and
+the accepted/searchable/indeterminate truth; remove every direct legacy
+`{title,text}` POST. Test both Memory and onboarding callers so the server change
+cannot strand an existing product route.
+
 - [ ] **Step 6: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts tests/unit/extract.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts tests/unit/extract.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
 
 Expected: all focused tests pass.
 
 - [ ] **Step 7: Commit the preview boundary**
 
 ```bash
-git add src/api/extraction-preview.ts src/api/onboarding-preview-token.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts api/index.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts
+git add src/api/extraction-preview.ts src/api/onboarding-preview-token.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts api/index.ts web/src/app/routes/ingest.tsx web/src/app/routes/context.tsx tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/ingest-source.test.ts tests/unit/web-product-contracts.test.ts
 git commit -m "feat(onboarding): preview private memory before ingest"
 ```
 
@@ -148,19 +162,24 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 ### Task 2: Searchability and real suggested-question readiness
 
 **Files:**
+- Create: `src/api/onboarding-attempt-store.ts`
 - Modify: `src/api/ingest.ts`
 - Modify: `src/api/workspace.ts`
 - Modify: `src/api/router.ts`
+- Modify: `src/connectors/files.ts`
 - Modify: `api/index.ts`
 - Modify: `web/src/api/client.ts`
 - Test: `tests/unit/ingest-source.test.ts`
 - Test: `tests/unit/onboarding-api.test.ts`
 - Test: `tests/unit/workspace-api.test.ts`
+- Create: `tests/unit/onboarding-attempt-store.test.ts`
+- Test: `tests/unit/connectors-files.test.ts`
 
 **Interfaces:**
 - Extends: existing `IngestPreparedOptions` with one absolute deadline and `maxRecords: 25`
 - Reuses: aggregate `IngestPreparedReport.searchable` / `indexing` without exposing Hydra ids
 - Adds: `GET /api/workspace/questions` backed by bounded live workspace claims
+- Adds: `GET /api/workspace/onboarding/attempt` backed by a durable active-attempt pointer
 - Consumes: `HydraCloud.waitForIndexing(ids, options)` under the same settlement deadline
 
 - [ ] **Step 1: Add a queued-receipt readiness regression**
@@ -172,6 +191,16 @@ Use a fake cloud that returns accepted `queued` receipts and later terminal
 transport-loss case that reports `indeterminate` rather than known zero. Prove
 graph output above 25 records refuses before any write and every local queue or
 Hydra call ends by the absolute deadline.
+
+Write a dedicated attempt-store regression. Before the first workspace POST,
+persist/read back a strict active pointer and attempt record keyed by a full
+server-keyed owner digest and random opaque attempt id. Store only version,
+keyed input digest, source kind, bounded internal expected record ids, state
+`pending | indeterminate | searchable | failed`, safe counts/failure code, and
+canonical timestamps in a dedicated non-workspace collection—never raw
+workspace/email/title/text/file/token. Prove exact readback, account isolation,
+malformed-record refusal, stale-update refusal, and that no workspace write runs
+when the pending record cannot be confirmed.
 
 - [ ] **Step 2: Add an API regression for delayed suggestions**
 
@@ -186,20 +215,35 @@ from real live non-slot claims. Distinguish `401` session loss,
 into empty. Private Ask must return evidence only through the authenticated
 workspace route.
 
+Resume must first call `GET /api/workspace/onboarding/attempt`. A visible
+pending/indeterminate attempt disables Store even after refresh, bfcache,
+another tab, or server process loss. The status route rechecks its bounded
+internal expected ids in the current account collection under one deadline:
+all completed becomes `searchable`; a known pre-submit/refused zero becomes
+`failed`; missing/partial state after a possibly dispatched POST remains
+`indeterminate`, never empty/failed. Only a conclusively failed attempt may
+enable a new Store automatically; ambiguous retry requires a new explicit user
+confirmation and deterministic-upsert copy, never an automatic request.
+
 - [ ] **Step 3: Run focused tests and verify RED**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts --maxWorkers=1`
 
 Expected: missing options/report fields.
 
 - [ ] **Step 4: Implement bounded indexing readiness**
 
-Capture one server settlement deadline before body acquisition. Allocate at most
-10 seconds to body/token/quota/preparation, 20 seconds to the bounded workspace
-queue and pre-write index/entity reads, 120 seconds to the one Hydra POST, and
-30 seconds to readiness; hard-stop the route by 180 seconds. Pass the remaining
-budget/signal through production composition in `api/index.ts`. Set the browser
-mutation timeout above the complete server budget (195 seconds), while keeping
+Capture one 235-second server settlement deadline before body acquisition and
+schedule backward: reserve the final 20 seconds for attempt-state update/exact
+readback, the preceding 30 seconds for readiness, at most 120 seconds for the
+single workspace Hydra POST, the preceding 20 seconds for pending attempt+
+pointer writes/exact readback, and 20 seconds for the bounded workspace queue
+plus pre-write index/entity reads. Body/token/quota/local preparation is at most
+10 seconds; 15 seconds remain as internal scheduling margin. No phase borrows a
+reserved tail, and workspace submission is refused unless at least 170 seconds
+remain. Pass the remaining budget/signal through production composition in
+`api/index.ts`. Set the browser mutation timeout above the complete server
+budget (250 seconds), while keeping
 abort/account-swap cancellation distinct from a server-side indeterminate
 receipt. Collect accepted record ids only internally and validate complete
 receipts. Mark `searchable` only when every accepted id reaches `completed`;
@@ -211,16 +255,27 @@ workspace-scoped current claim views used by Ask. Exclude slot/synthetic,
 historical, retracted, contradicted, malformed, and missing-evidence claims;
 stable-sort and cap the provider reads and serialized response at three items.
 
+Implement `CloudOnboardingAttemptStore` with bounded process-local mutation
+ordering and exact Hydra readback; do not claim cross-instance CAS. Derive
+record addresses with a separate HMAC domain from the validated preview root
+key. The text store and onboarding-marked file import prepare their deterministic
+graph ids, persist/read back `pending`, then submit. They update the attempt
+after exact receipt/readiness; transport uncertainty writes `indeterminate` if
+possible but never downgrades confirmed acceptance. If handler settlement is
+lost, the pre-existing pending record remains the recovery source. File
+multipart gains only one exact bounded onboarding-purpose marker; normal
+connector imports do not replace the onboarding active pointer.
+
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
 
 Expected: all tests pass and private context failures remain fail-closed.
 
 - [ ] **Step 6: Commit searchability readiness**
 
 ```bash
-git add src/api/ingest.ts src/api/workspace.ts src/api/router.ts api/index.ts web/src/api/client.ts tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/workspace-api.test.ts
+git add src/api/onboarding-attempt-store.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts api/index.ts web/src/api/client.ts tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts
 git commit -m "feat(onboarding): wait for first memory to become searchable"
 ```
 
@@ -240,6 +295,7 @@ git commit -m "feat(onboarding): wait for first memory to become searchable"
 - Test: `tests/unit/web-product-contracts.test.ts`
 - Test: `tests/unit/landing-session.test.ts`
 - Test: `tests/unit/auth-api.test.ts`
+- Test: `tests/unit/web-auth-client.test.ts`
 
 **Interfaces:**
 - Produces: `OnboardingPhase = 'workspace' | 'memory' | 'ask' | 'complete'`
@@ -292,8 +348,11 @@ Change workspace creation so it never flips `onboarded` to true. Preserve legacy
 accounts that already have `onboarded: true`. Post the workspace once, await a
 `session.refresh()` that returns the validated new `SessionState`, and transition
 to memory. On mount: `onboarded: true` is complete; otherwise workspace-null is
-workspace, and workspace-present fetches questions to resume at ask, memory, or
-explicit provider/indexing error. Workspace failure stays in workspace; later
+workspace, and workspace-present first reads the durable active attempt.
+Pending/indeterminate resumes at reconciliation with Store disabled; searchable
+then fetches questions and resumes Ask; conclusively failed/no attempt resumes
+Memory; store/provider failure is an explicit retryable system state, never
+empty. Workspace failure stays in workspace; later
 failures never call workspace creation again.
 
 Harden workspace creation itself with configured exact Origin, CSRF, current
@@ -306,7 +365,7 @@ Add exact `POST /api/workspace/onboarding/complete` body
 `{ outcome: 'asked' | 'skipped' }`. Require configured exact Origin, CSRF,
 current session, session binding, and a bounded account mutation; persist
 `onboarded: true`, perform exact readback, then refresh. The UI calls it only
-after a terminal private Ask or an explicit Skip and does not render completion
+after a qualifying evidence-backed private Ask or an explicit Skip and does not render completion
 until readback succeeds.
 
 - [ ] **Step 5: Implement paste preview and explicit store**
@@ -315,7 +374,7 @@ Keep title/text and the preview token in component memory only, call preview,
 render kept and unread sentences, and enable `STORE THIS MEMORY` only when the
 latest binding-matched preview has at least one kept statement. Send the exact
 same title/text plus `previewToken` to private ingest with
-`awaitSearchable: true`. For accepted-but-unsearchable or indeterminate results,
+`awaitSearchable: true` and `purpose: 'onboarding'`. For accepted-but-unsearchable or indeterminate results,
 retain the text, disable Store for that digest, enter a visible reconciliation
 state, and never automatically resubmit.
 
@@ -328,7 +387,8 @@ truthful empty state with Memory or Connectors navigation.
 Keep the selected `File` object in component state. Call
 `/api/workspace/connectors/file/preview`, render its extraction preview, then
 resend the same file and server-issued file preview token to
-`/api/workspace/connectors/file/import` only after explicit confirmation. Apply
+`/api/workspace/connectors/file/import` with the one exact bounded
+`purpose=onboarding` multipart marker only after explicit confirmation. Apply
 the same accepted/unsearchable/indeterminate reconciliation state and never
 automatic retry. Do not create a second parser/upload contract. On refresh,
 state plainly that a local file must be selected again.
@@ -360,7 +420,7 @@ Expected: all tests pass.
 - [ ] **Step 9: Commit the three-phase flow**
 
 ```bash
-git add src/auth/accounts.ts src/auth/store.ts src/api/router.ts web/src/onboarding/state.ts web/src/onboarding/Onboarding.tsx web/src/api/session.tsx web/src/landing/account-actions.ts tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts
+git add src/auth/accounts.ts src/auth/store.ts src/api/router.ts web/src/onboarding/state.ts web/src/onboarding/Onboarding.tsx web/src/api/session.tsx web/src/landing/account-actions.ts tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts tests/unit/web-auth-client.test.ts
 git commit -m "feat(onboarding): guide first memory into a real answer"
 ```
 
@@ -396,6 +456,11 @@ workspace label `acme / backend`, or account swap must never return public
 answers/evidence. `/api/explore/ask` is the only public Ask boundary; legacy
 `/api/ask` refuses rather than guessing scope.
 
+Add completion-predicate tests: `ANSWERED`, `PARTIAL`, and evidence-backed
+`CONFLICT` with nonempty strictly decoded evidence may complete; `SYSTEM_ERROR`,
+`NO_EVIDENCE`, empty/malformed evidence, transport/decode failure, and discarded
+account epochs must make zero completion calls.
+
 - [ ] **Step 2: Run the UI contracts and verify RED**
 
 Run: `npx vitest run tests/unit/web-product-contracts.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts --maxWorkers=1`
@@ -416,8 +481,12 @@ checked before render.
 Post `{ subject, predicate, via }` from the selected server suggestion to
 `/api/workspace/ask` with the current binding. Render loading, answer,
 abstention, conflict, or fail-closed system error through `AnswerEvidence`.
-After a terminal binding-matched response, call the durable onboarding-complete
+Only a binding-matched authenticated 2xx envelope with status `ANSWERED` or
+`PARTIAL`, or an evidence-backed `CONFLICT`, and at least one strictly decoded
+nonempty evidence item qualifies. Then call the durable onboarding-complete
 endpoint with `outcome: 'asked'`; only exact readback exposes `OPEN LACUNA`.
+`SYSTEM_ERROR`, `NO_EVIDENCE`, transport/decode failure, empty evidence, or a
+discarded epoch never calls completion and keeps Ask retry/explicit Skip visible.
 Completion navigates to the relevant Ask or Memory route. Session loss/account
 swap aborts and discards the answer and completion call.
 

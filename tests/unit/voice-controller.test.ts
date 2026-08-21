@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   VoiceController, VoiceRuntimeError, voiceCaptureControls, type MicrophoneSession, type PlannedVoiceAnswer,
-  type PlaybackHandlers, type RuntimeFailure, type SignalFrame, type TranscriptHandlers,
+  type PlaybackAnalysis, type PlaybackHandlers, type RuntimeFailure, type SignalFrame, type TranscriptHandlers,
   type TranscriptSession, type VoiceRuntime,
 } from '../../web/src/voice/controller.js';
 
@@ -44,6 +44,7 @@ class FakeRuntime implements VoiceRuntime {
   tokenFailure: RuntimeFailure | null = null;
   transcriptFailure: RuntimeFailure | null = null;
   speechFailure: RuntimeFailure | null = null;
+  playbackAnalysis: PlaybackAnalysis = 'live';
   holdSpeech = false;
   microphoneCalls = 0;
   queryCalls: string[] = [];
@@ -52,6 +53,16 @@ class FakeRuntime implements VoiceRuntime {
   transcriptClosed = 0;
   transcriptCommits = 0;
   calls: string[] = [];
+  disposed = false;
+
+  preparePlayback(): void {
+    this.calls.push('preparePlayback');
+  }
+
+  dispose(): void {
+    this.calls.push('dispose');
+    this.disposed = true;
+  }
 
   async openMicrophone(_signal: AbortSignal, _onSignal: (frame: SignalFrame) => void): Promise<MicrophoneSession> {
     this.calls.push('microphone');
@@ -82,6 +93,7 @@ class FakeRuntime implements VoiceRuntime {
   }
 
   async query(committedTranscript: string, _signal: AbortSignal): Promise<PlannedVoiceAnswer> {
+    this.calls.push('query');
     this.queryCalls.push(committedTranscript);
     return this.queryResult;
   }
@@ -89,7 +101,7 @@ class FakeRuntime implements VoiceRuntime {
   async speak(spokenAnswer: string, handlers: PlaybackHandlers, signal: AbortSignal): Promise<void> {
     this.spoken.push(spokenAnswer);
     if (this.speechFailure !== null) throw new VoiceRuntimeError(this.speechFailure);
-    handlers.started();
+    handlers.started(this.playbackAnalysis);
     handlers.signal({ rms: 0.2, waveform: [0, 0.4, -0.2] });
     if (!this.holdSpeech) return;
     await new Promise<void>((resolve, reject) => {
@@ -100,6 +112,22 @@ class FakeRuntime implements VoiceRuntime {
 }
 
 describe('VoiceController successful context outcomes', () => {
+  it('primes playback inside the typed user gesture before querying', async () => {
+    const runtime = new FakeRuntime();
+    const controller = new VoiceController(runtime);
+    await controller.submitTyped('Where does session state live?');
+    expect(runtime.calls.slice(0, 2)).toEqual(['preparePlayback', 'query']);
+  });
+
+  it('primes playback again for an explicit replay gesture', async () => {
+    const runtime = new FakeRuntime();
+    const controller = new VoiceController(runtime);
+    await controller.submitTyped('Where does session state live?');
+    runtime.calls.length = 0;
+    await controller.replay();
+    expect(runtime.calls[0]).toBe('preparePlayback');
+  });
+
   it('runs current answer through committed transcript, same query result, evidence and real playback', async () => {
     const runtime = new FakeRuntime();
     const controller = new VoiceController(runtime);
@@ -108,7 +136,7 @@ describe('VoiceController successful context outcomes', () => {
 
     await controller.start();
     expect(controller.snapshot.state).toBe('LISTENING');
-    expect(runtime.calls.slice(0, 3)).toEqual(['token', 'microphone', 'transcript']);
+    expect(runtime.calls.slice(1, 4)).toEqual(['token', 'microphone', 'transcript']);
     runtime.handlers?.partial('Where does session state live');
     expect(controller.snapshot.state).toBe('PARTIAL_TRANSCRIPT');
     expect(runtime.queryCalls).toEqual([]);
@@ -176,6 +204,19 @@ describe('VoiceController successful context outcomes', () => {
     expect(controller.snapshot.canReplay).toBe(true);
     expect(runtime.spoken).toEqual(['I could not read that as a question for this workspace.']);
   });
+
+  it('speaks without claiming a playback signal when metering is unavailable', async () => {
+    const runtime = new FakeRuntime();
+    runtime.playbackAnalysis = 'unavailable';
+    const controller = new VoiceController(runtime);
+    const seen: typeof controller.snapshot[] = [];
+    controller.subscribe((snapshot) => seen.push(snapshot));
+
+    await controller.submitTyped('Where does session state live?');
+
+    expect(seen.some((snapshot) => snapshot.state === 'SPEAKING' && snapshot.signal === null
+      && snapshot.playbackAnalysis === 'unavailable')).toBe(true);
+  });
 });
 
 describe('VoiceController failures and adversarial lifecycle', () => {
@@ -200,7 +241,7 @@ describe('VoiceController failures and adversarial lifecycle', () => {
     const tokenController = new VoiceController(token);
     await tokenController.start();
     expect(tokenController.snapshot.state).toBe('PROVIDER_UNAVAILABLE');
-    expect(token.calls).toEqual(['token']);
+    expect(token.calls).toEqual(['preparePlayback', 'token']);
     expect(token.microphoneCalls).toBe(0);
 
     const stt = new FakeRuntime();
@@ -218,6 +259,16 @@ describe('VoiceController failures and adversarial lifecycle', () => {
     expect(controller.snapshot.state).toBe('PROVIDER_UNAVAILABLE');
     expect(controller.snapshot.planned?.answer?.answer).toBe('Postgres');
     expect(controller.snapshot.planned?.answer?.evidence).toHaveLength(1);
+  });
+
+  it('keeps replay after the browser blocks native play', async () => {
+    const runtime = new FakeRuntime();
+    runtime.speechFailure = 'playback_blocked';
+    const controller = new VoiceController(runtime);
+    await controller.submitTyped('Where does session state live?');
+    expect(controller.snapshot).toMatchObject({
+      state: 'ERROR', failure: 'playback_blocked', canReplay: true,
+    });
   });
 
   it('interrupts active real playback and can barge into a new capture', async () => {
@@ -269,5 +320,14 @@ describe('VoiceController failures and adversarial lifecycle', () => {
     expect(runtime.transcriptCommits).toBe(1);
     expect(runtime.stopped).toBe(1);
     expect(runtime.queryCalls).toEqual([]);
+  });
+
+  it('releases runtime-owned playback resources when disposed', () => {
+    const runtime = new FakeRuntime();
+    const controller = new VoiceController(runtime);
+
+    controller.dispose();
+
+    expect(runtime.disposed).toBe(true);
   });
 });

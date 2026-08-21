@@ -1,6 +1,7 @@
 import { advanceVoice, type AudioSignal, type VoiceEvent, type VoiceState } from './states';
 
-export type RuntimeFailure = 'permission_denied' | 'rate_limited' | 'provider_unavailable' | 'interrupted' | 'error';
+export type RuntimeFailure = 'permission_denied' | 'rate_limited' | 'provider_unavailable' | 'playback_blocked' | 'interrupted' | 'error';
+export type PlaybackAnalysis = 'live' | 'unavailable';
 
 /**
  * Keep recovery controls available after a speech or local playback failure;
@@ -79,11 +80,13 @@ export interface TranscriptHandlers {
 }
 
 export interface PlaybackHandlers {
-  readonly started: () => void;
+  readonly started: (analysis: PlaybackAnalysis) => void;
   readonly signal: (frame: SignalFrame) => void;
 }
 
 export interface VoiceRuntime {
+  preparePlayback(): void;
+  dispose(): void;
   openMicrophone(signal: AbortSignal, onSignal: (frame: SignalFrame) => void): Promise<MicrophoneSession>;
   singleUseToken(signal: AbortSignal): Promise<string>;
   openTranscript(
@@ -102,6 +105,7 @@ export interface VoiceSnapshot {
   readonly transcript: string;
   readonly planned: PlannedVoiceAnswer | null;
   readonly signal: AudioSignal;
+  readonly playbackAnalysis: PlaybackAnalysis | null;
   readonly rms: number;
   readonly waveform: readonly number[];
   readonly failure: RuntimeFailure | null;
@@ -146,7 +150,7 @@ export class VoiceController {
   readonly #listeners = new Set<Listener>();
   #snapshot: VoiceSnapshot = {
     state: 'READY', partialTranscript: '', transcript: '', planned: null,
-    signal: null, rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
+    signal: null, playbackAnalysis: null, rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
   };
   #generation = 0;
   #abort: AbortController | null = null;
@@ -172,6 +176,7 @@ export class VoiceController {
 
   async start(): Promise<void> {
     if (this.#busy()) return;
+    this.#runtime.preparePlayback();
     if (this.#snapshot.state === 'SPEAKING') {
       await this.bargeIn();
       return;
@@ -241,7 +246,7 @@ export class VoiceController {
     this.#move('interrupt');
     this.#update({
       partialTranscript: '', signal: null, rms: 0,
-      waveform: EMPTY_WAVEFORM, failure: 'interrupted',
+      waveform: EMPTY_WAVEFORM, playbackAnalysis: null, failure: 'interrupted',
     });
   }
 
@@ -263,6 +268,7 @@ export class VoiceController {
 
   async replay(): Promise<void> {
     if (this.#busy() || this.#snapshot.state === 'SPEAKING' || this.#spokenAnswer === null) return;
+    this.#runtime.preparePlayback();
     const generation = this.#beginFromReady();
     await this.#play(generation, this.#spokenAnswer);
   }
@@ -271,6 +277,7 @@ export class VoiceController {
     if (this.#busy()) return;
     const committed = text.trim();
     if (committed === '') return;
+    this.#runtime.preparePlayback();
     if (this.#snapshot.state !== 'READY') this.#move('retry');
     const generation = this.#begin('typed_commit');
     this.#update({ transcript: committed, partialTranscript: '', signal: null });
@@ -283,6 +290,7 @@ export class VoiceController {
     this.#abort = null;
     this.#closeAudio();
     this.#listeners.clear();
+    this.#runtime.dispose();
   }
 
   #busy(): boolean {
@@ -304,7 +312,7 @@ export class VoiceController {
       ...this.#snapshot,
       state: advanceVoice(this.#snapshot.state, event),
       partialTranscript: '', transcript: '', planned: null, signal: null,
-      rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
+      playbackAnalysis: null, rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
     };
     this.#emit();
     return this.#generation;
@@ -315,7 +323,10 @@ export class VoiceController {
     this.#abort?.abort();
     this.#closeAudio();
     this.#abort = new AbortController();
-    this.#snapshot = { ...this.#snapshot, state: this.#outcome, signal: null, failure: null };
+    this.#snapshot = {
+      ...this.#snapshot, state: this.#outcome, signal: null, playbackAnalysis: null,
+      rms: 0, waveform: EMPTY_WAVEFORM, failure: null,
+    };
     this.#emit();
     return this.#generation;
   }
@@ -366,19 +377,23 @@ export class VoiceController {
     if (this.#abort === null) return;
     try {
       await this.#runtime.speak(spokenAnswer, {
-        started: () => {
+        started: (analysis) => {
           if (generation !== this.#generation) return;
           this.#move('playback_started');
-          this.#update({ signal: 'playback' });
+          this.#update({
+            playbackAnalysis: analysis,
+            signal: analysis === 'live' ? 'playback' : null,
+          });
         },
         signal: (frame) => {
-          if (generation !== this.#generation || this.#snapshot.state !== 'SPEAKING') return;
+          if (generation !== this.#generation || this.#snapshot.state !== 'SPEAKING'
+            || this.#snapshot.playbackAnalysis !== 'live') return;
           this.#update({ signal: 'playback', rms: frame.rms, waveform: frame.waveform });
         },
       }, this.#abort.signal);
       if (generation !== this.#generation || this.#abort.signal.aborted) return;
       if (this.#snapshot.state === 'SPEAKING') this.#move('playback_finished');
-      this.#update({ signal: null, rms: 0, waveform: EMPTY_WAVEFORM });
+      this.#update({ signal: null, playbackAnalysis: null, rms: 0, waveform: EMPTY_WAVEFORM });
     } catch (error) {
       if (generation === this.#generation) this.#fail(this.#failureFor(error));
     }
@@ -403,7 +418,7 @@ export class VoiceController {
           : failure === 'interrupted' ? 'interrupt'
             : 'fail';
     this.#move(event);
-    this.#update({ failure, signal: null, rms: 0, waveform: EMPTY_WAVEFORM });
+    this.#update({ failure, signal: null, playbackAnalysis: null, rms: 0, waveform: EMPTY_WAVEFORM });
   }
 
   #move(event: VoiceEvent): void {

@@ -11,6 +11,7 @@ import {
   type TranscriptSession,
   type VoiceRuntime,
 } from './controller';
+import { PlaybackSession } from './playback';
 import { readScribeEvent } from './scribe-events';
 
 const SCRIBE_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
@@ -271,89 +272,20 @@ async function acquireAudio(response: Response, callerSignal: AbortSignal): Prom
   return blob;
 }
 
-async function playAudio(blob: Blob, handlers: PlaybackHandlers, signal: AbortSignal): Promise<void> {
-  const url = URL.createObjectURL(blob);
-  const audioElement = new Audio(url);
-  const audioContext = new AudioContext({ latencyHint: 'interactive' });
-  const source = audioContext.createMediaElementSource(audioElement);
-  const analyser = audioContext.createAnalyser();
-  analyser.fftSize = 1024;
-  source.connect(analyser);
-  analyser.connect(audioContext.destination);
-  const samples = new Float32Array(new ArrayBuffer(analyser.fftSize * 4));
-  let raf = 0;
-  let started = false;
-
-  const measure = () => {
-    if (audioElement.paused || audioElement.ended) return;
-    handlers.signal(frameFrom(analyser, samples));
-    raf = requestAnimationFrame(measure);
-  };
-  const onPlaying = () => {
-    if (!started) {
-      started = true;
-      handlers.started();
-    }
-    raf = requestAnimationFrame(measure);
-  };
-  audioElement.addEventListener('playing', onPlaying);
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      let finished = false;
-      const cleanup = () => {
-        audioElement.removeEventListener('ended', ended);
-        audioElement.removeEventListener('error', failed);
-        signal.removeEventListener('abort', aborted);
-      };
-      const finish = (error?: VoiceRuntimeError) => {
-        if (finished) return;
-        finished = true;
-        cleanup();
-        if (error === undefined) resolve();
-        else reject(error);
-      };
-      const ended = () => finish();
-      const failed = () => finish(new VoiceRuntimeError('error'));
-      const aborted = () => {
-        audioElement.pause();
-        finish(new VoiceRuntimeError('interrupted'));
-      };
-      audioElement.addEventListener('ended', ended, { once: true });
-      audioElement.addEventListener('error', failed, { once: true });
-      signal.addEventListener('abort', aborted, { once: true });
-      if (signal.aborted) {
-        aborted();
-        return;
-      }
-      void audioContext.resume()
-        .then(() => {
-          if (signal.aborted) {
-            aborted();
-            return;
-          }
-          return audioElement.play();
-        })
-        .catch(() => finish(new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error')));
-    });
-  } finally {
-    cancelAnimationFrame(raf);
-    audioElement.pause();
-    audioElement.removeEventListener('playing', onPlaying);
-    source.disconnect();
-    analyser.disconnect();
-    audioElement.removeAttribute('src');
-    audioElement.load();
-    URL.revokeObjectURL(url);
-    void audioContext.close();
-  }
-}
-
 export class BrowserVoiceRuntime implements VoiceRuntime {
   readonly #base: string;
+  readonly #playback = new PlaybackSession();
 
   constructor(base: string) {
     this.#base = base;
+  }
+
+  preparePlayback(): void {
+    this.#playback.prepare();
+  }
+
+  dispose(): void {
+    this.#playback.dispose();
   }
 
   async openMicrophone(signal: AbortSignal, onSignal: (frame: SignalFrame) => void): Promise<MicrophoneSession> {
@@ -494,6 +426,6 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
     } finally {
       acquisition.dispose();
     }
-    await playAudio(audio, handlers, signal);
+    await this.#playback.play(audio, handlers, signal);
   }
 }

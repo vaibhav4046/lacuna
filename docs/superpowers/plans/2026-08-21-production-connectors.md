@@ -509,29 +509,50 @@ git commit -m "feat(connectors): expose truthful private import workflows"
 ### Task 8: Workspace-scoped Hydra graph impact over imported memory
 
 **Files:**
+- Modify: `src/retrieval/resolve.ts`
+- Modify: `src/hydra/cloud.ts`
+- Modify: `src/hydra/cloud-source.ts`
+- Modify: `src/hydra/relations.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
 - Modify: `src/api/impact.ts`
 - Modify: `web/src/app/routes/proof.tsx`
 - Test: `tests/unit/graph-impact.test.ts`
 - Test: `tests/unit/graph-api.test.ts`
+- Test: `tests/unit/retrieval-resolve.test.ts`
+- Test: `tests/unit/cloud-source.test.ts`
+- Test: `tests/unit/relations.test.ts`
 - Create: `tests/unit/workspace-impact-api.test.ts`
 
 **Interfaces:**
 - Adds: `GET /api/workspace/impact?subject=<bounded-name>`
 - Consumes: workspace-scoped `HydraCloud.withCollection(collection).query(...,
-  { type: 'graph_context' })` and `.relations()`
+  { type: 'all' })`, `.relations()`, and `HydraSource.subject()` views
+- Produces: one pure shared standing-policy evaluator used by resolver and impact
 - Produces: raw reached Hydra relation ids/context plus accepted, rejected,
   duplicate, affected, depth, and elapsed accounting
 
 - [ ] **Step 1: Write the private-scope and accounting regressions**
 
 Require `401` without a session, derive the collection only from the account,
-reject missing/empty/overlong/duplicate subject controls, apply the graph-walk
-budget, and return `Cache-Control: no-store`. Use two fake accounts to prove
-their Hydra graph calls cannot cross collections. Assert
-`reached === accepted.length + rejected.length + duplicates`, every returned
-edge retains Hydra id/context, and no result leaks collection or email.
+reject missing/empty/overlong/duplicate/unknown subject controls before Hydra,
+apply one total deadline/abort and byte/row/read/walk budget, and return
+`Cache-Control: no-store` plus `nosniff`. Use two fake accounts to prove their
+query, relation, and subject-view calls cannot cross collections. Assert every
+seed and later-hop candidate is classified exactly once so
+`reached === accepted.length + rejected.length + duplicates`; retain provider
+duplicates for classification and reject inconsistent reuse of a relationship
+id as malformed. Preserve real relationship id, actual chunk id, context, and
+independent source id(s) without relabeling fields. No result leaks collection,
+database, workspace, email, query body, token, or provider envelope.
+
+Cover shuffled claim order, current/historical/retracted/negative standing,
+single-value contradiction, multi-value predicates, matching and missing
+mentions, unrelated predicates, explicit direction/inverse mapping, cycles,
+depth/node/candidate/provider-row/response-byte/subject-read bounds, peer
+cancellation, and strict empty-versus-malformed decoding. Include one decisive
+fixture where Hydra seeds old/new edges, workspace policy rejects the superseded
+old edge, accepts the current edge, and only that edge expands to a second hop.
 
 - [ ] **Step 2: Run focused graph tests and verify RED**
 
@@ -541,29 +562,54 @@ Expected: the private endpoint and collection-aware graph functions are absent.
 
 - [ ] **Step 3: Implement the collection-aware graph boundary**
 
+Extract the resolver's complete claim-standing policy into one pure evaluator
+and make resolver, impact, and proof graph reuse it. It must evaluate all
+matching claims deterministically under the same supersession, polarity,
+contradiction, predicate-cardinality, and mention rules; never use first-match
+claim order. A structural candidate crosses only when a matching live claim and
+matching `Mention` support that directed entity pair. Use a closed predicate
+direction map; never reverse one-way rows merely because traversal reaches the
+target, while explicitly defined inverse predicates may swap direction.
+
 Expose separate collection-accepting graph functions from `api/index.ts`; do
-not change the public demo closures. For the authenticated collection, obtain
-the seed through Hydra graph-context query and the bounded edge inventory
-through Hydra relations, then apply `graphImpact` to the same workspace
-inventory used by Ask. Preserve the existing rule that ordinary Ask does not
-enable graph context because stale/unmarked relation edges are candidates, not
-resolved truth.
+not change the public demo closures. Construct all query/relation/source
+closures from `cloud.withCollection(serverDerivedWorkspace)`. Query with
+`type: 'all'` (or omit it): `HydraCloud.query` itself enables graph context, and
+`graph_context` is not a valid context type. Build policy state only from
+bounded workspace `HydraSource.subject()` views, never the bundled corpus or UI
+strings. Normalize one bounded query seed and one bounded relation inventory,
+then breadth-first walk to depth at most 3 and 40 canonical entities. Cache one
+subject read per canonical entity, share one signal/deadline across peer calls,
+abort the peer on failure, and cap response bytes before JSON parsing. Empty is
+an honest result; malformed provider shape fails closed and generically.
+
+Count every candidate at every depth. Deduplicate by real Hydra relationship id
+when present, otherwise a canonical directed tuple including predicate, actual
+chunk id when present, and context digest. Preserve duplicates for accounting;
+inconsistent repeated ids are malformed. `affected` contains only unique nodes
+reached by accepted edges, and `depth` is the maximum accepted depth. Preserve
+the existing rule that ordinary Ask does not enable graph context because
+Hydra relations are candidates until Lacuna proves current standing.
 
 - [ ] **Step 4: Make the proof UI follow its actual scope**
 
 `GraphImpact` consumes `useScope()`: public explore reads the existing fixed
 demo impact; a private workspace offers a bounded subject field and reads only
-`/api/workspace/impact`. Label reached candidates, policy rejections, and final
-affected nodes distinctly. Never imply Hydra itself resolved temporal standing.
+`/api/workspace/impact`. Label reached candidates, duplicates, policy
+rejections, and final affected nodes distinctly, with copy equivalent to
+“HydraDB supplied candidate relations; Lacuna evaluated current standing.”
+Render missing provenance, empty, error, and budget states explicitly and
+accessibly. Never render rejected edges as proof or imply Hydra itself resolved
+temporal standing.
 
 - [ ] **Step 5: Run focused graph/UI tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/cloud-source.test.ts tests/unit/relations.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
 
 - [ ] **Step 6: Commit the graph-native workspace feature**
 
 ```bash
-git add src/api/router.ts api/index.ts src/api/impact.ts web/src/app/routes/proof.tsx tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/web-product-contracts.test.ts
+git add src/retrieval/resolve.ts src/hydra/cloud.ts src/hydra/cloud-source.ts src/hydra/relations.ts src/api/router.ts api/index.ts src/api/impact.ts web/src/app/routes/proof.tsx tests/unit/retrieval-resolve.test.ts tests/unit/cloud-source.test.ts tests/unit/relations.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/web-product-contracts.test.ts
 git commit -m "feat(hydra): scope native graph impact to private memory"
 ```
 

@@ -175,6 +175,29 @@ export interface VoiceIntentRequest {
   readonly scope: VoiceScope;
 }
 
+interface AgentRunRequest {
+  readonly task: string;
+  readonly agentId?: string;
+  readonly requestId?: string;
+}
+
+/** Closed body for a browser run. Only voice may supply a durable request id. */
+function readAgentRunRequest(value: unknown): AgentRunRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const body = value as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(body);
+  if (keys.some((key) => key !== 'task' && key !== 'agentId' && key !== 'requestId')) return null;
+  if (typeof body['task'] !== 'string' || body['task'].trim() === '' || body['task'].length > 600) return null;
+  if (body['agentId'] !== undefined && typeof body['agentId'] !== 'string') return null;
+  if (body['requestId'] !== undefined
+    && (typeof body['requestId'] !== 'string' || !VOICE_REQUEST_ID.test(body['requestId']))) return null;
+  return {
+    task: body['task'],
+    ...(typeof body['agentId'] === 'string' ? { agentId: body['agentId'] } : {}),
+    ...(typeof body['requestId'] === 'string' ? { requestId: body['requestId'] } : {}),
+  };
+}
+
 /** Origin headers serialize to the origin only. Paths and trailing slashes are not equivalent input. */
 export function exactVoiceOrigin(origin: string | undefined, expectedOrigin: string): boolean {
   if (origin === undefined) return false;
@@ -1774,26 +1797,33 @@ export class ApiRouter {
         send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
         return HANDLED;
       }
-      const task = body?.['task'];
-      if (typeof task !== 'string' || task.trim() === '' || task.length > 600) {
-        send(response, 422, { error: 'task_required' });
+      const runRequest = readAgentRunRequest(body);
+      if (runRequest === null) {
+        send(response, 422, { error: 'agent_run' });
         return HANDLED;
       }
       const workspace = workspaceCollection(account.email);
-      const requestedAgent = body?.['agentId'];
+      const requestedAgent = runRequest.agentId;
       if (requestedAgent !== undefined && requestedAgent !== builtInAgentId(workspace, 'RESEARCHER')) {
         send(response, 403, { error: 'agent_scope' });
         return HANDLED;
       }
-      const runBudget = this.#privateRunLimit.check(workspace, this.#now());
+      const idempotencyKey = runRequest.requestId === undefined
+        ? `web:${randomBytes(16).toString('hex')}`
+        : `voice:${runRequest.requestId}`;
+      const runBudget = this.#privateRunLimit.check(
+        workspace,
+        this.#now(),
+        runRequest.requestId === undefined ? undefined : idempotencyKey,
+      );
       if (!runBudget.allowed) {
         sendRateLimited(response, runBudget.retryAfterSeconds, 'workspace_run_budget');
         return HANDLED;
       }
       try {
         await this.#prepareRuntime(workspace);
-        send(response, 200, await runAgent(workspace, task, {
-          idempotencyKey: `web:${randomBytes(16).toString('hex')}`,
+        send(response, 200, await runAgent(workspace, runRequest.task, {
+          idempotencyKey,
         }));
       } catch (error) {
         if (error instanceof RunBudgetExceeded) {

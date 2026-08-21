@@ -779,40 +779,6 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      if (path === '/api/auth/password') {
-        const verdict = this.#recoverLimit.check(sourceKey(request), this.#now());
-        if (!verdict.allowed) {
-          send(response, 429, { error: 'rate' });
-          return HANDLED;
-        }
-        const password = body?.['password'];
-        if (typeof password !== 'string' || password.length < MIN_PASSWORD_CHARS || password.length > MAX_PASSWORD_CHARS) {
-          send(response, 422, { error: 'password' });
-          return HANDLED;
-        }
-        const account = await this.#accountFor(cookies);
-        if (account === null) {
-          send(response, 401, { error: 'session' });
-          return HANDLED;
-        }
-
-        try {
-          const recovery = newRecoveryCode();
-          const sessionVersion = newSessionVersion();
-          await this.#store.update({
-            ...account,
-            passwordHash: await hashPassword(password),
-            recoveryHash: await hashPassword(canonicalRecoveryCode(recovery)),
-            sessionVersion,
-          });
-          const token = await this.#store.startSession(account.email, this.#now(), sessionVersion);
-          send(response, 200, { signedIn: true, recoveryCode: recovery }, [this.#sessionCookie(token)]);
-        } catch (error) {
-          send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
-        }
-        return HANDLED;
-      }
-
       const email = normaliseEmail(body?.['email']);
       if (email === null) {
         send(response, 400, { error: 'email' });
@@ -2022,7 +1988,7 @@ export class ApiRouter {
       }
 
       try {
-        await this.#store.update({ ...account, workspace: name.trim(), onboarded: true });
+        await this.#store.updateWorkspace(account.email, name.trim());
         send(response, 204, null);
       } catch (error) {
         send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });

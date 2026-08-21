@@ -36,6 +36,8 @@ export interface Accounts {
   find(email: string): Promise<Account | null>;
   /** Null when the email is taken. The caller reports that as a conflict. */
   create(account: Account): Promise<Account | null>;
+  /** Update display/onboarding metadata without rewriting credential state. */
+  updateWorkspace(email: string, workspace: string): Promise<void>;
   update(account: Account): Promise<void>;
   /** Returns the raw token. Only its hash is stored. */
   /** Mint only if the account still has the credential epoch the caller authenticated. */
@@ -66,6 +68,10 @@ export class FileAccounts implements Accounts {
 
   async update(account: Account): Promise<void> {
     this.#store.update(account);
+  }
+
+  async updateWorkspace(email: string, workspace: string): Promise<void> {
+    this.#store.updateWorkspace(email, workspace);
   }
 
   async startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string> {
@@ -121,6 +127,10 @@ export class CloudAccounts implements Accounts {
     return `lacuna:session:${tokenHash.slice(0, 32)}`;
   }
 
+  #profileId(email: string): string {
+    return `lacuna:profile:${createHash('sha256').update(email.toLowerCase(), 'utf8').digest('hex').slice(0, 32)}`;
+  }
+
   async #read<T>(id: string): Promise<T | null> {
     const source = await this.#cloud.inspect(id, 10_000, this.#collection);
     if (source === null) return null;
@@ -161,7 +171,12 @@ export class CloudAccounts implements Accounts {
 
   async find(email: string): Promise<Account | null> {
     const value = await this.#read<unknown>(this.#accountId(email));
-    return isAccount(value) ? value : null;
+    if (!isAccount(value)) return null;
+    const profile = await this.#read<unknown>(this.#profileId(email));
+    if (typeof profile !== 'object' || profile === null) return value;
+    const fields = profile as Record<string, unknown>;
+    if (typeof fields['workspace'] !== 'string' || fields['workspace'] === '' || fields['onboarded'] !== true) return value;
+    return { ...value, workspace: fields['workspace'], onboarded: true };
   }
 
   async create(account: Account): Promise<Account | null> {
@@ -177,6 +192,13 @@ export class CloudAccounts implements Accounts {
 
   async update(account: Account): Promise<void> {
     await this.#write(this.#accountId(account.email), account.email, account);
+  }
+
+  async updateWorkspace(email: string, workspace: string): Promise<void> {
+    // Workspace labels are deliberately isolated from credentials. A request
+    // authenticated just before password recovery may finish afterwards, but
+    // this record can no longer overwrite the rotated hashes/session epoch.
+    await this.#write(this.#profileId(email), 'workspace profile', { workspace, onboarded: true });
   }
 
   async startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string> {

@@ -23,6 +23,7 @@ export const REQUEST_TIMED_OUT = 'Request timed out.';
 export const PERMISSION_REQUIRED = 'Permission required.';
 
 const REASONS: ReadonlySet<string> = new Set([CONNECTION_FAILED, REQUEST_TIMED_OUT, PERMISSION_REQUIRED]);
+const REQUEST_TIMEOUT_MS = 15_000;
 
 function reasonForStatus(status: number): string {
   if (status === 401 || status === 403) return PERMISSION_REQUIRED;
@@ -35,13 +36,30 @@ function reasonFor(error: unknown): string {
 }
 
 export async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(path, {
-    signal,
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
-  });
-  if (!response.ok) throw new Error(reasonForStatus(response.status));
-  return (await response.json()) as T;
+  const control = new AbortController();
+  const relayAbort = () => control.abort();
+  let timedOut = false;
+  if (signal.aborted) control.abort();
+  else signal.addEventListener('abort', relayAbort, { once: true });
+  const timeout = globalThis.setTimeout(() => {
+    timedOut = true;
+    control.abort();
+  }, REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(path, {
+      signal: control.signal,
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(reasonForStatus(response.status));
+    return (await response.json()) as T;
+  } catch (error) {
+    if (timedOut && error instanceof Error && error.name === 'AbortError') throw new Error(REQUEST_TIMED_OUT);
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
+    signal.removeEventListener('abort', relayAbort);
+  }
 }
 
 /**
@@ -73,7 +91,6 @@ export function useLoaded<T>(path: string): Loaded<T> {
 
 /** The name of the double-submit cookie the server sets for mutations. */
 const CSRF_COOKIE = 'lacuna_csrf';
-const MUTATION_TIMEOUT_MS = 15_000;
 
 /** The double submit header, for a caller that builds its own request. */
 export function csrfHeaders(): Readonly<Record<string, string>> {
@@ -112,7 +129,7 @@ export interface PostResult {
 export async function postJson(path: string, body: unknown): Promise<PostResult> {
   const send = async (): Promise<Response> => {
     const control = new AbortController();
-    const timeout = globalThis.setTimeout(() => control.abort(), MUTATION_TIMEOUT_MS);
+    const timeout = globalThis.setTimeout(() => control.abort(), REQUEST_TIMEOUT_MS);
     try {
       return await fetch(path, {
         method: 'POST',

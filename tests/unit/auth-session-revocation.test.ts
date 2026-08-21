@@ -82,6 +82,27 @@ async function provesStaleAuthenticationCannotMint(accounts: Accounts): Promise<
     .rejects.toBeInstanceOf(CredentialChanged);
 }
 
+async function provesWorkspaceUpdateCannotResurrect(accounts: Accounts): Promise<void> {
+  const now = Date.now();
+  const originalVersion = newSessionVersion();
+  const rotatedVersion = newSessionVersion();
+  const original: Account = { ...ACCOUNT, sessionVersion: originalVersion };
+  expect(await accounts.create(original)).not.toBeNull();
+  const oldSession = await accounts.startSession(EMAIL, now, originalVersion);
+
+  // Model a workspace request that authenticated before credential rotation.
+  expect((await accounts.find(EMAIL))?.sessionVersion).toBe(originalVersion);
+  await accounts.update({ ...original, sessionVersion: rotatedVersion });
+  await accounts.updateWorkspace(EMAIL, 'Renamed workspace');
+
+  await expect(accounts.find(EMAIL)).resolves.toMatchObject({
+    sessionVersion: rotatedVersion,
+    workspace: 'Renamed workspace',
+    onboarded: true,
+  });
+  await expect(accounts.sessionFor(oldSession, now + 1)).resolves.toBeNull();
+}
+
 describe('credential-bound session versions', () => {
   it('revokes legacy sessions in the file-backed store and survives a restart', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'lacuna-session-version-'));
@@ -111,5 +132,15 @@ describe('credential-bound session versions', () => {
 
   it('refuses a Hydra-backed session when recovery rotates credentials after authentication', async () => {
     await provesStaleAuthenticationCannotMint(new CloudAccounts(new RecordCloud() as unknown as HydraCloud));
+  });
+
+  it('does not let a stale file-backed workspace update resurrect a rotated session', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'lacuna-workspace-race-'));
+    directories.push(directory);
+    await provesWorkspaceUpdateCannotResurrect(new FileAccounts(new AccountStore(directory)));
+  });
+
+  it('does not let a stale Hydra-backed workspace update resurrect a rotated session', async () => {
+    await provesWorkspaceUpdateCannotResurrect(new CloudAccounts(new RecordCloud() as unknown as HydraCloud));
   });
 });

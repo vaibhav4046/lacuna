@@ -49,6 +49,9 @@ class RotatingAccounts implements Accounts {
   find(email: string): Promise<Account | null> { return this.#delegate.find(email); }
   create(account: Account): Promise<Account | null> { return this.#delegate.create(account); }
   update(account: Account): Promise<void> { return this.#delegate.update(account); }
+  updateWorkspace(email: string, workspace: string): Promise<void> {
+    return this.#delegate.updateWorkspace(email, workspace);
+  }
   sessionFor(token: string, now: number): Promise<SessionRecord | null> {
     return this.#delegate.sessionFor(token, now);
   }

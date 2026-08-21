@@ -275,7 +275,8 @@ export class HydraCloud {
       // missing-record code may be converted to null.
       if (error instanceof HydraQueryError
         && (error.status === 404 || error.status === 400)
-        && error.engineMessage === 'FILE_NOT_FOUND') return null;
+        && (error.engineMessage === 'FILE_NOT_FOUND'
+          || (error.status === 404 && error.engineMessage === 'NOT_FOUND'))) return null;
       throw error;
     }
     const data = pick(body, 'data');

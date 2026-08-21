@@ -293,6 +293,28 @@ describe('read-before-write merge failures', () => {
     await expect(cloud.inspect('lacuna:missing', 5_000)).resolves.toBeNull();
   });
 
+  it('recognizes the context inspect 404 NOT_FOUND missing-record response', async () => {
+    const cloud = new HydraCloud(
+      {
+        baseUrl: 'https://api.example.invalid',
+        token: 'not-a-real-token',
+        database: 'lacuna',
+        collection: 'public-demo',
+      },
+      {
+        fetch: async () => Response.json({
+          detail: {
+            success: false,
+            message: 'No matching record',
+            error_code: 'NOT_FOUND',
+          },
+        }, { status: 404 }),
+      },
+    );
+
+    await expect(cloud.inspect('lacuna:missing', 5_000)).resolves.toBeNull();
+  });
+
   it('writes nothing when the existing index is temporarily unavailable', async () => {
     const sent: Sent[] = [];
 

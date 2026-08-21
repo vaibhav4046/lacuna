@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   VoiceController, VoiceRuntimeError, voiceCaptureControls, type MicrophoneSession, type PlannedVoiceAnswer,
   type PlaybackAnalysis, type PlaybackHandlers, type RuntimeFailure, type SignalFrame, type TranscriptHandlers,
-  type TranscriptSession, type VoiceRuntime,
+  type TranscriptSession, type VoiceCommittedTextResult, type VoiceRuntime,
 } from '../../web/src/voice/controller.js';
 
 function planned(
@@ -112,6 +112,40 @@ class FakeRuntime implements VoiceRuntime {
 }
 
 describe('VoiceController successful context outcomes', () => {
+  it('delegates committed text without calling the private Ask runtime', async () => {
+    const runtime = new FakeRuntime();
+    const delegated: string[] = [];
+    const controller = new VoiceController(runtime, async (text, signal, directAsk) => {
+      void signal;
+      void directAsk;
+      delegated.push(text);
+      return {
+        event: 'answer',
+        spoken: 'Workspace summary ready with 2 items.',
+        planned: null,
+      } satisfies VoiceCommittedTextResult;
+    });
+
+    await controller.submitTyped('summarize this workspace');
+
+    expect(delegated).toEqual(['summarize this workspace']);
+    expect(runtime.queryCalls).toEqual([]);
+    expect(runtime.spoken).toEqual(['Workspace summary ready with 2 items.']);
+    expect(controller.snapshot.planned).toBeNull();
+  });
+
+  it('lets an installed delegate explicitly preserve the direct Ask path', async () => {
+    const runtime = new FakeRuntime();
+    const controller = new VoiceController(runtime);
+    controller.setCommittedTextDelegate((_text, _signal, directAsk) => directAsk());
+
+    await controller.submitTyped('Where does session state live?');
+
+    expect(runtime.queryCalls).toEqual(['Where does session state live?']);
+    expect(runtime.spoken).toEqual(['Postgres']);
+    expect(controller.snapshot.planned?.answer?.answer).toBe('Postgres');
+  });
+
   it('primes playback inside the typed user gesture before querying', async () => {
     const runtime = new FakeRuntime();
     const controller = new VoiceController(runtime);
@@ -269,6 +303,24 @@ describe('VoiceController failures and adversarial lifecycle', () => {
     expect(controller.snapshot).toMatchObject({
       state: 'ERROR', failure: 'playback_blocked', canReplay: true,
     });
+  });
+
+  it('retries only delegated playback and never dispatches committed text twice', async () => {
+    const runtime = new FakeRuntime();
+    runtime.speechFailure = 'playback_blocked';
+    let dispatched = 0;
+    const controller = new VoiceController(runtime, async () => {
+      dispatched += 1;
+      return { event: 'answer', spoken: 'Run cancelled.', planned: null };
+    });
+
+    await controller.submitTyped('cancel the active run');
+    runtime.speechFailure = null;
+    await controller.retry();
+
+    expect(dispatched).toBe(1);
+    expect(runtime.spoken).toEqual(['Run cancelled.', 'Run cancelled.']);
+    expect(controller.snapshot.failure).toBeNull();
   });
 
   it('interrupts active real playback and can barge into a new capture', async () => {

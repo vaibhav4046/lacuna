@@ -5,8 +5,9 @@ import {
   STATE_FACTS, VOICE_EVENTS, VOICE_STATES, type VoiceEvent, type VoiceState,
 } from '../../src/voice/states.js';
 import {
-  advanceVoice, WEB_VOICE_EVENTS, WEB_VOICE_STATES,
+  advanceVoice, VOICE_STATE_COPY, WEB_VOICE_EVENTS, WEB_VOICE_STATES,
 } from '../../web/src/voice/states.js';
+import { VOICE_OPERATION_PHASES } from '../../web/src/voice/assistant-controller.js';
 
 function reachableFrom(start: VoiceState): ReadonlySet<VoiceState> {
   const seen = new Set<VoiceState>([start]);
@@ -59,6 +60,21 @@ describe('voice states', () => {
       expect(STATE_FACTS[state].detail.length).toBeGreaterThan(0);
       expect(stageOf(state) === null || STAGE_FACTS.some((stage) => stage.stage === stageOf(state))).toBe(true);
     }
+  });
+
+  it('keeps operation progress orthogonal to media state and does not claim every delegate uses HydraDB', () => {
+    expect(VOICE_OPERATION_PHASES).toEqual([
+      'idle', 'interpreting', 'awaiting_confirmation', 'executing',
+      'succeeded', 'refused', 'unavailable',
+    ]);
+    expect(VOICE_OPERATION_PHASES.some((phase) => (VOICE_STATES as readonly string[]).includes(phase))).toBe(false);
+    for (const state of ['CHECKING_CONTEXT', 'ANSWERED', 'ABSTAINED', 'CONTRADICTED'] as const) {
+      expect(stageOf(state)).toBeNull();
+    }
+    expect(STATE_FACTS.CHECKING_CONTEXT.detail).toContain('committed-text handler');
+    expect(VOICE_STATE_COPY.CHECKING_CONTEXT.detail).toContain('committed-text handler');
+    expect(STATE_FACTS.ANSWERED.status).toBe('Response ready');
+    expect(VOICE_STATE_COPY.ABSTAINED.status).toBe('Response unavailable');
   });
 });
 

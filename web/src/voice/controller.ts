@@ -63,6 +63,20 @@ export interface PlannedVoiceAnswer {
   readonly ms: number;
 }
 
+export interface VoiceCommittedTextResult {
+  readonly event: 'answer' | 'abstain' | 'contradict';
+  readonly spoken: string;
+  readonly planned: PlannedVoiceAnswer | null;
+}
+
+export type VoiceDirectAsk = () => Promise<VoiceCommittedTextResult>;
+
+export type VoiceCommittedTextDelegate = (
+  committedText: string,
+  signal: AbortSignal,
+  directAsk: VoiceDirectAsk,
+) => Promise<VoiceCommittedTextResult>;
+
 export interface MicrophoneSession {
   readonly live: boolean;
   stop(): void;
@@ -117,7 +131,10 @@ type Listener = (snapshot: VoiceSnapshot) => void;
 
 const EMPTY_WAVEFORM: readonly number[] = Object.freeze([]);
 
-function spokenResult(planned: PlannedVoiceAnswer): { event: VoiceEvent; text: string } | null {
+function spokenResult(planned: PlannedVoiceAnswer): {
+  event: VoiceCommittedTextResult['event'];
+  text: string;
+} | null {
   const answer = planned.answer;
   if (answer === null || planned.reading === null) {
     return { event: 'abstain', text: 'I could not read that as a question for this workspace.' };
@@ -143,11 +160,13 @@ function spokenResult(planned: PlannedVoiceAnswer): { event: VoiceEvent; text: s
 
 /**
  * One controller for speech and typed fallback. It sends only committed text to
- * `query`, never writes memory, and rejects callbacks from an older run.
+ * its explicit delegate and rejects callbacks from an older run. The default
+ * delegate preserves the direct Ask behavior used by existing and public views.
  */
 export class VoiceController {
   readonly #runtime: VoiceRuntime;
   readonly #listeners = new Set<Listener>();
+  #committedTextDelegate: VoiceCommittedTextDelegate | null;
   #snapshot: VoiceSnapshot = {
     state: 'READY', partialTranscript: '', transcript: '', planned: null,
     signal: null, playbackAnalysis: null, rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
@@ -160,8 +179,9 @@ export class VoiceController {
   #spokenAnswer: string | null = null;
   #outcome: 'ANSWERED' | 'ABSTAINED' | 'CONTRADICTED' = 'ANSWERED';
 
-  constructor(runtime: VoiceRuntime) {
+  constructor(runtime: VoiceRuntime, committedTextDelegate: VoiceCommittedTextDelegate | null = null) {
     this.#runtime = runtime;
+    this.#committedTextDelegate = committedTextDelegate;
   }
 
   get snapshot(): VoiceSnapshot {
@@ -172,6 +192,10 @@ export class VoiceController {
     this.#listeners.add(listener);
     listener(this.#snapshot);
     return () => this.#listeners.delete(listener);
+  }
+
+  setCommittedTextDelegate(delegate: VoiceCommittedTextDelegate | null): void {
+    this.#committedTextDelegate = delegate;
   }
 
   async start(): Promise<void> {
@@ -257,7 +281,7 @@ export class VoiceController {
 
   async retry(): Promise<void> {
     if (this.#busy()) return;
-    if (this.#spokenAnswer !== null && this.#snapshot.planned !== null) {
+    if (this.#spokenAnswer !== null) {
       await this.replay();
       return;
     }
@@ -354,23 +378,29 @@ export class VoiceController {
     if (generation !== this.#generation || this.#abort === null) return;
     this.#move('check_context');
     try {
-      const planned = await this.#runtime.query(text, this.#abort.signal);
+      const signal = this.#abort.signal;
+      const directAsk = (): Promise<VoiceCommittedTextResult> => this.#directAsk(text, signal);
+      const committed = this.#committedTextDelegate === null
+        ? await directAsk()
+        : await this.#committedTextDelegate(text, signal, directAsk);
       if (generation !== this.#generation || this.#abort.signal.aborted) return;
-      const spoken = spokenResult(planned);
-      this.#update({ planned });
-      if (spoken === null) {
-        this.#fail('error');
-        return;
-      }
-      this.#spokenAnswer = spoken.text;
+      this.#update({ planned: committed.planned });
+      this.#spokenAnswer = committed.spoken;
       this.#update({ canReplay: true });
-      this.#move(spoken.event);
+      this.#move(committed.event);
       if (this.#snapshot.state === 'ANSWERED' || this.#snapshot.state === 'ABSTAINED'
         || this.#snapshot.state === 'CONTRADICTED') this.#outcome = this.#snapshot.state;
-      await this.#play(generation, spoken.text);
+      await this.#play(generation, committed.spoken);
     } catch (error) {
       if (generation === this.#generation) this.#fail(this.#failureFor(error));
     }
+  }
+
+  async #directAsk(text: string, signal: AbortSignal): Promise<VoiceCommittedTextResult> {
+    const planned = await this.#runtime.query(text, signal);
+    const spoken = spokenResult(planned);
+    if (spoken === null) throw new VoiceRuntimeError('error');
+    return { event: spoken.event, spoken: spoken.text, planned };
   }
 
   async #play(generation: number, spokenAnswer: string): Promise<void> {

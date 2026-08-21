@@ -483,6 +483,32 @@ describe('public compatibility and adversarial lifecycle', () => {
     });
   });
 
+  it('drops a public Ask result after a route ABA transition', async () => {
+    const context: VoiceAssistantContext = {
+      currentRoute: '/explore/dash',
+      scope: 'public',
+      sessionKey: 'session-a',
+      workspaceKey: 'public-workspace',
+    };
+    const { assistant, executor, runtime, voice } = harness(context);
+    const held = deferred<PlannedVoiceAnswer>();
+    runtime.queryPromise = held.promise;
+    const command = voice.submitTyped('Who owns Atlas?');
+    await flush();
+
+    assistant.setContext({ ...context, currentRoute: '/explore/memory' });
+    assistant.setContext(context);
+    held.resolve(directAnswer());
+    await command;
+
+    expect(executor.planCalls).toEqual([]);
+    expect(runtime.spoken).toEqual([]);
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'idle', result: null,
+      speech: { planned: null, state: 'INTERRUPTED' },
+    });
+  });
+
   it('drops a public Ask result after disposal', async () => {
     const { assistant, executor, runtime, voice } = harness({
       currentRoute: '/explore/dash', scope: 'public', sessionKey: null, workspaceKey: 'public-workspace',

@@ -112,6 +112,7 @@ export class VoiceAssistantController {
   #pending: PendingOperation | null = null;
   #result: VoiceOperationResult | null = null;
   #generation = 0;
+  #contextEpoch = 0;
   #expiryTimer: ReturnType<typeof setTimeout> | null = null;
   #disposed = false;
 
@@ -165,6 +166,7 @@ export class VoiceAssistantController {
     if (this.#disposed) return;
     const bindingChanged = !sameBinding(this.#context, context);
     const routeChanged = this.#context.currentRoute !== context.currentRoute;
+    if (!sameContext(this.#context, context)) this.#contextEpoch += 1;
     this.#context = context;
     if (bindingChanged) {
       this.#generation += 1;
@@ -219,10 +221,13 @@ export class VoiceAssistantController {
     if (control === 'cancel') return this.#cancelByCommand(signal);
     if (this.#context.scope === 'public') {
       const generation = this.#generation;
+      const contextEpoch = this.#contextEpoch;
       const context = { ...this.#context };
       const response = await directAsk();
       this.#assertCurrent(generation, signal);
-      if (!sameContext(context, this.#context)) throw new VoiceRuntimeError('interrupted');
+      if (contextEpoch !== this.#contextEpoch || !sameContext(context, this.#context)) {
+        throw new VoiceRuntimeError('interrupted');
+      }
       return response;
     }
 

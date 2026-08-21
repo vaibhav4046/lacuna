@@ -1,0 +1,299 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import type { IngestPreparedReport } from '../../src/api/ingest.js';
+import { IngestReadinessError } from '../../src/api/ingest.js';
+import { ConnectorRunner, serializeConnectorRunResult } from '../../src/connectors/run.js';
+import type { ConnectorDocumentInput } from '../../src/connectors/normalize.js';
+import type {
+  ConnectorId,
+  ConnectorObservation,
+  ConnectorPutResult,
+  ConnectorStore,
+  ConnectorWorkspaceState,
+} from '../../src/connectors/types.js';
+import { HydraDecodeError, HydraTransportError } from '../../src/hydra/errors.js';
+
+const WORKSPACE = 'lacuna-ws-0123456789abcdef0123456789abcdef';
+const STARTED = Date.parse('2026-08-21T10:00:00.000Z');
+const provenance = {
+  connectorId: 'text' as const,
+  sourceUrl: 'https://example.com/source',
+  mediaType: 'text/plain' as const,
+  observedAt: '2026-08-21T09:00:00.000Z',
+};
+
+function document(title: string, text = `${title} is owned by Priya.`): ConnectorDocumentInput {
+  return { title, text, provenance: { ...provenance, sourceUrl: `https://example.com/${title.toLowerCase()}` } };
+}
+
+function report(sourceKey: string, searchable = true): IngestPreparedReport {
+  return {
+    sourceKey,
+    collection: WORKSPACE,
+    turns: 1,
+    claims: 1,
+    entities: 1,
+    accepted: 4,
+    refused: [],
+    ms: 2,
+    truncated: false,
+    searchable,
+    indexing: searchable ? 'completed' : 'accepted',
+  };
+}
+
+class MemoryStore implements ConnectorStore {
+  readonly writes: { workspace: string; id: ConnectorId; next: ConnectorObservation }[] = [];
+  readonly #state: ConnectorWorkspaceState;
+  readonly #result: ConnectorPutResult;
+
+  constructor(result: ConnectorPutResult = 'stored', state: ConnectorWorkspaceState = {}) {
+    this.#result = result;
+    this.#state = state;
+  }
+
+  async get(workspace: string): Promise<ConnectorWorkspaceState> {
+    expect(workspace).toBe(WORKSPACE);
+    return this.#state;
+  }
+
+  async put(workspace: string, id: ConnectorId, next: ConnectorObservation): Promise<ConnectorPutResult> {
+    this.writes.push({ workspace, id, next });
+    return this.#result;
+  }
+}
+
+function tickingClock(): () => number {
+  let tick = STARTED;
+  return () => tick++;
+}
+
+describe('ConnectorRunner', () => {
+  it('normalizes and deduplicates before running at most two document jobs', async () => {
+    const store = new MemoryStore('stored', {
+      text: {
+        configuredAt: null,
+        lastAttemptAt: '2026-08-20T10:00:00.000Z',
+        lastSuccessAt: '2026-08-20T10:00:00.000Z',
+        lastFailure: null,
+        importedDocuments: 7,
+      },
+    });
+    let inFlight = 0;
+    let peak = 0;
+    const seen: string[] = [];
+    const release: (() => void)[] = [];
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared, options) => {
+        expect(options).toEqual({ awaitSearchable: true });
+        seen.push(prepared.title);
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise<void>((resolve) => release.push(resolve));
+        inFlight -= 1;
+        return report(prepared.sourceKey);
+      },
+    });
+    const running = runner.run(WORKSPACE, {
+      connectorId: 'text',
+      documents: [document('A'), document('B'), document('A'), document('C')],
+      awaitSearchable: true,
+    });
+
+    await vi.waitFor(() => expect(release).toHaveLength(2));
+    expect(peak).toBe(2);
+    release.splice(0).forEach((done) => done());
+    await vi.waitFor(() => expect(release).toHaveLength(1));
+    release.splice(0).forEach((done) => done());
+    const result = await running;
+
+    expect(seen).toEqual(['A', 'B', 'C']);
+    expect(result).toMatchObject({
+      connectorId: 'text',
+      submittedDocuments: 4,
+      duplicateDocuments: 1,
+      acceptedDocuments: 3,
+      searchableDocuments: 3,
+      failedDocuments: 0,
+      acceptedRecords: 12,
+      refusedRecords: 0,
+      failure: null,
+      observationWrite: 'stored',
+    });
+    expect(store.writes).toEqual([{
+      workspace: WORKSPACE,
+      id: 'text',
+      next: {
+        configuredAt: null,
+        lastAttemptAt: '2026-08-21T10:00:00.000Z',
+        lastSuccessAt: expect.stringMatching(/^2026-08-21T10:00:00\.00\dZ$/u),
+        lastFailure: null,
+        importedDocuments: 10,
+      },
+    }]);
+  });
+
+  it('normalizes the whole request before the first write', async () => {
+    const store = new MemoryStore();
+    let ingests = 0;
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => {
+        ingests += 1;
+        return report(prepared.sourceKey);
+      },
+    });
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text',
+      documents: [document('valid'), { ...document('invalid'), text: new Uint8Array([0xc3, 0x28]) }],
+      awaitSearchable: false,
+    });
+
+    expect(ingests).toBe(0);
+    expect(result).toMatchObject({ failure: 'validation_failed', acceptedDocuments: 0, observationWrite: 'stored' });
+    expect(store.writes[0]?.next.lastFailure).toBe('validation_failed');
+  });
+
+  it('distinguishes accepted receipts from terminal searchable documents', async () => {
+    const store = new MemoryStore();
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => report(prepared.sourceKey, false),
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('queued')], awaitSearchable: false,
+    });
+
+    expect(result).toMatchObject({ acceptedDocuments: 1, searchableDocuments: 0, failure: null });
+  });
+
+  it.each([
+    [new HydraTransportError('provider body: secret'), 'transport_failed'],
+    [new HydraDecodeError('provider body: secret'), 'parse_failed'],
+    [new IngestReadinessError('failed'), 'readiness_failed'],
+    [new IngestReadinessError('timeout'), 'readiness_timeout'],
+  ] as const)('maps typed failures to a fixed redacted code', async (thrown, expected) => {
+    const store = new MemoryStore();
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async () => { throw thrown; },
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('failure')], awaitSearchable: true,
+    });
+
+    expect(result.failure).toBe(expected);
+    expect(JSON.stringify(result)).not.toContain('provider body');
+    expect(store.writes[0]?.next.lastFailure).toBe(expected);
+  });
+
+  it('maps refused receipts without returning their provider errors', async () => {
+    const runner = new ConnectorRunner({
+      store: new MemoryStore(),
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => ({
+        ...report(prepared.sourceKey, false),
+        accepted: 2,
+        refused: [{ id: 'internal-hydra-id', error: 'provider body and secret' }],
+      }),
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('partial')], awaitSearchable: false,
+    });
+
+    expect(result).toMatchObject({
+      acceptedDocuments: 1,
+      failedDocuments: 1,
+      acceptedRecords: 2,
+      refusedRecords: 1,
+      failure: 'receipt_refused',
+    });
+    expect(JSON.stringify(result)).not.toContain('internal-hydra-id');
+    expect(JSON.stringify(result)).not.toContain('provider body');
+  });
+
+  it.each(['stored', 'unchanged', 'stale'] as const)('reports the store put result honestly: %s', async (putResult) => {
+    const runner = new ConnectorRunner({
+      store: new MemoryStore(putResult),
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => report(prepared.sourceKey),
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document(putResult)], awaitSearchable: true,
+    });
+
+    expect(result.observationWrite).toBe(putResult);
+  });
+
+  it('keeps accepted counts but reports a redacted failure when observation persistence fails', async () => {
+    const store: ConnectorStore = {
+      get: async () => ({}),
+      put: async () => { throw new Error('provider body and secret'); },
+    };
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => report(prepared.sourceKey),
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('accepted')], awaitSearchable: true,
+    });
+
+    expect(result).toMatchObject({
+      acceptedDocuments: 1,
+      searchableDocuments: 1,
+      failure: 'transport_failed',
+      observationWrite: 'failed',
+    });
+    expect(JSON.stringify(result)).not.toContain('provider body');
+  });
+
+  it('rejects client-shaped workspace identifiers before normalization or storage', async () => {
+    const store = new MemoryStore();
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => report(prepared.sourceKey),
+    });
+
+    await expect(runner.run('alice@example.com', {
+      connectorId: 'text', documents: [document('foreign')], awaitSearchable: true,
+    })).rejects.toThrow('invalid workspace');
+    expect(store.writes).toEqual([]);
+  });
+
+  it('serializes only bounded result fields', async () => {
+    const runner = new ConnectorRunner({
+      store: new MemoryStore(),
+      now: tickingClock(),
+      ingest: async (_workspace, prepared) => report(prepared.sourceKey),
+    });
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('safe')], awaitSearchable: true,
+    });
+    const serialized = JSON.stringify(serializeConnectorRunResult({
+      ...result,
+      collection: WORKSPACE,
+      rawSource: 'private text',
+      providerBody: 'secret response',
+      email: 'alice@example.com',
+      secret: 'token',
+    } as never));
+
+    expect(serialized).not.toContain('lacuna-ws-');
+    expect(serialized).not.toContain('private text');
+    expect(serialized).not.toContain('secret');
+    expect(serialized).not.toContain('alice@example.com');
+    expect(serialized).not.toContain('providerBody');
+  });
+});

@@ -1,0 +1,202 @@
+import { createHash } from 'node:crypto';
+
+import type { ConnectorId } from './types.js';
+
+export const MAX_CONNECTOR_DOCUMENTS = 30;
+export const MAX_CONNECTOR_TEXT_BYTES = 4 * 1024 * 1024;
+const MAX_TITLE_CHARS = 120;
+const CONNECTOR_IDS = new Set<ConnectorId>([
+  'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+]);
+const MEDIA_TYPES = new Set<ConnectorMediaType>([
+  'text/plain',
+  'text/markdown',
+  'application/json',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+const INPUT_KEYS = new Set(['title', 'text', 'provenance']);
+const PROVENANCE_KEYS = new Set(['connectorId', 'sourceUrl', 'mediaType', 'observedAt']);
+
+export type ConnectorMediaType =
+  | 'text/plain'
+  | 'text/markdown'
+  | 'application/json'
+  | 'application/pdf'
+  | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+export interface ConnectorProvenance {
+  readonly connectorId: ConnectorId;
+  readonly sourceUrl: string | null;
+  readonly mediaType: ConnectorMediaType;
+  readonly observedAt: string;
+}
+
+export interface ConnectorDocumentInput {
+  readonly title: string;
+  readonly text: string | Uint8Array;
+  readonly provenance: ConnectorProvenance;
+}
+
+export interface PreparedConnectorDocument {
+  readonly title: string;
+  readonly text: string;
+  readonly provenance: ConnectorProvenance;
+  readonly contentDigest: string;
+  /** Canonical provenance excluding observation time, so retries converge. */
+  readonly provenanceKey: string;
+  /** Full deterministic SHA-256 source identity consumed by governed ingestion. */
+  readonly sourceKey: string;
+}
+
+export interface PreparedConnectorBatch {
+  readonly documents: readonly PreparedConnectorDocument[];
+  readonly duplicates: number;
+  readonly normalizedTextBytes: number;
+}
+
+export type ConnectorNormalizationFailure =
+  | 'invalid_document'
+  | 'invalid_utf8'
+  | 'invalid_title'
+  | 'invalid_text'
+  | 'invalid_provenance'
+  | 'too_many_documents'
+  | 'text_budget_exceeded';
+
+export class ConnectorNormalizationError extends Error {
+  override readonly name = 'ConnectorNormalizationError';
+  readonly code: ConnectorNormalizationFailure;
+
+  constructor(code: ConnectorNormalizationFailure) {
+    super(code);
+    this.code = code;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: ReadonlySet<string>): boolean {
+  const actual = Object.keys(value);
+  return actual.length === keys.size && actual.every((key) => keys.has(key));
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function canonicalInstant(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
+}
+
+function canonicalUrl(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string' || value.length > 2_048) {
+    throw new ConnectorNormalizationError('invalid_provenance');
+  }
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username !== '' || url.password !== '') {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    url.hash = '';
+    url.searchParams.sort();
+    return url.href;
+  } catch (error) {
+    if (error instanceof ConnectorNormalizationError) throw error;
+    throw new ConnectorNormalizationError('invalid_provenance');
+  }
+}
+
+function normalizeProvenance(value: unknown): ConnectorProvenance {
+  if (!isRecord(value) || !hasExactKeys(value, PROVENANCE_KEYS)
+    || typeof value['connectorId'] !== 'string'
+    || !CONNECTOR_IDS.has(value['connectorId'] as ConnectorId)
+    || typeof value['mediaType'] !== 'string'
+    || !MEDIA_TYPES.has(value['mediaType'] as ConnectorMediaType)
+    || !canonicalInstant(value['observedAt'])) {
+    throw new ConnectorNormalizationError('invalid_provenance');
+  }
+  return Object.freeze({
+    connectorId: value['connectorId'] as ConnectorId,
+    sourceUrl: canonicalUrl(value['sourceUrl']),
+    mediaType: value['mediaType'] as ConnectorMediaType,
+    observedAt: value['observedAt'],
+  });
+}
+
+function normalizeTitle(value: unknown): string {
+  if (typeof value !== 'string') throw new ConnectorNormalizationError('invalid_title');
+  const title = value.replaceAll('\u0000', '').normalize('NFC').trim().replace(/\s+/gu, ' ');
+  if (title === '' || title.length > MAX_TITLE_CHARS) {
+    throw new ConnectorNormalizationError('invalid_title');
+  }
+  return title;
+}
+
+function normalizeText(value: unknown): string {
+  let decoded: string;
+  if (typeof value === 'string') {
+    decoded = value;
+  } else if (value instanceof Uint8Array) {
+    try {
+      decoded = new TextDecoder('utf-8', { fatal: true }).decode(value);
+    } catch {
+      throw new ConnectorNormalizationError('invalid_utf8');
+    }
+  } else {
+    throw new ConnectorNormalizationError('invalid_text');
+  }
+  const text = decoded.replace(/^\ufeff/u, '').replace(/\r\n?/gu, '\n').replaceAll('\u0000', '').normalize('NFC');
+  if (text.trim() === '') throw new ConnectorNormalizationError('invalid_text');
+  return text;
+}
+
+export function prepareConnectorDocument(input: ConnectorDocumentInput): PreparedConnectorDocument {
+  if (!isRecord(input) || !hasExactKeys(input, INPUT_KEYS)) {
+    throw new ConnectorNormalizationError('invalid_document');
+  }
+  const title = normalizeTitle(input.title);
+  const text = normalizeText(input.text);
+  const provenance = normalizeProvenance(input.provenance);
+  const contentDigest = sha256(text);
+  const provenanceKey = sha256(JSON.stringify({
+    connectorId: provenance.connectorId,
+    sourceUrl: provenance.sourceUrl,
+    mediaType: provenance.mediaType,
+  }));
+  const sourceKey = `src-${sha256(`${contentDigest}\n${provenanceKey}`)}`;
+  return Object.freeze({ title, text, provenance, contentDigest, provenanceKey, sourceKey });
+}
+
+export function prepareConnectorBatch(inputs: readonly ConnectorDocumentInput[]): PreparedConnectorBatch {
+  if (!Array.isArray(inputs) || inputs.length === 0) {
+    throw new ConnectorNormalizationError('invalid_document');
+  }
+  if (inputs.length > MAX_CONNECTOR_DOCUMENTS) {
+    throw new ConnectorNormalizationError('too_many_documents');
+  }
+  const documents: PreparedConnectorDocument[] = [];
+  const identities = new Set<string>();
+  let normalizedTextBytes = 0;
+  let duplicates = 0;
+  for (const input of inputs) {
+    const document = prepareConnectorDocument(input);
+    const identity = `${document.contentDigest}:${document.provenanceKey}`;
+    if (identities.has(identity)) {
+      duplicates += 1;
+      continue;
+    }
+    identities.add(identity);
+    normalizedTextBytes += Buffer.byteLength(document.text, 'utf8');
+    if (normalizedTextBytes > MAX_CONNECTOR_TEXT_BYTES) {
+      throw new ConnectorNormalizationError('text_budget_exceeded');
+    }
+    documents.push(document);
+  }
+  return Object.freeze({ documents: Object.freeze(documents), duplicates, normalizedTextBytes });
+}

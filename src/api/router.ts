@@ -23,7 +23,7 @@ import type { McpCapabilities } from '../auth/mcp-capability-store.js';
 import { MCP_CAPABILITY_SHAPE } from '../auth/mcp-capability.js';
 import { FixedWindow, type RateLimitOptions, type RateLimitVerdict } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, plannedAskEnvelope, storeWorkspace, validateQuestion } from './workspace.js';
-import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
+import { MAX_SOURCE_CHARS, ingestSource, serializeIngestReport, validateSource, workspaceCollection } from './ingest.js';
 import { graphImpact } from './impact.js';
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
@@ -2056,6 +2056,11 @@ export class ApiRouter {
         send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
+      if (this.#siteOrigin !== undefined
+        && !exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
       const account = await this.#accountFor(cookies);
       if (account === null) {
         send(response, 401, { error: 'session' });
@@ -2102,7 +2107,7 @@ export class ApiRouter {
           send(response, 200, { ok: false, reason: report });
           return HANDLED;
         }
-        send(response, 200, { ok: true, ...report });
+        send(response, 200, { ok: true, ...serializeIngestReport(report) });
       } catch {
         send(response, 502, { error: 'the context store did not accept the source' });
       }

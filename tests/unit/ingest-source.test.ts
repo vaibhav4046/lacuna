@@ -3,7 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { HydraCloud, type AppRecord } from '../../src/hydra/cloud.js';
 import { HydraDecodeError, HydraQueryError } from '../../src/hydra/errors.js';
 import { INDEX_ID } from '../../src/hydra/cloud-graph.js';
-import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from '../../src/api/ingest.js';
+import {
+  IngestReadinessError,
+  MAX_SOURCE_CHARS,
+  ingestPreparedSource,
+  ingestSource,
+  serializeIngestReport,
+  validateSource,
+  workspaceCollection,
+} from '../../src/api/ingest.js';
+import { prepareConnectorDocument } from '../../src/connectors/normalize.js';
 
 /**
  * A pasted transcript becoming memory somebody can ask about.
@@ -52,6 +61,89 @@ function cloudThatRecords(sent: Sent[]): HydraCloud {
           JSON.stringify({ data: { results: records.map((r) => ({ id: r.id, status: 'queued', error: null })) } }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         );
+      },
+    },
+  );
+}
+
+function statefulAdversarialCloud(): { readonly cloud: HydraCloud; readonly stored: Map<string, string> } {
+  const stored = new Map<string, string>();
+  let firstMissingIndexRead = true;
+  let releaseFirstIndexRead: (() => void) | undefined;
+  const secondIndexRead = new Promise<void>((resolve) => { releaseFirstIndexRead = resolve; });
+  const cloud = new HydraCloud(
+    {
+      baseUrl: 'https://api.example.invalid',
+      token: 'not-a-real-token',
+      database: 'lacuna',
+      collection: 'public-demo',
+    },
+    {
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        if (init?.method === 'GET') {
+          const id = url.searchParams.get('id') ?? '';
+          if (id === INDEX_ID && !stored.has(id)) {
+            if (firstMissingIndexRead) {
+              firstMissingIndexRead = false;
+              await Promise.race([
+                secondIndexRead,
+                new Promise<void>((resolve) => setTimeout(resolve, 20)),
+              ]);
+            } else {
+              releaseFirstIndexRead?.();
+            }
+          }
+          const text = stored.get(id);
+          if (text === undefined) {
+            return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+          }
+          return Response.json({
+            data: { content: JSON.stringify({ content: { text } }) },
+          });
+        }
+
+        const form = init?.body as FormData;
+        const app = form.get('app_knowledge');
+        const records = typeof app === 'string'
+          ? (JSON.parse(app) as { id: string; content: { text: string } }[])
+          : [];
+        for (const record of records) stored.set(record.id, record.content.text);
+        return Response.json({
+          data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
+        });
+      },
+    },
+  );
+  return { cloud, stored };
+}
+
+function cloudWithIndexingStatus(indexingStatus: string): HydraCloud {
+  return new HydraCloud(
+    {
+      baseUrl: 'https://api.example.invalid',
+      token: 'not-a-real-token',
+      database: 'lacuna',
+      collection: 'public-demo',
+    },
+    {
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        if (init?.method === 'GET' && url.pathname.endsWith('/context/status')) {
+          const ids = url.searchParams.getAll('ids');
+          return Response.json({
+            data: { statuses: ids.map((id) => ({ id, indexing_status: indexingStatus, error_code: indexingStatus })) },
+          });
+        }
+        if (init?.method === 'GET') {
+          return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+        }
+        const form = init?.body as FormData;
+        const app = form.get('app_knowledge');
+        const records = typeof app === 'string' ? (JSON.parse(app) as { id: string }[]) : [];
+        return Response.json({
+          data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
+        });
       },
     },
   );
@@ -259,6 +351,7 @@ describe('what comes back', () => {
     const second = await ingestSource(cloudThatRecords([]), 'c', 'Standup', TRANSCRIPT);
     if (typeof first === 'string' || typeof second === 'string') throw new Error('expected reports');
     expect(first.sourceKey).toBe(second.sourceKey);
+    expect(first.sourceKey).toBe('src-e2b39f8c84c233f8f3e3b7ad');
   });
 
   it('truncates rather than refusing a long paste, and says it did', async () => {
@@ -267,6 +360,114 @@ describe('what comes back', () => {
     const report = await ingestSource(cloudThatRecords([]), 'c', 'Standup', long);
     if (typeof report === 'string') throw new Error(`expected a report, got ${report}`);
     expect(report.truncated).toBe(true);
+  });
+
+  it('uses an allowlist serializer that cannot expose the workspace or injected internals', async () => {
+    const report = await ingestSource(cloudThatRecords([]), workspaceCollection('private@example.com'), 'Standup', TRANSCRIPT);
+    if (typeof report === 'string') throw new Error(`expected a report, got ${report}`);
+    const serialized = JSON.stringify(serializeIngestReport({
+      ...report,
+      rawSource: TRANSCRIPT,
+      providerBody: 'secret provider response',
+      email: 'private@example.com',
+      secret: 'token',
+    } as never));
+
+    expect(serialized).not.toContain('lacuna-ws-');
+    expect(serialized).not.toContain(TRANSCRIPT);
+    expect(serialized).not.toContain('secret');
+    expect(serialized).not.toContain('private@example.com');
+    expect(serialized).not.toContain('collection');
+  });
+});
+
+describe('prepared connector ingestion', () => {
+  const prepared = () => prepareConnectorDocument({
+    title: 'Connector source',
+    text: 'a: Atlas is owned by Priya.',
+    provenance: {
+      connectorId: 'text',
+      sourceUrl: 'https://example.com/atlas',
+      mediaType: 'text/plain',
+      observedAt: '2026-08-21T10:00:00.000Z',
+    },
+  });
+
+  it('preserves the prepared deterministic source key through the existing graph path', async () => {
+    const sent: Sent[] = [];
+    const repeatedSent: Sent[] = [];
+    const document = prepared();
+    const result = await ingestPreparedSource(
+      cloudThatRecords(sent),
+      workspaceCollection('connector@example.com'),
+      document,
+      { awaitSearchable: false },
+    );
+    if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
+
+    expect(result.sourceKey).toBe(document.sourceKey);
+    expect(result).toMatchObject({ searchable: false, indexing: 'accepted' });
+    await ingestPreparedSource(
+      cloudThatRecords(repeatedSent),
+      workspaceCollection('connector@example.com'),
+      document,
+      { awaitSearchable: false },
+    );
+    expect(sent.flatMap((call) => call.records.map((record) => record.id)))
+      .toEqual(repeatedSent.flatMap((call) => call.records.map((record) => record.id)));
+  });
+
+  it('waits for terminal completed indexing when requested', async () => {
+    const result = await ingestPreparedSource(
+      cloudWithIndexingStatus('completed'),
+      workspaceCollection('ready@example.com'),
+      prepared(),
+      { awaitSearchable: true },
+    );
+    if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
+
+    expect(result).toMatchObject({ searchable: true, indexing: 'completed' });
+  });
+
+  it.each([
+    ['failed', 'failed'],
+    ['errored', 'failed'],
+    ['queued', 'timeout'],
+  ] as const)('reports %s indexing with a typed readiness failure', async (status, reason) => {
+    const result = ingestPreparedSource(
+      cloudWithIndexingStatus(status),
+      workspaceCollection(`${status}@example.com`),
+      prepared(),
+      { awaitSearchable: true, readiness: { timeoutMs: 0, intervalMs: 0 } },
+    );
+
+    await expect(result).rejects.toEqual(new IngestReadinessError(reason));
+  });
+
+  it('serializes the read-modify-write merge per workspace so concurrent sources cannot lose one another', async () => {
+    const { cloud, stored } = statefulAdversarialCloud();
+    const workspace = workspaceCollection('shared@example.com');
+    const first = prepareConnectorDocument({
+      title: 'Atlas',
+      text: 'a: Atlas is owned by Priya.',
+      provenance: { ...prepared().provenance, sourceUrl: 'https://example.com/atlas' },
+    });
+    const second = prepareConnectorDocument({
+      title: 'Billing',
+      text: 'b: Billing is owned by Dana.',
+      provenance: { ...prepared().provenance, sourceUrl: 'https://example.com/billing' },
+    });
+
+    await Promise.all([
+      ingestPreparedSource(cloud, workspace, first, { awaitSearchable: false }),
+      ingestPreparedSource(cloud, workspace, second, { awaitSearchable: false }),
+    ]);
+
+    const indexText = stored.get(INDEX_ID);
+    if (indexText === undefined) throw new Error('missing final index');
+    const index = JSON.parse(indexText) as { claims: Record<string, string>; entities: Record<string, string> };
+    expect(Object.values(index.entities)).toEqual(expect.arrayContaining(['Atlas', 'Billing']));
+    expect(Object.keys(index.claims)).toHaveLength(2);
   });
 });
 

@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 
+import { useSession } from '../api/session';
 import { MONO, Mark } from '../design/mark';
+import { landingAccountActions } from './account-actions';
 
 const link = {
   color: '#9A9A9A',
@@ -22,6 +24,8 @@ const sectionLinks = [
 /** The reference header stays visually quiet so the field remains the hero. */
 export function Header() {
   const go = useNavigate();
+  const { loaded } = useSession();
+  const account = landingAccountActions(loaded);
 
   return (
     <header
@@ -67,21 +71,35 @@ export function Header() {
         >
           Judge proof
         </button>
-        <button
-          data-navwide="1"
-          className="hv-text"
-          onClick={() => go('/signin')}
-          style={{ minHeight: '44px', background: 'none', border: 'none', cursor: 'pointer', color: '#BDBDBD', fontSize: '14px', padding: '9px 12px' }}
-        >
-          Sign in
-        </button>
-        <button
-          className="hv-violet"
-          onClick={() => go('/signup')}
-          style={{ minHeight: '44px', background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '14px', fontWeight: 500, padding: '9px 18px', borderRadius: '8px' }}
-        >
-          Get started
-        </button>
+        {account.state === 'guest' ? (
+          <>
+            <button
+              data-navwide="1"
+              className="hv-text"
+              onClick={() => go(account.secondary.path)}
+              style={{ minHeight: '44px', background: 'none', border: 'none', cursor: 'pointer', color: '#BDBDBD', fontSize: '14px', padding: '9px 12px' }}
+            >
+              {account.secondary.label}
+            </button>
+            <button
+              className="hv-violet"
+              onClick={() => go(account.primary.path)}
+              style={{ minHeight: '44px', background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '14px', fontWeight: 500, padding: '9px 18px', borderRadius: '8px' }}
+            >
+              {account.primary.label}
+            </button>
+          </>
+        ) : account.state === 'member' ? (
+          <button
+            className="hv-violet"
+            onClick={() => go(account.primary.path)}
+            style={{ minHeight: '44px', background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '14px', fontWeight: 500, padding: '9px 18px', borderRadius: '8px' }}
+          >
+            {account.primary.label}
+          </button>
+        ) : (
+          <span data-navwide="1" role="status" style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center', color: '#7A7A7A', fontFamily: MONO, fontSize: '9px', letterSpacing: '0.14em' }}>CHECKING SESSION</span>
+        )}
         <details data-navmenu="1" style={{ position: 'relative' }}>
           <summary
             aria-label="Open navigation menu"
@@ -135,15 +153,20 @@ export function Header() {
             >
               Judge proof
             </button>
-            <button
-              onClick={(event) => {
-                event.currentTarget.closest('details')?.removeAttribute('open');
-                go('/signin');
-              }}
-              style={{ minHeight: '44px', display: 'flex', alignItems: 'center', padding: '0 14px', color: '#BDBDBD', background: 'none', border: 0, cursor: 'pointer', fontSize: '14px', textAlign: 'left' }}
-            >
-              Sign in
-            </button>
+            {account.state === 'pending' ? (
+              <span role="status" style={{ minHeight: '44px', display: 'flex', alignItems: 'center', padding: '0 14px', color: '#7A7A7A', fontFamily: MONO, fontSize: '9px', letterSpacing: '0.14em' }}>CHECKING SESSION</span>
+            ) : account.links.map((item) => (
+              <button
+                key={item.path}
+                onClick={(event) => {
+                  event.currentTarget.closest('details')?.removeAttribute('open');
+                  go(item.path);
+                }}
+                style={{ minHeight: '44px', display: 'flex', alignItems: 'center', padding: '0 14px', color: '#BDBDBD', background: 'none', border: 0, cursor: 'pointer', fontSize: '14px', textAlign: 'left' }}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </details>
       </div>

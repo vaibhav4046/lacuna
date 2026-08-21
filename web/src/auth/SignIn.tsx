@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { signIn } from '../api/auth';
 import { useSession } from '../api/session';
+import { landingAccountActions } from '../landing/account-actions';
 import { Brand, Field, Problem, FORM, LEAD, LEFT, MINOR, MINOR_DIM, PAGE, PRIMARY } from './parts';
 import { GoogleButton, googleProblem } from './google';
 
 export default function SignIn() {
   const go = useNavigate();
-  const { refresh } = useSession();
+  const { loaded, refresh } = useSession();
+  const account = landingAccountActions(loaded);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // A failed Google round trip comes back as a query, not as a fetch result.
@@ -23,6 +25,8 @@ export default function SignIn() {
     await refresh();
     go('/app/dash');
   }
+
+  if (account.state === 'member') return <Navigate to={account.primary.path} replace />;
 
   return (
     <div style={PAGE}>

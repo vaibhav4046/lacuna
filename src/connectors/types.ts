@@ -42,7 +42,13 @@ export interface ConnectorStatus extends ConnectorDescriptor, ConnectorObservati
   readonly state: ConnectorRunState;
 }
 
+export type ConnectorPutResult = 'stored' | 'unchanged' | 'stale';
+
 export interface ConnectorStore {
   get(workspace: string): Promise<ConnectorWorkspaceState>;
-  put(workspace: string, next: ConnectorWorkspaceState): Promise<void>;
+  /**
+   * Mutates one connector only. `stale` means canonical attempt chronology
+   * refused the observation; it does not promise cross-instance CAS.
+   */
+  put(workspace: string, id: ConnectorId, next: ConnectorObservation): Promise<ConnectorPutResult>;
 }

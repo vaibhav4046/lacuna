@@ -10,19 +10,32 @@ import { workspaceCollection } from '../../src/api/ingest.js';
 import { FileAccounts } from '../../src/auth/accounts.js';
 import { AccountStore } from '../../src/auth/store.js';
 import { catalogue } from '../../src/connectors/catalog.js';
-import type { ConnectorStore, ConnectorWorkspaceState } from '../../src/connectors/types.js';
+import type {
+  ConnectorId,
+  ConnectorObservation,
+  ConnectorPutResult,
+  ConnectorStore,
+  ConnectorWorkspaceState,
+} from '../../src/connectors/types.js';
 
 class MemoryConnectorStore implements ConnectorStore {
   state: ConnectorWorkspaceState = {};
   readonly reads: string[] = [];
+  failure: Error | null = null;
 
   async get(workspace: string): Promise<ConnectorWorkspaceState> {
     this.reads.push(workspace);
+    if (this.failure !== null) throw this.failure;
     return this.state;
   }
 
-  async put(_workspace: string, next: ConnectorWorkspaceState): Promise<void> {
-    this.state = next;
+  async put(
+    _workspace: string,
+    id: ConnectorId,
+    next: ConnectorObservation,
+  ): Promise<ConnectorPutResult> {
+    this.state = { ...this.state, [id]: next };
+    return 'stored';
   }
 }
 
@@ -177,5 +190,18 @@ describe('workspace connector catalogue API', () => {
       availability: 'available', state: 'failed', lastFailure: 'transport_failed',
     });
     expect(JSON.stringify(body)).not.toContain('syncing');
+  });
+
+  it('returns generic unavailable rather than idle state when durable state is corrupt', async () => {
+    const jar = await signedIn('corrupt-state@example.com');
+    connectorStore.failure = new Error('foreign payload containing owner@example.com and lacuna-ws-secret');
+
+    const response = await fetch(`${base}/api/workspace/connectors`, { headers: { cookie: jar.header() } });
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(503);
+    expect(body).toEqual({ error: 'connector_state_unavailable' });
+    expect(JSON.stringify(body)).not.toContain('owner@example.com');
+    expect(JSON.stringify(body)).not.toContain('lacuna-ws-secret');
   });
 });

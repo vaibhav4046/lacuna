@@ -1,4 +1,6 @@
 import { Readable } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
+import { Worker } from 'node:worker_threads';
 import { deflateRawSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
@@ -61,6 +63,8 @@ interface ZipPart {
   readonly data: Buffer;
   readonly encrypted?: boolean;
   readonly deflate?: boolean;
+  readonly declaredLocalUncompressedBytes?: number;
+  readonly declaredCentralUncompressedBytes?: number;
 }
 
 function crc32(data: Buffer): number {
@@ -89,7 +93,7 @@ function zip(parts: readonly ZipPart[]): Buffer {
     header.writeUInt16LE(method, 8);
     header.writeUInt32LE(checksum, 14);
     header.writeUInt32LE(compressed.length, 18);
-    header.writeUInt32LE(part.data.length, 22);
+    header.writeUInt32LE(part.declaredLocalUncompressedBytes ?? part.data.length, 22);
     header.writeUInt16LE(name.length, 26);
     local.push(header, name, compressed);
 
@@ -101,7 +105,7 @@ function zip(parts: readonly ZipPart[]): Buffer {
     directory.writeUInt16LE(method, 10);
     directory.writeUInt32LE(checksum, 16);
     directory.writeUInt32LE(compressed.length, 20);
-    directory.writeUInt32LE(part.data.length, 24);
+    directory.writeUInt32LE(part.declaredCentralUncompressedBytes ?? part.data.length, 24);
     directory.writeUInt16LE(name.length, 28);
     directory.writeUInt32LE(offset, 42);
     central.push(directory, name);
@@ -188,7 +192,11 @@ describe('uploaded text and Markdown', () => {
   it.each([
     ['../notes.txt', 'invalid_filename'],
     ['notes.pdf.txt', 'invalid_filename'],
+    ['notes.ExE.backup.txt', 'invalid_filename'],
+    ['notes.ExE .backup.txt', 'invalid_filename'],
     ['CON.txt', 'invalid_filename'],
+    [' CoN .txt', 'invalid_filename'],
+    ['NUL.notes.txt', 'invalid_filename'],
     ['notes.txt', 'invalid_utf8', Buffer.from([0xc3, 0x28])],
     ['notes.md', 'invalid_file', Buffer.from('a\u0000b')],
     ['notes.txt', 'invalid_file', Buffer.from('a\u0001b')],
@@ -225,6 +233,17 @@ describe('uploaded text and Markdown', () => {
       observedAt: OBSERVED_AT,
     })).rejects.toMatchObject({ code: 'unsupported_file' });
   });
+
+  it('keeps ordinary multi-suffix document names usable', async () => {
+    const prepared = await parseUploadedFile({
+      filename: 'runbook.v2.final.md',
+      mediaType: 'text/markdown',
+      bytes: Buffer.from('# Safe'),
+      observedAt: OBSERVED_AT,
+    });
+
+    expect(prepared.title).toBe('runbook.v2.final');
+  });
 });
 
 describe('bounded PDF extraction', () => {
@@ -257,6 +276,52 @@ describe('bounded PDF extraction', () => {
       bytes,
       observedAt: OBSERVED_AT,
     })).rejects.toMatchObject({ code });
+  });
+
+  it.each([
+    ['payload with a fake terminal EOF', (value: Buffer) => {
+      const xref = /startxref\n([0-9]+)\n%%EOF\n$/u.exec(value.toString('binary'))?.[1] ?? '0';
+      return Buffer.concat([value, Buffer.from(`hidden-payload\nstartxref\n${xref}\n%%EOF\n`)]);
+    }],
+    ['missing startxref', (value: Buffer) => Buffer.from(value.toString('binary').replace(/startxref\n[0-9]+\n/u, ''), 'binary')],
+    ['startxref pointing at a body object', (value: Buffer) => Buffer.from(value.toString('binary').replace(/startxref\n[0-9]+\n/u, 'startxref\n15\n'), 'binary')],
+  ] as const)('rejects a PDF with %s instead of recovering it', async (_name, mutate) => {
+    await expect(parseUploadedFile({
+      filename: 'brief.pdf',
+      mediaType: 'application/pdf',
+      bytes: mutate(pdf(['text'])),
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it('terminates isolated parser work before returning a timeout failure', async () => {
+    const ticks = new Int32Array(new SharedArrayBuffer(4));
+    let worker: Worker | undefined;
+    let inheritedExecArgv: readonly string[] | undefined;
+
+    await expect(parseUploadedFile({
+      filename: 'brief.pdf',
+      mediaType: 'application/pdf',
+      bytes: pdf(['text']),
+      observedAt: OBSERVED_AT,
+    }, {
+      timeoutMs: 40,
+      workerFactory: (_url, options) => {
+        inheritedExecArgv = options.execArgv;
+        worker = new Worker(`
+          const { workerData } = require('node:worker_threads');
+          const ticks = new Int32Array(workerData);
+          setInterval(() => Atomics.add(ticks, 0, 1), 1);
+        `, { eval: true, workerData: ticks.buffer });
+        return worker;
+      },
+    })).rejects.toMatchObject({ code: 'file_too_complex' });
+
+    expect(inheritedExecArgv).toEqual([]);
+    expect(worker?.threadId).toBe(-1);
+    const stoppedAt = Atomics.load(ticks, 0);
+    await delay(75);
+    expect(Atomics.load(ticks, 0)).toBe(stoppedAt);
   });
 });
 
@@ -301,6 +366,86 @@ describe('DOCX central-directory policy and extraction', () => {
       bytes,
       observedAt: OBSERVED_AT,
     })).rejects.toMatchObject({ code });
+  });
+
+  it.each([
+    ['styles', 'word/styles.xml'],
+    ['numbering', 'word/numbering.xml'],
+    ['notes', 'word/footnotes.xml'],
+  ] as const)('streams actual forged %s expansion before Mammoth can consume it', async (_label, name) => {
+    const expansion = Buffer.concat([
+      Buffer.from('<?xml version="1.0"?><root>'),
+      Buffer.alloc(200_000, 0x20),
+      Buffer.from('</root>'),
+    ]);
+    await expect(parseUploadedFile({
+      filename: 'forged.docx',
+      mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      bytes: docx([{
+        name,
+        data: expansion,
+        deflate: true,
+        declaredLocalUncompressedBytes: 1,
+        declaredCentralUncompressedBytes: 1,
+      }]),
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'file_too_complex' });
+  });
+
+  it('rejects a forged central size before opening a stream whose local header disagrees', async () => {
+    await expect(parseUploadedFile({
+      filename: 'central-only.docx',
+      mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      bytes: docx([{
+        name: 'word/styles.xml',
+        data: Buffer.from('<styles/>'),
+        deflate: true,
+        declaredCentralUncompressedBytes: 1,
+      }]),
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it('rejects contradictory local and central sizes before opening a deflate stream', async () => {
+    const expansion = Buffer.concat([
+      Buffer.from('<?xml version="1.0"?><root>'),
+      Buffer.alloc(200_000, 0x20),
+      Buffer.from('</root>'),
+    ]);
+    await expect(parseUploadedFile({
+      filename: 'contradictory.docx',
+      mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      bytes: docx([{
+        name: 'word/styles.xml',
+        data: expansion,
+        deflate: true,
+        declaredLocalUncompressedBytes: 1,
+        declaredCentralUncompressedBytes: 2,
+      }]),
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it.each([
+    ['alternate', Buffer.from('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/alternate.xml"/></Relationships>')],
+    ['encoded', Buffer.from('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/%64ocument.xml"/></Relationships>')],
+    ['conflicting', Buffer.from('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/alternate.xml"/></Relationships>')],
+  ] as const)('rejects an %s package main-document relationship', async (_label, rootRelationships) => {
+    const alternate = Buffer.from(DOCUMENT.toString('utf8').replace('Atlas is owned by Priya.', 'Alternate payload.'));
+    const bytes = zip([
+      { name: '[Content_Types].xml', data: CONTENT_TYPES },
+      { name: '_rels/.rels', data: rootRelationships },
+      { name: 'word/document.xml', data: DOCUMENT },
+      { name: 'word/alternate.xml', data: alternate },
+      { name: 'word/_rels/document.xml.rels', data: DOCUMENT_RELS },
+    ]);
+
+    await expect(parseUploadedFile({
+      filename: 'alternate.docx',
+      mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      bytes,
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
   });
 });
 
@@ -470,5 +615,24 @@ describe('file preview tokens', () => {
     now += 300_001;
     expect(() => tokens.verifyAndConsume(expired, binding))
       .toThrow(new PreviewTokenError('preview_expired'));
+  });
+
+  it('rejects a non-canonical base64url signature alias before consuming the nonce', () => {
+    const tokens = new FilePreviewTokenService({
+      key,
+      now: () => Date.parse(OBSERVED_AT),
+      nonce: () => Buffer.alloc(18, 0x42),
+    });
+    const issued = tokens.issue(binding).token;
+    const [payload, signature = ''] = issued.split('.');
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const final = signature.at(-1) ?? '';
+    const index = alphabet.indexOf(final);
+    const alias = `${signature.slice(0, -1)}${alphabet[(index & ~3) | ((index + 1) & 3)] ?? ''}`;
+
+    expect(Buffer.from(alias, 'base64url')).toEqual(Buffer.from(signature, 'base64url'));
+    expect(() => tokens.verifyAndConsume(`${payload}.${alias}`, binding))
+      .toThrow(new PreviewTokenError('preview_invalid'));
+    expect(tokens.verifyAndConsume(issued, binding)).toBeUndefined();
   });
 });

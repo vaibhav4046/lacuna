@@ -1,0 +1,593 @@
+import { parentPort } from 'node:worker_threads';
+
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_SOURCE_CHARS = 20_000;
+const MAX_FILENAME_BYTES = 240;
+const MAX_PDF_PAGES = 100;
+const MAX_PDF_ITEMS = 20_000;
+const MAX_DOCX_ENTRIES = 256;
+const MAX_DOCX_ENTRY_BYTES = 8 * 1024 * 1024;
+const MAX_DOCX_UNCOMPRESSED_BYTES = 32 * 1024 * 1024;
+const MAX_DOCX_XML_BYTES = 2 * 1024 * 1024;
+const MAX_DOCX_RELATIONSHIP_BYTES = 256 * 1024;
+const MAX_DOCX_RATIO = 100;
+const MAX_DOCX_PARAGRAPHS = 5_000;
+const MAX_DOCX_TABLES = 500;
+const CONTROL_OR_BIDI = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
+const XML_POLICY_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
+const XML_ENTITY = /&(?:#(?:x[0-9a-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/iu;
+const PDF_MAGIC = Buffer.from('%PDF-', 'ascii');
+const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+const ZIP64_EOCD = Buffer.from([0x50, 0x4b, 0x06, 0x06]);
+const ZIP64_LOCATOR = Buffer.from([0x50, 0x4b, 0x06, 0x07]);
+const OFFICE_DOCUMENT_TYPES = new Set([
+  'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument',
+  'http://purl.oclc.org/ooxml/officeDocument/relationships/officeDocument',
+]);
+const MAIN_DOCUMENT_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
+const SAFE_CODES = new Set([
+  'invalid_file',
+  'parse_failed',
+  'file_too_complex',
+  'empty_file',
+  'document_too_long',
+]);
+
+class ParserPolicyError extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
+
+function fail(code) {
+  throw new ParserPolicyError(code);
+}
+
+function begins(bytes, magic) {
+  return bytes.length >= magic.length && bytes.subarray(0, magic.length).equals(magic);
+}
+
+function strictPdfTrailer(bytes) {
+  const source = bytes.toString('latin1');
+  const trailer = /(?:^|[\r\n])startxref[ \t]*(?:\r\n|\n|\r)([0-9]{1,10})[ \t]*(?:\r\n|\n|\r)%%EOF/gu;
+  const matches = [...source.matchAll(trailer)];
+  if (matches.length !== 1) return false;
+  const match = matches[0];
+  const matched = match[0];
+  const offsetText = match[1];
+  if (matched === undefined || offsetText === undefined || match.index === undefined) return false;
+  const end = match.index + matched.length;
+  if (!/^[\t\n\f\r ]*$/u.test(source.slice(end))) return false;
+  const startxref = match.index + matched.indexOf('startxref');
+  const xrefOffset = Number(offsetText);
+  if (!Number.isSafeInteger(xrefOffset) || xrefOffset < PDF_MAGIC.length || xrefOffset >= startxref) return false;
+  const crossReference = source.slice(xrefOffset, Math.min(startxref, xrefOffset + 4_096));
+  if (/^xref(?=[\t\n\f\r ])/u.test(crossReference)) return true;
+  const objectHeader = /^[1-9][0-9]{0,9}[ \t]+[0-9]{1,5}[ \t]+obj(?=[\t\n\f\r <])/u.exec(crossReference);
+  if (objectHeader === null) return false;
+  const stream = crossReference.indexOf('stream', objectHeader[0].length);
+  return stream >= 0 && /\/Type[ \t\r\n]*\/XRef(?=[\t\n\f\r />])/u.test(crossReference.slice(0, stream));
+}
+
+async function extractPdf(bytes) {
+  if (!begins(bytes, PDF_MAGIC)) fail('invalid_file');
+  if (bytes.indexOf(Buffer.from('%%EOF', 'ascii')) < 0) fail('parse_failed');
+  if (!strictPdfTrailer(bytes)) fail('invalid_file');
+  try {
+    await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
+  } catch {
+    fail('parse_failed');
+  }
+  let getDocument;
+  try {
+    ({ getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs'));
+  } catch {
+    fail('parse_failed');
+  }
+  const loading = getDocument({
+    data: new Uint8Array(bytes),
+    disableAutoFetch: true,
+    disableFontFace: true,
+    disableRange: true,
+    disableStream: true,
+    enableXfa: false,
+    isEvalSupported: false,
+    stopAtErrors: true,
+    useSystemFonts: false,
+    useWorkerFetch: false,
+    verbosity: 0,
+  });
+  let document;
+  try {
+    document = await loading.promise;
+    if (document.numPages < 1) fail('empty_file');
+    if (document.numPages > MAX_PDF_PAGES) fail('file_too_complex');
+    const pages = [];
+    let items = 0;
+    let characters = 0;
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      try {
+        const content = await page.getTextContent({ disableNormalization: false });
+        const text = [];
+        for (const item of content.items) {
+          items += 1;
+          if (items > MAX_PDF_ITEMS) fail('file_too_complex');
+          if ('str' in item && typeof item.str === 'string' && item.str !== '') text.push(item.str);
+        }
+        const joined = text.join(' ').trim();
+        if (joined !== '') {
+          characters += joined.length + (pages.length === 0 ? 0 : 1);
+          if (characters > MAX_SOURCE_CHARS) fail('document_too_long');
+          pages.push(joined);
+        }
+      } finally {
+        page.cleanup();
+      }
+    }
+    const text = pages.join('\n');
+    if (text === '') fail('empty_file');
+    return { text, pages: document.numPages, paragraphs: pages.length, tables: 0 };
+  } catch (error) {
+    if (error instanceof ParserPolicyError) throw error;
+    fail('parse_failed');
+  } finally {
+    try {
+      await document?.cleanup();
+    } catch {
+      // The parent still terminates this isolated worker after the safe result.
+    }
+    try {
+      await loading.destroy();
+    } catch {
+      // Cleanup details never cross the worker boundary.
+    }
+  }
+}
+
+function zipEntryName(entry) {
+  const name = entry.fileName.normalize('NFC');
+  const parts = name.split('/');
+  if (name.length === 0
+    || Buffer.byteLength(name, 'utf8') > MAX_FILENAME_BYTES
+    || CONTROL_OR_BIDI.test(name)
+    || name.includes('\\')
+    || name.startsWith('/')
+    || /^[A-Za-z]:/u.test(name)
+    || parts.some((part) => part === '..' || part === '.')
+    || parts.length > 8) fail('invalid_file');
+  return name;
+}
+
+function preflightCentralDirectory(bytes) {
+  const minimum = Math.max(0, bytes.length - 65_557);
+  let eocd = -1;
+  for (let at = bytes.length - 22; at >= minimum; at -= 1) {
+    if (bytes.readUInt32LE(at) === 0x06054b50) {
+      eocd = at;
+      break;
+    }
+  }
+  if (eocd < 0 || eocd + 22 > bytes.length) fail('parse_failed');
+  const entries = bytes.readUInt16LE(eocd + 10);
+  const directorySize = bytes.readUInt32LE(eocd + 12);
+  const directoryOffset = bytes.readUInt32LE(eocd + 16);
+  const commentBytes = bytes.readUInt16LE(eocd + 20);
+  if (bytes.readUInt16LE(eocd + 4) !== 0
+    || bytes.readUInt16LE(eocd + 6) !== 0
+    || bytes.readUInt16LE(eocd + 8) !== entries
+    || entries === 0
+    || entries > MAX_DOCX_ENTRIES
+    || eocd + 22 + commentBytes !== bytes.length
+    || directoryOffset + directorySize !== eocd) fail('parse_failed');
+
+  const names = new Set();
+  let at = directoryOffset;
+  let compressedTotal = 0;
+  let uncompressedTotal = 0;
+  const localRanges = [];
+  for (let index = 0; index < entries; index += 1) {
+    if (at + 46 > eocd || bytes.readUInt32LE(at) !== 0x02014b50) fail('parse_failed');
+    const flags = bytes.readUInt16LE(at + 8);
+    const method = bytes.readUInt16LE(at + 10);
+    const checksum = bytes.readUInt32LE(at + 16);
+    const compressed = bytes.readUInt32LE(at + 20);
+    const uncompressed = bytes.readUInt32LE(at + 24);
+    const nameBytes = bytes.readUInt16LE(at + 28);
+    const extraBytes = bytes.readUInt16LE(at + 30);
+    const entryCommentBytes = bytes.readUInt16LE(at + 32);
+    const localOffset = bytes.readUInt32LE(at + 42);
+    const end = at + 46 + nameBytes + extraBytes + entryCommentBytes;
+    if (end > eocd || nameBytes === 0 || nameBytes > MAX_FILENAME_BYTES) fail('invalid_file');
+    let name;
+    const centralName = bytes.subarray(at + 46, at + 46 + nameBytes);
+    try {
+      name = new TextDecoder('utf-8', { fatal: true }).decode(centralName);
+    } catch {
+      fail('invalid_file');
+    }
+    const canonical = zipEntryName({ fileName: name }).toLowerCase();
+    if (names.has(canonical)) fail('invalid_file');
+    names.add(canonical);
+    if ((flags & 1) !== 0 || (method !== 0 && method !== 8)) fail('invalid_file');
+    if (localOffset + 30 > directoryOffset || bytes.readUInt32LE(localOffset) !== 0x04034b50) fail('invalid_file');
+    const localFlags = bytes.readUInt16LE(localOffset + 6);
+    const localMethod = bytes.readUInt16LE(localOffset + 8);
+    const localChecksum = bytes.readUInt32LE(localOffset + 14);
+    const localCompressed = bytes.readUInt32LE(localOffset + 18);
+    const localUncompressed = bytes.readUInt32LE(localOffset + 22);
+    const localNameBytes = bytes.readUInt16LE(localOffset + 26);
+    const localExtraBytes = bytes.readUInt16LE(localOffset + 28);
+    const localNameStart = localOffset + 30;
+    const dataStart = localNameStart + localNameBytes + localExtraBytes;
+    const dataEnd = dataStart + compressed;
+    if (localFlags !== flags
+      || localMethod !== method
+      || localNameBytes !== nameBytes
+      || dataEnd > directoryOffset
+      || !bytes.subarray(localNameStart, localNameStart + localNameBytes).equals(centralName)) fail('invalid_file');
+    if ((flags & 8) === 0) {
+      if (localChecksum !== checksum
+        || localCompressed !== compressed
+        || localUncompressed !== uncompressed) fail('invalid_file');
+    } else if ((localChecksum !== 0 && localChecksum !== checksum)
+      || (localCompressed !== 0 && localCompressed !== compressed)
+      || (localUncompressed !== 0 && localUncompressed !== uncompressed)) fail('invalid_file');
+    localRanges.push({ start: localOffset, end: dataEnd });
+    const extra = bytes.subarray(at + 46 + nameBytes, at + 46 + nameBytes + extraBytes);
+    let cursor = 0;
+    while (cursor + 4 <= extra.length) {
+      const id = extra.readUInt16LE(cursor);
+      const size = extra.readUInt16LE(cursor + 2);
+      if (cursor + 4 + size > extra.length) fail('invalid_file');
+      if (id === 1) fail('file_too_complex');
+      cursor += 4 + size;
+    }
+    if (cursor !== extra.length) fail('invalid_file');
+    if (uncompressed > MAX_DOCX_ENTRY_BYTES
+      || (uncompressed > 0 && (compressed === 0 || uncompressed / compressed > MAX_DOCX_RATIO))) {
+      fail('file_too_complex');
+    }
+    compressedTotal += compressed;
+    uncompressedTotal += uncompressed;
+    if (compressedTotal > MAX_FILE_BYTES || uncompressedTotal > MAX_DOCX_UNCOMPRESSED_BYTES) {
+      fail('file_too_complex');
+    }
+    at = end;
+  }
+  if (at !== eocd) fail('parse_failed');
+  localRanges.sort((left, right) => left.start - right.start);
+  for (let index = 1; index < localRanges.length; index += 1) {
+    if (localRanges[index - 1].end > localRanges[index].start) fail('invalid_file');
+  }
+}
+
+function decodePolicyXml(bytes, rejectEntities = false) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    fail('invalid_file');
+  }
+  if (XML_POLICY_CONTROL.test(text)
+    || /<!DOCTYPE|<!ENTITY/iu.test(text)
+    || (rejectEntities && XML_ENTITY.test(text))) fail('invalid_file');
+  return text;
+}
+
+function parseAttributes(source, allowed, required) {
+  const attributes = new Map();
+  let cursor = 0;
+  while (cursor < source.length) {
+    const whitespace = /^[\t\n\f\r ]+/u.exec(source.slice(cursor));
+    if (whitespace === null) fail('invalid_file');
+    cursor += whitespace[0].length;
+    if (cursor === source.length) break;
+    const attribute = /^([A-Za-z_][A-Za-z0-9_.:-]*)[\t\n\f\r ]*=[\t\n\f\r ]*(["'])([^"'<>]*)\2/u.exec(source.slice(cursor));
+    if (attribute === null) fail('invalid_file');
+    const name = attribute[1];
+    const value = attribute[3];
+    if (name === undefined || value === undefined || !allowed.has(name) || attributes.has(name)) fail('invalid_file');
+    attributes.set(name, value);
+    cursor += attribute[0].length;
+  }
+  if ([...required].some((name) => !attributes.has(name))) fail('invalid_file');
+  return attributes;
+}
+
+function safeRelationshipTarget(target) {
+  if (target.length === 0
+    || target.length > MAX_FILENAME_BYTES
+    || target.normalize('NFC') !== target
+    || CONTROL_OR_BIDI.test(target)
+    || /[%\\:?#]/u.test(target)
+    || target.startsWith('/')
+    || target.split('/').some((part) => part === '' || part === '.' || part === '..')) fail('invalid_file');
+}
+
+function parseRelationships(bytes) {
+  const text = decodePolicyXml(bytes, true)
+    .replace(/^\s*<\?xml[^?]*\?>\s*/u, '');
+  const root = /^<Relationships\b([^>]*)>([\s\S]*)<\/Relationships>\s*$/u.exec(text);
+  if (root === null) fail('invalid_file');
+  const rootAttributes = parseAttributes(root[1] ?? '', new Set(['xmlns']), new Set(['xmlns']));
+  if (rootAttributes.get('xmlns') !== 'http://schemas.openxmlformats.org/package/2006/relationships') {
+    fail('invalid_file');
+  }
+  const inner = root[2] ?? '';
+  const relationships = [];
+  const ids = new Set();
+  const tag = /<Relationship\b([^>]*)\/>/gu;
+  let cursor = 0;
+  for (const match of inner.matchAll(tag)) {
+    if (match.index === undefined || inner.slice(cursor, match.index).trim() !== '') fail('invalid_file');
+    const attributes = parseAttributes(
+      match[1] ?? '',
+      new Set(['Id', 'Type', 'Target', 'TargetMode']),
+      new Set(['Id', 'Type', 'Target']),
+    );
+    const id = attributes.get('Id');
+    const type = attributes.get('Type');
+    const target = attributes.get('Target');
+    if (id === undefined || type === undefined || target === undefined
+      || id.length === 0 || type.length === 0 || ids.has(id)
+      || attributes.has('TargetMode')) fail('invalid_file');
+    ids.add(id);
+    safeRelationshipTarget(target);
+    relationships.push({ id, type, target });
+    cursor = match.index + match[0].length;
+  }
+  if (inner.slice(cursor).trim() !== '') fail('invalid_file');
+  return relationships;
+}
+
+function validateContentTypes(bytes) {
+  const text = decodePolicyXml(bytes, true);
+  if (/macroEnabled|vbaProject|oleObject|application\/vnd\.ms-|application\/vnd\.openxmlformats-officedocument\.(?:oleObject|package)|application\/octet-stream/iu.test(text)) {
+    fail('invalid_file');
+  }
+  const main = [];
+  for (const match of text.matchAll(/<Override\b([^>]*)\/>/gu)) {
+    const attributes = parseAttributes(
+      match[1] ?? '',
+      new Set(['PartName', 'ContentType']),
+      new Set(['PartName', 'ContentType']),
+    );
+    if (attributes.get('ContentType') === MAIN_DOCUMENT_CONTENT_TYPE) main.push(attributes.get('PartName'));
+  }
+  const rawMainCount = text.match(/application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document\.main\+xml/gu)?.length ?? 0;
+  if (rawMainCount !== 1 || main.length !== 1 || main[0] !== '/word/document.xml') fail('invalid_file');
+}
+
+async function readEveryEntryByte(zipFile, entry, canonical, state) {
+  const cap = canonical.endsWith('.rels')
+    ? MAX_DOCX_RELATIONSHIP_BYTES
+    : canonical.endsWith('.xml') || canonical === '[content_types].xml'
+      ? MAX_DOCX_XML_BYTES
+      : MAX_DOCX_ENTRY_BYTES;
+  let stream;
+  try {
+    stream = await zipFile.openReadStreamPromise(entry);
+  } catch {
+    fail('parse_failed');
+  }
+  const chunks = [];
+  let actual = 0;
+  try {
+    for await (const chunk of stream) {
+      const held = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      actual += held.length;
+      state.actual += held.length;
+      if (actual > cap
+        || state.actual > MAX_DOCX_UNCOMPRESSED_BYTES
+        || (actual > 0 && (entry.compressedSize === 0 || actual / entry.compressedSize > MAX_DOCX_RATIO))) {
+        stream.destroy();
+        fail('file_too_complex');
+      }
+      chunks.push(held);
+    }
+  } catch (error) {
+    if (error instanceof ParserPolicyError) throw error;
+    if (actual !== entry.uncompressedSize) fail('file_too_complex');
+    fail('parse_failed');
+  }
+  if (actual !== entry.uncompressedSize) fail('file_too_complex');
+  return Buffer.concat(chunks, actual);
+}
+
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, value) => {
+  let crc = value;
+  for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  return crc >>> 0;
+});
+
+function crc32(data) {
+  let crc = 0xffffffff;
+  for (const byte of data) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ byte) & 0xff];
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function canonicalZip(entries) {
+  const local = [];
+  const central = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name, 'utf8');
+    const checksum = crc32(entry.data);
+    const header = Buffer.alloc(30);
+    header.writeUInt32LE(0x04034b50, 0);
+    header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(0x0800, 6);
+    header.writeUInt32LE(checksum, 14);
+    header.writeUInt32LE(entry.data.length, 18);
+    header.writeUInt32LE(entry.data.length, 22);
+    header.writeUInt16LE(name.length, 26);
+    local.push(header, name, entry.data);
+
+    const directory = Buffer.alloc(46);
+    directory.writeUInt32LE(0x02014b50, 0);
+    directory.writeUInt16LE(0x0314, 4);
+    directory.writeUInt16LE(20, 6);
+    directory.writeUInt16LE(0x0800, 8);
+    directory.writeUInt32LE(checksum, 16);
+    directory.writeUInt32LE(entry.data.length, 20);
+    directory.writeUInt32LE(entry.data.length, 24);
+    directory.writeUInt16LE(name.length, 28);
+    directory.writeUInt32LE(offset, 42);
+    central.push(directory, name);
+    offset += header.length + name.length + entry.data.length;
+  }
+  const centralBytes = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralBytes.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...local, centralBytes, end]);
+}
+
+async function validatedDocx(bytes) {
+  if (!begins(bytes, ZIP_MAGIC)) fail('invalid_file');
+  if (bytes.indexOf(ZIP64_EOCD) >= 0 || bytes.indexOf(ZIP64_LOCATOR) >= 0) fail('file_too_complex');
+  preflightCentralDirectory(bytes);
+  let yauzl;
+  try {
+    yauzl = await import('yauzl');
+  } catch {
+    fail('parse_failed');
+  }
+  let zipFile;
+  try {
+    zipFile = await yauzl.fromBufferPromise(bytes, {
+      autoClose: false,
+      decodeStrings: true,
+      lazyEntries: true,
+      strictFileNames: true,
+      // Metadata was checked structurally above; actual expansion is counted
+      // by readEveryEntryByte instead of being truncated at the claimed size.
+      validateEntrySizes: false,
+    });
+  } catch {
+    fail('parse_failed');
+  }
+
+  const names = new Set();
+  const entries = [];
+  const state = { actual: 0, count: 0, compressed: 0 };
+  try {
+    await new Promise((resolve, reject) => {
+      let stopped = false;
+      const stop = (error) => {
+        if (stopped) return;
+        stopped = true;
+        reject(error);
+      };
+      zipFile.once('error', stop);
+      zipFile.once('end', () => {
+        if (!stopped) resolve();
+      });
+      zipFile.on('entry', (entry) => {
+        void (async () => {
+          if (stopped) return;
+          state.count += 1;
+          if (state.count > MAX_DOCX_ENTRIES) fail('file_too_complex');
+          const name = zipEntryName(entry);
+          const canonical = name.toLowerCase();
+          if (names.has(canonical)) fail('invalid_file');
+          names.add(canonical);
+          if ((entry.generalPurposeBitFlag & 1) !== 0
+            || (entry.compressionMethod !== 0 && entry.compressionMethod !== 8)) fail('invalid_file');
+          state.compressed += entry.compressedSize;
+          if (state.compressed > MAX_FILE_BYTES
+            || entry.uncompressedSize > MAX_DOCX_ENTRY_BYTES
+            || (entry.uncompressedSize > 0
+              && (entry.compressedSize === 0 || entry.uncompressedSize / entry.compressedSize > MAX_DOCX_RATIO))) {
+            fail('file_too_complex');
+          }
+          if (canonical.includes('vbaproject')
+            || canonical.includes('/embeddings/')
+            || canonical.endsWith('.bin')
+            || canonical.includes('oleobject')) fail('invalid_file');
+          const data = await readEveryEntryByte(zipFile, entry, canonical, state);
+          if (name.endsWith('/')) {
+            if (data.length !== 0) fail('invalid_file');
+          } else {
+            entries.push({ name, canonical, data });
+          }
+          zipFile.readEntry();
+        })().catch(stop);
+      });
+      zipFile.readEntry();
+    });
+  } catch (error) {
+    if (error instanceof ParserPolicyError) throw error;
+    fail('parse_failed');
+  } finally {
+    zipFile.close();
+  }
+
+  const byName = new Map(entries.map((entry) => [entry.canonical, entry]));
+  const contentTypes = byName.get('[content_types].xml');
+  const rootRelationships = byName.get('_rels/.rels');
+  const document = byName.get('word/document.xml');
+  if (contentTypes === undefined || rootRelationships === undefined || document === undefined
+    || contentTypes.name !== '[Content_Types].xml'
+    || rootRelationships.name !== '_rels/.rels'
+    || document.name !== 'word/document.xml') fail('invalid_file');
+  validateContentTypes(contentTypes.data);
+  const root = parseRelationships(rootRelationships.data);
+  const officeDocuments = root.filter((relationship) => OFFICE_DOCUMENT_TYPES.has(relationship.type));
+  if (officeDocuments.length !== 1 || officeDocuments[0]?.target !== 'word/document.xml') fail('invalid_file');
+  for (const entry of entries) {
+    if (entry.canonical.endsWith('.rels')) parseRelationships(entry.data);
+  }
+  const documentXml = decodePolicyXml(document.data);
+  const paragraphs = documentXml.match(/<w:p(?:\s|>)/gu)?.length ?? 0;
+  const tables = documentXml.match(/<w:tbl(?:\s|>)/gu)?.length ?? 0;
+  if (paragraphs > MAX_DOCX_PARAGRAPHS || tables > MAX_DOCX_TABLES) fail('file_too_complex');
+  return {
+    archive: canonicalZip(entries.map(({ name, data }) => ({ name, data }))),
+    paragraphs,
+    tables,
+  };
+}
+
+async function extractDocx(bytes) {
+  const validated = await validatedDocx(bytes);
+  try {
+    const mammoth = (await import('mammoth')).default;
+    const result = await mammoth.extractRawText({ buffer: validated.archive });
+    const text = result.value.normalize('NFC').replace(/\r\n?/gu, '\n').trim();
+    if (text === '') fail('empty_file');
+    if (text.length > MAX_SOURCE_CHARS) fail('document_too_long');
+    return { text, pages: 0, paragraphs: validated.paragraphs, tables: validated.tables };
+  } catch (error) {
+    if (error instanceof ParserPolicyError) throw error;
+    fail('parse_failed');
+  }
+}
+
+async function parseRequest(request) {
+  if (typeof request !== 'object' || request === null || Array.isArray(request)
+    || Object.keys(request).sort().join('\u0000') !== 'bytes\u0000fileType\u0000kind'
+    || request.kind !== 'parse'
+    || (request.fileType !== 'pdf' && request.fileType !== 'docx')
+    || !(request.bytes instanceof ArrayBuffer)
+    || request.bytes.byteLength === 0
+    || request.bytes.byteLength > MAX_FILE_BYTES) fail('invalid_file');
+  const bytes = Buffer.from(request.bytes);
+  return request.fileType === 'pdf' ? await extractPdf(bytes) : await extractDocx(bytes);
+}
+
+if (parentPort === null) throw new Error('file parser worker requires a parent port');
+parentPort.once('message', (request) => {
+  void parseRequest(request).then(
+    (value) => parentPort.postMessage({ ok: true, value }),
+    (error) => parentPort.postMessage({
+      ok: false,
+      code: error instanceof ParserPolicyError && SAFE_CODES.has(error.code) ? error.code : 'parse_failed',
+    }),
+  ).finally(() => parentPort.close());
+});

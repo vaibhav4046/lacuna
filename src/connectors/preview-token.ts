@@ -196,7 +196,9 @@ export class FilePreviewTokenService {
       || !BASE64URL.test(suppliedSignature)) throw new PreviewTokenError('preview_invalid');
     const wanted = createHmac('sha256', this.#key).update(encoded, 'ascii').digest();
     const supplied = Buffer.from(suppliedSignature, 'base64url');
-    if (supplied.length !== wanted.length || !timingSafeEqual(supplied, wanted)) {
+    if (supplied.toString('base64url') !== suppliedSignature
+      || supplied.length !== wanted.length
+      || !timingSafeEqual(supplied, wanted)) {
       throw new PreviewTokenError('preview_invalid');
     }
     const payload = parsePayload(encoded);

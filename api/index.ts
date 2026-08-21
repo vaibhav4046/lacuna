@@ -133,6 +133,9 @@ const connectorRunner = cloud === null || connectorStore === null ? null : new C
 const fileConnector = connectorRunner === null || filePreviewKey === null ? null : new FileConnectorService({
   runner: connectorRunner,
   tokens: new FilePreviewTokenService({ key: filePreviewKey }),
+  // Kept beside this function entry and included explicitly by vercel.json,
+  // so import.meta.url resolves the same way in source and native output.
+  parserIsolation: { workerUrl: new URL('./file-parser-worker.mjs', import.meta.url) },
 });
 
 async function cloudHealth(): Promise<unknown> {

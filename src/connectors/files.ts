@@ -1,11 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { IncomingHttpHeaders } from 'node:http';
 import { Readable } from 'node:stream';
+import { Worker, type WorkerOptions } from 'node:worker_threads';
 
 import Busboy from '@fastify/busboy';
-import mammoth from 'mammoth';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import * as yauzl from 'yauzl';
 
 import { MAX_SOURCE_CHARS } from '../api/ingest.js';
 import {
@@ -26,16 +24,8 @@ export const MAX_MULTIPART_BYTES = 8 * 1024 * 1024;
 export const FILE_PARSER_VERSION = 'files-v1';
 
 const MAX_FILENAME_BYTES = 240;
-const MAX_PDF_PAGES = 100;
-const MAX_PDF_ITEMS = 20_000;
-const MAX_DOCX_ENTRIES = 256;
-const MAX_DOCX_ENTRY_BYTES = 8 * 1024 * 1024;
-const MAX_DOCX_UNCOMPRESSED_BYTES = 32 * 1024 * 1024;
-const MAX_DOCX_XML_BYTES = 2 * 1024 * 1024;
-const MAX_DOCX_RATIO = 100;
-const MAX_DOCX_PARAGRAPHS = 5_000;
-const MAX_DOCX_TABLES = 500;
 const PARSER_TIMEOUT_MS = 5_000;
+const PARSER_TEARDOWN_MS = 500;
 const PREVIEW_EXCERPT_CHARS = 320;
 const SUPPORTED_TYPES = new Set(['text', 'markdown', 'pdf', 'docx']);
 const DANGEROUS_SUFFIXES = new Set([
@@ -45,23 +35,9 @@ const DANGEROUS_SUFFIXES = new Set([
 const RESERVED_BASENAMES = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/iu;
 const CONTROL_OR_BIDI = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 const BINARY_TEXT_CONTROL = /[\u0001-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
-const XML_POLICY_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
-const XML_ENTITY = /&(?:#(?:x[0-9a-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/iu;
 const PDF_MAGIC = Buffer.from('%PDF-', 'ascii');
-const PDF_EOF = Buffer.from('%%EOF', 'ascii');
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
-const ZIP64_EOCD = Buffer.from([0x50, 0x4b, 0x06, 0x06]);
-const ZIP64_LOCATOR = Buffer.from([0x50, 0x4b, 0x06, 0x07]);
-
-let pdfWorkerReady: Promise<unknown> | undefined;
-
-function loadPdfWorker(): Promise<unknown> {
-  // PDF.js otherwise hides its Node fake-worker behind a runtime-relative,
-  // webpack-ignored import. This literal import is traceable and stays in an
-  // isolated lazy module, whose side effect installs globalThis.pdfjsWorker.
-  pdfWorkerReady ??= import('pdfjs-dist/legacy/build/pdf.worker.mjs');
-  return pdfWorkerReady;
-}
+const DEFAULT_FILE_PARSER_WORKER = new URL('../../api/file-parser-worker.mjs', import.meta.url);
 
 export type FileConnectorErrorCode =
   | 'invalid_multipart'
@@ -172,16 +148,19 @@ function extensionPolicy(filename: string): { readonly title: string; readonly t
   if (lastDot <= 0 || lastDot === filename.length - 1) fail('unsupported_file');
   const stem = filename.slice(0, lastDot);
   const extension = filename.slice(lastDot + 1).toLowerCase();
-  const priorDot = stem.lastIndexOf('.');
-  if (priorDot >= 0 && DANGEROUS_SUFFIXES.has(stem.slice(priorDot + 1).toLowerCase())) fail('invalid_filename');
-  if (RESERVED_BASENAMES.test(stem)) fail('invalid_filename');
+  const canonicalStem = stem.normalize('NFKC').trim();
+  const stemParts = canonicalStem.split('.').map((part) => part.trim());
+  if (stemParts.some((part) => part.length === 0)
+    || stemParts.slice(1).some((part) => DANGEROUS_SUFFIXES.has(part.toLowerCase()))
+    || RESERVED_BASENAMES.test(stemParts[0] ?? '')
+    || RESERVED_BASENAMES.test(canonicalStem)) fail('invalid_filename');
   const type = extension === 'txt' ? 'text'
     : extension === 'md' || extension === 'markdown' ? 'markdown'
       : extension === 'pdf' ? 'pdf'
         : extension === 'docx' ? 'docx'
           : null;
   if (type === null || !SUPPORTED_TYPES.has(type)) fail('unsupported_file');
-  const title = stem.normalize('NFC').trim().replace(/\s+/gu, ' ');
+  const title = canonicalStem.normalize('NFC').replace(/\s+/gu, ' ');
   if (title.length === 0 || title.length > 120) fail('invalid_filename');
   const mediaType = type === 'text' ? 'text/plain'
     : type === 'markdown' ? 'text/markdown'
@@ -218,46 +197,6 @@ function decodeText(bytes: Buffer): string {
   }
 }
 
-function decodePolicyXml(bytes: Buffer): string {
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    if (XML_POLICY_CONTROL.test(text)) fail('invalid_file');
-    return text;
-  } catch (error) {
-    if (error instanceof FileConnectorError) throw error;
-    return fail('invalid_file');
-  }
-}
-
-function hasNoTrailingPdfPayload(bytes: Buffer): boolean {
-  const eof = bytes.lastIndexOf(PDF_EOF);
-  // Let PDF.js classify a missing EOF as malformed; this gate is specifically
-  // for a second payload hidden after an otherwise complete PDF.
-  if (eof < 0) return true;
-  for (let at = eof + PDF_EOF.length; at < bytes.length; at += 1) {
-    const byte = bytes[at];
-    if (byte !== 0x00 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0c && byte !== 0x0d && byte !== 0x20) {
-      return false;
-    }
-  }
-  return true;
-}
-
-async function within<T>(promise: Promise<T>, timeoutMs = PARSER_TIMEOUT_MS): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new FileConnectorError('file_too_complex', 422)), timeoutMs);
-        timer.unref?.();
-      }),
-    ]);
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
 interface ExtractedText {
   readonly text: string;
   readonly pages: number;
@@ -265,299 +204,149 @@ interface ExtractedText {
   readonly tables: number;
 }
 
-async function extractPdf(bytes: Buffer): Promise<ExtractedText> {
-  if (!begins(bytes, PDF_MAGIC) || !hasNoTrailingPdfPayload(bytes)) fail('invalid_file');
-  const deadline = Date.now() + PARSER_TIMEOUT_MS;
-  const bounded = async <T>(promise: Promise<T>): Promise<T> => (
-    await within(promise, Math.max(1, deadline - Date.now()))
-  );
-  try {
-    await bounded(loadPdfWorker());
-  } catch (error) {
-    if (error instanceof FileConnectorError) throw error;
-    return fail('parse_failed');
+export interface FileParserIsolationOptions {
+  readonly workerUrl?: URL;
+  readonly timeoutMs?: number;
+  readonly workerFactory?: (url: URL, options: WorkerOptions) => Worker;
+}
+
+const WORKER_ERROR_CODES = new Set<FileConnectorErrorCode>([
+  'invalid_file',
+  'parse_failed',
+  'file_too_complex',
+  'empty_file',
+  'document_too_long',
+]);
+
+function extractedFromWorker(message: unknown): ExtractedText {
+  if (typeof message !== 'object' || message === null || Array.isArray(message)) fail('parse_failed');
+  const record = message as Record<string, unknown>;
+  if (record['ok'] === false
+    && Object.keys(record).sort().join('\u0000') === 'code\u0000ok'
+    && typeof record['code'] === 'string'
+    && WORKER_ERROR_CODES.has(record['code'] as FileConnectorErrorCode)) {
+    fail(record['code'] as FileConnectorErrorCode);
   }
-  const loading = getDocument({
-    data: new Uint8Array(bytes),
-    disableAutoFetch: true,
-    disableFontFace: true,
-    disableRange: true,
-    disableStream: true,
-    enableXfa: false,
-    isEvalSupported: false,
-    stopAtErrors: true,
-    useSystemFonts: false,
-    useWorkerFetch: false,
-    verbosity: 0,
+  if (record['ok'] !== true || Object.keys(record).sort().join('\u0000') !== 'ok\u0000value') {
+    fail('parse_failed');
+  }
+  const value = record['value'];
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) fail('parse_failed');
+  const parsed = value as Record<string, unknown>;
+  if (Object.keys(parsed).sort().join('\u0000') !== 'pages\u0000paragraphs\u0000tables\u0000text'
+    || typeof parsed['text'] !== 'string'
+    || parsed['text'].length === 0
+    || parsed['text'].length > MAX_SOURCE_CHARS
+    || !Number.isSafeInteger(parsed['pages'])
+    || !Number.isSafeInteger(parsed['paragraphs'])
+    || !Number.isSafeInteger(parsed['tables'])
+    || (parsed['pages'] as number) < 0
+    || (parsed['pages'] as number) > 100
+    || (parsed['paragraphs'] as number) < 0
+    || (parsed['paragraphs'] as number) > 5_000
+    || (parsed['tables'] as number) < 0
+    || (parsed['tables'] as number) > 500) fail('parse_failed');
+  return {
+    text: parsed['text'],
+    pages: parsed['pages'] as number,
+    paragraphs: parsed['paragraphs'] as number,
+    tables: parsed['tables'] as number,
+  };
+}
+
+function terminateWorker(worker: Worker): { readonly bounded: Promise<boolean>; readonly settled: Promise<boolean> } {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settled = worker.terminate().then(() => true, () => false);
+  const bounded = Promise.race([
+    settled,
+    new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), PARSER_TEARDOWN_MS);
+      timer.unref?.();
+    }),
+  ]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
   });
-  let document: Awaited<typeof loading.promise> | undefined;
+  return { bounded, settled };
+}
+
+async function extractIsolated(
+  type: 'pdf' | 'docx',
+  bytes: Buffer,
+  options: FileParserIsolationOptions,
+): Promise<ExtractedText> {
+  const timeoutMs = options.timeoutMs ?? PARSER_TIMEOUT_MS;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 10 || timeoutMs > PARSER_TIMEOUT_MS) {
+    fail('parse_failed');
+  }
+  const workerUrl = options.workerUrl ?? DEFAULT_FILE_PARSER_WORKER;
+  if (workerUrl.protocol !== 'file:') fail('parse_failed');
+  let worker: Worker;
   try {
-    document = await bounded(loading.promise);
-    if (document.numPages < 1) fail('empty_file');
-    if (document.numPages > MAX_PDF_PAGES) fail('file_too_complex');
-    const pages: string[] = [];
-    let items = 0;
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await bounded(document.getPage(pageNumber));
-      try {
-        const content = await bounded(page.getTextContent({ disableNormalization: false }));
-        const text: string[] = [];
-        for (const item of content.items) {
-          items += 1;
-          if (items > MAX_PDF_ITEMS) fail('file_too_complex');
-          if ('str' in item && typeof item.str === 'string' && item.str !== '') text.push(item.str);
-        }
-        pages.push(text.join(' ').trim());
-        if (pages.join('\n').length > MAX_SOURCE_CHARS) fail('document_too_long', 422);
-      } finally {
-        page.cleanup();
-      }
-    }
-    const text = pages.filter((page) => page !== '').join('\n');
-    if (text.trim() === '') fail('empty_file');
-    return { text, pages: document.numPages, paragraphs: pages.filter((page) => page !== '').length, tables: 0 };
-  } catch (error) {
-    if (error instanceof FileConnectorError) throw error;
-    return fail('parse_failed');
-  } finally {
-    try {
-      await document?.cleanup();
-    } catch {
-      // Cleanup has no bearing on the already-redacted parse result.
-    }
-    try {
-      await loading.destroy();
-    } catch {
-      // Always attempt teardown; never expose parser cleanup messages.
-    }
-  }
-}
-
-function zipEntryName(entry: yauzl.Entry): string {
-  const name = entry.fileName.normalize('NFC');
-  if (name.length === 0
-    || Buffer.byteLength(name, 'utf8') > MAX_FILENAME_BYTES
-    || CONTROL_OR_BIDI.test(name)
-    || name.includes('\\')
-    || name.startsWith('/')
-    || /^[A-Za-z]:/u.test(name)
-    || name.split('/').some((part) => part === '..' || part === '.')
-    || name.split('/').length > 8) fail('invalid_file');
-  return name;
-}
-
-async function readZipEntry(zipFile: yauzl.ZipFile, entry: yauzl.Entry, cap: number): Promise<Buffer> {
-  const stream = await zipFile.openReadStreamPromise(entry);
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const chunk of stream) {
-    const held = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
-    bytes += held.length;
-    if (bytes > cap) {
-      stream.destroy();
-      fail('file_too_complex');
-    }
-    chunks.push(held);
-  }
-  return Buffer.concat(chunks, bytes);
-}
-
-interface DocxPreflight {
-  readonly paragraphs: number;
-  readonly tables: number;
-}
-
-function preflightCentralDirectory(bytes: Buffer): void {
-  const minimum = Math.max(0, bytes.length - 65_557);
-  let eocd = -1;
-  for (let at = bytes.length - 22; at >= minimum; at -= 1) {
-    if (bytes.readUInt32LE(at) === 0x06054b50) {
-      eocd = at;
-      break;
-    }
-  }
-  if (eocd < 0 || eocd + 22 > bytes.length) fail('parse_failed');
-  const entries = bytes.readUInt16LE(eocd + 10);
-  const directorySize = bytes.readUInt32LE(eocd + 12);
-  const directoryOffset = bytes.readUInt32LE(eocd + 16);
-  const commentBytes = bytes.readUInt16LE(eocd + 20);
-  if (bytes.readUInt16LE(eocd + 4) !== 0
-    || bytes.readUInt16LE(eocd + 6) !== 0
-    || bytes.readUInt16LE(eocd + 8) !== entries
-    || entries === 0
-    || entries > MAX_DOCX_ENTRIES
-    || eocd + 22 + commentBytes !== bytes.length
-    || directoryOffset + directorySize !== eocd) fail('parse_failed');
-
-  const names = new Set<string>();
-  let at = directoryOffset;
-  let compressedTotal = 0;
-  let uncompressedTotal = 0;
-  for (let index = 0; index < entries; index += 1) {
-    if (at + 46 > eocd || bytes.readUInt32LE(at) !== 0x02014b50) fail('parse_failed');
-    const flags = bytes.readUInt16LE(at + 8);
-    const method = bytes.readUInt16LE(at + 10);
-    const compressed = bytes.readUInt32LE(at + 20);
-    const uncompressed = bytes.readUInt32LE(at + 24);
-    const nameBytes = bytes.readUInt16LE(at + 28);
-    const extraBytes = bytes.readUInt16LE(at + 30);
-    const entryCommentBytes = bytes.readUInt16LE(at + 32);
-    const end = at + 46 + nameBytes + extraBytes + entryCommentBytes;
-    if (end > eocd || nameBytes === 0 || nameBytes > MAX_FILENAME_BYTES) fail('invalid_file');
-    let name: string;
-    try {
-      name = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(at + 46, at + 46 + nameBytes));
-    } catch {
-      fail('invalid_file');
-    }
-    const checked = zipEntryName({ fileName: name } as yauzl.Entry).toLowerCase();
-    if (names.has(checked)) fail('invalid_file');
-    names.add(checked);
-    if ((flags & 1) !== 0) fail('invalid_file');
-    if (method !== 0 && method !== 8) fail('invalid_file');
-    const extra = bytes.subarray(at + 46 + nameBytes, at + 46 + nameBytes + extraBytes);
-    for (let cursor = 0; cursor + 4 <= extra.length;) {
-      const id = extra.readUInt16LE(cursor);
-      const size = extra.readUInt16LE(cursor + 2);
-      if (cursor + 4 + size > extra.length) fail('invalid_file');
-      if (id === 1) fail('file_too_complex');
-      cursor += 4 + size;
-    }
-    if (extra.length > 0) {
-      let cursor = 0;
-      while (cursor + 4 <= extra.length) cursor += 4 + extra.readUInt16LE(cursor + 2);
-      if (cursor !== extra.length) fail('invalid_file');
-    }
-    if (uncompressed > MAX_DOCX_ENTRY_BYTES
-      || (uncompressed > 0 && (compressed === 0 || uncompressed / compressed > MAX_DOCX_RATIO))) {
-      fail('file_too_complex');
-    }
-    compressedTotal += compressed;
-    uncompressedTotal += uncompressed;
-    if (compressedTotal > MAX_FILE_BYTES || uncompressedTotal > MAX_DOCX_UNCOMPRESSED_BYTES) {
-      fail('file_too_complex');
-    }
-    at = end;
-  }
-  if (at !== eocd) fail('parse_failed');
-}
-
-async function preflightDocx(bytes: Buffer, deadline: number): Promise<DocxPreflight> {
-  if (!begins(bytes, ZIP_MAGIC)) fail('invalid_file');
-  if (bytes.indexOf(ZIP64_EOCD) >= 0 || bytes.indexOf(ZIP64_LOCATOR) >= 0) fail('file_too_complex');
-  preflightCentralDirectory(bytes);
-  let zipFile: yauzl.ZipFile;
-  try {
-    zipFile = await yauzl.fromBufferPromise(bytes, {
-      autoClose: false,
-      decodeStrings: true,
-      lazyEntries: true,
-      strictFileNames: true,
-      validateEntrySizes: true,
-    });
+    const workerOptions: WorkerOptions = {
+      execArgv: [],
+      resourceLimits: {
+        maxOldGenerationSizeMb: 192,
+        maxYoungGenerationSizeMb: 32,
+        stackSizeMb: 4,
+      },
+    };
+    worker = options.workerFactory === undefined
+      ? new Worker(workerUrl, workerOptions)
+      : options.workerFactory(workerUrl, workerOptions);
   } catch {
     fail('parse_failed');
   }
 
-  const names = new Set<string>();
-  let entries = 0;
-  let compressedTotal = 0;
-  let uncompressedTotal = 0;
-  const captured: { contentTypes?: Buffer; documentXml?: Buffer } = {};
-  const relationships: Buffer[] = [];
-  try {
-    await within(new Promise<void>((resolve, reject) => {
-      let stopped = false;
-      const stop = (error: unknown) => {
-        if (stopped) return;
-        stopped = true;
-        reject(error);
-      };
-      zipFile.once('error', stop);
-      zipFile.once('end', () => {
-        if (!stopped) resolve();
+  return await new Promise<ExtractedText>((resolve, reject) => {
+    let finishing = false;
+    const timeout = setTimeout(() => finish(new FileConnectorError('file_too_complex', 422)), timeoutMs);
+    timeout.unref?.();
+    const cleanup = () => {
+      clearTimeout(timeout);
+      worker.off('message', onMessage);
+      worker.off('messageerror', onMessageError);
+      worker.off('error', onError);
+      worker.off('exit', onExit);
+    };
+    const finish = (outcome: ExtractedText | FileConnectorError) => {
+      if (finishing) return;
+      finishing = true;
+      clearTimeout(timeout);
+      const termination = terminateWorker(worker);
+      void termination.bounded.then((stopped) => {
+        if (stopped) cleanup();
+        else void termination.settled.finally(cleanup);
+        if (!stopped) {
+          reject(new FileConnectorError('parse_failed', 422));
+        } else if (outcome instanceof FileConnectorError) {
+          reject(outcome);
+        } else {
+          resolve(outcome);
+        }
       });
-      zipFile.on('entry', (entry) => {
-        void (async () => {
-          if (stopped) return;
-          entries += 1;
-          if (entries > MAX_DOCX_ENTRIES) fail('file_too_complex');
-          const name = zipEntryName(entry);
-          const canonical = name.toLowerCase();
-          if (names.has(canonical)) fail('invalid_file');
-          names.add(canonical);
-          if ((entry.generalPurposeBitFlag & 1) !== 0) fail('invalid_file');
-          if (entry.compressionMethod !== 0 && entry.compressionMethod !== 8) fail('invalid_file');
-          if (entry.uncompressedSize > MAX_DOCX_ENTRY_BYTES) fail('file_too_complex');
-          if (entry.uncompressedSize > 0
-            && (entry.compressedSize === 0 || entry.uncompressedSize / entry.compressedSize > MAX_DOCX_RATIO)) {
-            fail('file_too_complex');
-          }
-          compressedTotal += entry.compressedSize;
-          uncompressedTotal += entry.uncompressedSize;
-          if (compressedTotal > MAX_FILE_BYTES || uncompressedTotal > MAX_DOCX_UNCOMPRESSED_BYTES) {
-            fail('file_too_complex');
-          }
-          if (canonical.includes('vbaproject')
-            || canonical.includes('/embeddings/')
-            || canonical.endsWith('.bin')
-            || canonical.includes('oleobject')) fail('invalid_file');
-
-          if (canonical === '[content_types].xml') {
-            captured.contentTypes = await readZipEntry(zipFile, entry, MAX_DOCX_XML_BYTES);
-          } else if (canonical === 'word/document.xml') {
-            captured.documentXml = await readZipEntry(zipFile, entry, MAX_DOCX_XML_BYTES);
-          } else if (canonical.endsWith('.rels')) {
-            relationships.push(await readZipEntry(zipFile, entry, 256 * 1024));
-          }
-          zipFile.readEntry();
-        })().catch(stop);
-      });
-      zipFile.readEntry();
-    }), Math.max(1, deadline - Date.now()));
-  } catch (error) {
-    if (error instanceof FileConnectorError) throw error;
-    fail('parse_failed');
-  } finally {
-    zipFile.close();
-  }
-
-  if (captured.contentTypes === undefined || captured.documentXml === undefined) fail('invalid_file');
-  const contentTypeText = decodePolicyXml(captured.contentTypes);
-  if (!contentTypeText.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml')
-    || XML_ENTITY.test(contentTypeText)
-    || /macroEnabled|vbaProject|oleObject|application\/vnd\.ms-|application\/vnd\.openxmlformats-officedocument\.(?:oleObject|package)|application\/octet-stream/iu.test(contentTypeText)) fail('invalid_file');
-  for (const relationship of relationships) {
-    const relationshipText = decodePolicyXml(relationship);
-    if (XML_ENTITY.test(relationshipText)
-      || /TargetMode\s*=/iu.test(relationshipText)
-      || /Target\s*=\s*["']\s*(?:[A-Za-z][A-Za-z0-9+.-]*:|[/\\]{2})/iu.test(relationshipText)) {
-      fail('invalid_file');
+    };
+    const onMessage = (message: unknown) => {
+      try {
+        finish(extractedFromWorker(message));
+      } catch (error) {
+        finish(error instanceof FileConnectorError ? error : new FileConnectorError('parse_failed', 422));
+      }
+    };
+    const onMessageError = () => finish(new FileConnectorError('parse_failed', 422));
+    const onError = () => finish(new FileConnectorError('parse_failed', 422));
+    const onExit = () => finish(new FileConnectorError('parse_failed', 422));
+    worker.once('message', onMessage);
+    worker.once('messageerror', onMessageError);
+    worker.once('error', onError);
+    worker.once('exit', onExit);
+    const owned = Uint8Array.from(bytes);
+    const transferred = owned.buffer as ArrayBuffer;
+    try {
+      worker.postMessage({ kind: 'parse', fileType: type, bytes: transferred }, [transferred]);
+    } catch {
+      finish(new FileConnectorError('parse_failed', 422));
     }
-  }
-  const xml = decodePolicyXml(captured.documentXml);
-  const paragraphs = xml.match(/<w:p(?:\s|>)/gu)?.length ?? 0;
-  const tables = xml.match(/<w:tbl(?:\s|>)/gu)?.length ?? 0;
-  if (paragraphs > MAX_DOCX_PARAGRAPHS || tables > MAX_DOCX_TABLES) fail('file_too_complex');
-  return { paragraphs, tables };
-}
-
-async function extractDocx(bytes: Buffer): Promise<ExtractedText> {
-  const deadline = Date.now() + PARSER_TIMEOUT_MS;
-  const policy = await preflightDocx(bytes, deadline);
-  try {
-    const result = await within(
-      mammoth.extractRawText({ buffer: bytes }),
-      Math.max(1, deadline - Date.now()),
-    );
-    const text = result.value.normalize('NFC').replace(/\r\n?/gu, '\n').trim();
-    if (text === '') fail('empty_file');
-    if (text.length > MAX_SOURCE_CHARS) fail('document_too_long', 422);
-    return { text, pages: 0, paragraphs: policy.paragraphs, tables: policy.tables };
-  } catch (error) {
-    if (error instanceof FileConnectorError) throw error;
-    fail('parse_failed');
-  }
+  });
 }
 
 function preparedDocument(
@@ -589,7 +378,10 @@ function preparedDocument(
 }
 
 /** Parse a fully bounded upload; multipart acquisition is a separate streaming gate. */
-export async function parseUploadedFile(input: ParseUploadedFileInput): Promise<PreparedFile> {
+export async function parseUploadedFile(
+  input: ParseUploadedFileInput,
+  isolation: FileParserIsolationOptions = {},
+): Promise<PreparedFile> {
   const bytes = Buffer.from(input.bytes);
   if (bytes.length === 0) fail('empty_file');
   if (bytes.length > MAX_FILE_BYTES) fail('file_too_large', 413);
@@ -598,9 +390,9 @@ export async function parseUploadedFile(input: ParseUploadedFileInput): Promise<
 
   let extracted: ExtractedText;
   if (policy.type === 'pdf') {
-    extracted = await extractPdf(bytes);
+    extracted = await extractIsolated('pdf', bytes, isolation);
   } else if (policy.type === 'docx') {
-    extracted = await extractDocx(bytes);
+    extracted = await extractIsolated('docx', bytes, isolation);
   } else {
     const text = decodeText(bytes);
     if (text.trim() === '') fail('empty_file');
@@ -791,6 +583,7 @@ export interface FileConnectorServiceOptions {
   readonly runner: Pick<ConnectorRunner, 'run'>;
   readonly tokens: FilePreviewTokenService;
   readonly now?: () => number;
+  readonly parserIsolation?: FileParserIsolationOptions;
 }
 
 /** Preview is pure; import reparses and consumes its authenticated policy before the runner. */
@@ -798,11 +591,13 @@ export class FileConnectorService implements FileConnectorBoundary {
   readonly #runner: Pick<ConnectorRunner, 'run'>;
   readonly #tokens: FilePreviewTokenService;
   readonly #now: () => number;
+  readonly #parserIsolation: FileParserIsolationOptions;
 
   constructor(options: FileConnectorServiceOptions) {
     this.#runner = options.runner;
     this.#tokens = options.tokens;
     this.#now = options.now ?? Date.now;
+    this.#parserIsolation = options.parserIsolation ?? {};
   }
 
   async preview(request: MultipartRequestStream, context: FileRequestContext): Promise<FilePreview> {
@@ -810,7 +605,7 @@ export class FileConnectorService implements FileConnectorBoundary {
     const prepared = await parseUploadedFile({
       ...multipart.file,
       observedAt: new Date(this.#now()).toISOString(),
-    });
+    }, this.#parserIsolation);
     const issued = this.#tokens.issue(tokenBinding(prepared, context));
     return {
       filename: prepared.filename,
@@ -833,7 +628,7 @@ export class FileConnectorService implements FileConnectorBoundary {
     const prepared = await parseUploadedFile({
       ...multipart.file,
       observedAt: new Date(this.#now()).toISOString(),
-    });
+    }, this.#parserIsolation);
     try {
       this.#tokens.verifyAndConsume(multipart.previewToken ?? '', tokenBinding(prepared, context));
     } catch (error) {

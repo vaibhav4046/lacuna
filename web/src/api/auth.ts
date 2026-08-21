@@ -78,6 +78,24 @@ export async function recover(
 }
 
 /**
+ * Add a password to the identity that is already signed in.
+ *
+ * Hosted account creation remains Google-verified; this authenticated route is
+ * what turns that verified account into one that can also use password sign-in
+ * and recovery without exposing a same-email public signup race.
+ */
+export async function configurePassword(
+  password: string,
+): Promise<{ readonly problem: string } | { readonly recoveryCode: string }> {
+  const result = await postJson('/api/auth/password', { password });
+  if (!result.ok) return { problem: messageFor(result.status) };
+  const code = (result.body as { recoveryCode?: unknown } | null)?.recoveryCode;
+  return typeof code === 'string' && code !== ''
+    ? { recoveryCode: code }
+    : { problem: 'The password was changed but no recovery code came back.' };
+}
+
+/**
  * The screen says a reset link will be emailed. If no mail transport is
  * configured the server says 501 and the screen says so, because a page that
  * reports success for something that did not happen is the same lie as a

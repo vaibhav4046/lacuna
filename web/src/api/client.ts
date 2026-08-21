@@ -73,6 +73,7 @@ export function useLoaded<T>(path: string): Loaded<T> {
 
 /** The name of the double-submit cookie the server sets for mutations. */
 const CSRF_COOKIE = 'lacuna_csrf';
+const MUTATION_TIMEOUT_MS = 15_000;
 
 /** The double submit header, for a caller that builds its own request. */
 export function csrfHeaders(): Readonly<Record<string, string>> {
@@ -109,12 +110,21 @@ export interface PostResult {
  * response body can never become copy.
  */
 export async function postJson(path: string, body: unknown): Promise<PostResult> {
-  const send = async (): Promise<Response> => fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
-    body: JSON.stringify(body),
-  });
+  const send = async (): Promise<Response> => {
+    const control = new AbortController();
+    const timeout = globalThis.setTimeout(() => control.abort(), MUTATION_TIMEOUT_MS);
+    try {
+      return await fetch(path, {
+        method: 'POST',
+        signal: control.signal,
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+        body: JSON.stringify(body),
+      });
+    } finally {
+      globalThis.clearTimeout(timeout);
+    }
+  };
 
   try {
     let response = await send();
@@ -145,8 +155,8 @@ export async function postJson(path: string, body: unknown): Promise<PostResult>
       parsed = null;
     }
     return { ok: response.ok, status: response.status, body: parsed };
-  } catch {
-    return { ok: false, status: 0, body: null };
+  } catch (error) {
+    return { ok: false, status: error instanceof Error && error.name === 'AbortError' ? 408 : 0, body: null };
   }
 }
 

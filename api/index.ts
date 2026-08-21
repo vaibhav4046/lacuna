@@ -43,6 +43,7 @@ import { ElevenLabsVoiceProvider, VoiceBoundary, elevenLabsVoiceConfig } from '.
 import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 import { PREDICATE_NAMES } from '../src/corpus/types.js';
+import { planVoiceIntent } from '../src/voice/intent.js';
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -183,6 +184,7 @@ const api = new ApiRouter({
   health: cloudHealth,
   voice,
   siteOrigin: SITE_ORIGIN,
+  voiceIntent: planVoiceIntent,
   // Stable across serverless instances. The value never enters a graph
   // response; it only authenticates opaque pagination cursors.
   ...(graphCursorKey === undefined ? {} : { graphCursorKey }),

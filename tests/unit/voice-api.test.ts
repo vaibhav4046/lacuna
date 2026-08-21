@@ -6,6 +6,7 @@ import {
   readSpokenAnswer, singleUseTokenRequest, streamingSpeechRequest, validStreamingAudio,
   validateVoiceAccess, type ElevenLabsVoiceConfig, type VoiceAccessRequest,
 } from '../../src/api/voice.js';
+import { exactVoiceOrigin } from '../../src/api/router.js';
 
 const CONFIG: ElevenLabsVoiceConfig = {
   apiKey: 'test-server-key', voiceId: 'voice_123',
@@ -130,6 +131,16 @@ describe('ElevenLabs response guards', () => {
 });
 
 describe('voice endpoint access and limits', () => {
+  it('accepts only the exact serialized deployment origin', () => {
+    expect(exactVoiceOrigin('https://lacuna.example', 'https://lacuna.example')).toBe(true);
+    expect(exactVoiceOrigin(undefined, 'https://lacuna.example')).toBe(false);
+    expect(exactVoiceOrigin('https://lacuna.example/', 'https://lacuna.example')).toBe(false);
+    expect(exactVoiceOrigin('https://lacuna.example/path', 'https://lacuna.example')).toBe(false);
+    expect(exactVoiceOrigin('https://lacuna.example.evil.test', 'https://lacuna.example')).toBe(false);
+    expect(exactVoiceOrigin('https://lacuna.example:444', 'https://lacuna.example')).toBe(false);
+    expect(exactVoiceOrigin('https://user@lacuna.example', 'https://lacuna.example')).toBe(false);
+  });
+
   it('requires exact same origin and the authenticated private workspace', () => {
     expect(validateVoiceAccess(PRIVATE)).toBeNull();
     expect(validateVoiceAccess({ ...PRIVATE, origin: 'https://evil.example' })).toBe('origin');

@@ -57,6 +57,8 @@ import {
   runScheduleNow,
 } from '../scheduler/dispatcher.js';
 import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } from './voice.js';
+import { VOICE_ROUTES } from '../voice/operations.js';
+import { MAX_VOICE_TRANSCRIPT_CHARS, type VoiceIntentPlan, type VoiceScope } from '../voice/intent.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -160,6 +162,67 @@ const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
 const PRIVATE_RUN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const PRIVATE_INGEST_LIMIT = { limit: 4, windowMs: 5 * 60_000, maxKeys: 4_096 };
 const PRIVATE_MCP_ISSUE_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
+const PRIVATE_VOICE_INTENT_LIMIT = { limit: 30, windowMs: 60_000, maxKeys: 4_096 };
+
+const VOICE_REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const VOICE_ROUTE_KEYS = new Set<string>(VOICE_ROUTES);
+
+export interface VoiceIntentRequest {
+  readonly version: 1;
+  readonly requestId: string;
+  readonly transcript: string;
+  readonly currentRoute: string;
+  readonly scope: VoiceScope;
+}
+
+/** Origin headers serialize to the origin only. Paths and trailing slashes are not equivalent input. */
+export function exactVoiceOrigin(origin: string | undefined, expectedOrigin: string): boolean {
+  if (origin === undefined) return false;
+  try {
+    const expected = new URL(expectedOrigin);
+    const given = new URL(origin);
+    return expectedOrigin === expected.origin
+      && origin === expected.origin
+      && given.username === ''
+      && given.password === '';
+  } catch {
+    return false;
+  }
+}
+
+function voiceRouteScope(route: unknown): VoiceScope | null {
+  if (typeof route !== 'string') return null;
+  const match = /^\/(app|explore)\/([^/]+)$/u.exec(route);
+  if (match === null || !VOICE_ROUTE_KEYS.has(match[2] ?? '')) return null;
+  return match[1] === 'explore' ? 'public' : 'private';
+}
+
+/** Strict boundary for the only client-controlled values the pure planner receives. */
+export function readVoiceIntentRequest(value: unknown): VoiceIntentRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const body = value as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(body).sort();
+  if (keys.length !== 4
+    || keys[0] !== 'currentRoute'
+    || keys[1] !== 'requestId'
+    || keys[2] !== 'transcript'
+    || keys[3] !== 'version') return null;
+  const scope = voiceRouteScope(body['currentRoute']);
+  if (body['version'] !== 1
+    || typeof body['requestId'] !== 'string'
+    || !VOICE_REQUEST_ID.test(body['requestId'])
+    || typeof body['transcript'] !== 'string'
+    || body['transcript'].length > MAX_VOICE_TRANSCRIPT_CHARS
+    || typeof body['currentRoute'] !== 'string'
+    || scope === null) return null;
+  return {
+    version: 1,
+    requestId: body['requestId'],
+    transcript: body['transcript'],
+    currentRoute: body['currentRoute'],
+    scope,
+  };
+}
 
 interface RememberedOperations {
   readonly windowStart: number;
@@ -283,6 +346,8 @@ export interface ApiOptions {
   readonly voice?: VoiceBoundary;
   /** Canonical trusted origin used for the voice Origin check. */
   readonly siteOrigin?: string;
+  /** Pure deterministic planner, composed independently of the speech provider. */
+  readonly voiceIntent?: (transcript: string, currentRoute: string, scope: VoiceScope) => VoiceIntentPlan;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   /**
@@ -574,6 +639,7 @@ export class ApiRouter {
   readonly #cronWorkspaces: readonly string[];
   readonly #voice: VoiceBoundary | undefined;
   readonly #siteOrigin: string | undefined;
+  readonly #voiceIntent: ApiOptions['voiceIntent'];
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #continuity: Readonly<Record<string, unknown>> | undefined;
@@ -593,6 +659,7 @@ export class ApiRouter {
   readonly #privateRunLimit = new WorkspaceRunWindow(PRIVATE_RUN_LIMIT);
   readonly #privateIngestLimit = new FixedWindow(PRIVATE_INGEST_LIMIT);
   readonly #privateMcpIssueLimit = new FixedWindow(PRIVATE_MCP_ISSUE_LIMIT);
+  readonly #privateVoiceIntentLimit = new FixedWindow(PRIVATE_VOICE_INTENT_LIMIT);
 
   constructor(options: ApiOptions) {
     this.#store = options.store;
@@ -611,6 +678,7 @@ export class ApiRouter {
     this.#cronWorkspaces = options.cronWorkspaces ?? ['public'];
     this.#voice = options.voice;
     this.#siteOrigin = options.siteOrigin;
+    this.#voiceIntent = options.voiceIntent;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#continuity = options.continuity;
@@ -1407,6 +1475,51 @@ export class ApiRouter {
       await sendVoiceResult(response, result, control);
       request.removeListener('aborted', abort);
       response.removeListener('close', abort);
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/voice/intent' && method === 'POST') {
+      const expectedOrigin = this.#siteOrigin;
+      const plan = this.#voiceIntent;
+      if (expectedOrigin === undefined || plan === undefined) {
+        send(response, 503, { error: 'voice_intent_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), expectedOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      let raw: unknown;
+      try {
+        raw = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const body = readVoiceIntentRequest(raw);
+      if (body === null) {
+        send(response, 422, { error: 'voice_intent' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateVoiceIntentLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_voice_intent_budget');
+        return HANDLED;
+      }
+      send(response, 200, {
+        ...plan(body.transcript, body.currentRoute, body.scope),
+        requestId: body.requestId,
+      });
       return HANDLED;
     }
 

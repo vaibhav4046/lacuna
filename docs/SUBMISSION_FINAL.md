@@ -9,7 +9,7 @@ Everything the form asks for, with the state of each item.
 | Repository | https://github.com/vaibhav4046/lacuna | public, Apache-2.0 for Lacuna code |
 | Deployed | https://lacuna-five.vercel.app | live, no account needed, ask it a question on the landing |
 | Live demo, no sign-up | https://lacuna-five.vercel.app/judge | six computed on load, plus one the reader types |
-| Whole product, read only | https://lacuna-five.vercel.app/explore/dash | public seeded workspace; accepted run records are inspectable, anonymous run creation is disabled in the current candidate |
+| Whole product, read only | https://lacuna-five.vercel.app/explore/dash | public seeded workspace; accepted run records are inspectable, anonymous run creation is disabled in production |
 | Video | no accepted V10 master yet | the earlier 179-second V8 render is historical and rejected; use `V10_VIDEO_PITCH.md` and replace this row only after final media gates pass |
 | Captions | pending V10 master | require burned-in sentence captions plus a matching final SRT |
 | Supademo | no public walkthrough | not assembled |
@@ -33,12 +33,11 @@ the proved remote path, including a seven-tool ChatGPT client run. Hosted signup
 is Google-only; new password accounts are deliberately refused.
 
 **Public-agent read-only boundary.** Accepted public run records remain visible
-as evidence. The current candidate returns `403 public_preview_read_only` for
+as evidence. Production returns `403 public_preview_read_only` for
 anonymous `POST /api/explore/agent/run` and `/api/demo/agent/run`; it does not
 persist a visitor's task or spend provider calls. Signed-in,
 CSRF-protected `/api/workspace/agent/run` remains a real persisted capability.
-This patch needs a fresh production deployment gate before the video presents
-the 403 as live production behavior.
+Both public route names were probed directly on the accepted deployment.
 
 **Submitting the form.** Same reason. Every field it asks for is in this file.
 

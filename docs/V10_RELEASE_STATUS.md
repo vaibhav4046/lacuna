@@ -40,12 +40,12 @@ Production: <https://lacuna-five.vercel.app>
 
 | Surface | Evidence accepted for the current production deployment |
 | --- | --- |
-| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. HydraDB Cloud answered in 83 ms during that probe. |
+| HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The post-promotion demo gate measured the context store ready in 93 ms. |
 | Public graph | `GET /api/explore/graph?mode=overview&limit=1` returned 453 total nodes, 682 total edges, zero orphan edges and a signed next cursor on 2026-08-21. |
 | Public MCP | `POST /mcp` with `tools/list` returned seven read-only tools on 2026-08-21: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health`. |
-| Web | The last accepted production sweep passed web smoke 9/9 and demo smoke 30/30. |
+| Web | The accepted production sweep passed web smoke 9/9 and demo smoke 30/30. |
 | Route/browser matrix | Production passed 198/198 normal-motion and 198/198 reduced-motion checks: 22 routes at nine viewports, zero console errors, exceptions, failed requests or horizontal overflow. |
-| Landing motion | Eight production viewports retained all 25 semantic scenes; all 17 captured stages were distinct, and reduced motion passed 6/6. |
+| Landing motion | The exact release passed eight local viewports, 20/20 distinct desktop stages, 7/7 priority mobile scenes, a 29/29 manifest and reduced motion 6/6. The promoted production landing was then recaptured at desktop and mobile widths. |
 | Google auth boundary | The deployed pre-chooser security sweep passed 15/15: Google origin, exact callback, identity-only scopes, PKCE S256, nonce/state binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. |
 | Password account | Hosted password creation is deliberately disabled because the HydraDB document boundary cannot atomically enforce a unique email. A historical 12/12 run exists for an existing password identity; it is not the current signup path. |
 | Surface continuity | The deployed web endpoint, cloud-pointed Lacuna CLI and a Lacuna MCP process returned identical results for six outcome classes in `artifacts/continuity/one-context.json`. This is the same temporal read contract across those three surfaces, not a ChatGPT or Claude proof. |
@@ -54,26 +54,26 @@ Production: <https://lacuna-five.vercel.app>
 
 The full dated artifact ledger remains in [EVIDENCE_INDEX.md](EVIDENCE_INDEX.md).
 
-Those accepted public run records remain readable evidence. A later
-working-tree security patch makes the public preview strictly read-only:
+Those accepted public run records remain readable evidence. The public preview
+is strictly read-only in the accepted production deployment:
 anonymous `POST /api/explore/agent/run` and `/api/demo/agent/run` return
 `403 public_preview_read_only`, while authenticated, CSRF-protected
-`POST /api/workspace/agent/run` remains a real persisted run. This boundary is
-unit-tested but is not transferred to production until a fresh deployment gate
-accepts it.
+`POST /api/workspace/agent/run` remains a real persisted run. Both anonymous
+route names were probed directly after deployment; invalid JSON on the legacy
+alias was still refused before body processing.
 
 ## V10 production gate
 
-Deployment `dpl_5kpU5GECQDi6UK71JjZp4Kj1q1in` is the accepted production
-baseline for the evidence above. Root typecheck, 1,376 unit tests, the
-124-module production build,
-web 9/9, demo/API 30/30, Google boundary 15/15 and the seven-tool ChatGPT public
-connector pass all target this build. The route and reduced-motion sweeps are
-recorded separately because a media render is not allowed to grant a product
-gate. The V10 film remains a separate artifact with its own acceptance steps.
-The current working tree contains later changes, including the public-agent
-read-only patch and landing sizing work; none inherits this deployment's
-acceptance until it is deployed and the relevant gates are rerun.
+Deployment `dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW` is the accepted production
+deployment for product commit `c2012ddca176b8e59370020c1de84caedc442d72`.
+Root typecheck, 83 unit files / 1,376 tests, the 124-module production build,
+web 9/9, demo/API 30/30, Google boundary 15/15, public-agent 403 probes, and
+normal/reduced route sweeps of 198/198 all target this product tree. The stable
+alias points to the immutable URL
+`https://lacuna-ccl2b6750-vaibhav4046s-projects.vercel.app`. The seven-tool
+ChatGPT public connector proof targets the same public contract. A media render
+does not grant a product gate; the V10 film remains a separate artifact with its
+own acceptance steps.
 
 ## Named boundaries
 
@@ -82,7 +82,7 @@ acceptance until it is deployed and the relevant gates are rerun.
 | Packaged SDK | None is shipped. The repository uses the official MCP SDK internally; there is no `@lacuna/sdk` package. |
 | ChatGPT | Accepted for the seven-tool public, read-only corpus. Private `remember` is not accepted because the installed version-1 capability now fails closed and must be reminted. |
 | Claude / Claude Code | The remote endpoint is protocol-shaped. No accepted Claude-to-Lacuna session exists yet. |
-| Public agent preview | Accepted run records are readable. The current candidate refuses anonymous run creation with `403 public_preview_read_only`; signed-in workspace runs remain implemented. Fresh production acceptance of this patch is still required. |
+| Public agent preview | Accepted run records are readable. Production refuses anonymous run creation with `403 public_preview_read_only`; signed-in workspace runs remain implemented behind session, CSRF and durable workspace budgets. |
 | Private MCP write | Candidate code issues a random digest-only bearer with `createdAt` and `expiresAt`; it fails at the 30-day expiry or on earlier revocation. `Authorization: Bearer` at `/mcp` is preferred because `/mcp/w/<capability>` URLs may be logged. Version-1 capabilities fail closed and must be reminted after rollout. A production issue/use/revoke/expiry proof remains required. |
 | Google sign-in | The production boundary is accepted 15/15 through the real Google account chooser. Selecting a human identity and accepting a fresh provider callback remain owner actions. |
 | Voice | Browser states and provider routes are not an accepted provider-backed production audio session. Typed Ask is the supported fallback. |

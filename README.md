@@ -27,7 +27,7 @@ part everyone skips.
 
 ## Product evidence
 
-These are automated captures of the current candidate, not concept renders.
+These are automated captures of the accepted V10 product, not concept renders.
 
 ![Lacuna landing page with the persistent Memory Gravity Field](artifacts/visual-v10/preview/hero-desktop-1920.png)
 
@@ -95,11 +95,10 @@ Webhook and Database source are `PLANNED`; none is `CONNECTED` or `SYNCING`.
 Spotify is not in the connector catalogue and is not implemented.
 
 The public workspace exposes accepted agent run records for inspection but is
-not a shared scratchpad. The current candidate returns
+not a shared scratchpad. The accepted production deployment returns
 `403 public_preview_read_only` for anonymous `POST /api/explore/agent/run` and
 its `/api/demo` alias. Authenticated, CSRF-protected
-`POST /api/workspace/agent/run` remains a real persisted capability. This
-security patch still needs a fresh production deployment gate.
+`POST /api/workspace/agent/run` remains a real persisted capability.
 
 The candidate private MCP credential is a random bearer stored only by digest.
 It expires 30 days after issue and can be revoked sooner; issuance returns

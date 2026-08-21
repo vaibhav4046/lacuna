@@ -2,21 +2,20 @@
 
 ## Current V10 evidence boundary: 2026-08-21
 
-These rows separate accepted production evidence, the current working-tree
-candidate, and dated V8 history. The authoritative production/candidate
-boundary is [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md); a local patch does
-not inherit a deployment pass, and historical results do not transfer without
-a named rerun.
+These rows separate accepted V10 production evidence and dated V8 history. The
+authoritative boundary is [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md); a
+later local patch does not inherit a deployment pass, and historical results do
+not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, current candidate | 83 files, 1,376 tests passed | terminal run on 2026-08-21 after the V10 semantic-artifact fixes |
-| root and web typecheck | both exit 0 | terminal run in the V8 execution session |
+| full unit gate, accepted product tree | 83 files, 1,376 tests passed | terminal run on 2026-08-21 after the public-agent security fix |
+| root and web typecheck | both exit 0 | terminal run on 2026-08-21 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
 | native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
 | accepted public agent record | completed, 8 lifecycle events; readable evidence with no authoritative memory writeback | production Work and Agents screens |
-| anonymous public agent creation, current candidate only | `POST /api/explore/agent/run` and `/api/demo/agent/run` return `403 public_preview_read_only` before body/provider processing | `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
 | connector truth table | `AVAILABLE`: Text, Custom ingestion; all catalogued external/file/data connectors are `PLANNED`; Spotify is absent | `web/src/design/connectors.ts` |
@@ -45,7 +44,6 @@ a named rerun.
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
 | voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |
-| anonymous public run creation is disabled in production | candidate returns `403 public_preview_read_only`; signed-in workspace runs remain real | deploy the candidate and rerun public/private agent gates |
 | Claude continuity | no accepted Claude-to-Lacuna session | named-client connection and same-workspace evidence capture |
 | Supademo | no published walkthrough | assemble from final production captures and verify the public link |
 | final video | no accepted V10 master; the metadata-verified 179-second V8 candidate was rejected | build and review the V10 cut from [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md), then complete audio, caption, upload and signed-out playback checks |

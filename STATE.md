@@ -1,11 +1,11 @@
 # Current state
 
-Updated 2026-08-21. This file describes the V10 working tree and keeps it
-separate from the accepted production deployment. The current handoff is
+Updated 2026-08-21. This file describes the accepted V10 product tree and its
+current production deployment. The current handoff is
 [`docs/V10_RELEASE_STATUS.md`](docs/V10_RELEASE_STATUS.md); V8 matrices remain
 dated evidence.
 
-## Candidate verified locally
+## Accepted product gate
 
 - 83 unit test files and 1,376 tests passed with no skips.
 - Root and web TypeScript checks pass.
@@ -17,7 +17,7 @@ dated evidence.
 - Two bounded, no-write agents run Researcher to Reviewer handoffs from a
   Context Pack. Memory-derived recommendations state their reason, evidence,
   permissions and budgets before any run or schedule is created.
-- The public workspace is read-only in the current candidate:
+- The public workspace is read-only in production:
   `POST /api/explore/agent/run` and its legacy `/api/demo` alias return
   `403 public_preview_read_only` before reading a body or calling a provider.
   Existing public run records remain inspectable. Authenticated, CSRF-protected
@@ -59,15 +59,16 @@ dated evidence.
 - Voice browser/runtime routes are implemented and fixture-tested. Typed Ask
   remains available when the provider is absent.
 
-## Production acceptance still required
+## Accepted production
 
-The stable URL is <https://lacuna-five.vercel.app>. The accepted production
-baseline and its deployment id are named in `docs/V10_RELEASE_STATUS.md`; they
-do not include every uncommitted candidate change above. In particular, the
-anonymous-agent 403 boundary and current landing changes still require a fresh
-deployment and rerun of the web/demo/auth/graph/agent/schedule/MCP gates before
-they become production evidence. The public repository must contain the exact
-accepted source before submission.
+The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
+deployment `dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW`, built from product commit
+`c2012ddca176b8e59370020c1de84caedc442d72`. Web passed 9/9, demo/API passed
+30/30, Google OAuth's pre-chooser boundary passed 15/15, and both normal and
+reduced-motion route sweeps passed 198/198. The anonymous-agent 403 boundary
+was also probed directly on that deployment. The public release branch contains
+the exact accepted product source; publication to `main` remains a release
+action rather than a product gate.
 
 The selected narration voice is the verified ElevenLabs **Vaibhav Lalwani
 Professional** clone. Raw clone audio stays local and gitignored so a biometric

@@ -472,18 +472,19 @@
         "artifacts/verification/2026-08-21-v10/agent-conflict-run.json"
       ],
       "reproduce": "npx vitest run tests/unit/agent-run.test.ts tests/unit/agent-persistence.test.ts",
-      "caveat": "This is not an arbitrary user-created agent platform. CLI and MCP do not expose lifecycle commands. The latest accepted run was produced after removing a hand-written predicate subset that had omitted `runbook_owner`; it now carries both conflicting claims and no authoritative writeback. Accepted public records are inspectable, but the current candidate no longer allows anonymous visitors to create a persisted run."
+      "caveat": "This is not an arbitrary user-created agent platform. CLI and MCP do not expose lifecycle commands. The latest accepted run was produced after removing a hand-written predicate subset that had omitted `runbook_owner`; it now carries both conflicting claims and no authoritative writeback. Accepted public records are inspectable, but production does not allow anonymous visitors to create a persisted run."
     },
     {
       "id": "public-agent-read-only",
-      "claim": "The current candidate makes the public preview read-only: anonymous explore/demo agent-run POSTs return 403, while the signed-in CSRF-protected workspace route still creates and persists real workspace-scoped runs.",
-      "capability": "PARTIAL",
-      "data": "FIXTURE",
+      "claim": "Production makes the public preview read-only: anonymous explore/demo agent-run POSTs return 403, while the signed-in CSRF-protected workspace route still creates and persists real workspace-scoped runs.",
+      "capability": "VERIFIED",
+      "data": "LIVE",
       "measured": {
         "public_status": 403,
         "public_error": "public_preview_read_only",
         "signed_in_workspace_run_status": 200,
-        "fresh_production_acceptance": false
+        "fresh_production_acceptance": true,
+        "deployment_id": "dpl_5UfvqFgPtHV6G9XcgM5itDTgV7LW"
       },
       "evidence": [
         "src/api/router.ts",
@@ -491,7 +492,7 @@
         "tests/unit/agent-recommendations-api.test.ts"
       ],
       "reproduce": "npx vitest run tests/unit/demo-api.test.ts tests/unit/agent-recommendations-api.test.ts",
-      "caveat": "The accepted public run records remain readable. NO_WRITE means no authoritative memory mutation; a run record itself is operational state, which is why anonymous creation now fails closed. This patch is unit-tested but still requires a fresh production deployment gate."
+      "caveat": "The accepted public run records remain readable. NO_WRITE means no authoritative memory mutation; a run record itself is operational state, which is why anonymous creation fails closed. Production probes covered both public route names; a new signed-in issue/run session was not created during this gate."
     },
     {
       "id": "connector-catalogue",

@@ -21,6 +21,7 @@
 - A timed-out write is reported as ambiguous, not as definitely absent.
 - Existing legacy accounts already marked `onboarded: true` must not be forced through onboarding again.
 - Session/account-binding changes abort and discard every pending preview, ingest, file, question, and answer result before it can update UI or write.
+- Task 2 starts only after connector Task 6 is complete: it consumes the reviewed deadline-aware `HydraCloud.ingestApp`, `ConnectorRunner`, readiness/max-record, and indeterminate-receipt controls rather than reimplementing them.
 - Heavy verification runs with one worker.
 
 ---
@@ -163,23 +164,31 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 
 **Files:**
 - Create: `src/api/onboarding-attempt-store.ts`
+- Create: `src/api/onboarding-attempt-redis.ts`
 - Modify: `src/api/ingest.ts`
 - Modify: `src/api/workspace.ts`
 - Modify: `src/api/router.ts`
 - Modify: `src/connectors/files.ts`
+- Modify: `src/connectors/preview-token.ts`
 - Modify: `api/index.ts`
 - Modify: `web/src/api/client.ts`
+- Modify: `web/src/api/connectors.ts`
+- Modify: `.env.example`
+- Modify: `package.json`
 - Test: `tests/unit/ingest-source.test.ts`
 - Test: `tests/unit/onboarding-api.test.ts`
 - Test: `tests/unit/workspace-api.test.ts`
 - Create: `tests/unit/onboarding-attempt-store.test.ts`
 - Test: `tests/unit/connectors-files.test.ts`
+- Test: `tests/unit/web-connectors-client.test.ts`
 
 **Interfaces:**
 - Extends: existing `IngestPreparedOptions` with one absolute deadline and `maxRecords: 25`
 - Reuses: aggregate `IngestPreparedReport.searchable` / `indexing` without exposing Hydra ids
 - Adds: `GET /api/workspace/questions` backed by bounded live workspace claims
 - Adds: `GET /api/workspace/onboarding/attempt` backed by a durable active-attempt pointer
+- Produces: one atomic fixed-size per-owner `RedisOnboardingAttemptStore`
+- Consumes: Task 6 absolute deadline/readiness/max-record controls through `ConnectorRunner`
 - Consumes: `HydraCloud.waitForIndexing(ids, options)` under the same settlement deadline
 
 - [ ] **Step 1: Add a queued-receipt readiness regression**
@@ -192,15 +201,26 @@ transport-loss case that reports `indeterminate` rather than known zero. Prove
 graph output above 25 records refuses before any write and every local queue or
 Hydra call ends by the absolute deadline.
 
-Write a dedicated attempt-store regression. Before the first workspace POST,
-persist/read back a strict active pointer and attempt record keyed by a full
-server-keyed owner digest and random opaque attempt id. Store only version,
-keyed input digest, source kind, bounded internal expected record ids, state
-`pending | indeterminate | searchable | failed`, safe counts/failure code, and
-canonical timestamps in a dedicated non-workspace collection—never raw
-workspace/email/title/text/file/token. Prove exact readback, account isolation,
-malformed-record refusal, stale-update refusal, and that no workspace write runs
-when the pending record cannot be confirmed.
+Write a dedicated attempt-store regression against two independent store
+instances. Production uses one authenticated TLS Redis connection dedicated to
+onboarding operational state; missing/invalid configuration returns `503` and
+performs zero workspace writes. One owner-keyed record is both active pointer
+and state, with an atomic Lua compare-and-set version/generation. It stores only
+schema version, full keyed owner/input digests, random opaque attempt id, exact
+purpose/source kind, at most 25 internal expected record ids, generation/attempt
+count, state `pending | indeterminate | searchable | failed`, safe counts/failure
+code, and canonical timestamps—never raw workspace/email/title/text/file/token.
+
+Transitions are atomic and monotonic: `pending -> failed | indeterminate |
+searchable`, `indeterminate -> searchable`, and `searchable` is terminal.
+`failed` may begin a new generation only through explicit confirmation. Keep
+exactly one fixed-size record per owner, allow at most eight first-run attempts,
+refuse N+1, and never replace an unresolved generation. Completion/explicit Skip
+atomically retires the record; unresolved records do not expire silently. Test
+cross-instance interleavings so late failed/indeterminate updates cannot
+downgrade searchable, concurrent begin has one visible winner, an unresolved
+attempt cannot be displaced, malformed/oversized records fail closed, and a
+pending record must be confirmed before any workspace write.
 
 - [ ] **Step 2: Add an API regression for delayed suggestions**
 
@@ -227,23 +247,23 @@ confirmation and deterministic-upsert copy, never an automatic request.
 
 - [ ] **Step 3: Run focused tests and verify RED**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts --maxWorkers=1`
 
 Expected: missing options/report fields.
 
 - [ ] **Step 4: Implement bounded indexing readiness**
 
-Capture one 235-second server settlement deadline before body acquisition and
-schedule backward: reserve the final 20 seconds for attempt-state update/exact
-readback, the preceding 30 seconds for readiness, at most 120 seconds for the
-single workspace Hydra POST, the preceding 20 seconds for pending attempt+
-pointer writes/exact readback, and 20 seconds for the bounded workspace queue
-plus pre-write index/entity reads. Body/token/quota/local preparation is at most
-10 seconds; 15 seconds remain as internal scheduling margin. No phase borrows a
+Capture one 210-second server settlement deadline before body acquisition and
+schedule backward: reserve the final five seconds for the atomic attempt-state
+transition/readback, the preceding 30 seconds for readiness, at most 120 seconds
+for the single workspace Hydra POST, the preceding five seconds for atomic
+pending-attempt creation/readback, and 20 seconds for the bounded workspace
+queue plus pre-write index/entity reads. Body/token/quota/local preparation is
+at most 10 seconds; 20 seconds remain as internal scheduling margin. No phase borrows a
 reserved tail, and workspace submission is refused unless at least 170 seconds
 remain. Pass the remaining budget/signal through production composition in
 `api/index.ts`. Set the browser mutation timeout above the complete server
-budget (250 seconds), while keeping
+budget (225 seconds) in both JSON and file connector clients, while keeping
 abort/account-swap cancellation distinct from a server-side indeterminate
 receipt. Collect accepted record ids only internally and validate complete
 receipts. Mark `searchable` only when every accepted id reaches `completed`;
@@ -255,27 +275,46 @@ workspace-scoped current claim views used by Ask. Exclude slot/synthetic,
 historical, retracted, contradicted, malformed, and missing-evidence claims;
 stable-sort and cap the provider reads and serialized response at three items.
 
-Implement `CloudOnboardingAttemptStore` with bounded process-local mutation
-ordering and exact Hydra readback; do not claim cross-instance CAS. Derive
-record addresses with a separate HMAC domain from the validated preview root
-key. The text store and onboarding-marked file import prepare their deterministic
-graph ids, persist/read back `pending`, then submit. They update the attempt
-after exact receipt/readiness; transport uncertainty writes `indeterminate` if
-possible but never downgrades confirmed acceptance. If handler settlement is
-lost, the pre-existing pending record remains the recovery source. File
-multipart gains only one exact bounded onboarding-purpose marker; normal
-connector imports do not replace the onboarding active pointer.
+Implement `RedisOnboardingAttemptStore` through injected atomic scripts and
+bounded abort/deadline-aware calls; every call must end inside its five-second
+phase. Parse only a dedicated `LACUNA_ONBOARDING_REDIS_URL`: require authenticated
+`rediss:` in production, never fall back to a generic/local Redis, Hydra token,
+session secret, or preview key. Parse a separate exact 32-byte
+`LACUNA_ONBOARDING_KEY` and derive owner/input digests with exact independent
+domains; rotation is destructive for unresolved attempts and must be coordinated
+only after they are resolved/skipped. The complete onboarding service is absent
+unless Redis, onboarding key, preview-token service, governed runner, and site
+origin are all valid. Document variable names/server-only/rotation behavior in
+`.env.example` without values.
+
+Use one bounded singleton client/connection, normal TLS certificate validation,
+fixed owner-key commands and audited scripts only—no `KEYS`, `SCAN`, pub/sub,
+caller-supplied key, or unbounded retry/reconnect queue. Cap serialized state at
+16 KiB, command attempts at one, and redact URL/host/credentials, keys, script
+arguments, workspace ids, and expected record ids from responses/logs/errors.
+
+Consume Task 6's deadline-aware `HydraCloud.ingestApp`, `ConnectorRunner`,
+readiness, `maxRecords: 25`, and indeterminate-submission controls. The text
+store and onboarding-marked file import prepare their deterministic graph ids,
+atomically begin/read back `pending`, then submit. They atomically transition
+after exact receipt/readiness; transport uncertainty may move pending to
+`indeterminate` but can never downgrade confirmed acceptance. If handler
+settlement is lost, the pre-existing pending record remains the recovery source.
+File preview and import both require one exact purpose `onboarding | connector`,
+and that purpose is authenticated inside `FilePreviewBinding`; cross-purpose
+reuse refuses before runner/state work. Normal connector imports never replace
+the onboarding active record.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
 
 Expected: all tests pass and private context failures remain fail-closed.
 
 - [ ] **Step 6: Commit searchability readiness**
 
 ```bash
-git add src/api/onboarding-attempt-store.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts api/index.ts web/src/api/client.ts tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts
+git add src/api/onboarding-attempt-store.ts src/api/onboarding-attempt-redis.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts src/connectors/preview-token.ts api/index.ts web/src/api/client.ts web/src/api/connectors.ts .env.example package.json tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts
 git commit -m "feat(onboarding): wait for first memory to become searchable"
 ```
 
@@ -366,7 +405,10 @@ Add exact `POST /api/workspace/onboarding/complete` body
 current session, session binding, and a bounded account mutation; persist
 `onboarded: true`, perform exact readback, then refresh. The UI calls it only
 after a qualifying evidence-backed private Ask or an explicit Skip and does not render completion
-until readback succeeds.
+until readback succeeds. After the account readback, atomically retire the
+owner's active attempt; if retirement is temporarily unavailable, the account's
+durable completed bit remains authoritative and a bounded cleanup retry may run
+inside the same request—never a detached background promise.
 
 - [ ] **Step 5: Implement paste preview and explicit store**
 
@@ -385,7 +427,8 @@ truthful empty state with Memory or Connectors navigation.
 - [ ] **Step 6: Integrate file preparation from the connector plan**
 
 Keep the selected `File` object in component state. Call
-`/api/workspace/connectors/file/preview`, render its extraction preview, then
+`/api/workspace/connectors/file/preview` with exact multipart
+`purpose=onboarding`, render its extraction preview, then
 resend the same file and server-issued file preview token to
 `/api/workspace/connectors/file/import` with the one exact bounded
 `purpose=onboarding` multipart marker only after explicit confirmation. Apply

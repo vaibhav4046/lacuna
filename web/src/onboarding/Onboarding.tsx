@@ -17,10 +17,10 @@ import { MONO, Mark } from '../design/mark';
 
 const STEPS = [
   { l: 'CREATE WORKSPACE', t: 'Name your workspace.', b: 'One workspace holds the memory for a project or a team.' },
-  { l: 'CONNECT HYDRADB', t: 'Connect HydraDB.', b: 'The context substrate. Memory, knowledge, relationships and history live here.' },
+  { l: 'CHECK STORAGE', t: 'Check memory storage.', b: 'Lacuna checks that HydraDB is ready to store your project memory.' },
   { l: 'CHOOSE MODEL', t: 'Choose a model.', b: 'The worker. You can change it any time without losing memory.' },
-  { l: 'ADD CONTEXT', t: 'Add context.', b: 'Connect a source or paste something worth remembering.' },
-  { l: 'ASK SOMETHING', t: 'Ask something.', b: 'The first answer comes with its evidence attached. The spiral completes when the loop does.' },
+  { l: 'ADD MEMORY', t: 'Add memory.', b: 'Paste a note or transcript now. More connectors are planned.' },
+  { l: 'ASK SOMETHING', t: 'Ask something.', b: 'Ask a question and see the answer, its source, and any disagreements.' },
 ] as const;
 
 const MODELS = ['claude · anthropic · cloud', 'qwen2.5 · ollama · local', 'compatible endpoint · custom'] as const;

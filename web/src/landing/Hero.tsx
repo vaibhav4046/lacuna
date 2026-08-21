@@ -65,7 +65,7 @@ export function Hero() {
               animation: 'heroIn 0.7s ease 0.55s both',
             }}
           >
-            Lacuna gives every model, tool and agent the same evidence-bearing memory. It keeps the history, resolves what is current, exposes disagreement, and stops when the answer is missing.
+            Lacuna gives every AI tool the same shared memory. It remembers what changed, shows where each answer came from, flags disagreements, and says when it does not have enough information.
           </p>
           <div
             className="hero-v10-actions"

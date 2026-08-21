@@ -62,7 +62,7 @@ export function Dashboard() {
         <div className="dashboard-brief-copy">
           <span className="dashboard-eyebrow">MEMORY CONTROL ROOM</span>
           <h1 id="dashboard-heading">Your memory, ready for work.</h1>
-          <p>Ask what is current, inspect what changed, or send a bounded Context Pack into an agent run.</p>
+          <p>Ask a question, review what changed, or give an agent only the facts it needs.</p>
           <div className="dashboard-memory-counts" aria-label="Workspace memory counts">
             <span><strong>{counts.state === 'ready' ? counts.value.current : '—'}</strong>CURRENT</span>
             <span><strong>{counts.state === 'ready' ? counts.value.historical : '—'}</strong>HISTORICAL</span>
@@ -71,8 +71,8 @@ export function Dashboard() {
         </div>
         <aside className="dashboard-recommendation" data-tone={featuredRecommendation?.kind === 'CONFLICT_TRIAGE' ? 'amber' : 'violet'}>
           <span>{recommendations.state === 'loading' ? 'SCANNING MEMORY' : featuredRecommendation === null ? 'NO SUGGESTION YET' : 'SUGGESTED FROM MEMORY'}</span>
-          <h2>{featuredRecommendation?.name ?? (recommendations.state === 'failed' ? 'Memory suggestions did not load.' : 'No agent is justified yet.')}</h2>
-          <p>{featuredRecommendation?.reason ?? (recommendations.state === 'failed' ? recommendations.reason : 'Suggestions appear only when resolved memory provides a concrete reason and evidence.')}</p>
+          <h2>{featuredRecommendation?.name ?? (recommendations.state === 'failed' ? 'Memory suggestions did not load.' : 'No agent suggestion yet.')}</h2>
+          <p>{featuredRecommendation?.reason ?? (recommendations.state === 'failed' ? recommendations.reason : 'Lacuna suggests an agent only when your saved memory points to a specific task.')}</p>
           <button type="button" onClick={() => go(featuredRecommendation === null ? `${prefix}/memory` : `${prefix}/agents`)}>
             {featuredRecommendation === null ? 'OPEN MEMORY' : 'REVIEW AGENT'}<span aria-hidden="true">↗</span>
           </button>
@@ -179,7 +179,7 @@ export function Dashboard() {
       <section style={{ borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: '40px' }}>
         <div>
           <span style={head}>RECENT AGENT RUNS</span>
-          <Panel loaded={runs} stage="LOADING RUNS" empty={{ headline: 'Run your first agent.', detail: 'Researcher and Reviewer lifecycle records appear here after a governed run.' }}>
+          <Panel loaded={runs} stage="LOADING RUNS" empty={{ headline: 'Run your first agent.', detail: 'Completed and in-progress agent tasks will appear here.' }}>
             {(rows) => rows.slice(0, 3).map((run) => (
               <button key={run.id} className="hv-surface3" onClick={() => go(`${prefix}/work`)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: '16px', padding: '13px 2px', border: 0, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
                 <span style={{ fontSize: '14px', color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{run.task}</span>
@@ -190,7 +190,7 @@ export function Dashboard() {
         </div>
         <div>
           <span style={head}>NEXT SCHEDULED RUN</span>
-          <Panel loaded={schedules} stage="LOADING SCHEDULE" empty={{ headline: 'No schedule configured.', detail: 'The daily Context Health schedule is created when this runtime becomes available.' }}>
+          <Panel loaded={schedules} stage="LOADING SCHEDULE" empty={{ headline: 'No schedule configured.', detail: 'Scheduled checks will appear here after scheduling is enabled.' }}>
             {(rows) => rows.slice(0, 1).map((schedule) => (
               <button key={schedule.id} className="hv-surface3" onClick={() => go(`${prefix}/work`)} style={{ width: '100%', display: 'grid', gap: '7px', padding: '13px 2px', border: 0, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
                 <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{schedule.name}</span>

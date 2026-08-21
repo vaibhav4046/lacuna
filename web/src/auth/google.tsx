@@ -17,15 +17,16 @@ import { GOOGLE_G, markUri } from '../design/brand';
 
 const REASONS: Readonly<Record<string, string>> = {
   cancelled: 'Sign in with Google was cancelled. Nothing happened.',
-  state: 'That sign in took too long to come back. Press the button again.',
-  code: 'Google did not send an authorisation back. Try once more.',
-  identity: 'Google did not return a verifiable identity. Press the Google button again; if it repeats, the deployment credentials need repair.',
-  email_mismatch: 'Google returned a different address than the account record. Choose the Google account originally used for Lacuna.',
-  legacy_unbound: 'This address belongs to an older Lacuna account. Use its password or recovery code; automatic account merging is blocked to protect its workspace.',
-  provider_mismatch: 'This address was created with password sign-in. Use that password or its recovery code; Google cannot silently take over the workspace.',
-  subject_mismatch: 'This address is linked to a different Google identity. Choose the Google account originally used for Lacuna.',
-  store: 'The account store did not answer. Nothing was changed.',
-  unconfigured: 'Sign in with Google is not configured on this deployment.',
+  state: 'Your Google sign-in expired. Try again.',
+  code: 'Google sign-in did not finish. Try again.',
+  identity: 'Google sign-in did not finish. Try again.',
+  email_mismatch: 'Choose the Google account you previously used for Lacuna.',
+  legacy_unbound: 'This older account is not linked to Google. Sign in with its password or recovery code.',
+  provider_mismatch: 'This account uses a password. Sign in with your password or recovery code.',
+  subject_mismatch: 'Choose the Google account you previously used for Lacuna.',
+  rate: 'Too many sign-in windows were opened. Wait a few minutes, then try once.',
+  store: 'Sign-in is temporarily unavailable. Try again in a moment.',
+  unconfigured: 'Google sign-in is unavailable here. Contact the Lacuna administrator.',
 };
 
 /** The message for a reason the API sent, or null when there is nothing to say. */

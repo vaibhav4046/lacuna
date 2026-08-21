@@ -81,22 +81,35 @@ import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } 
  * minutes is longer than a person needs to pick an account and shorter than a
  * browser left open overnight.
  */
-const GOOGLE_STATE_COOKIE = 'lacuna_google_state';
-const GOOGLE_PKCE_COOKIE = 'lacuna_google_pkce';
-const GOOGLE_NONCE_COOKIE = 'lacuna_google_nonce';
+const GOOGLE_ATTEMPT_COOKIE = 'lacuna_google_attempt';
 const GOOGLE_STATE_TTL_SECONDS = 600;
+const GOOGLE_START_LIMIT = { limit: 8, windowMs: GOOGLE_STATE_TTL_SECONDS * 1_000, maxKeys: 4_096 };
 
-function googleAttemptCookies(state: string): {
+interface GoogleAttempt {
   readonly state: string;
-  readonly pkce: string;
+  readonly codeVerifier: string;
   readonly nonce: string;
-} {
-  const suffix = hashToken(state).slice(0, 24);
-  return {
-    state: `${GOOGLE_STATE_COOKIE}_${suffix}`,
-    pkce: `${GOOGLE_PKCE_COOKIE}_${suffix}`,
-    nonce: `${GOOGLE_NONCE_COOKIE}_${suffix}`,
-  };
+}
+
+const GOOGLE_PROOF_SHAPE = /^[A-Za-z0-9_-]{43}$/u;
+
+function googleAttemptCookie(state: string): string {
+  return `${GOOGLE_ATTEMPT_COOKIE}_${hashToken(state).slice(0, 24)}`;
+}
+
+function parseGoogleAttempt(raw: string | undefined): GoogleAttempt | null {
+  if (raw === undefined || raw.length > 512) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+    const attempt = value as Partial<GoogleAttempt>;
+    if (!GOOGLE_PROOF_SHAPE.test(attempt.state ?? '')
+      || !GOOGLE_PROOF_SHAPE.test(attempt.codeVerifier ?? '')
+      || !GOOGLE_PROOF_SHAPE.test(attempt.nonce ?? '')) return null;
+    return attempt as GoogleAttempt;
+  } catch {
+    return null;
+  }
 }
 
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
@@ -561,6 +574,7 @@ export class ApiRouter {
   readonly #graphCursorKey: string;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
+  readonly #googleStartLimit = new FixedWindow(GOOGLE_START_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
   readonly #recoverLimit = new FixedWindow(RECOVER_LIMIT);
   readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
@@ -759,7 +773,7 @@ export class ApiRouter {
       // this protocol allows. Both are handled before the POST and CSRF checks
       // for that reason.
       if (path === '/api/auth/google/start' && method === 'GET') {
-        return this.#googleStart(response);
+        return this.#googleStart(request, response);
       }
       if (path === '/api/auth/google/callback' && method === 'GET') {
         return this.#googleCallback(request, response, cookies);
@@ -2096,25 +2110,17 @@ export class ApiRouter {
    * return. Without it somebody can hand a person a finished callback URL and
    * sign them into an account that is not theirs.
    */
-  #googleStart(response: ServerResponse): Handled {
+  #googleStart(request: IncomingMessage, response: ServerResponse): Handled {
     const google = this.#google;
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured');
+    const verdict = this.#googleStartLimit.check(sourceKey(request), this.#now());
+    if (!verdict.allowed) return this.#redirect(response, '/signin?google=rate');
 
     const state = mintToken();
     const proof = newGoogleAuthorizationProof();
-    const names = googleAttemptCookies(state);
+    const cookie = googleAttemptCookie(state);
     return this.#redirect(response, authorizeUrl(google, state, proof), [
-      serialiseCookie(names.state, state, {
-        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
-        httpOnly: true,
-        secure: this.#secure,
-      }),
-      serialiseCookie(names.pkce, proof.codeVerifier, {
-        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
-        httpOnly: true,
-        secure: this.#secure,
-      }),
-      serialiseCookie(names.nonce, proof.nonce, {
+      serialiseCookie(cookie, JSON.stringify({ state, codeVerifier: proof.codeVerifier, nonce: proof.nonce }), {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
@@ -2136,12 +2142,8 @@ export class ApiRouter {
     const google = this.#google;
     const url = new URL(request.url ?? '/', 'http://placeholder');
     const state = url.searchParams.get('state');
-    const names = state === null ? null : googleAttemptCookies(state);
-    const clear = names === null ? [] : [
-      clearCookie(names.state, this.#secure),
-      clearCookie(names.pkce, this.#secure),
-      clearCookie(names.nonce, this.#secure),
-    ];
+    const cookie = state === null ? null : googleAttemptCookie(state);
+    const clear = cookie === null ? [] : [clearCookie(cookie, this.#secure)];
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured', clear);
 
     // The person pressed cancel on Google's screen. Not an error.
@@ -2149,7 +2151,8 @@ export class ApiRouter {
       return this.#redirect(response, '/signin?google=cancelled', clear);
     }
 
-    const expected = names === null ? undefined : cookies[names.state];
+    const attempt = parseGoogleAttempt(cookie === null ? undefined : cookies[cookie]);
+    const expected = attempt?.state;
     if (
       typeof expected !== 'string' || expected === '' || state === null
       || state.length !== expected.length
@@ -2163,8 +2166,8 @@ export class ApiRouter {
       return this.#redirect(response, '/signin?google=code', clear);
     }
 
-    const codeVerifier = names === null ? undefined : cookies[names.pkce];
-    const expectedNonce = names === null ? undefined : cookies[names.nonce];
+    const codeVerifier = attempt?.codeVerifier;
+    const expectedNonce = attempt?.nonce;
     if (typeof codeVerifier !== 'string' || codeVerifier === ''
       || typeof expectedNonce !== 'string' || expectedNonce === '') {
       return this.#redirect(response, '/signin?google=state', clear);

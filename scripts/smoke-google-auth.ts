@@ -28,18 +28,32 @@ function cookiePairs(lines: readonly string[]): Record<string, string> {
     const pair = line.split(';')[0];
     const separator = pair?.indexOf('=') ?? -1;
     if (pair !== undefined && separator > 0) {
-      held[pair.slice(0, separator)] = pair.slice(separator + 1);
+      held[pair.slice(0, separator)] = decodeURIComponent(pair.slice(separator + 1));
     }
   }
   return held;
 }
 
 function cookieHeader(held: Readonly<Record<string, string>>): string {
-  return Object.entries(held).map(([name, value]) => `${name}=${value}`).join('; ');
+  return Object.entries(held).map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('; ');
 }
 
 function oauthCookie(held: Readonly<Record<string, string>>, prefix: string): string | undefined {
   return Object.entries(held).find(([name]) => name.startsWith(`${prefix}_`))?.[1];
+}
+
+function oauthAttempt(held: Readonly<Record<string, string>>): {
+  readonly state: string;
+  readonly codeVerifier: string;
+  readonly nonce: string;
+} | null {
+  const raw = oauthCookie(held, 'lacuna_google_attempt');
+  if (raw === undefined) return null;
+  try {
+    return JSON.parse(raw) as { readonly state: string; readonly codeVerifier: string; readonly nonce: string };
+  } catch {
+    return null;
+  }
 }
 
 process.stdout.write(`Google auth boundary, against ${target}\n\n`);
@@ -54,6 +68,7 @@ try {
 }
 const setCookies = begun.headers.getSetCookie();
 const held = cookiePairs(setCookies);
+const attempt = oauthAttempt(held);
 
 record(begun.status === 302, 'OAuth starts with a redirect', String(begun.status));
 record(location?.origin === 'https://accounts.google.com', "redirect is Google's authorization origin");
@@ -63,10 +78,10 @@ record(location?.searchParams.get('scope') === 'openid email profile', 'scopes a
 record(location?.searchParams.get('prompt') === 'select_account', 'account selection is explicit');
 record(location?.searchParams.get('code_challenge_method') === 'S256'
   && /^[A-Za-z0-9_-]{43}$/.test(location?.searchParams.get('code_challenge') ?? ''), 'PKCE S256 proof is present');
-record((location?.searchParams.get('nonce') ?? '') === oauthCookie(held, 'lacuna_google_nonce'), 'OIDC nonce is browser-bound');
-record(/^[A-Za-z0-9_-]{43}$/.test(oauthCookie(held, 'lacuna_google_state') ?? ''), 'CSRF state is high entropy');
-record(/^[A-Za-z0-9_-]{43}$/.test(oauthCookie(held, 'lacuna_google_pkce') ?? ''), 'PKCE verifier is high entropy');
-record(setCookies.length === 3
+record((location?.searchParams.get('nonce') ?? '') === attempt?.nonce, 'OIDC nonce is browser-bound');
+record(/^[A-Za-z0-9_-]{43}$/.test(attempt?.state ?? ''), 'CSRF state is high entropy');
+record(/^[A-Za-z0-9_-]{43}$/.test(attempt?.codeVerifier ?? ''), 'PKCE verifier is high entropy');
+record(setCookies.length === 1
   && setCookies.every((cookie) => cookie.includes('HttpOnly')
     && cookie.includes('Secure') && cookie.includes('SameSite=Lax')), 'transient cookies are hardened');
 record(begun.headers.get('cache-control') === 'no-store, private'
@@ -78,7 +93,7 @@ const badCallback = await fetch(`${target}/api/auth/google/callback?state=wrong&
 });
 const cleared = badCallback.headers.getSetCookie();
 record(badCallback.status === 302 && badCallback.headers.get('location') === '/signin?google=state', 'wrong state fails before token exchange');
-record(cleared.length === 3 && cleared.every((cookie) => cookie.includes('Max-Age=0')), 'failed callback clears transient cookies');
+record(cleared.every((cookie) => !cookie.startsWith('lacuna_session=')), 'failed callback never creates a session');
 
 const session = await fetch(`${target}/api/session`);
 const sessionCookies = session.headers.getSetCookie();

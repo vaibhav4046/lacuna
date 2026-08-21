@@ -95,9 +95,8 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
       <div>
         <div style={{ ...head, paddingBottom: '6px' }}>ADD A SOURCE</div>
         <p style={{ fontSize: '13.5px', color: '#BDBDBD', margin: 0, maxWidth: '76ch', lineHeight: 1.55 }}>
-          Paste a transcript. The extractor decides what may become a claim before anything is
-          written, so a suggestion, a question and an instruction are stored where no answer
-          reads them. What it cannot read produces nothing rather than a guess.
+          Paste a transcript or note. Lacuna saves only clear factual statements and shows what
+          it kept. Questions and suggestions are not treated as facts.
         </p>
       </div>
 
@@ -166,16 +165,13 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
             {report.truncated ? ' · TEXT WAS CUT AT THE LIMIT' : ''}
           </span>
           <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '70ch', lineHeight: 1.55 }}>
-            Indexing is asynchronous, so a question about this may abstain for a moment before
-            the store has it. That is the store catching up, not the answer changing.
+            Your memory may take a few seconds to become searchable.
           </span>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '3px' }}>
             <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '62ch', lineHeight: 1.55 }}>
-              To read this memory through MCP, issue a random private capability. Lacuna stores
-              only its digest. It expires after 30 days and can be revoked earlier. Prefer the
-              Authorization header. Workspace names are never accepted as credentials.
+              Want to use this memory from another app? Open MCP setup to create a private access key.
             </span>
-            <button type="button" onClick={() => go('/app/tools')} style={{ background: 'none', border: '1px solid rgba(128,82,255,0.55)', borderRadius: '6px', color: '#FFFFFF', cursor: 'pointer', padding: '7px 10px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em' }}>ISSUE CAPABILITY</button>
+            <button type="button" onClick={() => go('/app/tools')} style={{ background: 'none', border: '1px solid rgba(128,82,255,0.55)', borderRadius: '6px', color: '#FFFFFF', cursor: 'pointer', padding: '7px 10px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em' }}>OPEN MCP SETUP</button>
           </div>
         </div>
       )}

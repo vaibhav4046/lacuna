@@ -1,5 +1,5 @@
 import type { Loaded } from '../api/client';
-import type { SessionState } from '../api/session';
+import type { SessionState } from '../api/session-state';
 
 export interface LandingLink {
   readonly label: string;

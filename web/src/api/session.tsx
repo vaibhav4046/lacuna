@@ -12,15 +12,9 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react';
 import { getJson } from './client';
 import type { Loaded } from './client';
+import type { SessionState } from './session-state';
 
-export interface Session {
-  readonly email: string;
-  /** Null until a workspace exists. Never a placeholder name. */
-  readonly workspace: string | null;
-  readonly onboarded: boolean;
-}
-
-export type SessionState = { readonly signedIn: false } | { readonly signedIn: true; readonly session: Session };
+export type { Session, SessionState } from './session-state';
 
 interface SessionContextValue {
   readonly loaded: Loaded<SessionState>;

@@ -327,18 +327,22 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 
 ---
 
-### Task 6: Signed webhook lifecycle and replay resistance
+### Task 6: Signed webhook lifecycle with bounded at-least-once convergence
 
 **Files:**
 - Create: `src/connectors/webhook.ts`
+- Create: `src/connectors/webhook-store.ts`
+- Modify: `src/connectors/normalize.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
+- Modify: `src/server/server.ts`
 - Modify: `.env.example`
 - Test: `tests/unit/connectors-webhook.test.ts`
 - Test: `tests/unit/connectors-api.test.ts`
 
 **Interfaces:**
 - Adds: `POST /api/workspace/connectors/webhook`
+- Adds: `GET /api/workspace/connectors/webhook`
 - Adds: `DELETE /api/workspace/connectors/webhook/:id`
 - Adds: `POST /api/connectors/webhook/:id`
 - Produces: `WebhookService.issue(workspace): Promise<IssuedWebhook>`
@@ -346,13 +350,14 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 
 - [ ] **Step 1: Write issuance and secret-storage tests**
 
-Require an authenticated CSRF-protected issuance route, an opaque random
-endpoint id, and one-time return of a 256-bit signing secret derived as
-`HMAC-SHA256(deploymentKey, "webhook-secret:" + endpointId)`. Persist only the
-id, owner digest, creation/revocation state, and replay markers; the signing
-secret is recomputed for verification and is never stored, logged, or returned
-by GET. Return `503 signing_not_configured` when `LACUNA_WEBHOOK_KEY` is missing
-or is not 32 bytes of base64url/hex key material.
+Require authenticated state/issuance/revocation routes with CSRF on mutations,
+an endpoint id encoded from exactly 16 random bytes, and one-time return of a
+256-bit signing secret. Use the exact domain-separated HMAC/AES-GCM formats in
+the Task 6 brief. Persist a strict encrypted workspace binding, keyed owner
+digest, lifecycle record, authoritative active pointer, and one bounded replay
+window; never persist or redisplay the signing secret. Return
+`503 signing_not_configured` unless the complete service was instantiated from
+one exact 32-byte dedicated key, store, runner, origin, and runtime boundary.
 
 - [ ] **Step 2: Write verification/replay tests**
 
@@ -360,13 +365,16 @@ Define headers `X-Lacuna-Timestamp`, `X-Lacuna-Event-Id`, and
 `X-Lacuna-Signature: v1=<hex>`. Sign
 `timestamp + '.' + eventId + '.' + rawBody` with HMAC-SHA-256. Use
 constant-time comparison, a five-minute clock window, event ids of 16–128 safe
-characters, a 256 KiB raw-body cap, and a durable replay record. Reject
+characters excluding `.`, a 256 KiB de-chunked entity-body cap, and a bounded
+best-effort replay window. Reject
 missing/duplicate headers, malformed JSON, revoked ids, bad signatures,
-stale/future timestamps, and repeated event ids before ingestion.
+stale/future timestamps, and visible repeated/conflicting event ids before
+ingestion. Require signed canonical `observed_at` so retries preserve temporal
+evidence.
 
 - [ ] **Step 3: Write at-least-once convergence tests**
 
-Simulate a timeout after Hydra accepts an event, then retry the same event id. Assert no contradictory duplicate records are created, the response accurately says `duplicate` or `accepted`, and the state does not claim exactly-once delivery. Different event ids with identical content converge through the connector document digest/idempotency key.
+Simulate a timeout after Hydra accepts an event, then retry the same signed body. Assert deterministic source records converge and the response preserves accepted/searchability uncertainty. Test two independent service instances and explicitly record that Hydra has no CAS: visible-window duplicate/conflict detection, issuance serialization, and revocation cutoff are not globally linearizable. Never claim exactly-once or globally replay-proof delivery.
 
 - [ ] **Step 4: Run tests and verify RED**
 
@@ -376,11 +384,11 @@ Expected: webhook service and routes are absent.
 
 - [ ] **Step 5: Implement lifecycle and raw-body routing**
 
-Derive per-hook verification material from `LACUNA_WEBHOOK_KEY` plus the one-time secret, persist only the verifier and lifecycle metadata in `lacuna-connectors`, and store bounded replay ids as versioned records addressable by hook/event digest. The public receiver must read raw bytes before JSON parsing, verify first, then accept `{ title, text, observed_at? }` only. Delete marks the hook revoked; it does not erase audit state.
+Use a dedicated exact-readback webhook record store. Persist endpoint first and active pointer second; stale pointers are inert. Maintain at most 256 keyed event markers in one bounded per-hook replay-window record through a process-local queue, acknowledging cross-instance lost updates. The public receiver uses a strict raw-body/framing reader, verifies exact bytes before fatal UTF-8/JSON parsing, then accepts exact `{ title, text, observed_at }`. Recheck visible lifecycle immediately before runner submission. Delete marks the endpoint revoked; it does not erase audit state and cannot cancel a different instance already past the commit boundary.
 
 - [ ] **Step 6: Document configuration without a fallback secret**
 
-Add `LACUNA_WEBHOOK_KEY=` to `.env.example` with a generation command and explicit server-only note. In `api/index.ts`, instantiate the service only for a valid key. Do not fall back to `HYDRA_TOKEN`, OAuth credentials, or a source-controlled constant.
+Add `LACUNA_WEBHOOK_KEY=` to `.env.example` with a generation command and explicit server-only/destructive-rotation note. A retired key must never be restored. In `api/index.ts`, instantiate the service only for a valid key and complete dependencies. Do not fall back to `HYDRA_TOKEN`, OAuth credentials, or a source-controlled constant. Redact webhook ids from application request/error paths, configure an edge rate limit, and verify the function duration fits the explicit handler budget.
 
 - [ ] **Step 7: Run focused tests and verify GREEN**
 
@@ -391,8 +399,8 @@ Expected: all focused tests pass.
 - [ ] **Step 8: Commit signed webhooks**
 
 ```bash
-git add src/connectors/webhook.ts src/api/router.ts api/index.ts .env.example tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts
-git commit -m "feat(connectors): accept signed replay-safe webhooks"
+git add src/connectors/webhook.ts src/connectors/webhook-store.ts src/connectors/normalize.ts src/api/router.ts api/index.ts src/server/server.ts .env.example tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts
+git commit -m "feat(connectors): accept signed at-least-once webhooks"
 ```
 
 ---

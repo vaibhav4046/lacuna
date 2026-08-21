@@ -756,11 +756,21 @@ and over-row responses fail closed; a schema-valid empty response is distinct
 from malformed. Cover a normal close immediately before and after caller abort
 and assert no surviving fetch/read/subject promise after route settlement.
 
-Do not let the wire decoder erase provenance or duplicates. A query chunk is
-strictly `{ chunkId, text, score, sourceIds, sourceTitle, sourceType,
+Do not let the wire decoder erase provenance or duplicates. Split bounded wire
+decoding from semantic validation: a relation endpoint or predicate is exactly
+`string | null`; the wire decoder enforces its raw byte cap, scalar-string
+encoding, container shape, and closed keys, but does not call
+`canonicalEntityName`, map a predicate, discard an empty string, or require a
+semantic entity. Thus bounded NUL/control/bidi/non-NFC endpoint strings and
+unknown predicates survive to occurrence identity and classification. A query
+chunk is strictly `{ chunkId, text, score, sourceIds, sourceTitle, sourceType,
 observedAt }`: `chunkId` comes only from the provider chunk `id`; `sourceIds`
-is the bounded stable union of independently supplied `source_id` followed by
-`source_ids[]` and never substitutes the chunk id. A relation is strictly
+is the bounded stable union, by exact UTF-8 bytes, of a present nonempty
+`source_id` followed by `source_ids[]`, retaining first occurrence order. A
+missing/null singular id contributes nothing; every array element and any
+present singular id is 1..256 UTF-8 bytes, the raw array and final union are
+each at most 8, and union cap+1 fails the whole response. The chunk id never
+substitutes for a source id. A relation is strictly
 `{ relationshipId, source, target, predicate, chunkId, context }`:
 `chunkId` comes only from provider `chunk_id`. Test singular source id, array
 source ids, both, neither, relationship/chunk id present and absent, and the
@@ -773,6 +783,28 @@ relationship id, nullable chunk id, and nullable context with the versioned
 tagged length-delimited encoding in Step 5. Preserve every occurrence until
 schema validation, repeated-id consistency checking, canonical ordering, and
 accounting are complete.
+
+Before joining provenance or sorting any relation, construct the complete query
+chunk-id table. A non-null chunk id is unique or every occurrence of that id
+must have a byte-identical canonical decoded-record encoding: prefix
+`lacuna-impact-chunk-v1\0`, then tags `0x01..0x07` for chunk id, text, score,
+the ordered `sourceIds` vector, source title, source type, and observed-at. Each
+is `tag:u8 || kind:u8 || length:u32be || payload`; nullable kind `0x00` has
+zero length, present kind `0x01` uses UTF-8 except score uses exactly eight
+IEEE-754 binary64 big-endian bytes (including negative zero), and the vector
+payload is `count:u8` followed by `length:u32be || UTF-8 bytes` per id. Null
+chunk ids are never table keys.
+Any repeated non-null id whose encoding differs in any field, including source
+id value/order, fails the whole request before traversal or subject reads;
+identical repeats count against the six-chunk wire cap but bind one table value.
+For a query-origin relation, a matching non-null `chunkId` receives that exact
+ordered source-id vector and join state `matched_query_chunk`; null receives
+`[]` and `query_chunk_null`; a non-null miss receives `[]` and
+`query_chunk_unmatched`. An inventory-origin relation always receives `[]` and
+`inventory_unattributed`, even if its chunk id equals a query chunk id. Retain
+the actual relation chunk id and join state on accepted and rejected provenance.
+The table is finalized before either relation array is traversed, so provider
+arrival order can never change attribution.
 
 Cover shuffled claims and candidates, current/historical/retracted/negative
 standing, single-value contradiction, multi-value predicates, matching and
@@ -794,7 +826,16 @@ distinct rejections; an exact repeated row with the same real id is one outcome
 plus one duplicate; otherwise-identical rows with different real ids, or one
 with an id and one without, are distinct; and one real id reused with any
 different framed field fails the whole request. Assert the arithmetic after
-each case, including when the first occurrence is rejected.
+each case, including when the first occurrence is rejected. Shuffle query
+chunks, query paths, inventory containers, and rows independently and prove
+byte-identical output for null, empty, and semantic-invalid source and target;
+null, empty, normalized-over-cap, and unknown predicate; mapped forward and
+inverse rows; and structurally valid unreachable rows. Prove the malformed
+rows are diagnostic outcomes rather than disappearing. Also cover source-id
+stable union order, identical repeated chunk ids, conflicting reuse in every
+chunk field, matched/null/unmatched query chunk joins, the no-join inventory
+case (including an inventory id that matches the table), and shuffle-stable
+provenance bytes.
 
 - [ ] **Step 2: Run focused graph tests and verify RED**
 
@@ -992,13 +1033,22 @@ Use the new impact port's strict closed decoders, not `String(...)`,
 ids per chunk, 32 `query_paths`, 8 triplets per path, and 128 triplets total.
 The relation response permits at most 64 containers, 8 nested rows per
 container, and 128 flattened rows total. Every id/title/type/timestamp is at
-most 256 UTF-8 bytes, chunk text/context at most 2,048 UTF-8 bytes, and entity
-strings follow the 512-byte entity grammar. Wrong types, unknown keys,
-non-finite scores, inconsistent repeated relationship ids, or any cap+1 fail
-the whole request. A schema-valid absent/empty chunks, paths, or relations
-array is an honest empty result. A structurally valid relation occurrence with
-a null/empty endpoint or predicate becomes one `malformed_candidate` rejection;
-it is not silently dropped.
+most 256 UTF-8 bytes and is nonempty when present; chunk text/context is at most
+2,048 UTF-8 bytes. Wire endpoints are independently `string | null` at most
+512 UTF-8 bytes and wire predicates are independently `string | null` at
+most 64 UTF-8 bytes; empty and semantically invalid scalar strings are valid
+wire values. Strict JSON rejects non-scalar strings, but entity grammar,
+predicate recognition, and normalized predicate length are semantic classifier
+work after raw identity. The predicate normalizer has a separately asserted
+192-byte derived ceiling (three times the raw cap); exceeding 64 normalized
+bytes is a retained `malformed_candidate`, while exceeding the derived ceiling
+is an impossible-invariant generic failure. Wrong JSON types, unknown keys,
+non-finite scores, inconsistent repeated relationship or chunk ids, or any
+wire cap+1 fail the whole request. A schema-valid absent/empty chunks, paths, or
+relations array is an honest empty result. Null, empty, control-bearing,
+bidi-bearing, non-NFC, and otherwise invalid endpoints and null/empty/invalid
+predicates are retained for the diagnostic classification in Step 5; none is
+filtered by the decoder.
 
 Expose separate collection-accepting private graph functions from
 `api/index.ts`; do not change the public demo closures. Construct one
@@ -1050,9 +1100,11 @@ identity **before** entity canonicalization, closed-predicate mapping, endpoint
 reversal, or any malformed/non-structural classification. First run the exact
 raw-predicate normalizer—trim/collapse only U+0020/TAB/CR/LF, then
 locale-independent ECMAScript lowercase, preserving null as null and the empty
-string as a present empty string and rechecking the 64-byte cap. Do not replace
-an unknown predicate with `not_structural` or an internal predicate in the
-identity.
+string as a present empty string. Frame that normalized value up to the fixed
+192-byte derived ceiling. A result over the 64-byte semantic predicate cap is
+later `malformed_candidate`; it is not dropped or replaced in identity. Do not
+replace an unknown predicate with `not_structural` or an internal predicate in
+the identity.
 
 Encode the occurrence as bytes with prefix
 `lacuna-impact-occurrence-v1\0` followed in this fixed order by six frames:
@@ -1079,23 +1131,62 @@ accepted/rejected outcome; each later reached occurrence with that identity is
 `duplicates += 1` even if the first was malformed or non-structural. Do not
 silently collapse any decoded row.
 
-Canonical ordering is independent of provider/claim arrival: sort each
-frontier by canonical entity key; sort candidates by effective source key,
-effective target key, internal predicate-or-normalized-raw-predicate, direction,
-occurrence-identity digest, chunk id, context digest, origin (`query` before
-`inventory`), then original
-path/row occurrence ordinal. Both query triplets and inventory rows are
-considered exactly once, at the earliest depth at which their mapped effective
-source is in the frontier; this preserves second and third hops already present
-in `query_paths`. Rows whose effective source is never reached are not
-`reached` and an incoming one-way row is never reversed to make it reachable.
-For each reached occurrence, apply in order: duplicate,
-malformed/non-structural, target-standing, then traversal budget. Accepted
-edges alone enqueue their target. Cache one bounded subject view per canonical
-key. Fetch uncached views for one frontier through a four-worker pool. The first
-failure/abort stops new work, aborts every started peer, awaits all started
-promises with all-settled semantics, and only then rejects; a later frontier
-never overlaps it.
+After raw identity and repeated-id checks, classify endpoints without changing
+their raw fields. Each is exactly one of `null`, `empty`, `invalid`, or `valid`;
+`invalid` means a nonempty scalar wire string refused by
+`canonicalEntityName`, and `valid` carries its canonical key and validated
+display. Classify the normalized predicate as `null`, `empty`, `invalid` (over
+64 normalized UTF-8 bytes), `unknown`, or `mapped`; only `mapped` carries the
+closed internal predicate and semantic direction. The rejection reason is
+total and precedence is fixed: source `null`/`empty`/`invalid`, then target
+`null`/`empty`/`invalid`, then predicate `null`/`empty`/`invalid`, then
+nonempty `unknown`. These expose exact bounded reason codes
+`source_null`, `source_empty`, `source_invalid`, `target_null`,
+`target_empty`, `target_invalid`, `predicate_null`, `predicate_empty`,
+`predicate_invalid`, and `predicate_unknown`. The first nine are
+`malformed_candidate`; only `predicate_unknown` is `not_structural`.
+
+All candidate comparisons use unsigned lexicographic byte order over total
+tagged keys, never nullable string comparison or arrival order. An endpoint key
+is `rank:u8 || length:u32be || payload`, with ranks `0=null`, `1=empty`,
+`2=invalid`, `3=valid`; payload is empty for null/empty, exact raw UTF-8 for
+invalid, and canonical-key UTF-8 for valid. A predicate key uses ranks
+`0=null`, `1=empty`, `2=invalid`, `3=unknown`, `4=mapped`, followed by the same
+length frame of the normalized raw value (empty for null), then a second frame
+of the internal predicate for mapped values and empty otherwise. Direction is
+the fixed rank `0=forward`, `1=inverse`, `2=unmapped`. Mapped predicates use
+provider source/target endpoint keys in forward order or target/source in
+inverse order; null/empty/invalid/unknown predicates use wire source/target
+order and `unmapped` and are never reversed. Within each classification phase,
+sort by effective source endpoint key, effective target endpoint key, predicate
+key, direction rank, occurrence-identity digest, framed nullable chunk id,
+context digest, origin (`query` before `inventory`), then original path/row
+ordinal. The digest and ordinal make the order total even when earlier semantic
+keys tie. Sort each BFS frontier by canonical entity key.
+
+Before BFS, place every occurrence with either non-valid endpoint or a
+non-mapped predicate in one diagnostic phase, regardless of provider origin or
+whether either endpoint could enter the graph. Every such occurrence is
+`reached` at classification depth zero: apply duplicate first, then the fixed
+reason precedence above; it never performs a subject read, enters `accepted`,
+or enqueues an entity. Thus null source, empty source, invalid source, null
+target, empty target, invalid target, null predicate, empty predicate,
+normalized-over-cap predicate, and unknown predicate can never disappear as an
+“unreachable” row. Only rows with two valid endpoints and a mapped predicate
+enter BFS. Each is considered exactly once at the earliest depth whose frontier
+contains its mapped effective source, preserving valid second/third hops from
+`query_paths`; a fully structural row whose valid effective source is never
+reached remains outside `reached`, and an incoming one-way row is never
+reversed. For each structurally reached occurrence, apply duplicate,
+target-standing, then traversal budget. Accepted edges alone enqueue their
+target. Each reached occurrence therefore has one outcome; the first reached
+occurrence of an identity is classified and later reached occurrences of that
+identity are duplicates.
+
+Cache one bounded subject view per canonical key. Fetch uncached views for one
+frontier through a four-worker pool. The first failure/abort stops new work,
+aborts every started peer, awaits all started promises with all-settled
+semantics, and only then rejects; a later frontier never overlaps it.
 
 Every reached occurrence has exactly one stable outcome:
 `malformed_candidate`, `not_structural`, `unstated`,
@@ -1106,9 +1197,10 @@ Every reached occurrence has exactly one stable outcome:
 root even on a cycle, uses the deterministic preserved display spelling, and
 is sorted by canonical key. `depth` is zero for no accepted edge and otherwise
 the maximum accepted edge depth. Preserve relationship id, actual chunk id,
-bounded source ids, context, selected claim id, mention identity, and display
-names on accepted edges. Keep ordinary Ask graph context disabled: Hydra rows
-are candidates until Lacuna proves current standing.
+bounded source ids in their joined order, the exact provenance join state,
+context, selected claim id, mention identity, and display names on accepted and
+rejected edges. Keep ordinary Ask graph context disabled: Hydra rows are
+candidates until Lacuna proves current standing.
 
 - [ ] **Step 6: Make the private proof UI demonstrate causal Hydra use**
 
@@ -1166,7 +1258,8 @@ Run: `npm run typecheck`
 Run: `npm --prefix web run build`
 
 Expected: exact-cap/cap+1, cancellation/drain, strict wire mapping, raw
-occurrence-identity arithmetic, private source-backed standing metamorphics,
+occurrence-identity arithmetic, total malformed-row classification,
+shuffle-stable chunk provenance, private source-backed standing metamorphics,
 legacy-read non-migration, two-account isolation, private UI causality, and
 byte-identical public Explore all pass; no request survives settlement and no
 public `Mention` is fabricated.

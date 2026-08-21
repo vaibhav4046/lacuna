@@ -26,6 +26,8 @@ export const FILE_PARSER_VERSION = 'files-v1';
 const MAX_FILENAME_BYTES = 240;
 const PARSER_TIMEOUT_MS = 5_000;
 const PARSER_ACQUIRE_TIMEOUT_MS = 250;
+const PARSER_TERMINATION_WATCHDOG_MS = 750;
+const PARSER_FATAL_EXIT_CODE = 70;
 const MAX_CONCURRENT_PARSERS = 2;
 const PREVIEW_EXCERPT_CHARS = 320;
 const SUPPORTED_TYPES = new Set(['text', 'markdown', 'pdf', 'docx']);
@@ -210,6 +212,7 @@ export interface FileParserIsolationOptions {
   readonly timeoutMs?: number;
   readonly acquireTimeoutMs?: number;
   readonly workerFactory?: (url: URL, options: WorkerOptions) => Worker;
+  readonly fatalIsolationFailure?: () => never | Promise<never>;
 }
 
 interface ParserWaiter {
@@ -224,6 +227,10 @@ interface ParserPool {
 }
 
 const parserPools = new WeakMap<FileParserIsolationOptions, ParserPool>();
+
+function fatalParserIsolationFailure(): never {
+  process.exit(PARSER_FATAL_EXIT_CODE);
+}
 
 function parserRelease(pool: ParserPool): () => void {
   let released = false;
@@ -325,6 +332,7 @@ async function extractIsolated(
   const workerUrl = options.workerUrl ?? DEFAULT_FILE_PARSER_WORKER;
   if (workerUrl.protocol !== 'file:') fail('parse_failed');
   const releaseParser = await acquireParser(options, acquireTimeoutMs);
+  let leaseFatal = false;
   try {
     let worker: Worker;
     const workerOptions: WorkerOptions = {
@@ -354,24 +362,46 @@ async function extractIsolated(
         worker.off('error', onError);
         worker.off('exit', onExit);
       };
+      const failStop = async (): Promise<never> => {
+        leaseFatal = true;
+        await (options.fatalIsolationFailure ?? fatalParserIsolationFailure)();
+        return await new Promise<never>(() => undefined);
+      };
       const confirmTermination = async () => {
         if (exitObserved) return;
+        let termination: Promise<number>;
         try {
-          await worker.terminate();
-          return;
+          termination = worker.terminate();
         } catch {
-          if (!exitObserved) await exitConfirmed;
+          return await failStop();
+        }
+        let watchdog: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const outcome = await Promise.race([
+            termination.then(() => 'terminated' as const, () => 'rejected' as const),
+            exitConfirmed.then(() => 'exited' as const),
+            new Promise<'unconfirmed'>((resolveWatchdog) => {
+              watchdog = setTimeout(() => resolveWatchdog('unconfirmed'), PARSER_TERMINATION_WATCHDOG_MS);
+              watchdog.unref?.();
+            }),
+          ]);
+          if (outcome === 'rejected' || outcome === 'unconfirmed') return await failStop();
+        } finally {
+          if (watchdog !== undefined) clearTimeout(watchdog);
         }
       };
       const finish = (outcome: ExtractedText | FileConnectorError) => {
         if (finishing) return;
         finishing = true;
         clearTimeout(timeout);
-        void confirmTermination().then(() => {
-          cleanup();
-          if (outcome instanceof FileConnectorError) reject(outcome);
-          else resolve(outcome);
-        });
+        void confirmTermination().then(
+          () => {
+            cleanup();
+            if (outcome instanceof FileConnectorError) reject(outcome);
+            else resolve(outcome);
+          },
+          reject,
+        );
       };
       const onMessage = (message: unknown) => {
         try {
@@ -400,10 +430,11 @@ async function extractIsolated(
       }
     });
   } catch (error) {
+    if (leaseFatal) throw error;
     if (error instanceof FileConnectorError) throw error;
     return fail('parse_failed');
   } finally {
-    releaseParser();
+    if (!leaseFatal) releaseParser();
   }
 }
 

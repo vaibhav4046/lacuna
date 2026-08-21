@@ -60,6 +60,33 @@ function pdf(pages: readonly string[], encrypted = false): Buffer {
   return Buffer.from(body, 'binary');
 }
 
+function rewriteClassicXref(
+  value: Buffer,
+  rewrite: (rows: readonly string[]) => string,
+): Buffer {
+  const source = value.toString('binary');
+  const table = /xref\n0 6\n((?:[0-9]{10} [0-9]{5} [nf] \n){6})trailer/u.exec(source);
+  if (table?.index === undefined || table[1] === undefined) throw new Error('expected classic test xref');
+  const rows = table[1].match(/[0-9]{10} [0-9]{5} [nf] \n/gu);
+  if (rows?.length !== 6) throw new Error('expected six classic test xref rows');
+  return Buffer.from(
+    `${source.slice(0, table.index)}${rewrite(rows)}${source.slice(table.index + table[0].length)}`,
+    'binary',
+  );
+}
+
+function xrefOffset(row: string): number {
+  return Number(row.slice(0, 10));
+}
+
+function withXrefOffset(row: string, offset: number): string {
+  return `${String(offset).padStart(10, '0')}${row.slice(10)}`;
+}
+
+function xrefTable(header: string, rows: readonly string[]): string {
+  return `xref\n${header}\n${rows.join('')}trailer`;
+}
+
 interface ZipPart {
   readonly name: string;
   readonly data: Buffer;
@@ -203,6 +230,26 @@ class DelayedTerminationWorker extends EventEmitter {
 
   confirmTermination(): void {
     this.#confirmTermination();
+  }
+}
+
+class RejectingTerminationWorker extends EventEmitter {
+  postMessage(): void {
+    // The isolation timeout drives termination in this deterministic fake.
+  }
+
+  terminate(): Promise<number> {
+    return Promise.reject(new Error('termination rejected'));
+  }
+}
+
+class UnconfirmedTerminationWorker extends EventEmitter {
+  postMessage(): void {
+    // The isolation timeout drives termination in this deterministic fake.
+  }
+
+  terminate(): Promise<number> {
+    return new Promise<number>(() => undefined);
   }
 }
 
@@ -370,6 +417,82 @@ describe('bounded PDF extraction', () => {
     })).rejects.toMatchObject({ code: 'invalid_file' });
   });
 
+  it.each([
+    ['wrong in-body offset', rewriteClassicXref(pdf(['text']), (rows) => {
+      const changed = [...rows];
+      changed[1] = withXrefOffset(rows[1] ?? '', xrefOffset(rows[1] ?? '') + 1);
+      return xrefTable('0 6', changed);
+    })],
+    ['out-of-range offset', rewriteClassicXref(pdf(['text']), (rows) => {
+      const changed = [...rows];
+      changed[1] = withXrefOffset(rows[1] ?? '', 9_999_999_999);
+      return xrefTable('0 6', changed);
+    })],
+    ['mismatched object offsets', rewriteClassicXref(pdf(['text']), (rows) => {
+      const changed = [...rows];
+      changed[1] = withXrefOffset(rows[1] ?? '', xrefOffset(rows[2] ?? ''));
+      changed[2] = withXrefOffset(rows[2] ?? '', xrefOffset(rows[1] ?? ''));
+      return xrefTable('0 6', changed);
+    })],
+    ['duplicate in-use offset', rewriteClassicXref(pdf(['text']), (rows) => {
+      const changed = [...rows];
+      changed[2] = withXrefOffset(rows[2] ?? '', xrefOffset(rows[1] ?? ''));
+      return xrefTable('0 6', changed);
+    })],
+    ['overlapping subsection ranges', rewriteClassicXref(pdf(['text']), (rows) => (
+      `xref\n0 3\n${rows.slice(0, 3).join('')}2 4\n${rows.slice(2).join('')}trailer`
+    ))],
+    ['missing object zero', rewriteClassicXref(pdf(['text']), (rows) => xrefTable('1 5', rows.slice(1)))],
+    ['invalid object-zero generation', rewriteClassicXref(pdf(['text']), (rows) => {
+      const changed = [...rows];
+      changed[0] = '0000000000 00000 f \n';
+      return xrefTable('0 6', changed);
+    })],
+    ['bad trailer Size', Buffer.from(pdf(['text']).toString('binary').replace('/Size 6', '/Size 5'), 'binary')],
+  ] as const)('rejects a lexically valid classic xref with %s', async (_label, bytes) => {
+    await expect(parseUploadedFile({
+      filename: 'semantic-xref.pdf',
+      mediaType: 'application/pdf',
+      bytes,
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it.each([
+    ['Prev separated by a comment', '/Prev% hidden value\n123'],
+    ['escaped Prev', '/Pr#65v 123'],
+    ['XRefStm separated by a comment', '/XRefStm% hidden value\n123'],
+    ['escaped XRefStm', '/XRef#53tm 123'],
+    ['duplicate Size', '/Size 6'],
+  ] as const)('rejects a trailer with %s', async (_label, trailerEntry) => {
+    const bytes = Buffer.from(
+      pdf(['text']).toString('binary').replace('/Size 6 /Root 1 0 R', `/Size 6 /Root 1 0 R ${trailerEntry}`),
+      'binary',
+    );
+
+    await expect(parseUploadedFile({
+      filename: 'trailer-name.pdf',
+      mediaType: 'application/pdf',
+      bytes,
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code: 'invalid_file' });
+  });
+
+  it('does not treat a nested case-exact Prev name as a top-level trailer key', async () => {
+    const bytes = Buffer.from(
+      pdf(['text']).toString('binary').replace('/Size 6 /Root 1 0 R', '/Size 6 /Root 1 0 R /Metadata << /Prev 123 >>'),
+      'binary',
+    );
+    const prepared = await parseUploadedFile({
+      filename: 'nested-trailer.pdf',
+      mediaType: 'application/pdf',
+      bytes,
+      observedAt: OBSERVED_AT,
+    });
+
+    expect(prepared.document.text).toBe('text');
+  });
+
   it('allows only PDF whitespace and comments between the classic trailer and terminal marker', async () => {
     const withTrivia = Buffer.from(
       pdf(['text']).toString('binary').replace('startxref\n', '% approved trailer comment\nstartxref\n'),
@@ -445,6 +568,69 @@ describe('bounded PDF extraction', () => {
     const stoppedAt = fake.ticks;
     await delay(50);
     expect(fake.ticks).toBe(stoppedAt);
+  });
+
+  it('fail-stops rejected termination without releasing live leases and isolates a new instance', async () => {
+    const input = {
+      filename: 'brief.pdf',
+      mediaType: 'application/pdf',
+      bytes: pdf(['text']),
+      observedAt: OBSERVED_AT,
+    };
+    let fatalCalls = 0;
+    const processDeath = new Error('simulated process death');
+    const failedIsolation: FileParserIsolationOptions = {
+      timeoutMs: 10,
+      acquireTimeoutMs: 20,
+      fatalIsolationFailure: () => {
+        fatalCalls += 1;
+        throw processDeath;
+      },
+      workerFactory: () => new RejectingTerminationWorker() as unknown as Worker,
+    };
+    const stuck = [
+      parseUploadedFile(input, failedIsolation),
+      parseUploadedFile(input, failedIsolation),
+    ];
+    const results = await Promise.race([
+      Promise.allSettled(stuck),
+      delay(1_000).then(() => null),
+    ]);
+    if (results === null) throw new Error('fail-stop seam was not invoked');
+    expect(results).toEqual([
+      { status: 'rejected', reason: processDeath },
+      { status: 'rejected', reason: processDeath },
+    ]);
+    expect(fatalCalls).toBe(2);
+    await expect(parseUploadedFile(input, failedIsolation)).rejects.toMatchObject({ code: 'file_too_complex' });
+
+    const fresh = await parseUploadedFile(input, {});
+    expect(fresh.document.text).toBe('text');
+  });
+
+  it('fail-stops when termination cannot be confirmed before the watchdog', async () => {
+    let fatalCalls = 0;
+    const processDeath = new Error('simulated watchdog process death');
+    const parsing = parseUploadedFile({
+      filename: 'brief.pdf',
+      mediaType: 'application/pdf',
+      bytes: pdf(['text']),
+      observedAt: OBSERVED_AT,
+    }, {
+      timeoutMs: 10,
+      fatalIsolationFailure: () => {
+        fatalCalls += 1;
+        throw processDeath;
+      },
+      workerFactory: () => new UnconfirmedTerminationWorker() as unknown as Worker,
+    });
+    const result = await Promise.race([
+      parsing.then(() => ({ status: 'fulfilled' as const }), (reason: unknown) => ({ status: 'rejected' as const, reason })),
+      delay(1_000).then(() => null),
+    ]);
+
+    expect(result).toEqual({ status: 'rejected', reason: processDeath });
+    expect(fatalCalls).toBe(1);
   });
 
   it('runs at most two isolated parsers for one service isolation instance', async () => {

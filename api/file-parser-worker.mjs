@@ -61,60 +61,140 @@ function skipPdfTrivia(source, initial, end = source.length) {
   return cursor;
 }
 
-function consumePdfDictionary(source, initial, end) {
-  if (source.slice(initial, initial + 2) !== '<<') return -1;
-  const stack = ['dictionary'];
+function isPdfWhitespace(character) {
+  return character === '\x00' || character === '\t' || character === '\n'
+    || character === '\f' || character === '\r' || character === ' ';
+}
+
+function isPdfDelimiter(character) {
+  return character === '(' || character === ')' || character === '<' || character === '>'
+    || character === '[' || character === ']' || character === '/' || character === '%';
+}
+
+function isPdfTokenEnd(source, cursor, end) {
+  return cursor >= end || isPdfWhitespace(source[cursor]) || isPdfDelimiter(source[cursor]);
+}
+
+function parsePdfName(source, initial, end) {
+  if (source[initial] !== '/') return null;
+  let cursor = initial + 1;
+  let name = '';
+  while (cursor < end && !isPdfWhitespace(source[cursor]) && !isPdfDelimiter(source[cursor])) {
+    if (source[cursor] === '#') {
+      const encoded = source.slice(cursor + 1, cursor + 3);
+      if (!/^[0-9A-Fa-f]{2}$/u.test(encoded)) return null;
+      name += String.fromCharCode(Number.parseInt(encoded, 16));
+      cursor += 3;
+    } else {
+      name += source[cursor];
+      cursor += 1;
+    }
+    if (name.length > 256) return null;
+  }
+  return name.length === 0 ? null : { cursor, name };
+}
+
+function consumePdfString(source, initial, end) {
+  let cursor = initial + 1;
+  let depth = 1;
+  while (cursor < end && depth > 0) {
+    if (source[cursor] === '\\') cursor += 2;
+    else {
+      if (source[cursor] === '(') depth += 1;
+      if (source[cursor] === ')') depth -= 1;
+      cursor += 1;
+    }
+  }
+  return depth === 0 ? cursor : -1;
+}
+
+function parsePdfNumber(source, initial, end) {
+  const match = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)/u.exec(source.slice(initial, end));
+  if (match === null || !isPdfTokenEnd(source, initial + match[0].length, end)) return null;
+  const integer = /^[+-]?[0-9]+$/u.test(match[0]);
+  const numeric = Number(match[0]);
+  if (!Number.isFinite(numeric)) return null;
+  return { cursor: initial + match[0].length, integer, numeric };
+}
+
+function parsePdfValue(source, initial, end, depth, state) {
+  if (depth > 16 || state.tokens >= 4_096) return null;
+  state.tokens += 1;
+  let cursor = skipPdfTrivia(source, initial, end);
+  if (cursor >= end) return null;
+  if (source.slice(cursor, cursor + 2) === '<<') return parsePdfDictionary(source, cursor, end, depth + 1, state);
+  if (source[cursor] === '[') {
+    const values = [];
+    cursor += 1;
+    while (cursor < end) {
+      cursor = skipPdfTrivia(source, cursor, end);
+      if (source[cursor] === ']') return { cursor: cursor + 1, kind: 'array', values };
+      const value = parsePdfValue(source, cursor, end, depth + 1, state);
+      if (value === null) return null;
+      values.push(value);
+      cursor = value.cursor;
+    }
+    return null;
+  }
+  if (source[cursor] === '(') {
+    const stringEnd = consumePdfString(source, cursor, end);
+    return stringEnd < 0 ? null : { cursor: stringEnd, kind: 'string' };
+  }
+  if (source[cursor] === '<') {
+    const close = source.indexOf('>', cursor + 1);
+    if (close < 0 || close >= end || !/^[0-9A-Fa-f\x00\t\n\f\r ]*$/u.test(source.slice(cursor + 1, close))) return null;
+    return { cursor: close + 1, kind: 'hex' };
+  }
+  if (source[cursor] === '/') {
+    const name = parsePdfName(source, cursor, end);
+    return name === null ? null : { ...name, kind: 'name' };
+  }
+  for (const keyword of ['true', 'false', 'null']) {
+    if (source.slice(cursor, cursor + keyword.length) === keyword
+      && isPdfTokenEnd(source, cursor + keyword.length, end)) {
+      return { cursor: cursor + keyword.length, kind: keyword };
+    }
+  }
+  const number = parsePdfNumber(source, cursor, end);
+  if (number === null) return null;
+  if (number.integer) {
+    const generationStart = skipPdfTrivia(source, number.cursor, end);
+    const generation = parsePdfNumber(source, generationStart, end);
+    if (generation?.integer === true && generation.numeric >= 0 && Number.isSafeInteger(generation.numeric)) {
+      const reference = skipPdfTrivia(source, generation.cursor, end);
+      if (source[reference] === 'R' && isPdfTokenEnd(source, reference + 1, end)) {
+        return { cursor: reference + 1, kind: 'reference' };
+      }
+    }
+  }
+  return { cursor: number.cursor, kind: number.integer ? 'integer' : 'number', numeric: number.numeric };
+}
+
+function parsePdfDictionary(source, initial, end, depth = 0, state = { tokens: 0 }) {
+  if (depth > 16 || source.slice(initial, initial + 2) !== '<<') return null;
+  const entries = new Map();
   let cursor = initial + 2;
   while (cursor < end && cursor - initial <= 65_536) {
-    const character = source[cursor];
-    if (character === '%') {
-      while (cursor < end && source[cursor] !== '\r' && source[cursor] !== '\n') cursor += 1;
-      continue;
+    cursor = skipPdfTrivia(source, cursor, end);
+    if (source.slice(cursor, cursor + 2) === '>>') {
+      return { cursor: cursor + 2, entries, kind: 'dictionary' };
     }
-    if (character === '(') {
-      let depth = 1;
-      cursor += 1;
-      while (cursor < end && depth > 0) {
-        if (source[cursor] === '\\') cursor += 2;
-        else {
-          if (source[cursor] === '(') depth += 1;
-          if (source[cursor] === ')') depth -= 1;
-          cursor += 1;
-        }
-      }
-      if (depth !== 0) return -1;
-      continue;
-    }
-    if (character === '<') {
-      if (source[cursor + 1] === '<') {
-        stack.push('dictionary');
-        cursor += 2;
-      } else {
-        const close = source.indexOf('>', cursor + 1);
-        if (close < 0 || close >= end || !/^[0-9A-Fa-f\x00\t\n\f\r ]*$/u.test(source.slice(cursor + 1, close))) return -1;
-        cursor = close + 1;
-      }
-      continue;
-    }
-    if (character === '>' && source[cursor + 1] === '>') {
-      if (stack.pop() !== 'dictionary') return -1;
-      cursor += 2;
-      if (stack.length === 0) return cursor;
-      continue;
-    }
-    if (character === '[') {
-      stack.push('array');
-      cursor += 1;
-      continue;
-    }
-    if (character === ']') {
-      if (stack.pop() !== 'array') return -1;
-      cursor += 1;
-      continue;
-    }
-    cursor += 1;
+    const name = parsePdfName(source, cursor, end);
+    if (name === null || entries.has(name.name)) return null;
+    const value = parsePdfValue(source, name.cursor, end, depth + 1, state);
+    if (value === null) return null;
+    entries.set(name.name, value);
+    cursor = value.cursor;
   }
-  return -1;
+  return null;
+}
+
+function xrefPointsToObject(source, xrefOffset, offset, objectNumber, generation) {
+  if (offset < PDF_MAGIC.length || offset >= xrefOffset) return false;
+  const header = /^([0-9]{1,10})[\x00\t\n\f\r ]+([0-9]{1,5})[\x00\t\n\f\r ]+obj(?=[\x00\t\n\f\r ()<>\[\]\/%])/u.exec(
+    source.slice(offset, Math.min(xrefOffset, offset + 128)),
+  );
+  return header !== null && Number(header[1]) === objectNumber && Number(header[2]) === generation;
 }
 
 function parseClassicXref(source, xrefOffset, terminalStart) {
@@ -126,7 +206,10 @@ function parseClassicXref(source, xrefOffset, terminalStart) {
   cursor += xrefEnd[0].length;
   let sections = 0;
   let entries = 0;
-  let firstObject = -1;
+  let previousRangeEnd = -1;
+  let highestObject = -1;
+  let objectZeroFound = false;
+  const inUseOffsets = new Set();
   while (cursor < terminalStart) {
     cursor = skipPdfTrivia(source, cursor, terminalStart);
     if (source.slice(cursor, cursor + 7) === 'trailer') break;
@@ -136,28 +219,45 @@ function parseClassicXref(source, xrefOffset, terminalStart) {
     if (header === null) return null;
     const start = Number(header[1]);
     const count = Number(header[2]);
-    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(count) || count < 1) return null;
-    if (sections === 0) firstObject = start;
+    const rangeEnd = start + count;
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(count)
+      || !Number.isSafeInteger(rangeEnd) || count < 1 || start < 0
+      || start < previousRangeEnd) return null;
+    previousRangeEnd = rangeEnd;
+    highestObject = rangeEnd - 1;
     sections += 1;
     entries += count;
     if (sections > 1_000 || entries > 100_000) return null;
     cursor += header[0].length;
     for (let index = 0; index < count; index += 1) {
-      const entry = /^[0-9]{10}[ \t]+[0-9]{5}[ \t]+[nf][ \t]*(?:\r\n|\n|\r)/u.exec(
+      const entry = /^([0-9]{10})[ \t]+([0-9]{5})[ \t]+([nf])[ \t]*(?:\r\n|\n|\r)/u.exec(
         source.slice(cursor, terminalStart),
       );
       if (entry === null) return null;
+      const objectNumber = start + index;
+      const offset = Number(entry[1]);
+      const generation = Number(entry[2]);
+      const state = entry[3];
+      if (objectNumber === 0) {
+        if (objectZeroFound || state !== 'f' || offset !== 0 || generation !== 65_535) return null;
+        objectZeroFound = true;
+      } else if (state === 'n') {
+        if (inUseOffsets.has(offset)
+          || !xrefPointsToObject(source, xrefOffset, offset, objectNumber, generation)) return null;
+        inUseOffsets.add(offset);
+      }
       cursor += entry[0].length;
     }
   }
-  if (sections === 0 || firstObject !== 0 || source.slice(cursor, cursor + 7) !== 'trailer') return null;
+  if (sections === 0 || !objectZeroFound || source.slice(cursor, cursor + 7) !== 'trailer') return null;
   cursor = skipPdfTrivia(source, cursor + 7, terminalStart);
   const dictionaryStart = cursor;
-  const dictionaryEnd = consumePdfDictionary(source, dictionaryStart, terminalStart);
-  if (dictionaryEnd < 0) return null;
-  const dictionary = source.slice(dictionaryStart, dictionaryEnd);
-  if (/\/(?:Prev|XRefStm)(?=[\x00\t\n\f\r /<>\[\]()])/u.test(dictionary)) return null;
-  return { dictionaryEnd };
+  const dictionary = parsePdfDictionary(source, dictionaryStart, terminalStart);
+  if (dictionary === null || dictionary.entries.has('Prev') || dictionary.entries.has('XRefStm')) return null;
+  const size = dictionary.entries.get('Size');
+  if (size?.kind !== 'integer' || !Number.isSafeInteger(size.numeric)
+    || size.numeric !== highestObject + 1) return null;
+  return { dictionaryEnd: dictionary.cursor };
 }
 
 function validatePdfEnvelope(bytes) {

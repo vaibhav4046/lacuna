@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { VoiceEffect, VoiceOperation } from '../../src/voice/operations.js';
+import {
+  formatVoicePreview,
+  type VoiceEffect,
+  type VoiceOperation,
+} from '../../src/voice/operations.js';
 import type { VoiceIntentReason } from '../../src/voice/intent.js';
 import {
   VoiceOperationExecutor,
@@ -33,6 +37,8 @@ function planned(
   operation: VoiceOperation,
   options: { readonly available?: boolean; readonly reason?: VoiceIntentReason | null } = {},
 ): VoiceOperationPlan {
+  const reason = options.reason ?? null;
+  const preview = formatVoicePreview(operation);
   return {
     version: 1,
     requestId: REQUEST_ID,
@@ -40,8 +46,12 @@ function planned(
     effect: EFFECTS[operation.kind],
     requiresConfirmation: CONFIRMATION.has(operation.kind),
     available: options.available ?? true,
-    reason: options.reason ?? null,
-    display: 'Validated voice operation.',
+    reason,
+    display: reason === 'public_read_only'
+      ? 'Public explore mode is read-only. This action was not planned for execution.'
+      : reason === 'already_on_route'
+        ? `Already here. ${preview}`
+        : preview,
   };
 }
 
@@ -121,6 +131,94 @@ describe('voice operation planning boundary', () => {
 
     await expect(executor.plan('go to dashboard', '/app/work')).rejects.toMatchObject({ failure: 'invalid_plan' });
     expect(calls).toHaveLength(1);
+  });
+
+  it('rejects misleading actionable display text instead of confirming server copy', async () => {
+    const poisoned = {
+      ...planned({ version: 1, kind: 'remember', text: 'Atlas is owned by Priya.' }),
+      display: 'Read the Atlas ownership summary. Nothing will be changed.',
+    };
+    const { calls, executor } = harness(() => json(poisoned));
+
+    await expect(executor.plan('remember Atlas is owned by Priya.', '/app/dash'))
+      .rejects.toMatchObject({ failure: 'invalid_plan' });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('rejects impossible availability reasons and accepts only route-correlated refusals', async () => {
+    const impossible = [
+      {
+        route: '/app/work',
+        plan: planned({ version: 1, kind: 'navigate', route: 'graph' }, {
+          available: false, reason: 'already_on_route',
+        }),
+      },
+      {
+        route: '/app/ask',
+        plan: planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' }, {
+          available: false, reason: 'already_on_route',
+        }),
+      },
+      {
+        route: '/app/dash',
+        plan: planned({ version: 1, kind: 'remember', text: 'Atlas is owned by Priya.' }, {
+          available: false, reason: 'public_read_only',
+        }),
+      },
+      {
+        route: '/explore/dash',
+        plan: planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' }, {
+          available: false, reason: 'public_read_only',
+        }),
+      },
+      {
+        route: '/app/dash',
+        plan: {
+          ...planned({ version: 1, kind: 'start_researcher', task: 'Prepare the brief.' }, {
+            available: false, reason: 'public_read_only',
+          }),
+          reason: 'connector_catalogue_unavailable',
+          display: 'Start Researcher work: “Prepare the brief.”',
+        },
+      },
+      {
+        route: '/explore/dash',
+        plan: planned({ version: 1, kind: 'remember', text: 'Atlas is owned by Priya.' }),
+      },
+      {
+        route: '/app/graph',
+        plan: planned({ version: 1, kind: 'navigate', route: 'graph' }),
+      },
+    ] as const;
+
+    for (const entry of impossible) {
+      const { calls, executor } = harness(() => json(entry.plan));
+      await expect(executor.plan('bounded command', entry.route))
+        .rejects.toMatchObject({ failure: 'invalid_plan' });
+      expect(calls).toHaveLength(1);
+    }
+
+    const already = harness(() => json(planned({ version: 1, kind: 'navigate', route: 'graph' }, {
+      available: false, reason: 'already_on_route',
+    })));
+    const alreadyPlan = await already.executor.plan('go to graph', '/app/graph');
+    await expect(already.executor.execute(alreadyPlan)).resolves.toMatchObject({
+      status: 'refused', failure: 'operation_refused',
+    });
+    expect(already.calls).toHaveLength(1);
+    expect(already.navigate).not.toHaveBeenCalled();
+
+    const publicWrite = harness(() => json(planned({
+      version: 1, kind: 'remember', text: 'Atlas is owned by Priya.',
+    }, { available: false, reason: 'public_read_only' })));
+    const publicPlan = await publicWrite.executor.plan(
+      'remember Atlas is owned by Priya.',
+      '/explore/dash',
+    );
+    await expect(publicWrite.executor.execute(publicPlan)).resolves.toMatchObject({
+      status: 'refused', failure: 'operation_refused',
+    });
+    expect(publicWrite.calls).toHaveLength(1);
   });
 });
 

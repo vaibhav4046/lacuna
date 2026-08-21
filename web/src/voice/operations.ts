@@ -1,5 +1,7 @@
 import {
   MAX_VOICE_RESULT_COUNT,
+  VOICE_ROUTES,
+  formatVoicePreview,
   formatVoiceResultSummary,
   isVoiceOperation,
   voiceOperationAvailability,
@@ -7,6 +9,7 @@ import {
   voiceOperationRequiresConfirmation,
   type VoiceEffect,
   type VoiceOperation,
+  type VoiceRoute,
 } from '../../../src/voice/operations';
 import type { VoiceIntentReason } from '../../../src/voice/intent';
 import {
@@ -46,6 +49,23 @@ const REFUSAL_REASONS = new Set<VoiceIntentReason>([
   'ambiguous_target',
   'invalid_control',
 ]);
+
+const REFUSAL_DISPLAY: Readonly<Record<
+  'empty_transcript' | 'invalid_transcript' | 'transcript_too_long' | 'unsupported_command'
+  | 'unsafe_command' | 'ambiguous_target' | 'invalid_control',
+  string
+>> = Object.freeze({
+  empty_transcript: 'No command was heard.',
+  invalid_transcript: 'That transcript cannot be used.',
+  transcript_too_long: 'That command is too long.',
+  unsupported_command: 'That command is not supported. Try navigation, a summary, a question, remember, or Researcher work.',
+  unsafe_command: 'Voice cannot execute URLs, tools, shell commands, destructive actions, or security changes.',
+  ambiguous_target: 'Name no target. Voice can act only when the application finds one eligible run or schedule.',
+  invalid_control: 'Say confirm or cancel as a separate command.',
+});
+
+const VOICE_ROUTE_SET = new Set<string>(VOICE_ROUTES);
+const PUBLIC_READ_ONLY_DISPLAY = 'Public explore mode is read-only. This action was not planned for execution.';
 
 const ACTIVE_RUN_STATUSES = new Set(['CREATED', 'QUEUED', 'RUNNING', 'WAITING_TOOL', 'HANDOFF']);
 const RETRY_RUN_STATUSES = new Set(['FAILED', 'CANCELLED']);
@@ -91,6 +111,11 @@ export interface VoiceOperationExecutorOptions {
   readonly csrfToken?: () => string;
 }
 
+interface VoicePlanContext {
+  readonly route: VoiceRoute;
+  readonly scope: 'private' | 'public';
+}
+
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -108,8 +133,28 @@ function boundedText(value: unknown, maximum: number): value is string {
     && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
 }
 
+function planContext(currentRoute: string): VoicePlanContext | null {
+  const matched = /^\/(app|explore)\/([^/]+)$/u.exec(currentRoute);
+  const route = matched?.[2];
+  if (route === undefined || !VOICE_ROUTE_SET.has(route)) return null;
+  return { route: route as VoiceRoute, scope: matched?.[1] === 'explore' ? 'public' : 'private' };
+}
+
+function expectedOperationDisplay(operation: VoiceOperation, reason: VoiceIntentReason | null): string {
+  const preview = formatVoicePreview(operation);
+  return reason === 'public_read_only'
+    ? PUBLIC_READ_ONLY_DISPLAY
+    : reason === 'already_on_route'
+      ? `Already here. ${preview}`
+      : preview;
+}
+
 /** Revalidates the serialized plan as untrusted network data. */
-export function readVoiceOperationPlan(value: unknown, expectedRequestId?: string): VoiceOperationPlan | null {
+export function readVoiceOperationPlan(
+  value: unknown,
+  expectedRequestId?: string,
+  context?: VoicePlanContext,
+): VoiceOperationPlan | null {
   if (!isRecord(value) || !exactKeys(value, [
     'version', 'requestId', 'operation', 'effect', 'requiresConfirmation',
     'available', 'reason', 'display',
@@ -132,7 +177,8 @@ export function readVoiceOperationPlan(value: unknown, expectedRequestId?: strin
       || value['requiresConfirmation'] !== false
       || value['available'] !== false
       || reason === null
-      || !REFUSAL_REASONS.has(reason)) return null;
+      || !REFUSAL_REASONS.has(reason)
+      || value['display'] !== REFUSAL_DISPLAY[reason as keyof typeof REFUSAL_DISPLAY]) return null;
     return {
       version: 1, requestId, operation: null, effect: null, requiresConfirmation: false,
       available: false, reason, display: value['display'],
@@ -147,11 +193,20 @@ export function readVoiceOperationPlan(value: unknown, expectedRequestId?: strin
   const localAvailability = voiceOperationAvailability(operation);
   if (!localAvailability.available) {
     if (value['available'] !== false || reason !== localAvailability.reason) return null;
-  } else if (value['available'] === true) {
-    if (reason !== null) return null;
-  } else if (reason !== 'already_on_route' && reason !== 'public_read_only') {
-    return null;
+  } else {
+    const contextualReason: VoiceIntentReason | null = context?.scope === 'public'
+      && (effect === 'write' || operation.kind === 'confirm')
+      ? 'public_read_only'
+      : context !== undefined && operation.kind === 'navigate' && context.route === operation.route
+        ? 'already_on_route'
+        : null;
+    if (contextualReason === null) {
+      if (value['available'] !== true || reason !== null) return null;
+    } else if (value['available'] !== false || reason !== contextualReason) {
+      return null;
+    }
   }
+  if (value['display'] !== expectedOperationDisplay(operation, reason)) return null;
 
   return {
     version: 1,
@@ -312,6 +367,7 @@ export class VoiceOperationExecutor {
   readonly #navigate: (path: string) => void;
   readonly #randomUUID: () => string;
   readonly #inFlight = new Map<string, Promise<VoiceOperationResult>>();
+  readonly #planContexts = new WeakMap<VoiceOperationPlan, VoicePlanContext>();
 
   constructor(options: VoiceOperationExecutorOptions = {}) {
     this.#api = {
@@ -324,15 +380,20 @@ export class VoiceOperationExecutor {
 
   async plan(transcript: string, currentRoute: string): Promise<VoiceOperationPlan> {
     const requestId = this.#randomUUID();
-    if (!REQUEST_ID.test(requestId)) throw new VoiceOperationRequestError('invalid_plan');
+    const context = planContext(currentRoute);
+    if (!REQUEST_ID.test(requestId) || context === null) throw new VoiceOperationRequestError('invalid_plan');
     const raw = await requestVoiceIntent({ version: 1, requestId, transcript, currentRoute }, this.#api);
-    const plan = readVoiceOperationPlan(raw, requestId);
+    const plan = readVoiceOperationPlan(raw, requestId, context);
     if (plan === null) throw new VoiceOperationRequestError('invalid_plan');
+    this.#planContexts.set(plan, context);
     return plan;
   }
 
   execute(untrustedPlan: unknown): Promise<VoiceOperationResult> {
-    const plan = readVoiceOperationPlan(untrustedPlan);
+    const context = isRecord(untrustedPlan)
+      ? this.#planContexts.get(untrustedPlan as unknown as VoiceOperationPlan)
+      : undefined;
+    const plan = readVoiceOperationPlan(untrustedPlan, undefined, context);
     if (plan === null) return Promise.resolve(refusedResult(null, 'invalid_plan'));
     const existing = this.#inFlight.get(plan.requestId);
     if (existing !== undefined) return existing;

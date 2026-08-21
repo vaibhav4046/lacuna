@@ -691,8 +691,12 @@ git commit -m "feat(connectors): expose truthful private import workflows"
 **Files:**
 - Modify: `src/retrieval/resolve.ts`
 - Modify: `src/hydra/cloud.ts`
+- Modify: `src/hydra/client.ts`
+- Modify: `src/hydra/source.ts`
 - Modify: `src/hydra/cloud-source.ts`
+- Modify: `src/hydra/node-source.ts`
 - Modify: `src/hydra/relations.ts`
+- Modify: `src/api/graph.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
 - Modify: `src/api/impact.ts`
@@ -700,78 +704,258 @@ git commit -m "feat(connectors): expose truthful private import workflows"
 - Test: `tests/unit/graph-impact.test.ts`
 - Test: `tests/unit/graph-api.test.ts`
 - Test: `tests/unit/retrieval-resolve.test.ts`
+- Test: `tests/unit/client.test.ts`
 - Test: `tests/unit/cloud-source.test.ts`
+- Test: `tests/unit/ingest-source.test.ts`
 - Test: `tests/unit/relations.test.ts`
+- Create: `tests/unit/hydra-cloud-impact-transport.test.ts`
 - Create: `tests/unit/workspace-impact-api.test.ts`
+- Create: `tests/unit/workspace-impact-ui.test.tsx`
+- Test: `tests/unit/web-product-contracts.test.ts`
 
 **Interfaces:**
 - Adds: `GET /api/workspace/impact?subject=<bounded-name>`
+- Adds: required `HydraReadControl { signal, deadlineMs, maxResponseBytes,
+  byteBudget }` on
+  `HydraCloud.query`, `relations`, and `inspect`, and on
+  `HydraSource.subject` plus both source implementations and every typed fake
 - Consumes: workspace-scoped `HydraCloud.withCollection(collection).query(...,
-  { type: 'all' })`, `.relations()`, and `HydraSource.subject()` views
-- Produces: one pure shared standing-policy evaluator used by resolver and impact
-- Produces: raw reached Hydra relation ids/context plus accepted, rejected,
-  duplicate, affected, depth, and elapsed accounting
+  { type: 'all', maxResults: 6 }, control)`, `.relations(128, control)`, and
+  `HydraSource.subject(..., control)` views
+- Produces: one target-level `evaluateTargetStanding` policy consumed by
+  `resolve.ts`, `impact.ts`, and both public/private proof construction in
+  `src/api/graph.ts`
+- Produces: bounded raw Hydra relationship/chunk/source provenance plus
+  accepted, rejected, duplicate, affected, depth, elapsed, and exact reached
+  accounting; it never returns a provider envelope or workspace identifier
 
-- [ ] **Step 1: Write the private-scope and accounting regressions**
+- [ ] **Step 1: Write the private-scope, transport, and accounting regressions**
 
-Require `401` without a session, derive the collection only from the account,
-reject missing/empty/overlong/duplicate/unknown subject controls before Hydra,
-apply one total deadline/abort and byte/row/read/walk budget, and return
-`Cache-Control: no-store` plus `nosniff`. Use two fake accounts to prove their
-query, relation, and subject-view calls cannot cross collections. Assert every
-seed and later-hop candidate is classified exactly once so
-`reached === accepted.length + rejected.length + duplicates`; retain provider
-duplicates for classification and reject inconsistent reuse of a relationship
-id as malformed. Preserve real relationship id, actual chunk id, context, and
-independent source id(s) without relabeling fields. No result leaks collection,
-database, workspace, email, query body, token, or provider envelope.
+Require `401` before constructing a Hydra client, derive the collection only
+from the authenticated account on every call, and never accept a collection,
+database, workspace, source id, or provider option from the query string. A
+session/account change aborts the read and its epoch cannot update the new
+scope. Reject a missing, repeated, empty, malformed, or over-cap `subject`
+before Hydra. Return `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff` on success and error. Use two fake accounts
+with the same subject to prove query, relation, inspect, cache keys, response,
+and retry cannot cross collections. The route returns generic bounded errors;
+it never leaks collection, database, workspace, email, token, request body,
+provider body, provider URL, or provider error text.
 
-Cover shuffled claim order, current/historical/retracted/negative standing,
-single-value contradiction, multi-value predicates, matching and missing
-mentions, unrelated predicates, explicit direction/inverse mapping, cycles,
-depth/node/candidate/provider-row/response-byte/subject-read bounds, peer
-cancellation, and strict empty-versus-malformed decoding. Include one decisive
-fixture where Hydra seeds old/new edges, workspace policy rejects the superseded
-old edge, accepts the current edge, and only that edge expands to a second hop.
+Name the transport suite `hydra-cloud-impact-transport.test.ts`. It must prove:
+the absolute deadline is not reset between reads; caller abort reaches query,
+relations, inspect, cloud subject, and node subject; query/relations siblings
+abort each other on either failure; the implementation awaits both with
+`Promise.allSettled` semantics and removes caller listeners/timers; success and
+error bodies stop at the streamed byte cap before UTF-8/JSON decode; exact-cap
+bodies pass; truncated, invalid UTF-8, duplicate-key JSON, wrong-type, extra-key,
+and over-row responses fail closed; a schema-valid empty response is distinct
+from malformed. Cover a normal close immediately before and after caller abort
+and assert no surviving fetch/read/subject promise after route settlement.
+
+Do not let the wire decoder erase provenance or duplicates. A query chunk is
+strictly `{ chunkId, text, score, sourceIds, sourceTitle, sourceType,
+observedAt }`: `chunkId` comes only from the provider chunk `id`; `sourceIds`
+is the bounded stable union of independently supplied `source_id` followed by
+`source_ids[]` and never substitutes the chunk id. A relation is strictly
+`{ relationshipId, source, target, predicate, chunkId, context }`:
+`chunkId` comes only from provider `chunk_id`. Test singular source id, array
+source ids, both, neither, relationship/chunk id present and absent, and the
+same exact duplicate occurrence twice. Preserve every occurrence until schema
+validation, repeated-id consistency checking, canonical ordering, and
+accounting are complete.
+
+Cover shuffled claims and candidates, current/historical/retracted/negative
+standing, single-value contradiction, multi-value predicates, matching and
+missing mentions, unrelated predicates, every allowed forward/inverse
+predicate, an unknown near-match, cycles, exact caps and cap+1 for every
+numeric/string/byte budget, peer cancellation, and empty-versus-malformed
+decoding. Assert for every successful response:
+`reached === accepted.length + rejected.length + duplicates` and every reached
+occurrence has exactly one outcome. Provider/schema over-cap is a generic
+request failure, while a valid candidate excluded by a traversal budget is a
+`budget_excluded` rejection and participates in that arithmetic.
 
 - [ ] **Step 2: Run focused graph tests and verify RED**
 
-Run: `npx vitest run tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/client.test.ts tests/unit/relations.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx --maxWorkers=1`
 
-Expected: the private endpoint and collection-aware graph functions are absent.
+Expected: the shared target policy, strict bounded transport, private endpoint,
+and scope-aware proof fixture are absent.
 
-- [ ] **Step 3: Implement the collection-aware graph boundary**
+- [ ] **Step 3: Extract one canonical entity and target-standing policy**
 
-Extract the resolver's complete claim-standing policy into one pure evaluator
-and make resolver, impact, and proof graph reuse it. It must evaluate all
-matching claims deterministically under the same supersession, polarity,
-contradiction, predicate-cardinality, and mention rules; never use first-match
-claim order. A structural candidate crosses only when a matching live claim and
-matching `Mention` support that directed entity pair. Use a closed predicate
-direction map; never reverse one-way rows merely because traversal reaches the
-target, while explicitly defined inverse predicates may swap direction.
+Expose one `canonicalEntityName(raw)` helper and one pure
+`evaluateTargetStanding(subjectView, internalPredicate, targetKey)` evaluator
+from the resolver policy module. `resolve.ts`, `impact.ts`, and
+`src/api/graph.ts` must call these helpers; remove their local first-match,
+contradiction, mention, case, and whitespace variants. This is a target-level
+decision, not “the predicate has some current claim.”
+
+The entity grammar is exact. Reject unpaired surrogates, NUL, C0/C1 controls,
+and U+202A..U+202E/U+2066..U+2069 bidi controls. NFC-normalize; map each
+remaining Unicode `White_Space` run to U+0020; trim/collapse U+0020; then require
+1..160 Unicode scalar values and at most 512 UTF-8 bytes. The canonical key is
+that normalized display value's locale-independent ECMAScript `toLowerCase()`;
+reapply the same scalar/byte caps after lowercasing because Unicode lowercase
+can expand. No NFKC, locale fold, filesystem fold, or provider id participates.
+Preserve the validated display spelling separately and choose the first
+spelling in canonical candidate order, never arrival order.
+
+The closed provider-predicate map is:
+
+| Provider predicate after ASCII trim/collapse and lowercase | Internal predicate | Direction |
+|---|---|---|
+| `depends_on`, `depends on`, `depended on`, `requires`, `uses`, `calls` | `depends_on` | provider source → provider target |
+| `required by`, `used by`, `called by` | `depends_on` | provider target → provider source |
+
+Predicate input is at most 64 UTF-8 bytes and ASCII whitespace is only U+0020,
+TAB, CR, or LF. Anything else is `not_structural`; it is never guessed,
+stemmed, or reversed merely because the traversal reached the provider target.
+
+Evaluate every claim of the exact internal predicate in the resolver's
+canonical order: `validFrom` ascending, then numeric claim id. “Live” has the
+existing exact meaning `supersededBy.length === 0`; polarity is evaluated
+separately. For a single-valued predicate, two distinct live-positive canonical
+targets make every target `contradicted`; a multi-valued predicate evaluates
+each target independently. A candidate is `current` only if (a) one
+live-positive claim has `objectText` equal to the canonical target and (b) one
+`Mention` names that same canonical target and carries that exact claim id and
+predicate. Where several equivalent claims support the same target, select the
+newest by `validFrom` then id, exactly as resolver citation does. A matching
+live claim without that mention is `missing_mention`. With no live positive, an
+applicable live negative is `retracted`. A target present only in a superseded
+positive while another live target exists is `historical`. Otherwise it is
+`unstated`. Return the selected claim and mention with `current` so
+accepted-edge provenance cannot drift to a different claim, predicate, target,
+or display name.
+
+- [ ] **Step 4: Make every Hydra read bounded, abortable, and strictly decoded**
+
+Define one required read-control shape:
+
+```ts
+interface HydraReadControl {
+  readonly signal: AbortSignal;
+  readonly deadlineMs: number;       // absolute Date.now() deadline
+  readonly maxResponseBytes: number; // endpoint body, success or error
+  readonly byteBudget: {
+    consume(chunkBytes: number): void; // one shared monotonic request counter
+  };
+}
+```
+
+Thread it through `HydraCloud.query`, `relations`, and `inspect`,
+`HydraSource.subject`, `CloudSource`, `NodeSource`, and all fakes/callers
+affected by the interface. Pass it into the node `HydraClient.query` transport
+used by NodeSource as well; the old timeout field alone is insufficient.
+Existing ingest/status controls remain separate.
+The cloud sender clips its timer to `deadlineMs - Date.now()`, checks an already
+aborted signal before dispatch, streams and counts response bytes before fatal
+UTF-8 and strict JSON decode, enforces the same ceiling on non-2xx error bodies
+without returning those bytes, and cleans its relay listener and timer on every
+exit. For each stream chunk, check the per-response total and call the shared
+`byteBudget.consume(chunk.byteLength)` before buffering it; either overflow
+cancels/drains the reader and aborts peers. The node client does the same. The
+node source checks abort/deadline before and after each store fan-out and drains
+peer store operations before rejecting.
+
+Use strict closed decoders, not `String(...)`, `asArray(...)`, filtering, or
+“unknown means empty.” The query response permits at most 6 chunks, 8 source
+ids per chunk, 32 `query_paths`, 8 triplets per path, and 128 triplets total.
+The relation response permits at most 64 containers, 8 nested rows per
+container, and 128 flattened rows total. Every id/title/type/timestamp is at
+most 256 UTF-8 bytes, chunk text/context at most 2,048 UTF-8 bytes, and entity
+strings follow the 512-byte entity grammar. Wrong types, unknown keys,
+non-finite scores, inconsistent repeated relationship ids, or any cap+1 fail
+the whole request. A schema-valid absent/empty chunks, paths, or relations
+array is an honest empty result. A structurally valid relation occurrence with
+a null/empty endpoint or predicate becomes one `malformed_candidate` rejection;
+it is not silently dropped.
 
 Expose separate collection-accepting graph functions from `api/index.ts`; do
 not change the public demo closures. Construct all query/relation/source
 closures from `cloud.withCollection(serverDerivedWorkspace)`. Query with
-`type: 'all'` (or omit it): `HydraCloud.query` itself enables graph context, and
-`graph_context` is not a valid context type. Build policy state only from
-bounded workspace `HydraSource.subject()` views, never the bundled corpus or UI
-strings. Normalize one bounded query seed and one bounded relation inventory,
-then breadth-first walk to depth at most 3 and 40 canonical entities. Cache one
-subject read per canonical entity, share one signal/deadline across peer calls,
-abort the peer on failure, and cap response bytes before JSON parsing. Empty is
-an honest result; malformed provider shape fails closed and generically.
+`type: 'all'` and `maxResults: 6`; the request boolean is
+`graph_context: true`, while `graph_context` is never used as a context `type`.
+Start query and relations under sibling controllers linked to the caller and
+the one route deadline. On first failure/abort/over-cap, abort the peer, await
+both with `Promise.allSettled`, detach every listener, and then return a generic
+error. No successful or failed route may leave a fetch, stream reader, inspect,
+subject, timer, or listener running.
 
-Count every candidate at every depth. Deduplicate by real Hydra relationship id
-when present, otherwise a canonical directed tuple including predicate, actual
-chunk id when present, and context digest. Preserve duplicates for accounting;
-inconsistent repeated ids are malformed. `affected` contains only unique nodes
-reached by accepted edges, and `depth` is the maximum accepted depth. Preserve
-the existing rule that ordinary Ask does not enable graph context because
-Hydra relations are candidates until Lacuna proves current standing.
+- [ ] **Step 5: Implement canonical BFS and exact budget arithmetic**
 
-- [ ] **Step 4: Make the proof UI follow its actual scope**
+Pin these constants in `src/api/impact.ts` and assert every exact value:
+
+| Budget | Exact cap |
+|---|---:|
+| Absolute route deadline | 30,000 ms |
+| Query `max_results` / decoded chunks | 6 / 6 |
+| Relations request limit / decoded relation rows | 128 / 128 |
+| Query paths / triplets per path / total triplets | 32 / 8 / 128 |
+| Relation containers / nested rows / total rows | 64 / 8 / 128 |
+| Query / relations / inspect response body | 1,048,576 / 1,048,576 / 524,288 bytes |
+| Aggregate bytes across query, relations, and all subject inspections | 6,291,456 bytes |
+| Candidate occurrences after the two bounded decoders | 256 |
+| Subject reads / canonical entities | 40 / 40 |
+| Concurrent query+relations peers / concurrent subject reads | 2 / 4 |
+| Claims / mentions per subject; aggregate claim+mention rows | 128 / 128; 1,024 |
+| Walk depth | 3 accepted edges from the root |
+| Returned accepted+rejected edge entries | 256 |
+| Serialized successful JSON body | 262,144 UTF-8 bytes |
+
+The aggregate-byte and subject-row counters are shared monotonically across the
+request; a cached subject consumes each once. A cap is inclusive. A raw body,
+wire array, string, combined candidate set, per-subject row set, aggregate row
+set, or output that is cap+1 fails the entire request generically—never truncate
+or return partial proof. In contrast, a schema-valid candidate whose edge would
+exceed depth 3 or add canonical entity 41 is retained as one
+`budget_excluded` rejection. It does not enter `accepted`, `affected`, or a
+later frontier and is included in `reached` arithmetic. A response-body
+overflow discovered after construction also fails rather than slicing fields.
+
+Retain the 128 query-triplet occurrences followed by the 128 inventory-row
+occurrences before validation or deduplication. Normalize direction and entity
+keys, validate all occurrences, and reject inconsistent reuse of a real
+relationship id before walking. The identity key is the real relationship id
+when present; otherwise it is the canonical tuple
+`(effectiveSourceKey, effectiveTargetKey, internalPredicate, direction,
+chunkId-or-empty, sha256(context-or-empty))`. A second identical occurrence is
+`duplicates += 1` even if the first was rejected. Do not silently collapse it.
+
+Canonical ordering is independent of provider/claim arrival: sort each
+frontier by canonical entity key; sort candidates by effective source key,
+effective target key, internal predicate, direction, relationship id or tuple
+key, chunk id, context digest, origin (`query` before `inventory`), then original
+path/row occurrence ordinal. Both query triplets and inventory rows are
+considered exactly once, at the earliest depth at which their mapped effective
+source is in the frontier; this preserves second and third hops already present
+in `query_paths`. Rows whose effective source is never reached are not
+`reached` and an incoming one-way row is never reversed to make it reachable.
+For each reached occurrence, apply in order: duplicate,
+malformed/non-structural, target-standing, then traversal budget. Accepted
+edges alone enqueue their target. Cache one bounded subject view per canonical
+key. Fetch uncached views for one frontier through a four-worker pool. The first
+failure/abort stops new work, aborts every started peer, awaits all started
+promises with all-settled semantics, and only then rejects; a later frontier
+never overlaps it.
+
+Every reached occurrence has exactly one stable outcome:
+`malformed_candidate`, `not_structural`, `unstated`,
+`historical`, `retracted`, `contradicted`, `missing_mention`,
+`budget_excluded`, `accepted`, or `duplicate`. Therefore
+`reached === accepted.length + rejected.length + duplicates` exactly.
+`affected` is the unique canonical targets of accepted edges, excludes the
+root even on a cycle, uses the deterministic preserved display spelling, and
+is sorted by canonical key. `depth` is zero for no accepted edge and otherwise
+the maximum accepted edge depth. Preserve relationship id, actual chunk id,
+bounded source ids, context, selected claim id, mention identity, and display
+names on accepted edges. Keep ordinary Ask graph context disabled: Hydra rows
+are candidates until Lacuna proves current standing.
+
+- [ ] **Step 6: Make the private proof UI demonstrate causal Hydra use**
 
 `GraphImpact` consumes `useScope()`: public explore reads the existing fixed
 demo impact; a private workspace offers a bounded subject field and reads only
@@ -780,16 +964,53 @@ rejections, and final affected nodes distinctly, with copy equivalent to
 “HydraDB supplied candidate relations; Lacuna evaluated current standing.”
 Render missing provenance, empty, error, and budget states explicitly and
 accessibly. Never render rejected edges as proof or imply Hydra itself resolved
-temporal standing.
+temporal standing. Task 7's exact-session/epoch client rules apply: account
+swap or logout aborts and discards the response, refresh re-fetches private
+truth, and no private response enters local/session storage. Public Explore
+continues using only `/api/explore/impact` and its bundled fixture; it never
+calls or displays the private workspace route.
 
-- [ ] **Step 5: Run focused graph/UI tests and verify GREEN**
+Add a private UI fixture whose query graph contains both
+`Root -> Superseded` and `Root -> Current`, whose workspace subject view marks
+the first historical and supports the second with the exact live positive
+claim plus matching `Mention`, and whose relation inventory contains
+`Current -> SecondHop`. Assert the old edge is visibly rejected with its
+provenance, the current and second-hop edges alone are accepted, the three
+accounting terms balance, and affected/depth copy matches the JSON. Copy these
+decisive metamorphic assertions into `graph-impact.test.ts` and
+`workspace-impact-ui.test.tsx`:
 
-Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/cloud-source.test.ts tests/unit/relations.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+1. Remove only the live current claim: `Current` and `SecondHop` disappear from
+   accepted/affected and the first edge becomes `unstated` or `historical` as
+   dictated by the remaining view.
+2. Restore the claim but remove only its exact matching `Mention`: the edge is
+   `missing_mention` and neither node appears as affected.
+3. Restore the mention but remove only the query seed
+   `Root -> Current`: neither `Current` nor `SecondHop` is reachable.
+4. Restore the seed but remove only the inventory row
+   `Current -> SecondHop`: `Current` remains and `SecondHop` disappears.
+5. Shuffle every provider row and claim, then add an exact duplicate: accepted
+   nodes/order remain byte-identical and only `duplicates` and `reached` rise
+   by one.
+6. Run the same private fixture beside public Explore: the public request,
+   response, graph, copy, and endpoint remain byte-identical.
 
-- [ ] **Step 6: Commit the graph-native workspace feature**
+- [ ] **Step 7: Run focused graph/UI tests and verify GREEN**
+
+Run: `npx vitest run tests/unit/retrieval-resolve.test.ts tests/unit/client.test.ts tests/unit/cloud-source.test.ts tests/unit/ingest-source.test.ts tests/unit/relations.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+
+Run: `npm run typecheck`
+
+Run: `npm --prefix web run build`
+
+Expected: exact-cap/cap+1, cancellation/drain, strict wire mapping, standing
+metamorphics, two-account isolation, private UI causality, and unchanged public
+Explore all pass; no request survives settlement.
+
+- [ ] **Step 8: Commit the graph-native workspace feature**
 
 ```bash
-git add src/retrieval/resolve.ts src/hydra/cloud.ts src/hydra/cloud-source.ts src/hydra/relations.ts src/api/router.ts api/index.ts src/api/impact.ts web/src/app/routes/proof.tsx tests/unit/retrieval-resolve.test.ts tests/unit/cloud-source.test.ts tests/unit/relations.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/web-product-contracts.test.ts
+git add src/retrieval/resolve.ts src/hydra/cloud.ts src/hydra/client.ts src/hydra/source.ts src/hydra/cloud-source.ts src/hydra/node-source.ts src/hydra/relations.ts src/api/graph.ts src/api/router.ts api/index.ts src/api/impact.ts web/src/app/routes/proof.tsx tests/unit/retrieval-resolve.test.ts tests/unit/client.test.ts tests/unit/cloud-source.test.ts tests/unit/ingest-source.test.ts tests/unit/relations.test.ts tests/unit/hydra-cloud-impact-transport.test.ts tests/unit/graph-impact.test.ts tests/unit/graph-api.test.ts tests/unit/workspace-impact-api.test.ts tests/unit/workspace-impact-ui.test.tsx tests/unit/web-product-contracts.test.ts
 git commit -m "feat(hydra): scope native graph impact to private memory"
 ```
 

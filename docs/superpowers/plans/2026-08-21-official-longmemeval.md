@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce a complete, auditable, officially judged 500-question LongMemEval oracle result in which HydraDB Cloud is the actual memory/retrieval system and no ground-truth answer fields or encoded labels cross the generation boundary.
+**Goal:** Build a complete, auditable LongMemEval oracle harness in which HydraDB Cloud is the actual memory/retrieval system and no ground-truth answer fields or encoded labels cross the generation boundary, while exposing no executable paid 500-question path until Hydra supplies a stable authenticated scope identity and authoritative inventory/quota gate.
 
-**Architecture:** A new cloud-only runner loads an `IngestibleQuestion[]` through a ground-truth-stripping loader, writes each question's dated sessions under opaque deterministic source ids in its own deterministic HydraDB collection, live-verifies stable client ids, byte-for-byte inspect readback, and (for resume only) repeated-upsert convergence, requires every exact receipt to reach terminal `completed`, and passes only strictly decoded, bounded Hydra-returned chunks plus verbatim benchmark wall-clock dates to a narrow answer input. Exclusive run and campaign-budget locks protect framed, hash-chained, fsynced checkpoints, audits, and worst-case pre-call reservations; resume is enabled only by the full live contract, while fresh-only is permitted solely when stable client-id/readback works but repeated-upsert convergence remains unproven. Immutable generation and evaluation manifests separately seal the clean Lacuna harness identity, pinned upstream Git-blob observations, two-key hypotheses, cumulative resource ledger, and raw official evaluator evidence without circular digests.
+**Architecture:** A cloud-only runner loads an `IngestibleQuestion[]` through a ground-truth-stripping loader, writes each question's dated sessions under opaque deterministic source ids, requires stable client ids, exact inspect readback, and repeated-upsert convergence, and passes only strictly decoded, bounded Hydra-returned chunks plus verbatim benchmark wall-clock dates to a narrow answer input. Acquisition records immutable upstream/data provenance only; after every harness commit, a separate final run identity seals the clean tracked harness, a recursively byte-manifested dependency runtime, and `capability.json`. Run-local locks protect framed/fsynced evidence, but they are not an account-wide quota authority: production execution remains unavailable until a server-authenticated Hydra scope and authoritative inventory/quota check exist. Official judging retains the pinned scoring path, bounded subprocess attempts, crash recovery, a provider-enforced external spend cap, and separate non-circular generation/evaluation manifests.
 
 **Tech Stack:** TypeScript, HydraDB Cloud, existing OpenAI-compatible provider adapter, Node filesystem/crypto/process, Python 3.9 official evaluator, Vitest.
 
@@ -16,7 +16,7 @@
 - Cleaned official dataset repository: `https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned` at commit `98d7416c24c778c2fee6e6f3006e7a073259d48f`.
 - Dataset file: `longmemeval_oracle.json`, exactly 500 questions.
 - Dataset bytes: exactly `15388478`; SHA-256 `821a2034d219ab45846873dd14c14f12cfe7776e73527a483f9dac095d38620c`; SHA-256 of the lexically sorted ids joined by `\n` with one final `\n`: `f038965c54b03632f86a59104dd77848b66e3f80c08d5fbabdd3984d16457811`.
-- Official judge commands, from cwd `<upstream>/src/evaluation`: `python evaluate_qa.py gpt-4o <hypotheses-or-batch.jsonl> <oracle.json>`, producing `<hypotheses-or-batch.jsonl>.eval-results-gpt-4o`, then `python print_qa_metrics.py <merged-eval-results.jsonl> <oracle.json>`. `print_qa_metrics.py` receives no model argument.
+- Official judge commands, from cwd `<upstream>/src/evaluation`: `python evaluate_qa.py gpt-4o <hypotheses-or-batch.jsonl> <oracle.json>`, producing `<hypotheses-or-batch.jsonl>.eval-results-gpt-4o`, then `python print_qa_metrics.py <merged-eval-results.jsonl> <oracle.json>`. The wrapper inserts only interpreter isolation flags `-I -B`; `print_qa_metrics.py` receives no model argument.
 - Evaluator runtime: `uv 0.11.21`, CPython `3.9.25`, and a reviewed hash-locked transitive requirements file derived from the pinned upstream `requirements-lite.txt`. Python 3.9 is end-of-life and is used only inside this isolated evaluator environment because it is the upstream-declared runtime.
 
 ## Global Constraints
@@ -25,15 +25,16 @@
 - `answer`, `answer_session_ids`, `has_answer`, raw `question_id`, raw `haystack_session_ids`, the `_abs` encoded abstention label, and the `answer_` session-id marker are forbidden in indexed document text/title/filename, answer input, provider messages, retrieval/prompt audit, and any consumed graph context. The runner alone retains question id for collection selection, checkpoint association, and hypotheses output.
 - LongMemEval dates remain byte-for-byte wall-clock strings such as `2023/05/30 (Tue) 23:40`; no timezone is invented and no ISO conversion occurs. `Chunk.observedAt` is Hydra upload time and is never a benchmark session date. A durable opaque-source-to-verbatim-date sidecar supplies dates even when a returned chunk contains no header.
 - Each question uses a deterministic, per-run Hydra collection; collections persist because the current Cloud API exposes no delete.
-- Ingestion is serial per question and answer generation is serial across questions. Resume never re-ingests or re-answers a completed checkpoint row. `idempotent-upsert` requires all three live facts: the requested deterministic client id is the returned/addressable id, `inspect(id)` returns exact submitted bytes, and a repeated same-id/same-bytes upsert converges to exactly one identical source. `fresh-only` is allowed only when the first two facts are proven but the third remains unproven; every source is then submitted exactly once and any interruption or ambiguous response permanently abandons the run. Failure of client-id stability or exact inspect readback blocks all execution. There is no server-generated-id mode or fallback.
-- Exactly one process owns a run directory, and exactly one process appends to the account/project-scoped campaign resource ledger. `run.json`, checkpoint frames, audit frames, resource reservations, hypotheses, manifests, and evaluator attempt outputs use atomic rename or framed append+fsync as specified below; no completed state is inferred from an unsynced file.
-- Before the first irreversible action, the runner reserves the full 500-collection/948-document run allocation in a cumulative campaign ledger. Before every answer-provider call and every official-judge batch subprocess, it appends and fsyncs a hash-chained worst-case attempt/input-token/output-token/spend reservation. Reservations and ambiguous outcomes are never refunded, attempt ceilings count all starts rather than successful answers/labels, and abandoned or fresh-only replacement runs remain charged before another allocation can be approved.
-- Every run binds the exact clean Lacuna HEAD commit, HEAD tree, and harness-file manifest. Dirty index/tracked/untracked harness state is a hard failure. Immediately before each benchmark child process is spawned, the wrapper revalidates that identity and byte-compares every upstream file that child can consume with its blob at the pinned upstream commit; the expected and observed blob/SHA-256/byte tuples are sealed in evaluator identity and final evidence.
+- Ingestion is serial per question and answer generation is serial across questions. Resume never re-ingests or re-answers a completed checkpoint row. `idempotent-upsert` requires all three live facts: the requested deterministic client id is the returned/addressable id, `inspect(id)` returns exact submitted bytes, and a repeated same-id/same-bytes upsert converges to exactly one identical source. Failure or uncertainty in any fact blocks all execution. There is no `fresh-only`, server-generated-id, or fallback mode.
+- Exactly one process owns a run directory. `run.json`, checkpoint frames, audit frames, hypotheses, manifests, and evaluator attempt outputs use atomic rename or framed append+fsync as specified below; no completed state is inferred from an unsynced file. A local journal is evidence and per-run accounting only, never proof of account-wide inventory, exclusivity, or quota.
+- No production 500-run command or paid judge command exists until the provider returns a stable authenticated Hydra account/database identity and an authoritative inventory/quota response for that same identity. A caller label, environment value, path-derived digest, local lock, local ledger, or operator-entered cumulative count cannot satisfy this gate. The current Hydra composition therefore reports `executionAvailable: false` and exits before credentials capable of paid writes/judging are loaded.
+- Acquisition writes only pinned source/data provenance. After Tasks 1-8 are committed, every run binds a newly captured exact clean Lacuna HEAD commit/tree and sorted tracked harness manifest, the acquisition-provenance digest, the exact `capability.json` digest, and a separately sealed dependency-runtime manifest. Dirty index/tracked/untracked harness state is a hard failure; the one verified runtime cache is excluded from Git cleanliness only because its recursively exact file set and bytes are checked independently before every spawn.
+- Every executable/importable file in the dedicated Node/TS, uv, CPython, virtualenv, and evaluator dependency runtime is listed by normalized relative path, byte length, mode/type, and SHA-256. Symlinks, special files, path escape, missing files, and extras fail before spawn. Python runs isolated with bytecode writes disabled; no child may mutate a sealed runtime.
 - A run with fewer than exactly 500 unique official ids stays under `artifacts/benchmarks/incomplete/` and cannot contain a score.
 - The official evaluator runs only after the hypotheses schema, exact sorted-id digest, and immutable generation manifest pass. The final score is publishable only after a separate non-circular evaluation manifest covers every raw evaluator and metric artifact.
 - Oracle-tier results are labelled `oracle`; they are never described as LongMemEval-S, LongMemEval-M, or leaderboard-comparable retrieval over distractor history.
 - The answer path is described as bounded `HydraDB Cloud returned chunks`. Every Hydra response is streamed through a byte ceiling and strict UTF-8/bounded JSON decoder before schema decoding. Although `HydraCloud.query()` requests `graph_context: true`, bounded canonical `sources`, `graph_context`, and `temporal_facts` are audited/digested but never put into the prompt. No raw `unknown` value is parsed or digested without structural and canonical-byte caps, and no copy calls the chunks graph-enriched. A future consumed graph mode requires its own bounded typed contract and is outside this run.
-- Provider and judge calls have explicit call, input, output, wall-clock, and spend ceilings. Exact usage/cost is recorded only when measured; otherwise the artifact records `null` plus a reason. Cloud-provider and judge runs also require an operator-approved external account/project hard spend limit because a client-side estimate is not a hard control.
+- Answer-provider calls retain explicit request/output/deadline/spend controls. The pinned official judge does not expose a trustworthy internal API-call or token counter, so this plan makes no judge N+1 or token-cap claim. A judge subprocess may start only with an authoritatively verified provider-enforced hard spend cap on its dedicated project/key plus a process-tree deadline; otherwise paid evaluation fails closed. Exact usage/cost is recorded only when measured, otherwise `null` plus a reason.
 - Every publishable text or JSON artifact is scanned for the exact configured secret values before the evaluation manifest is written; scans never record secret value, prefix, or length.
 - Heavy tests and the real run use one worker/process.
 
@@ -45,14 +46,19 @@
 - Create: `scripts/longmemeval-acquire.ts`
 - Create: `benchmarks/longmemeval/provenance.ts`
 - Create: `benchmarks/longmemeval/execution-identity.ts`
+- Create: `benchmarks/longmemeval/dependency-runtime.ts`
+- Create: `scripts/longmemeval-seal-runtime.ts`
 - Modify: `package.json`
 - Test: `tests/unit/longmemeval-provenance.test.ts`
 - Test: `tests/unit/longmemeval-execution-identity.test.ts`
+- Test: `tests/unit/longmemeval-dependency-runtime.test.ts`
 
 **Interfaces:**
 - Produces: `LongMemEvalProvenance`
-- Produces: `captureCleanHarnessIdentity()` and `verifyImmediatelyBeforeSpawn(identity, consumedUpstreamPaths)`
+- Produces: `captureFinalRunIdentity(provenance, capability, runtimeManifest)` and `verifyImmediatelyBeforeSpawn(identity, childSpec)`
+- Produces: `sealDependencyRuntime(stagingRoot, outputManifest)` and `verifyDependencyRuntime(manifest)`
 - Produces: `npm run bench:longmemeval:acquire`
+- Produces: `npm run bench:longmemeval:seal-runtime`
 - Writes ignored inputs under `.cache/longmemeval/`
 
 - [ ] **Step 1: Write manifest validation tests**
@@ -71,32 +77,36 @@ https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c2
 
 Construct the Git subprocess with `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=<new empty temp file>`, `GIT_CONFIG_COUNT=0`, and `-c core.hooksPath=<new empty temp directory>` for clone, fetch, checkout, `ls-tree`, and `cat-file` verification. Do not inherit repository/system/global hooks, credential helpers, aliases, or filter commands. The download client sends no cookies, authorization, or caller headers; follows redirects only from `huggingface.co` to the exact documented Hugging Face/Xet content hosts; rejects every non-2xx status; applies connect, inactivity, and total deadlines; and aborts as soon as streamed bytes exceed `15388478`. The script must not place the dataset or Python environment under tracked `data/` or `third_party/` paths.
 
-Test the common spawn guard separately. It captures Lacuna's exact `HEAD` commit/tree and a sorted byte/SHA-256 manifest of every tracked worktree file, and requires the index and every tracked file to equal HEAD. Non-ignored untracked files are allowed only inside the exact selected benchmark output directory; ignored files are allowed only inside `.cache/longmemeval/`; neither root is executable or importable. Any other untracked file, especially under a code/module-resolution root, is dirty harness state. Immediately before each child spawn the guard synchronously rechecks resolved HEAD/tree, cleanliness, every tracked-file digest, the fixed dataset bytes/digest, and every declared consumed evaluator-bundle entry against both its recorded pinned blob tuple and current materialized bytes. The spawn must not occur after a changed file, swapped same-length file, dirty index, foreign untracked file, missing declaration, or even one verification-to-spawn intervening await/callback. Acquisition Git commands declare no consumed upstream file; every later `uv`, Python, evaluator, and metrics child declares the complete upstream bundle it may read.
+Test acquisition provenance separately from run identity. Acquisition must not write, cache, predict, or name a Lacuna HEAD/tree as the final run identity. `captureFinalRunIdentity` is callable only after Tasks 1-8 are committed and requires the index plus every tracked worktree file to equal the then-current HEAD. It records that final commit/tree and a sorted byte/SHA-256/mode manifest of all tracked files, and binds the exact acquisition-provenance, `capability.json`, and dependency-runtime manifest digests. Non-ignored untracked files are allowed only inside the exact selected benchmark output directory. Ignored acquisition inputs and the one selected verified dependency runtime are allowed only at their recorded `.cache/longmemeval/` paths; the acquisition cache is never executable/importable, while the dependency runtime is excluded from Git cleanliness only after its independent recursive verification succeeds. Any other untracked/ignored executable or importable path is dirty harness state.
+
+Test the common spawn guard in the same synchronous spawn turn. It rechecks final HEAD/tree/cleanliness and every tracked digest, then recursively enumerates each declared runtime root and rejects a missing, changed, differently typed, symlinked, special, or extra entry before byte-comparing all files to the sealed manifest. It also rechecks the dataset and each consumed evaluator bundle/input tuple. The spawn cannot occur after an intervening await, callback, timer, or user hook. A child executable, script, native add-on, importable Node/Python module, package metadata file, certificate bundle, or data file outside the exact declared runtime/input manifests is refused. Acquisition Git/download commands are outside run identity and cannot produce benchmark evidence.
 
 - [ ] **Step 3: Run the focused test and verify RED**
 
-Run: `npx vitest run tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts --maxWorkers=1`
 
-Expected: acquisition and provenance modules are absent.
+Expected: acquisition, provenance, execution-identity, and dependency-runtime modules are absent.
 
 - [ ] **Step 4: Implement deterministic acquisition**
 
-Download to a temporary sibling, stream while hashing, require the expected byte count and SHA-256 before parsing, validate JSON and the exact sorted-id digest before atomic rename, fsync the file and containing directory, and refuse an existing file whose digest or question set differs. Clone/check out the evaluator under the isolated Git configuration; verify `git rev-parse HEAD`, exact remote URL, and the complete tree-derived bundle; then materialize the execution bundle from `git cat-file blob` bytes rather than trusting checkout bytes. Write `.cache/longmemeval/provenance.json` atomically with URLs, commits, filenames, expected/observed dataset bytes and SHA-256, acquisition time, 500 sorted ids, sorted-id digest, and the sorted per-upstream-file `{path, blobOid, expectedBytes, expectedSha256, observedBytes, observedSha256}` tuples. Write `execution-identity.json` only after the clean Lacuna harness check. Never store credentials, response headers, redirect query strings, or environment values.
+Download to a temporary sibling, stream while hashing, require the expected byte count and SHA-256 before parsing, validate JSON and the exact sorted-id digest before atomic rename, fsync the file and containing directory, and refuse an existing file whose digest or question set differs. Clone/check out the evaluator under the isolated Git configuration; verify `git rev-parse HEAD`, exact remote URL, and the complete tree-derived bundle; then materialize the execution bundle from `git cat-file blob` bytes rather than trusting checkout bytes. Write `.cache/longmemeval/provenance.json` atomically with URLs, commits, filenames, expected/observed dataset bytes and SHA-256, acquisition time, 500 sorted ids, sorted-id digest, and the sorted per-upstream-file `{path, blobOid, expectedBytes, expectedSha256, observedBytes, observedSha256}` tuples. It contains no Lacuna HEAD/tree, run id, `capability.json`, runtime identity, or generation identity. Never store credentials, response headers, redirect query strings, or environment values.
 
-Add `"bench:longmemeval:acquire": "tsx scripts/longmemeval-acquire.ts"` to `package.json`.
+Implement a no-paid-action runtime builder. It stages one dedicated root containing the exact copied tracked harness entry files, the Node executable, complete copied Node dependency tree needed by the direct runner entrypoints, the exact uv executable, CPython distribution, virtualenv, hash-locked packages, evaluator bundle, and required certificate/data files. Resolve source-package links while staging, copy only regular target bytes, and reject every link in the final root. The bootstrap uv root is itself recursively byte-manifested and sealed before any uv spawn. After provisioning/import checks, delete every `__pycache__`/`.pyc`, reject symlinks/special files, make runtime files non-writable, recursively sort and record every regular file as `{relativePath, bytes, sha256, mode, role}`, and atomically/fsync `dependency-runtime.json` outside the sealed root. Node children invoke exactly the sealed Node executable, sealed `node_modules/tsx/dist/cli.mjs`, and a sealed copied tracked TypeScript entrypoint; no worktree or ambient `node_modules` import is permitted. Evaluator children use `<venv-python> -I -B` with `PYTHONDONTWRITEBYTECODE=1`, `PYTHONNOUSERSITE=1`, no `PYTHONPATH`, and an empty controlled cwd/temp directory. Every child imports only from the exact sealed roots. Host kernel/system-loader libraries and device interfaces are recorded as platform facts but are not misrepresented as portable dependency files.
+
+Add `"bench:longmemeval:acquire": "tsx scripts/longmemeval-acquire.ts"` and `"bench:longmemeval:seal-runtime": "tsx scripts/longmemeval-seal-runtime.ts"` to `package.json`. The latter can create only a candidate runtime; it cannot load production credentials, call Hydra/providers, or create publishable run evidence.
 
 - [ ] **Step 5: Run focused tests and a real acquisition**
 
-Run: `npx vitest run tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts --maxWorkers=1`
 
 Run: `npm run bench:longmemeval:acquire`
 
-Expected: the test passes; the ignored cache contains the pinned evaluator, the exact 15,388,478-byte/500-question oracle file, and a verified provenance manifest whose dataset and sorted-id digests equal the constants above.
+Expected: the tests pass; the ignored cache contains the pinned evaluator, the exact 15,388,478-byte/500-question oracle file, and a verified acquisition provenance manifest whose dataset and sorted-id digests equal the constants above. No final run identity exists yet.
 
 - [ ] **Step 6: Commit the acquisition boundary**
 
 ```bash
-git add scripts/longmemeval-acquire.ts benchmarks/longmemeval/provenance.ts benchmarks/longmemeval/execution-identity.ts package.json tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts
+git add scripts/longmemeval-acquire.ts scripts/longmemeval-seal-runtime.ts benchmarks/longmemeval/provenance.ts benchmarks/longmemeval/execution-identity.ts benchmarks/longmemeval/dependency-runtime.ts package.json tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts
 git commit -m "feat(benchmark): pin official LongMemEval inputs"
 ```
 
@@ -166,14 +176,17 @@ git commit -m "feat(benchmark): isolate LongMemEval cloud inputs"
 **Files:**
 - Create: `benchmarks/longmemeval/cloud-answerer.ts`
 - Modify: `benchmarks/longmemeval/cloud-types.ts`
+- Create: `src/provider/bounded-json.ts`
 - Modify: `src/provider/openai.ts`
 - Test: `tests/unit/longmemeval-answerer.test.ts`
+- Test: `tests/unit/provider-bounded-json.test.ts`
 - Test: `tests/unit/provider-openai.test.ts`
 
 **Interfaces:**
 - Produces: `CloudAnswerer`
 - Produces: `OpenAiCompatibleCloudAnswerer`
 - Produces: `prepareAnswer(input): PreparedAnswerCall` and `executePreparedAnswer(prepared, reservation, signal)`; preparation performs no network I/O
+- Produces: `readBoundedProviderJson(response, limits, signal)`
 - Expands: `complete(..., { signal, timeoutMs, maxTokens })` with keyless-local support and strict optional usage
 - Consumes: `src/provider/openai.ts#complete`
 
@@ -185,28 +198,30 @@ Construct literal bounded evidence plus an opaque-source/date sidecar and assert
 
 Require an explicit `LONGMEMEVAL_ANSWER_PROVIDER` in `groq|deepseek|ollama|vllm` and explicit model. Reject auto-selection, Anthropic, missing cloud key, missing base URL, blank hypothesis, a response over 4,096 characters, or provider error. Permit a missing key only when `ProviderConfig.where === 'local'`; omit the Authorization header entirely in that case. Strictly decode optional non-negative integer `prompt_tokens`, `completion_tokens`, and `total_tokens`, preserve both requested and provider-reported model identities, and reject malformed usage or a response-model change after the first completed answer. Record usage as measured or `null` with `provider_did_not_report_usage`; cost is measured only from reported usage and explicit versioned input/output prices.
 
-Set immutable run-identity ceilings before the first call: exactly 500 successful hypotheses, an explicit maximum over **all** answer attempts (including timeouts/ambiguous failures), 70,000 prompt characters per attempt, 1,200 output tokens per attempt, caller-supplied cumulative input-token/output-token ceilings, a caller-supplied run deadline, and a caller-supplied maximum answer spend. A cloud answer run additionally requires explicit versioned per-million input/output prices and an operator-approved external provider-account hard limit at or below the recorded maximum. `prepareAnswer` emits the exact messages/digest and no network I/O; its conservative reservation uses `utf8ByteLength(canonicalMessages) + 4096` input tokens, exactly 1,200 output tokens, and decimal spend rounded upward at the configured prices. `executePreparedAnswer` accepts only a durable campaign-ledger reservation bound to that digest/provider/model/attempt ordinal and rejects a missing, reused, mismatched, or unsynced reservation. Test caller abort, timeout, total-attempt/token/spend exhaustion, ambiguous attempts remaining consumed, missing price, exact measured cost, and measured-or-null usage.
+Stream an answer-provider success body through an exact 262,144-byte cap and a non-2xx body through an exact 16,384-byte cap, regardless of missing/lying `Content-Length`. Abort/cancel the reader at the first excess byte, decode UTF-8 fatally, and parse with bounded JSON structure: depth 8, at most 64 keys per object, 256 array elements, 2,048 total tokens, 65,536 scalar Unicode values, no duplicate/prototype-polluting keys, no trailing value, and only the one-choice OpenAI-compatible response schema. Error details are reduced to status plus a fixed safe code; raw body/header/provider text is neither returned nor logged. Test one byte below/at/above each cap, split multibyte sequences, invalid UTF-8, duplicate keys, excessive depth/tokens/string, trailing JSON, abort/timeout during streaming, reader cancellation, timer/listener removal, late chunks, and success/error teardown with no retry or lingering body read.
+
+Set immutable run-identity ceilings before the first call: exactly 500 successful hypotheses, an explicit maximum over **all** answer attempts (including timeouts/ambiguous failures), 70,000 prompt characters per attempt, 1,200 output tokens per attempt, caller-supplied per-run input-token/output-token ceilings, a caller-supplied run deadline, and a caller-supplied maximum answer spend. A cloud answer run additionally requires explicit versioned per-million input/output prices, the authoritative Hydra execution-eligibility gate, and an operator-approved external provider-account hard limit at or below the recorded maximum. `prepareAnswer` emits the exact messages/digest and no network I/O; its conservative reservation uses `utf8ByteLength(canonicalMessages) + 4096` input tokens, exactly 1,200 output tokens, and decimal spend rounded upward at the configured prices. `executePreparedAnswer` accepts only a durable run-resource-journal reservation bound to that digest/provider/model/attempt ordinal and rejects a missing, reused, mismatched, or unsynced reservation. The journal enforces this run's local limits but never claims account-wide quota. Test caller abort, timeout, total-attempt/token/spend exhaustion, ambiguous attempts remaining consumed, missing price, exact measured cost, and measured-or-null usage.
 
 - [ ] **Step 3: Run the focused test and verify RED**
 
-Run: `npx vitest run tests/unit/longmemeval-answerer.test.ts tests/unit/provider-openai.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-answerer.test.ts tests/unit/provider-bounded-json.test.ts tests/unit/provider-openai.test.ts --maxWorkers=1`
 
 Expected: answerer module is absent.
 
 - [ ] **Step 4: Implement the answer-only prompt**
 
-Extend and use the existing `complete(config, model, messages, { maxTokens: 1200, timeoutMs, signal })` seam. The system instruction says answer from retrieved evidence, preserve the supplied verbatim wall-clock dates, and abstain plainly when unsupported; it must not mention reference answers, question ids, question types, abstention labels, collection names, or Hydra upload time. Evidence dates come only from the validated opaque-source sidecar; remove the generated document header from a chunk when present, but do not require a chunk to contain it. Split preparation from execution: canonicalize/audit the exact messages and compute conservative token/spend maxima first; only the execution method holding the matching fsynced reservation may invoke `complete`. Enforce prompt/output/total-attempt/token/spend ceilings before returning typed answer metadata.
+Extend and use the existing `complete(config, model, messages, { maxTokens: 1200, timeoutMs, signal })` seam. Replace all provider `Response.json()`/unbounded text reads with `readBoundedProviderJson`; one composed abort controller owns caller abort, timeout, fetch, and body reader, and a single `finally` cancels an unfinished reader and removes timers/listeners. The system instruction says answer from retrieved evidence, preserve the supplied verbatim wall-clock dates, and abstain plainly when unsupported; it must not mention reference answers, question ids, question types, abstention labels, collection names, or Hydra upload time. Evidence dates come only from the validated opaque-source sidecar; remove the generated document header from a chunk when present, but do not require a chunk to contain it. Split preparation from execution: canonicalize/audit the exact messages and compute conservative token/spend maxima first; only the execution method holding the matching fsynced reservation may invoke `complete`. Enforce prompt/output/total-attempt/token/spend ceilings before returning typed answer metadata.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/longmemeval-answerer.test.ts tests/unit/provider-openai.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-answerer.test.ts tests/unit/provider-bounded-json.test.ts tests/unit/provider-openai.test.ts --maxWorkers=1`
 
 Expected: all focused tests pass.
 
 - [ ] **Step 6: Commit the answerer**
 
 ```bash
-git add benchmarks/longmemeval/cloud-answerer.ts benchmarks/longmemeval/cloud-types.ts src/provider/openai.ts tests/unit/longmemeval-answerer.test.ts tests/unit/provider-openai.test.ts
+git add benchmarks/longmemeval/cloud-answerer.ts benchmarks/longmemeval/cloud-types.ts src/provider/bounded-json.ts src/provider/openai.ts tests/unit/longmemeval-answerer.test.ts tests/unit/provider-bounded-json.test.ts tests/unit/provider-openai.test.ts
 git commit -m "feat(benchmark): answer only from retrieved Hydra evidence"
 ```
 
@@ -217,10 +232,10 @@ git commit -m "feat(benchmark): answer only from retrieved Hydra evidence"
 **Files:**
 - Create: `benchmarks/longmemeval/checkpoint.ts`
 - Create: `benchmarks/longmemeval/audit.ts`
-- Create: `benchmarks/longmemeval/resource-ledger.ts`
+- Create: `benchmarks/longmemeval/resource-journal.ts`
 - Test: `tests/unit/longmemeval-checkpoint.test.ts`
 - Test: `tests/unit/longmemeval-audit.test.ts`
-- Test: `tests/unit/longmemeval-resource-ledger.test.ts`
+- Test: `tests/unit/longmemeval-resource-journal.test.ts`
 
 **Interfaces:**
 - Produces: `CloudRunCheckpoint.open(path, expectedIds, identity)`
@@ -228,11 +243,11 @@ git commit -m "feat(benchmark): answer only from retrieved Hydra evidence"
 - Produces: `checkpoint.serialiseHypotheses(order): string`
 - Produces: `RunLock.acquire(path, identity, { recoverStale }): Promise<RunLock>`
 - Produces: framed/hash-chained/fsynced `retrieval-audit.jsonl` and `prompt-audit.jsonl` writers whose stream heads are checkpointed
-- Produces: `CampaignResourceLedger.open(budgetIdentity, approvedTotals)` and durable `reserveRun`, `reserveAnswerAttempt`, and `reserveJudgeBatch` operations
+- Produces: `RunResourceJournal.open(runDir, runIdentity)` and durable `reserveAnswerAttempt`, `recordJudgeAttemptStart`, and measured-or-null outcome operations
 
 - [ ] **Step 1: Write filesystem-backed checkpoint tests**
 
-Use a temporary directory and assert `run.json` is written to a sibling temporary file, synced, atomically renamed, and followed by a containing-directory sync before any event may append. Each checkpoint or audit line is a versioned frame containing `stream`, `sequence`, `previousSha256`, canonical `event`, `eventBytes`, and `eventSha256`; append through an open handle, sync, and close before the promise resolves. Validate every complete hash chain and contiguous sequence on open. Bind exact Lacuna HEAD/tree/harness-manifest digest and the full upstream expected/observed file-tuple digest. Cover resume after interruption, lexically sorted official-id order, duplicate/foreign id, modified complete line, missing newline after an otherwise complete line, malformed length/digest, mismatched dataset/provider/model/prices/caps/prompt/retrieval/Hydra/run/code/budget identity, dirty or changed harness, blank hypothesis, and an existing generation/evaluation manifest.
+Use a temporary directory and assert `run.json` is written to a sibling temporary file, synced, atomically renamed, and followed by a containing-directory sync before any event may append. Each checkpoint or audit line is a versioned frame containing `stream`, `sequence`, `previousSha256`, canonical `event`, `eventBytes`, and `eventSha256`; append through an open handle, sync, and close before the promise resolves. Validate every complete hash chain and contiguous sequence on open. Bind exact final Lacuna HEAD/tree/harness-manifest, acquisition-provenance, dependency-runtime, `capability.json`, authoritative eligibility, and upstream tuple digests. Cover resume after interruption, lexically sorted official-id order, duplicate/foreign id, modified complete line, missing newline after an otherwise complete line, malformed length/digest, mismatched dataset/provider/model/prices/caps/prompt/retrieval/Hydra/run/code/eligibility/runtime/capability identity, dirty or changed harness, blank hypothesis, and an existing generation/evaluation manifest.
 
 Simulate a crash at every byte boundary of the final frame in each stream. Recovery may truncate exactly one unterminated trailing fragment to the last verified newline, only while the exclusive run lock is held, and must append a recovery frame containing the stream, discarded byte count, discarded-byte digest, and prior verified head. A complete newline-terminated but invalid row, corruption before the last row, sequence/hash mismatch, or more than one fragment is fatal and is never auto-repaired. Reconcile audit/checkpoint heads exactly under the same lock: an audit may have at most one complete fsynced orphan frame beyond the checkpointed head, and it is adopted only if its stream, next phase, question ordinal digest, payload bytes/digest, and prior head are the single deterministic event currently expected; append/fsync `audit-orphan-adopted` before proceeding. An audit behind its checkpoint, two or foreign orphan frames, a changed payload, or any ambiguity fails closed; no complete orphan is silently truncated or replayed.
 
@@ -240,30 +255,30 @@ Simulate a crash at every byte boundary of the final frame in each stream. Recov
 
 Acquire the run lock with exclusive-create semantics and record version, random nonce, PID, process start time, hostname, and run identity. A second live owner must fail before reading secrets or making network calls. Stale recovery requires explicit `--recover-stale-lock`, proves the recorded process is absent and identity matches, atomically archives the stale lock record, and writes a recovery event; uncertainty or PID reuse fails closed. Release removes only a lock whose nonce still matches. Test live contention, stale success, stale identity mismatch, nonce mismatch, and abnormal-exit recovery.
 
-Load three ids with two completed hypotheses and assert `pendingIds()` returns only the third. Define append-only phase events for `document-submitted`, `document-completed`, `retrieval-audited`, `prompt-audited`, `answer-attempt-reserved`, and `answer-completed`. A completed hypothesis is immutable. Retrying a missing phase is allowed only in `idempotent-upsert` mode; in `fresh-only` mode any interruption, ambiguous response, or missing terminal event marks the run abandoned and requires a new run id.
+Load three ids with two completed hypotheses and assert `pendingIds()` returns only the third. Define append-only phase events for `document-submitted`, `document-completed`, `retrieval-audited`, `prompt-audited`, `answer-attempt-reserved`, and `answer-completed`. A completed hypothesis is immutable. Retrying a missing phase is allowed only under the exact sealed `idempotent-upsert` capability; every other capability value blocks before a run exists.
 
-Create a campaign resource ledger at a non-overridable deterministic path derived from the non-secret Hydra origin/account/database scope, outside any run directory; a scope registry rejects a second ledger/budget id for that tuple and later refuses to bind an answer/judge project scope already bound to another ledger. Its immutable genesis frame records the budget id and Hydra scope digest; later binding/price-version frames are append-only. Before each phase, append/fsync an `operator-approval` frame with monotonically non-decreasing cumulative maxima for persistent collections, documents, Hydra spend, answer attempts/input tokens/output tokens/spend, and judge batch attempts/API-call allowance/input tokens/output tokens/spend; it never rewrites genesis or prior approvals. Acquire its own exclusive nonce lock for every validation/append. Before a run's first Hydra request, append+fsync one worst-case `run-allocation-reserved` frame for all 500 collections, 948 documents, and Hydra spend. Before each answer call or judge batch, append+fsync a digest-bound reservation frame with next total attempt ordinal and worst-case tokens/spend. Test concurrent writers, attempted scope/ledger reset, reduced or missing approval, truncated-tail recovery, corrupt chains, ceiling equality/exhaustion, abandoned/fallback run accumulation, and ambiguity/timeout/no-result outcomes: no reservation is ever removed, reused, decremented, or refunded, and success count never substitutes for total attempts.
+Create one `resource-journal.jsonl` inside the run directory and bind its genesis to the final run identity, authoritative execution-eligibility evidence digest, answer-provider scope digest, price version, and immutable per-run limits. It is not stored at a caller-derived account path and does not purport to serialize other machines/runs. Under `run.lock`, append/fsync a digest-bound answer reservation with the next attempt ordinal and conservative tokens/spend before each answer call; append a judge/metrics attempt-start ordinal before each subprocess, but do not claim internal judge API-call or token reservations. No reservation/start is removed, reused, decremented, or refunded. Test concurrent local opens, identity/capability mismatch, truncated-tail recovery, corrupt chains, ceiling equality/exhaustion, and ambiguity/timeout/no-result outcomes. Separately prove that this journal can never make `executionAvailable` true and that a caller-supplied account id/count/quota cannot substitute for the authoritative Hydra gate.
 
 - [ ] **Step 3: Run the focused test and verify RED**
 
-Run: `npx vitest run tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-ledger.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-journal.test.ts --maxWorkers=1`
 
 Expected: checkpoint module is absent.
 
 - [ ] **Step 4: Implement append-only checkpointing**
 
-Acquire the campaign-ledger lock and then `run.lock`, always in that order, before opening mutable state. Write the atomic/fsynced versioned `run.json` identity before the first frame. Identity includes run/dataset/evaluator commits and complete expected/observed upstream file tuples, sorted-id digest/order, exact clean Lacuna HEAD/tree/harness-manifest digest, Hydra database and collection/source algorithms, capability/resume mode, budget-ledger genesis/head and cumulative approvals, answer provider/requested model/base-origin digest, provider-reported model rule, prompt/retrieval versions and limits, prices, total-attempt/token/spend/deadline ceilings, and operator hard-limit acknowledgement. Append chained phase frames and validate/reconcile every complete checkpoint/audit prefix under lock before resume. Persist exact bounded retrieval payloads and exact provider-message payloads as framed/hash-chained audit events, fsync them, then append the checkpoint head reference; neither audit contains headers, credentials, raw dataset ids, or forbidden labels. Record opaque collection/source association, submitted/completed ids, document/readback digests, ordered chunk/audit heads, bounded canonical sources/graph/temporal digests, graph-context requested/consumed flags, resource-reservation id/head, answer metadata, measured-or-null usage/cost, and hypothesis. Build `hypotheses.jsonl` only from validated `answer-completed` events in the provenance's sorted-id order; never edit it in place.
+Acquire `run.lock` before opening mutable state. Write the atomic/fsynced versioned `run.json` identity before the first frame. Identity includes run/dataset/evaluator commits and complete expected/observed upstream file tuples, sorted-id digest/order, exact final clean Lacuna HEAD/tree/harness-manifest digest, acquisition-provenance digest, dependency-runtime digest, exact `capability.json` digest, authoritative execution-eligibility scope/inventory/quota evidence digest, Hydra collection/source algorithms, answer provider/requested model/base-origin digest, provider-reported model rule, prompt/retrieval versions and limits, prices, per-run total-attempt/token/spend/deadline ceilings, and external hard-limit acknowledgements. Append chained phase frames and validate/reconcile every complete checkpoint/audit/journal prefix under lock before resume. Persist exact bounded retrieval payloads and exact provider-message payloads as framed/hash-chained audit events, fsync them, then append the checkpoint head reference; neither audit contains headers, credentials, raw dataset ids, or forbidden labels. Record opaque collection/source association, submitted/completed ids, document/readback digests, ordered chunk/audit heads, bounded canonical sources/graph/temporal digests, graph-context requested/consumed flags, run-journal reservation id/head, answer metadata, measured-or-null usage/cost, and hypothesis. Build `hypotheses.jsonl` only from validated `answer-completed` events in the provenance's sorted-id order; never edit it in place.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-ledger.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-journal.test.ts --maxWorkers=1`
 
 Expected: all focused tests pass.
 
 - [ ] **Step 6: Commit durable resume**
 
 ```bash
-git add benchmarks/longmemeval/checkpoint.ts benchmarks/longmemeval/audit.ts benchmarks/longmemeval/resource-ledger.ts tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-ledger.test.ts
+git add benchmarks/longmemeval/checkpoint.ts benchmarks/longmemeval/audit.ts benchmarks/longmemeval/resource-journal.ts tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-journal.test.ts
 git commit -m "feat(benchmark): checkpoint serial LongMemEval runs"
 ```
 
@@ -283,6 +298,7 @@ git commit -m "feat(benchmark): checkpoint serial LongMemEval runs"
 **Interfaces:**
 - Produces: `runCloudLongMemEval(options): Promise<CloudRunSummary>`
 - Produces: `verifyCloudBenchmarkCapability(options): Promise<CloudCapability>`
+- Produces: an opaque `VerifiedHydraExecutionEligibility` input shape in `cloud-types.ts`; only Task 7's reviewed gate can construct the production brand
 - Expands: `HydraCloud.ingestDocument` with deterministic `sourceId`, explicit `upsert`, and caller signal
 - Produces: `readBoundedJson(response, limits)` and bounded canonical query auxiliary values
 - Consumes: `HydraCloud.withCollection`, `ingestDocument`, `waitForIndexing`, `inspect`, and `query`
@@ -295,7 +311,7 @@ Call exactly `query(question, { type: 'all', maxResults: 12, signal })`. Stream 
 
 Strictly decode at most 12 chunks; each has non-empty text of at most 16,384 Unicode scalar values, finite-or-null score, source id at most 256 characters, title at most 512, type at most 64, and timestamp at most 128, with source id/title mapping to a completed source/date sidecar. Decode `sources` as at most 12 values with depth 6, at most 64 keys per object, 256 elements per array, 1,024 total values, 8,192 scalar-value characters, and at most 131,072 RFC-8785 canonical bytes. Decode `graph_context` with depth 8, the same per-container limits, 2,048 total values, 16,384 scalar-value characters, and at most 262,144 canonical bytes; decode `temporal_facts` with depth 8, at most 128 top-level facts, 1,024 total values, 8,192 scalar-value characters, and at most 131,072 canonical bytes. Their combined canonical bytes may not exceed 524,288. Reject before digest rather than truncate, deduplicate, or stringify raw `unknown`; domain-separate and SHA-256 the validated canonical bytes. Deduplicate only exact duplicate **chunk identities**, preserve Hydra's returned order, and cap combined evidence at 60,000 characters and the final provider prompt at 70,000 characters.
 
-Store exact bounded chunks plus the canonical auxiliary digests/counts/caps as a framed retrieval-audit event, store the exact prepared provider messages as a framed prompt-audit event, and fsync/checkpoint each head. Reserve and fsync the worst-case answer attempt in the campaign ledger, execute exactly that prepared call, and append `answer-completed` only after the reservation, audits, and result are durable.
+Store exact bounded chunks plus the canonical auxiliary digests/counts/caps as a framed retrieval-audit event, store the exact prepared provider messages as a framed prompt-audit event, and fsync/checkpoint each head. Reserve and fsync the worst-case answer attempt in the run resource journal, execute exactly that prepared call, and append `answer-completed` only after the reservation, audits, and result are durable.
 
 - [ ] **Step 2: Write refusal/failure tests**
 
@@ -303,7 +319,7 @@ Cover missing/duplicate/foreign/server-generated receipt ids, receipt/source-id 
 
 - [ ] **Step 3: Write resume and serialism tests**
 
-Use deferred fakes to prove no second question begins before the prior `answer-completed` frame is durable. A resumed completed id makes zero Hydra/provider/audit calls. In `idempotent-upsert` mode, simulate “server stored bytes, client lost response”; retry must send the same source id/document digest, receive the same id, inspect one matching stored source, and never change retrieval. Prove the capability matrix: (a) stable requested id + exact inspect readback + two unambiguous same-id/same-bytes submissions converging to one source enables resume; (b) stable requested id + exact inspect readback, with the duplicate probe yielding no evidence of divergence but insufficient proof of convergence, enables only a brand-new `fresh-only` run whose sources are each attempted once; (c) unstable/unaddressable client id, readback mismatch/unavailability, duplicate sources, or proven divergent upsert blocks every mode. In `fresh-only`, an ambiguity or any process interruption permanently abandons that run; it may not continue, resume, retry a source, use a server id, or claim cleanup/exactly-once semantics.
+Use deferred fakes to prove no second question begins before the prior `answer-completed` frame is durable. A resumed completed id makes zero Hydra/provider/audit calls. In `idempotent-upsert` mode, simulate “server stored bytes, client lost response”; retry must send the same source id/document digest, receive the same id, inspect one matching stored source, and never change retrieval. Prove the only capability outcomes: stable requested id + exact inspect readback + two unambiguous same-id/same-bytes submissions converging to exactly one source may produce `idempotent-upsert`; uncertainty, unstable/unaddressable client id, readback mismatch/unavailability, duplicate sources, or divergence produces `blocked`. Eligible `capability.json` is schema 1 with `executionAvailable: true`, exact `mode: 'idempotent-upsert'`, authoritative eligibility/reservation digest, pre-probe final-harness/runtime/provenance scope digest, probe input/evidence digest, and first-source checkpoint head. It contains no raw account/database/source/text/token value. There is no fresh-only branch, downgrade, one-shot exception, server-id adoption, or exactly-once claim.
 
 - [ ] **Step 4: Run the focused test and verify RED**
 
@@ -313,9 +329,9 @@ Expected: cloud runner is absent.
 
 - [ ] **Step 5: Implement the cloud loop**
 
-Extend `HydraCloud.ingestDocument` so deterministic mode sends the service's documented client source-id field and `upsert=true`, propagates a caller signal, strictly decodes exactly one receipt, and never invents or accepts a replacement id/filename/status. Add a live capability function that submits the first official document under its requested id, polls exact completion, performs exact `inspect(requestedId)` byte readback, probes a second same-id/same-bytes upsert, checks scoped bounded query/inspection for convergence, and returns only `idempotent-upsert`, `fresh-only-eligible`, or `blocked` with evidence digests. `fresh-only-eligible` requires proven stable requested id and exact readback plus no evidence of divergent/duplicate state; its sole missing fact is repeated-upsert convergence. Any client-id/readback failure or positive divergence is `blocked`, not fresh-only. Capability evidence records no token, response URL/query, or document text.
+Extend `HydraCloud.ingestDocument` so deterministic mode sends the service's documented client source-id field and `upsert=true`, propagates a caller signal, strictly decodes exactly one receipt, and never invents or accepts a replacement id/filename/status. Add a live capability function that can run only after an authoritative eligibility object for the authenticated Hydra scope is supplied and after the exact final harness/runtime/provenance probe scope is atomically/fsync sealed. It submits the first official document under its requested id, polls exact completion, performs exact `inspect(requestedId)` byte readback, probes a second same-id/same-bytes upsert, checks scoped bounded query/inspection for convergence, and returns only `idempotent-upsert` or `blocked` with evidence digests. Any uncertainty, client-id/readback failure, or divergence is `blocked`. Atomically write/read back `capability.json`, then capture the final per-run identity that binds its exact bytes before any remaining source or answer work. Capability evidence records only authenticated scope/inventory/quota, pre-probe scope, and probe evidence digests, never token, response URL/query, raw account/database/source identifier, or document text.
 
-The public runner entry point accepts only `readonly IngestibleQuestion[]`, `HydraCloud`, `CloudAnswerer`, checkpoint, framed audit writers, campaign ledger, run id, clock, signal, immutable limits, and verified capability. Do not import the oracle schema. Enforce exact receipt/status/readback and the mode matrix before query; cap each ingest request at 120 seconds, status wait at 10 minutes per question, query at 30 seconds, answer at its configured deadline, and the full run at its identity-bound deadline. `HydraCloud.query()` requests `graph_context: true`; the bounded decoder returns typed chunks plus already-validated canonical auxiliary bytes/digests and `requested: true, consumed: false`. Never expose raw `graphContext: unknown`, digest an unbounded service value, pass graph/sources/temporal data to the answerer, or describe returned chunks as graph-enriched.
+The library runner entry point accepts only `readonly IngestibleQuestion[]`, `HydraCloud`, `CloudAnswerer`, checkpoint, framed audit writers, run resource journal, final run identity, signal, immutable limits, and verified `idempotent-upsert` capability bound to the same authoritative eligibility digest. It is testable with injected fakes but is not exported by a production CLI while execution eligibility is unavailable. Do not import the oracle schema. Enforce exact receipt/status/readback before query; cap each ingest request at 120 seconds, status wait at 10 minutes per question, query at 30 seconds, answer at its configured deadline, and the full run at its identity-bound deadline. `HydraCloud.query()` requests `graph_context: true`; the bounded decoder returns typed chunks plus already-validated canonical auxiliary bytes/digests and `requested: true, consumed: false`. Never expose raw `graphContext: unknown`, digest an unbounded service value, pass graph/sources/temporal data to the answerer, or describe returned chunks as graph-enriched.
 
 - [ ] **Step 6: Run focused tests and verify GREEN**
 
@@ -348,7 +364,7 @@ git commit -m "feat(benchmark): run LongMemEval through HydraDB Cloud"
 - Produces: `verifyCloudRun(runDir, officialIds): VerifiedCloudRun`
 - Produces: `writeGenerationManifest(runDir): Promise<GenerationManifest>`
 - Produces: `scanArtifactsForSecrets(paths, secretValues): SecretScanResult`
-- Produces: immutable `resource-ledger-generation.jsonl` and `execution-identity.json` snapshots
+- Produces: immutable `resource-journal-generation.jsonl`, `execution-identity.json`, `dependency-runtime.json`, and `capability.json` snapshots
 - Expands: `RunArtifact` to a versioned oracle cloud schema
 
 - [ ] **Step 1: Write exact hypotheses verification tests**
@@ -357,7 +373,7 @@ Require exactly 500 newline-delimited objects, exactly two own keys (`question_i
 
 - [ ] **Step 2: Write artifact invariants**
 
-Write an immutable `generation-artifact.json` and require source/dataset commits, exact dataset/ID digests, `tier: 'oracle'`, exact clean Lacuna HEAD/tree/harness-manifest identity, the full pinned upstream expected/observed file-tuple digest, collection/source algorithms and capability/resume mode, Hydra database but no token or raw dataset identifiers, answer requested/reported identities, prices/caps/hard-limit acknowledgement, timestamps/durations, exact successful and total-attempt counts, measured token/cost totals or `null` with a reason, worst-case reserved totals, checkpoint/framed-retrieval/framed-prompt-audit heads, cumulative campaign-ledger genesis/head/totals, bounded canonical sources/graph/temporal caps and digests, graph-context requested/consumed truth, and `officialEvaluator: null`, `metrics: null`. A run under `incomplete` cannot contain either manifest, a final `artifact.json`, evaluator output, or score. The later evaluated `artifact.json` is a new file; Task 8 must not mutate `generation-artifact.json`.
+Write an immutable `generation-artifact.json` and require source/dataset commits, exact dataset/ID digests, `tier: 'oracle'`, exact final clean Lacuna HEAD/tree/harness-manifest identity, acquisition-provenance digest, full dependency-runtime manifest digest, and exact eligible `capability.json` bytes/digest. The capability must be schema 1, `executionAvailable: true`, exact `mode: 'idempotent-upsert'`, and bind authoritative authenticated Hydra scope/inventory/quota reservation, pre-probe final-harness/runtime/provenance scope, probe evidence, and first-source checkpoint-head digests. Also require the full pinned upstream tuple digest, collection/source algorithms, answer requested/reported identities, prices/caps/hard-limit acknowledgement, timestamps/durations, exact successful and total-attempt counts, measured token/cost totals or `null` with a reason, worst-case per-run reserved totals, checkpoint/framed-retrieval/framed-prompt-audit heads, run-resource-journal head/totals, bounded canonical sources/graph/temporal caps and digests, graph-context requested/consumed truth, and `officialEvaluator: null`, `metrics: null`. Raw Hydra account/database/source identifiers and tokens remain absent. A blocked/false/malformed capability or run under `incomplete` cannot contain either manifest, a final `artifact.json`, evaluator output, or score. The later evaluated `artifact.json` is a new file; Task 8 must not mutate `generation-artifact.json`.
 
 - [ ] **Step 3: Run focused tests and verify RED**
 
@@ -367,7 +383,7 @@ Expected: verifier and expanded artifact contract are absent.
 
 - [ ] **Step 4: Implement immutable generation evidence**
 
-Rebuild hypotheses from checkpoint, write to a sibling temporary file, fsync, atomically rename, and sync the directory. Under both locks validate the full campaign ledger, copy its exact genesis-through-generation-head bytes to immutable `resource-ledger-generation.jsonl`, and prove it includes all earlier abandoned/fallback-run reservations for the same budget identity. Re-read and verify `run.json`, `execution-identity.json`, chained checkpoint, both fully framed/hash-chained audits with exact checkpoint heads and no orphan tail, `resource-ledger-generation.jsonl`, `hypotheses.jsonl`, `generation-artifact.json`, and copied provenance with every upstream expected/observed blob tuple. Scan every file for the exact configured Hydra/provider/judge secret values and reject any match without recording value, prefix, or length. Also reject persisted authorization/cookie header keys. Write `generation-manifest.json` last through temp+fsync+rename; it contains only version, algorithm, creation time, and sorted `{relativePath, bytes, sha256}` entries for those immutable generation files and never contains its own digest. Re-read every entry and verify again. Only then atomically emit the run under `artifacts/benchmarks/longmemeval/<run-id>/`; every failure remains under `artifacts/benchmarks/incomplete/<run-id>/`.
+Rebuild hypotheses from checkpoint, write to a sibling temporary file, fsync, atomically rename, and sync the directory. Under `run.lock`, validate the run resource journal and copy its exact genesis-through-generation-head bytes to immutable `resource-journal-generation.jsonl`; do not call this account-wide inventory or quota evidence. Re-read and verify `run.json`, `execution-identity.json`, `dependency-runtime.json`, exact `capability.json`, chained checkpoint, both fully framed/hash-chained audits with exact checkpoint heads and no orphan tail, `resource-journal-generation.jsonl`, `hypotheses.jsonl`, `generation-artifact.json`, and copied provenance with every upstream expected/observed blob tuple. Require `execution-identity.json` to bind byte-exact `capability.json` and dependency-runtime digests. Scan every file for the exact configured Hydra/provider/judge secret values and reject any match without recording value, prefix, or length. Also reject persisted authorization/cookie header keys. Write `generation-manifest.json` last through temp+fsync+rename; it contains only version, algorithm, creation time, and sorted `{relativePath, bytes, sha256}` entries for every allowed immutable generation file, including `capability.json`, `execution-identity.json`, and `dependency-runtime.json`, and never contains its own digest. Recursively reject every extra file, directory, symlink, socket, or device in the generation namespace before sealing. On later verification, permit only the exact evaluation namespace entries covered by `evaluation-manifest.json`; any unmanifested generation/evaluation path remains fatal. Re-read every entry and verify again. Only then atomically emit the run under `artifacts/benchmarks/longmemeval/<run-id>/`; every failure remains under `artifacts/benchmarks/incomplete/<run-id>/`.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
@@ -384,54 +400,57 @@ git commit -m "feat(benchmark): seal immutable oracle generation evidence"
 
 ---
 
-### Task 7: Cloud CLI and environment contract
+### Task 7: Authoritative Hydra eligibility and non-executable capability CLI
 
 **Files:**
-- Create: `scripts/longmemeval-cloud.ts`
-- Modify: `.env.example`
+- Create: `benchmarks/longmemeval/execution-eligibility.ts`
+- Create: `scripts/longmemeval-capabilities.ts`
+- Create: `scripts/longmemeval-launch.cjs`
 - Modify: `package.json`
-- Test: `tests/unit/longmemeval-cloud-cli.test.ts`
+- Test: `tests/unit/longmemeval-execution-eligibility.test.ts`
+- Test: `tests/unit/longmemeval-capabilities-cli.test.ts`
 
 **Interfaces:**
-- Produces: `npm run bench:longmemeval:cloud -- --preflight --budget-id <id> --run-id <id> --out <dir> --approved-total-collections <n> --approved-total-documents <n> --approved-total-hydra-spend-usd <decimal>`
-- Produces: `npm run bench:longmemeval:cloud -- --resume --budget-id <id> --run-id <id> --out <dir> --approved-total-answer-attempts <n> --approved-total-answer-input-tokens <n> --approved-total-answer-output-tokens <n> --approved-total-answer-spend-usd <decimal> [--recover-stale-lock]`
-- Produces: explicit `--fresh-only` mode permitted only by `fresh-only-eligible`, never resumable, and requiring a previously unused run id plus a new cumulative run allocation
+- Produces: `AuthoritativeHydraExecutionGate.probe(signal): Promise<HydraExecutionEligibility>`
+- Produces: `HydraExecutionEligibility` with only `available | unavailable`, stable authenticated scope evidence, authoritative inventory/quota reservation evidence, and safe reason codes
+- Produces: `npm run bench:longmemeval:capabilities -- --out <empty-dir>`
+- Does not produce: a cloud run, preflight write, resume, fresh-only, judge, or paid-provider command
 
-- [ ] **Step 1: Write CLI parsing/environment tests**
+- [ ] **Step 1: Write eligibility and CLI refusal tests**
 
-Require `LACUNA_PROFILE=cloud`, the exact allowlisted Hydra Cloud origin/token/database/base collection, pinned cached provenance, exact clean Lacuna harness identity, safe never-reused run id, the deterministic Hydra-scope budget ledger (with later append-only answer/judge project bindings), output under the permitted artifact roots, and exclusive run- plus campaign-ledger-lock acquisition before reading answer/judge secrets. Preflight requires operator-approved **cumulative** totals that cover already reserved abandoned/fallback runs plus the new 500 persistent collections, 948 documents, and Hydra spend; it records numbers without credentials and accepts no answer-provider or judge option. Full/resume additionally requires cumulative answer attempt/input-token/output-token/spend approvals, verified `capability.json`, explicit answer provider/model, prices/per-attempt and run deadlines, external hard-limit acknowledgement, and complete identity equality. Reject a fresh ledger that omits known same-scope run records, node profile, implicit provider, output traversal, reused/abandoned/evaluated run, `--resume` with `fresh-only`, fresh-only without the exact eligible capability, stale recovery without explicit proof, server-id mode, and any CLI answer/reference/ground-truth field.
+Define an eligible result only from a provider-authenticated response that supplies a stable opaque account/database scope, a monotonic inventory revision, exact current persistent collection/document counts, exact hard maxima, and an atomic durable idempotent reservation for this run's additional 500 collections and 948 documents bound to that scope/revision. Validate the response through the Hydra streamed bounded/fatal UTF-8/strict JSON boundary and bind its canonical digest. A caller-provided budget id, environment account/database label, locally hashed origin/token, filesystem ledger/lock, operator-entered counts, eventually consistent list, or unsigned snapshot cannot satisfy the interface. Reservation conflict, missing identity, scope drift, stale revision, insufficient quota, unknown fields, malformed response, or unsupported endpoint is `unavailable`.
+
+The production composition at this plan revision must use `UnavailableAuthoritativeHydraExecutionGate` because the current Hydra API contract has no reviewed stable authenticated identity plus authoritative inventory/reservation primitive. The CLI accepts only `--out` to an exclusive empty directory, reads no answer/judge credential, performs no write/probe document, and atomically/fsyncs `capability.json` with `executionAvailable: false`, exact acquisition/runtime-manifest digests, safe reason `authoritative_hydra_scope_inventory_unavailable`, and no caller-supplied identity. It exits nonzero after writing the evidence. Reject `--run`, `--resume`, `--fresh-only`, `--preflight`, `--budget-id`, approvals, provider/model, env-file, ground truth, reused output, or any unknown option before credential loading. Prove no production import/call path reaches `runCloudLongMemEval`, `verifyCloudBenchmarkCapability`, answer-provider creation, or official evaluation.
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
-Run: `npx vitest run tests/unit/longmemeval-cloud-cli.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-execution-eligibility.test.ts tests/unit/longmemeval-capabilities-cli.test.ts --maxWorkers=1`
 
-Expected: cloud CLI is absent.
+Expected: eligibility and capability CLI modules are absent.
 
-- [ ] **Step 3: Implement the serial CLI**
+- [ ] **Step 3: Implement the fail-closed capability surface**
 
-Load an env file only when explicitly passed `--env-file`; never print environment values. Preflight loads only Hydra credentials; acquires the campaign ledger then run lock; validates cumulative history; atomically/fsyncs the new full-run 500-collection/948-document/Hydra-spend reservation **before** its first request; and uses the first lexically sorted official id/collection and first official document to classify the exact capability matrix. Write atomic/fsynced `capability.json` with only evidence digests and `idempotent-upsert`, `fresh-only-eligible`, or `blocked`. It makes zero answer-provider and zero judge requests. `blocked` stops all runs. `fresh-only-eligible` may continue only via another brand-new run id whose additional 500/948 allocation fits newly confirmed cumulative approvals; each source gets one attempt, and the first interruption/ambiguity abandons it. Never use a returned server id.
-
-For full/resume, bind `cloudFromEnv`, the explicit answerer, stripped loader, verified capability, run lock, campaign ledger, checkpoint, framed audit writers, and runner. Install SIGINT/SIGTERM before network work, relay abort to ingest/status/query/provider calls, stop before the next irreversible phase, sync/close every chain, and release only owned locks. Prepare and audit each answer request, append/fsync its worst-case attempt/token/spend reservation, then call the provider; timeout, disconnect, or unknown outcome consumes that reservation and total-attempt allowance. `idempotent-upsert` mode preserves a resumable incomplete artifact; `fresh-only` records abandonment. Print progress as question ordinal/id digest, phase, elapsed time, measured-or-null usage, total attempts, reserved maxima, and cumulative measured cost only—never collection, source ids, environment values, prompts, or secret/account identifiers.
+Implement the typed interface and strict decoder for a future reviewed adapter, but wire only the unavailable production implementation. `scripts/longmemeval-launch.cjs` is a minimal tracked bootstrap: it accepts only the `capabilities` verb, resolves the one sealed runtime manifest, revalidates its complete recursive file set and final tracked harness identity, then synchronously spawns exactly sealed Node + sealed `tsx/dist/cli.mjs` + sealed copied `scripts/longmemeval-capabilities.ts` with a fixed environment allowlist. It has no generic module/path/argument passthrough. `capability.json` is immutable evidence, not permission; a future available adapter and any executable run command require a new plan, implementation, security review, tests, and commit before use.
 
 Add:
 
 ```json
-"bench:longmemeval:cloud": "tsx scripts/longmemeval-cloud.ts"
+"bench:longmemeval:capabilities": "node scripts/longmemeval-launch.cjs capabilities"
 ```
 
-Document only variable names in `.env.example`: `LONGMEMEVAL_BUDGET_ID`, `LONGMEMEVAL_ANSWER_PROVIDER`, `LONGMEMEVAL_ANSWER_MODEL`, `LONGMEMEVAL_ANSWER_INPUT_USD_PER_MILLION`, `LONGMEMEVAL_ANSWER_OUTPUT_USD_PER_MILLION`, `LONGMEMEVAL_MAX_ANSWER_ATTEMPTS`, `LONGMEMEVAL_MAX_ANSWER_INPUT_TOKENS`, `LONGMEMEVAL_MAX_ANSWER_OUTPUT_TOKENS`, `LONGMEMEVAL_MAX_ANSWER_SPEND_USD`, `LONGMEMEVAL_RUN_DEADLINE_MS`, `LONGMEMEVAL_RUN_ID`, `LONGMEMEVAL_UPSTREAM_DIR`, `LONGMEMEVAL_HYDRA_RESPONSE_MAX_BYTES`, `LONGMEMEVAL_JUDGE_MODEL`, `LONGMEMEVAL_MAX_JUDGE_BATCH_ATTEMPTS`, `LONGMEMEVAL_MAX_JUDGE_CALL_ALLOWANCE`, `LONGMEMEVAL_JUDGE_MAX_OUTPUT_TOKENS_PER_CALL`, `LONGMEMEVAL_MAX_JUDGE_INPUT_TOKENS`, `LONGMEMEVAL_MAX_JUDGE_OUTPUT_TOKENS`, `LONGMEMEVAL_JUDGE_INPUT_USD_PER_MILLION`, `LONGMEMEVAL_JUDGE_OUTPUT_USD_PER_MILLION`, `LONGMEMEVAL_MAX_JUDGE_SPEND_USD`, `LONGMEMEVAL_JUDGE_BATCH_DEADLINE_MS`, and `LONGMEMEVAL_JUDGE_GLOBAL_DEADLINE_MS`. Values remain absent. Do not put evaluator keys or benchmark spend controls into Vercel deployment configuration.
+Do not modify `.env.example`: the capability launcher uses exact fixed acquisition/runtime manifest paths plus its required `--out` argument. Source-contract tests forbid `LONGMEMEVAL_BUDGET_ID` and executable benchmark run variables; this command consumes no answer-provider, Hydra-write, or judge secret. Benchmark answer/judge credentials and controls are never added to Vercel deployment configuration.
 
 - [ ] **Step 4: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/longmemeval-cloud-cli.test.ts tests/unit/longmemeval-cloud-run.test.ts tests/unit/longmemeval-resource-ledger.test.ts tests/unit/longmemeval-execution-identity.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-execution-eligibility.test.ts tests/unit/longmemeval-capabilities-cli.test.ts tests/unit/longmemeval-cloud-run.test.ts tests/unit/longmemeval-resource-journal.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts --maxWorkers=1`
 
-Expected: all focused tests pass.
+Expected: all focused tests pass and source inspection proves no executable 500-run or paid-judge command exists.
 
-- [ ] **Step 5: Commit the controlled runner**
+- [ ] **Step 5: Commit the fail-closed capability boundary**
 
 ```bash
-git add scripts/longmemeval-cloud.ts .env.example package.json tests/unit/longmemeval-cloud-cli.test.ts
-git commit -m "feat(benchmark): expose resumable cloud evaluation CLI"
+git add benchmarks/longmemeval/execution-eligibility.ts scripts/longmemeval-capabilities.ts scripts/longmemeval-launch.cjs package.json tests/unit/longmemeval-execution-eligibility.test.ts tests/unit/longmemeval-capabilities-cli.test.ts
+git commit -m "feat(benchmark): require authoritative Hydra execution eligibility"
 ```
 
 ---
@@ -441,180 +460,123 @@ git commit -m "feat(benchmark): expose resumable cloud evaluation CLI"
 **Files:**
 - Create: `benchmarks/longmemeval/evaluator.ts`
 - Create: `benchmarks/longmemeval/evaluator-checkpoint.ts`
+- Create: `benchmarks/longmemeval/attempt-state.ts`
+- Create: `benchmarks/longmemeval/judge-spend-cap.ts`
 - Create: `benchmarks/longmemeval/requirements-lite.lock.txt`
-- Create: `scripts/longmemeval-evaluate.ts`
-- Modify: `package.json`
+- Create: `scripts/longmemeval-evaluator-supervisor.ts`
 - Test: `tests/unit/longmemeval-evaluator.test.ts`
 - Test: `tests/unit/longmemeval-evaluator-checkpoint.test.ts`
+- Test: `tests/unit/longmemeval-attempt-state.test.ts`
+- Test: `tests/unit/longmemeval-judge-spend-cap.test.ts`
 - Modify: `tests/unit/longmemeval-manifest.test.ts`
 
 **Interfaces:**
-- Produces: `evaluateOfficial(runDir, provenance, env): Promise<OfficialEvaluation>`
+- Produces: `evaluateOfficial(input: VerifiedEvaluationInput): Promise<OfficialEvaluation>`, where input contains exact run directory, verified generation/run/runtime/capability identities, `RunResourceJournal`, authoritative Hydra eligibility, verified external judge spend-cap authority, fixed judge configuration, deadline, and signal
 - Produces: `writeEvaluationManifest(runDir): Promise<EvaluationManifest>`
-- Consumes: the same locked `CampaignResourceLedger` and clean `ExecutionIdentity` sealed by generation
-- Produces: `npm run bench:longmemeval:evaluate -- --run-dir <dir>`
+- Produces: `AttemptState.openExclusive(dir, ordinal, identity)` and `recoverAndSealAttempt(dir, identity)`
+- Consumes: the same `RunResourceJournal`, authoritative Hydra eligibility, verified external judge hard-spend-cap evidence, dependency runtime, and final `ExecutionIdentity` sealed by generation
+- Does not produce: a production evaluator command in this plan revision
 
 - [ ] **Step 1: Write pin/generation-manifest/environment gate tests**
 
-Refuse evaluation unless the generation verifier re-hashes every `generation-manifest.json` entry; checkpoint and framed audits have exact sealed heads and no orphan; the cumulative campaign-ledger prefix byte-matches `resource-ledger-generation.jsonl`; the exact clean Lacuna HEAD/tree/harness manifest still matches; the upstream HEAD/remote equal the pinned values under isolated Git configuration; every materialized evaluator-bundle file byte-matches its pinned Git blob tuple; and dataset bytes/SHA/sorted-id digest match the constants above. Require `uv 0.11.21`; provision CPython exactly `3.9.25` under `.cache/longmemeval/python/`; create `.cache/longmemeval/venv-3.9.25`; install only `benchmarks/longmemeval/requirements-lite.lock.txt` with hash enforcement; verify the lock records the pinned upstream `requirements-lite.txt` blob/digest; import required modules; and record interpreter executable SHA-256, `python --version`, platform, lock digest, and `pip freeze --all`. Refuse any other interpreter or unlocked/mismatched environment.
+Refuse evaluation unless the generation verifier re-hashes every `generation-manifest.json` entry, rejects extras, and proves byte-exact `capability.json`, dependency-runtime, acquisition-provenance, and final run-identity bindings; checkpoint and framed audits have exact sealed heads and no orphan; the run-resource-journal prefix byte-matches `resource-journal-generation.jsonl`; the exact clean final Lacuna HEAD/tree/harness manifest still matches; every materialized evaluator-bundle file byte-matches its pinned Git blob tuple; and dataset bytes/SHA/sorted-id digest match the constants above. The sealed runtime must contain exact uv `0.11.21`, CPython `3.9.25`, and a virtualenv installed only from `benchmarks/longmemeval/requirements-lite.lock.txt` with hash enforcement. Verify the lock records the pinned upstream `requirements-lite.txt` blob/digest; record interpreter executable digest, `python --version`, platform, lock digest, and `pip freeze --all`; then require those outputs to match the already sealed runtime manifest. Refuse any unlocked/mismatched environment, writable runtime, extra/missing file, `__pycache__`, or `.pyc`.
 
-All child processes—`uv`, Python provisioning/version/import/freeze checks, each judge batch, and metrics—must be launched only through `verifyImmediatelyBeforeSpawn`. In the same synchronous spawn turn, it revalidates the clean Lacuna identity, dataset, complete declared upstream bundle, and each consumed input; there is no intervening await or callback. Create immutable `evaluator-identity.json` containing Lacuna HEAD/tree/harness digest plus every upstream `{path, blobOid, expectedBytes, expectedSha256, observedBytes, observedSha256}` tuple. Tests alter a script after initial preflight and immediately before each distinct child, including same-length substitution, and assert that child was never invoked.
+The no-paid runtime builder may invoke its separately sealed bootstrap uv only while creating the candidate runtime; those provisioning processes cannot access production credentials or produce benchmark evidence. Every evidence-producing Python, judge, metrics, or supervisor child runs only through `verifyImmediatelyBeforeSpawn`. In the same synchronous spawn turn it revalidates clean final Lacuna identity, exact complete dependency-runtime file set/bytes, dataset, complete declared upstream bundle, and each consumed input; there is no intervening await or callback. Invoke Python exactly as `<venv-python> -I -B <script> ...` with bytecode/user-site/environment imports disabled. Create immutable `evaluator-identity.json` containing final Lacuna HEAD/tree/harness digest, dependency-runtime digest/file-count/byte-count, `capability.json` digest, and every upstream tuple. Tests add an extra importable file, change a script/runtime file after preflight, substitute same-length bytes, or cause a child to emit bytecode and assert no evidence-producing child starts or the attempt fails and seals.
 
-Require judge alias exactly `gpt-4o`, expected evaluator-reported model exactly `gpt-4o-2024-08-06`, `OPENAI_API_KEY` set, optional organization, positive global/batch deadlines, exactly 500 successful labels, an explicit maximum over all judge **batch attempts**, cumulative API-call-allowance/input-token/output-token/spend ceilings with versioned prices, and an operator-approved external OpenAI project hard spend limit at or below `LONGMEMEVAL_MAX_JUDGE_SPEND_USD`. Before a batch, derive its worst-case reservation from the exact pinned prompt renderer: one batch attempt, the configured retry-inclusive call allowance, `callAllowance * (maximum UTF-8 bytes of any exact batch prompt + 4096)` input tokens, `callAllowance * configuredMaximumOutputTokensPerCall`, and decimal spend rounded upward. If that finite bound cannot be proven from the pinned evaluator plus external hard controls, block before the first judge call. The shared campaign ledger's cumulative approvals must cover generation, abandoned/fallback runs, and every possible judge retry. Verify only set/unset and approved numeric limits; never print or persist key value, prefix, length, organization value, or project identifier.
+Require judge alias exactly `gpt-4o`, expected evaluator-reported model exactly `gpt-4o-2024-08-06`, `OPENAI_API_KEY` set, optional organization, positive global/batch process deadlines, exactly 500 successful labels, and an explicit maximum over all judge **subprocess attempts**. Do not expose or record an internal judge API-call allowance or input/output-token ceiling: the pinned evaluator controls those calls and its retry loop cannot prove either bound. Before loading the key and again within 60 monotonic seconds before every child, require a machine-verified provider-authoritative response for the dedicated OpenAI project/key stating `hardEnforced: true`, currency USD, a stable opaque scope, nonnegative current spend not above the cap, a hard maximum at or below the operator-approved evaluation maximum, and an enforcement expiry later than the global deadline. Scope/cap changes, expiry, failed refresh, or a cap increase refuses the attempt; bind the canonical response digest and observation ordinal, but not raw response, to the attempt. Caller attestations, dashboard screenshots, environment ids, price estimates, or a local journal do not satisfy it. The current production composition has no reviewed implementation of this authority, so paid judging remains unavailable. The run journal records only subprocess-attempt ordinals and measured-or-null usage/cost. Verify only set/unset for secrets and never print/persist key value, prefix, length, organization value, project identifier, or raw spend-cap response.
 
 - [ ] **Step 2: Write subprocess/output parser tests**
 
-Use a fake process runner with literal pinned-script stdout/result fixtures. Split pending ids in lexical official order into immutable batches of 10. Every attempt gets a new exclusive-create `judge-attempts/<six-digit-attempt>-<batch-digest>/` directory; never reuse or overwrite it. Write/fsync its exact two-key `hypotheses.input.jsonl`, references to the separately sealed byte-exact `oracle.input.json`, exact argv/cwd/environment identity, and empty bounded stdout/stderr capture files. Before spawn, append/fsync both a judge-checkpoint `attempt-reserved` frame and a campaign-ledger worst-case batch-attempt/API-call-allowance/input-token/output-token/spend reservation bound to the attempt/input digests. For each batch invoke, from the verified materialized `<upstream>/src/evaluation`:
+Use a fake process runner with literal pinned-script stdout/result fixtures. Split pending ids in lexical official order into immutable batches of 10. Every attempt gets a new exclusive-create `judge-attempts/<six-digit-attempt>-<batch-digest>/` directory; never reuse or overwrite it. Write/fsync its exact two-key `hypotheses.input.jsonl`, references to the separately sealed byte-exact `oracle.input.json`, exact argv/cwd/environment identity, initial empty bounded stdout/stderr files, and a framed/hash-chained `attempt-state.jsonl`. Its only state sequence is `allocated -> supervisor_ready -> started -> exited | killed | recovered_failed -> sealing`; every transition validates the prior hash/state and fsyncs before returning. Before any evaluator process can run, append/fsync a judge-checkpoint `attempt-reserved` frame and run-journal subprocess-attempt ordinal bound to the input, identity, deadline, and verified external-spend-cap digest.
+
+Evidence-producing subprocesses are supported only on Linux with a writable delegated cgroup-v2 root; absence of `/proc`, boot id, `cgroup.controllers`, delegated subtree control, or `cgroup.kill` blocks before the judge key is read. Launch only the sealed evaluator supervisor. Before signaling ready or spawning Python, it exclusive-creates/fsyncs `supervisor-ready.json` with PID, `/proc/sys/kernel/random/boot_id`, `/proc/<pid>/stat` start-time field 22, nonce, parent identity, attempt ordinal, and absolute deadline, then syncs the directory. If parent/IPC dies before `GO`, it exits without spawning Python. The parent creates one nonce-named cgroup exclusively, records/fsyncs its resolved path plus device/inode, moves the verified supervisor PID into `cgroup.procs`, rechecks boot/PID/start/cgroup membership, appends/fsyncs `supervisor_ready`, and only then sends one-use `GO`; descendants inherit the cgroup. No shell, PID-only `kill`, process-name scan, Windows `taskkill`, or unowned process-group fallback is allowed. Only after GO may the supervisor append/fsync `started`, synchronously verify runtime/input manifests again, and invoke, from the sealed evaluator bundle:
 
 ```text
-<venv-python> evaluate_qa.py gpt-4o <absolute-batch-hypotheses.jsonl> <absolute-oracle.json>
+<venv-python> -I -B evaluate_qa.py gpt-4o <absolute-batch-hypotheses.jsonl> <absolute-oracle.json>
 ```
 
-Expect `<absolute-batch-hypotheses.input.jsonl>.eval-results-gpt-4o`; never look for upstream `.log`. Stream stdout/stderr to capped files, fsync all outputs, copy the raw result without normalization when present, and always write an outcome that explicitly records result presence/absence. Validate every complete row's exact pending id, unique coverage, two input keys plus one `autoeval_label`, boolean label, and model `gpt-4o-2024-08-06`. Preserve a valid completed prefix from a failed batch only through new fsynced judge-checkpoint frames; never mutate the attempt result. Write `attempt-manifest.json` last with sorted byte/SHA-256 entries for every input/reference, command/environment record, raw result or explicit absence record, stdout, stderr, and outcome; fsync/rename/sync, mark the attempt closed, and reject any later byte or extra-file change. Retry still-pending ids only in another attempt directory and reservation. Test changed/duplicate/foreign ids, malformed/ambiguous final row, changed hypotheses/generation-manifest/upstream/harness digest, non-zero exit with no salvageable prefix, stdout/stderr overflow, deadline kill, hard-limit/ledger-reservation absence, total-attempt exhaustion despite fewer than 500 successes, and a second evaluator process.
+Expect `<absolute-batch-hypotheses.input.jsonl>.eval-results-gpt-4o`; never look for upstream `.log`. Stream stdout and stderr to separate exact 1,048,576-byte caps and bound the raw result at 4,194,304 bytes; crossing a cap kills/confirms the owned tree and fails the attempt. Fsync all outputs, copy the raw result without normalization when present, and always write an outcome that explicitly records result presence/absence. Validate every complete row's exact pending id, unique coverage, two input keys plus one `autoeval_label`, boolean label, and model `gpt-4o-2024-08-06`. Preserve a valid completed prefix from a failed batch only through new fsynced judge-checkpoint frames; never mutate the attempt result.
+
+On normal exit, timeout, cancellation, parent crash, or lost supervisor response, recovery first acquires `run.lock`, validates attempt nonce/ordinal/identity, and uses fsynced `supervisor-ready.json` when the parent state frame was never reached. It rechecks boot id, PID/start identity, cgroup path device/inode, and exact membership before acting. A matching live tree is terminated by writing `1` to that cgroup's `cgroup.kill` and is confirmed dead only when bounded polling reads `populated 0` from its `cgroup.events`; mismatch, PID reuse, replaced cgroup, inability to kill/read, or uncertain liveness fails closed without starting another attempt. Once no owned process remains, recovery fsyncs captured partial bytes, validates only a complete result prefix, writes explicit absence/truncation digests, and appends/fsyncs terminal `exited | killed | recovered_failed` plus final `sealing` state. It then writes `attempt-manifest.json` last, excluding itself, with sorted byte/SHA-256 entries for every state/ready/input/reference/command/environment/result-or-absence/stdout/stderr/outcome file, fsyncs/renames/syncs it, makes the directory immutable, and treats exact manifest presence as the seal; no covered file is appended after manifest creation. Reject every later byte or extra-file change. No attempt can be retried until its predecessor is terminal and sealed; the next attempt uses the next ordinal and a new directory. Test a crash at every boundary from directory creation through ready-file/cgroup/PID-state/GO/result/outcome/sealing/manifest writes, parent death before and after ready, exact receipt of a late exit, repeated recovery, boot/PID reuse, cgroup path replacement, foreign membership, failed kill or nonempty tree, unsupported host, changed/duplicate/foreign ids, malformed final row, changed sealed inputs/runtime, stdout/stderr overflow, deadline kill, absent spend-cap evidence, total-attempt exhaustion despite fewer than 500 successes, and a second evaluator process.
 
 After 500 unique labels, merge them in lexical official-id order to atomic/fsynced `official-evaluator.jsonl`, then invoke exactly:
 
 ```text
-<venv-python> print_qa_metrics.py <absolute-official-evaluator.jsonl> <absolute-oracle.json>
+<venv-python> -I -B print_qa_metrics.py <absolute-official-evaluator.jsonl> <absolute-oracle.json>
 ```
 
-Run metrics in its own exclusive immutable `metrics-attempt/` directory after another immediate identity/blob/input verification. Capture exact bounded stdout/stderr and exit code, manifest command, merged evaluator input, oracle reference, stdout, stderr, parsed output, and outcome, then close it immutably. Validate per-type counts against the pinned dataset join; extract overall, task-averaged, per-question-type, and abstention metrics; and reject partial output, NaN/out-of-range metrics, model mismatch, changed generation/evaluator inputs, or non-zero exit. Judge usage/cost is `null` with `official_evaluator_does_not_report_usage` unless an exact dedicated-provider usage record is available; reservations still record worst-case token/spend and are never replaced by estimates or refunded.
+Run metrics in ordinal `metrics-attempts/<six-digit-attempt>-<input-digest>/` directories, with a fixed maximum of three total starts. Each uses the same ready-file/handshake, fsynced PID/start/process-tree state, deadline, crash recovery, terminal outcome, immutable attempt manifest, and no-extra-file verification as judge attempts. Capture stdout and stderr under separate exact 1,048,576-byte caps plus exact exit code, command, merged evaluator input, oracle reference, parsed output, and outcome; cap breach kills/confirms the tree and fails. A crashed/failed metrics attempt is sealed as failed before the next ordinal starts; it never overwrites or resumes a directory. Validate per-type counts against the pinned dataset join; extract overall, task-averaged, per-question-type, and abstention metrics; and reject partial output, NaN/out-of-range metrics, model mismatch, changed generation/evaluator inputs, or non-zero exit. Test crashes before spawn, while stdout/result files are partial, after process exit but before outcome fsync, and after manifest rename before directory mode hardening; manifest presence still makes the attempt immutable and recovery only verifies it. Judge usage/cost remains `null` with `official_evaluator_does_not_report_usage` unless exact provider-authoritative usage exists; do not replace it with estimates.
 
 - [ ] **Step 3: Run the focused test and verify RED**
 
-Run: `npx vitest run tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-resource-ledger.test.ts tests/unit/longmemeval-execution-identity.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-attempt-state.test.ts tests/unit/longmemeval-judge-spend-cap.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-resource-journal.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts --maxWorkers=1`
 
-Expected: evaluator wrapper is absent.
+Expected: evaluator wrapper, spend-cap authority, and attempt-state modules are absent.
 
 - [ ] **Step 4: Implement isolated official evaluation**
 
-Generate and review `requirements-lite.lock.txt` once from the pinned upstream top-level requirements using exact CPython 3.9 resolution and hashes for every allowed wheel/sdist; tests reject a dependency line without hashes or an undeclared top-level package. Provision/reuse only the exact verified uv/Python/lock environment above. The child receives an allowlist of required operating-system/TLS/temp variables, `PYTHONHASHSEED=0`, `OPENAI_API_KEY`, optional organization, and controlled absolute paths; it receives no Hydra token, answer-provider key, env-file path, or unrelated environment value.
+Generate and review `requirements-lite.lock.txt` once from the pinned upstream top-level requirements using exact CPython 3.9 resolution and hashes for every allowed wheel/sdist; tests reject a dependency line without hashes or an undeclared top-level package. The no-paid builder provisions the candidate uv/Python/lock environment once, removes bytecode caches, seals every file, and never mutates/reuses an unsealed environment for evidence. Each evaluator child receives only required operating-system/TLS/temp variables, `PYTHONHASHSEED=0`, `PYTHONDONTWRITEBYTECODE=1`, `PYTHONNOUSERSITE=1`, `OPENAI_API_KEY`, optional organization, and controlled absolute paths; `PYTHONPATH` is absent. It receives no Hydra token, answer-provider key, env-file path, or unrelated environment value.
 
-Run deterministic pending-id batches with a versioned, exclusive, hash-chained `judge-checkpoint.jsonl`; sync after reservation and every accepted label. Each pre-spawn campaign-ledger reservation charges one total batch attempt plus the configured worst-case underlying call allowance, input tokens, output tokens, and spend; unknown/timeout/killed/no-result attempts remain fully consumed. Apply per-batch and global deadlines, kill the subprocess tree on expiry, salvage only a strictly valid complete prefix, cap total batch attempts independently of 500 successful labels, and never exceed 500 unique successes. The upstream backoff loop is unbounded, so the conservative reservation, outer deadline, and external project hard limit are mandatory rather than advisory. Resume under both locks revalidates the generation manifest, immutable attempt manifests/directories, every judge frame, and the cumulative ledger prefix before reserving another attempt.
+Run deterministic pending-id batches with a versioned, exclusive, hash-chained `judge-checkpoint.jsonl`; sync after each subprocess-attempt start and every accepted label. The matching run-journal start ordinal remains consumed for unknown/timeout/killed/no-result attempts. Apply per-batch and global deadlines, kill and confirm the owned subprocess tree on expiry, salvage only a strictly valid complete prefix after the tree is dead, cap total subprocess attempts independently of 500 successful labels, and never exceed 500 unique successes. The upstream backoff loop is unbounded, so no internal call/token bound is claimed; the verified external hard spend cap and outer process deadline are mandatory. Resume under `run.lock` first recovers and seals every partial attempt, then revalidates generation manifest, immutable attempt manifests/directories, every judge frame, and run-journal prefix before another attempt. Without authoritative Hydra eligibility and external spend-cap authority, `evaluateOfficial` refuses before reading the judge key or spawning.
 
-Write, without modifying any generation file: sealed `oracle.input.json`, `evaluator-identity.json`, all immutable `judge-attempts/**` and `metrics-attempt/**` files, `official-evaluator.jsonl`, aggregate `official-evaluator.stdout.txt`/`stderr.txt`, `official-evaluator-command.json`, `official-evaluator-environment.json`, `judge-checkpoint.jsonl`, `resource-ledger-evaluation.jsonl`, `official-metrics.json`, and final `artifact.json`. Command/identity metadata contains exact argv/cwd/exit/deadline/batch-input digests, clean Lacuna HEAD/tree/harness digest, every upstream expected/observed Git-blob tuple, generation identity, campaign-ledger genesis/final head/cumulative approved/reserved/measured totals, and successful-versus-total attempt counts—never secrets. Under the campaign lock, copy and seal the exact full ledger prefix through evaluation and require its generation prefix to byte-match the generation snapshot. Run the exact-secret/header scan over all generation and evaluation files. Write `evaluation-manifest.json` last as sorted `{relativePath, bytes, sha256}` entries covering `generation-manifest.json` plus every attempt input/result/stdout/stderr/command/outcome/attempt-manifest and every aggregate evaluation/final artifact, excluding only itself. Re-read every digest, verify hypotheses/generation manifest/attempt directories unchanged, and reject an unmanifested attempt, extra file, or extra score-bearing output.
+Write, without modifying any generation file: sealed `oracle.input.json`, `evaluator-identity.json`, all immutable `judge-attempts/**` and `metrics-attempts/**` files, `official-evaluator.jsonl`, aggregate `official-evaluator.stdout.txt`/`stderr.txt`, `official-evaluator-command.json`, `official-evaluator-environment.json`, `judge-checkpoint.jsonl`, `resource-journal-evaluation.jsonl`, `official-metrics.json`, and final `artifact.json`. Command/identity metadata contains exact argv/cwd/exit/deadline/batch-input digests, final clean Lacuna HEAD/tree/harness digest, dependency-runtime and capability digests, every upstream expected/observed Git-blob tuple, generation identity, external-spend-cap evidence digest, run-journal generation/final heads, measured-or-null totals, and successful-versus-total subprocess/metrics attempt counts—never secrets. Under `run.lock`, copy and seal the exact journal prefix through evaluation and require its generation prefix to byte-match the generation snapshot. Run the exact-secret/header scan over all generation and evaluation files. Write `evaluation-manifest.json` last as sorted `{relativePath, bytes, sha256}` entries covering `generation-manifest.json` plus every attempt state/input/result-or-absence/stdout/stderr/command/outcome/attempt-manifest and every aggregate evaluation/final artifact, excluding only itself. Recursively reject any extra file/directory/symlink/special file, re-read every digest, verify hypotheses/generation manifest/attempt directories unchanged, and reject an unmanifested attempt or score-bearing output.
 
-Add `"bench:longmemeval:evaluate": "tsx scripts/longmemeval-evaluate.ts"` to `package.json`.
+Do not add `bench:longmemeval:evaluate` or any generic evaluator launcher to `package.json`. The evaluator remains a testable library until a later reviewed change supplies both authoritative Hydra eligibility and provider-enforced spend-cap verification.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-verify.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-secret-scan.test.ts tests/unit/longmemeval-resource-ledger.test.ts tests/unit/longmemeval-execution-identity.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-attempt-state.test.ts tests/unit/longmemeval-judge-spend-cap.test.ts tests/unit/longmemeval-verify.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-secret-scan.test.ts tests/unit/longmemeval-resource-journal.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts --maxWorkers=1`
 
 Expected: all focused tests pass.
 
 - [ ] **Step 6: Commit the official evaluator gate**
 
 ```bash
-git add benchmarks/longmemeval/evaluator.ts benchmarks/longmemeval/evaluator-checkpoint.ts benchmarks/longmemeval/requirements-lite.lock.txt scripts/longmemeval-evaluate.ts package.json tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-manifest.test.ts
-git commit -m "feat(benchmark): run the pinned official LongMemEval judge"
+git add benchmarks/longmemeval/evaluator.ts benchmarks/longmemeval/evaluator-checkpoint.ts benchmarks/longmemeval/attempt-state.ts benchmarks/longmemeval/judge-spend-cap.ts benchmarks/longmemeval/requirements-lite.lock.txt scripts/longmemeval-evaluator-supervisor.ts tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-attempt-state.test.ts tests/unit/longmemeval-judge-spend-cap.test.ts tests/unit/longmemeval-manifest.test.ts
+git commit -m "feat(benchmark): isolate the pinned official LongMemEval judge"
 ```
 
 ---
 
-### Task 9: Real 500-question Hydra run, official score, and truthful product evidence
+### Task 9: Seal the harness and prove production execution remains blocked
 
 **Files:**
-- Create after successful run: `artifacts/benchmarks/longmemeval/<run-id>/artifact.json`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/generation-artifact.json`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/run.json`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/checkpoint.jsonl`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/provenance.json`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/capability.json`
-- Create after successful run: `artifacts/benchmarks/longmemeval/<run-id>/hypotheses.jsonl`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/retrieval-audit.jsonl`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/prompt-audit.jsonl`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/execution-identity.json`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/resource-ledger-generation.jsonl`
-- Create after successful generation: `artifacts/benchmarks/longmemeval/<run-id>/generation-manifest.json`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/evaluator-identity.json`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/judge-attempts/`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/metrics-attempt/`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/resource-ledger-evaluation.jsonl`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/oracle.input.json`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/judge-checkpoint.jsonl`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/official-evaluator.jsonl`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/official-evaluator.stdout.txt`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/official-evaluator.stderr.txt`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/official-evaluator-command.json`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/official-evaluator-environment.json`
-- Create after successful run: `artifacts/benchmarks/longmemeval/<run-id>/official-metrics.json`
-- Create after successful evaluation: `artifacts/benchmarks/longmemeval/<run-id>/evaluation-manifest.json`
-- Modify only after verified score: `docs/BENCHMARK_LONGMEMEVAL.md`
-- Modify only after verified score: `docs/V10_RELEASE_STATUS.md`
-- Modify only after verified score: `web/src/landing/Evals.tsx`
-- Modify only after verified score: `web/src/app/routes/evaluations.tsx`
+- Create ignored candidate runtime: `.cache/longmemeval/runtime/<manifest-sha256>/`
+- Create ignored runtime manifest: `.cache/longmemeval/dependency-runtime.json`
+- Create blocked evidence only: `artifacts/benchmarks/incomplete/oracle-capability-blocked-2026-08-21/capability.json`
+- Must not create: `hypotheses.jsonl`, `generation-manifest.json`, evaluator outputs, metrics, `artifact.json`, or an official score
+- Must not modify: `docs/BENCHMARK_LONGMEMEVAL.md`, `docs/V10_RELEASE_STATUS.md`, `web/src/landing/Evals.tsx`, or `web/src/app/routes/evaluations.tsx`
 
-- [ ] **Step 1: Run all benchmark-local gates**
+- [ ] **Step 1: Run every benchmark-local gate**
 
 Run: `npm run typecheck`
 
-Run: `npx vitest run tests/unit/longmemeval-adapter.test.ts tests/unit/ground-truth-isolation.test.ts tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-cloud-documents.test.ts tests/unit/longmemeval-answerer.test.ts tests/unit/provider-openai.test.ts tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-ledger.test.ts tests/unit/longmemeval-cloud-run.test.ts tests/unit/hydra-bounded-json.test.ts tests/unit/cloud-source.test.ts tests/unit/longmemeval-verify.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-secret-scan.test.ts tests/unit/longmemeval-cloud-cli.test.ts tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/longmemeval-adapter.test.ts tests/unit/ground-truth-isolation.test.ts tests/unit/longmemeval-provenance.test.ts tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts tests/unit/longmemeval-cloud-documents.test.ts tests/unit/longmemeval-answerer.test.ts tests/unit/provider-bounded-json.test.ts tests/unit/provider-openai.test.ts tests/unit/longmemeval-checkpoint.test.ts tests/unit/longmemeval-audit.test.ts tests/unit/longmemeval-resource-journal.test.ts tests/unit/longmemeval-cloud-run.test.ts tests/unit/hydra-bounded-json.test.ts tests/unit/cloud-source.test.ts tests/unit/longmemeval-verify.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-secret-scan.test.ts tests/unit/longmemeval-execution-eligibility.test.ts tests/unit/longmemeval-capabilities-cli.test.ts tests/unit/longmemeval-evaluator.test.ts tests/unit/longmemeval-evaluator-checkpoint.test.ts tests/unit/longmemeval-attempt-state.test.ts tests/unit/longmemeval-judge-spend-cap.test.ts --maxWorkers=1`
 
-Expected: all commands exit zero with no benchmark test skipped.
+Expected: all commands exit zero with no benchmark test skipped. Source-contract tests prove `package.json` exposes neither `bench:longmemeval:cloud` nor `bench:longmemeval:evaluate`, the capability launcher has no generic verb/path passthrough, and production composition cannot reach cloud writes, answer providers, or judge subprocesses.
 
-- [ ] **Step 2: Run the no-paid-call production capability and quota gate**
+- [ ] **Step 2: After all Tasks 1-8 commits, acquire and seal the dependency runtime**
 
-Before loading answer-provider or judge credentials, select the deterministic non-secret budget id for the exact Hydra account/database and inspect its locked cumulative ledger. Obtain operator confirmation for totals covering **all** existing/abandoned/fallback reservations plus this run's additional 500 persistent collections, 948 documents, and maximum Hydra spend/storage cost. A prior failed preflight or abandoned fresh-only run therefore requires at least another 500/948 allocation; a new run id never resets consumption. Run:
+Run: `npm run bench:longmemeval:acquire`
 
-```bash
-npm run bench:longmemeval:cloud -- --preflight --budget-id <account-project-budget-id> --run-id oracle-2026-08-21 --out artifacts/benchmarks/incomplete/oracle-2026-08-21 --approved-total-collections <existing-plus-500> --approved-total-documents <existing-plus-948> --approved-total-hydra-spend-usd <cumulative-approved-limit>
-```
+Run: `npm run bench:longmemeval:seal-runtime -- --provenance .cache/longmemeval/provenance.json --out-root .cache/longmemeval/runtime --manifest .cache/longmemeval/dependency-runtime.json`
 
-Require the full-run allocation frame to be durable before the first request. Require the first official collection/document to prove stable requested client id, completed readiness, exact `inspect(requestedId)` byte readback, streamed/bounded scoped query, and persisted opaque source/date sidecar. Two unambiguous identical same-id upserts converging to exactly one source select resumable `idempotent-upsert`. If and only if client-id/readback facts hold while the duplicate probe neither proves convergence nor shows divergence, record `fresh-only-eligible`; starting it requires a new run id and another cumulative 500/948 reservation. Any unstable id, unavailable/mismatched readback, duplicate/divergent state, or server-id-only behavior blocks execution. Require zero answer-provider and zero judge requests.
+Expected: the builder performs no Hydra, answer-provider, judge, or other paid-service action; any dependency download is exact-version/hash verified before staging. It then seals one digest-named non-writable runtime. Independently recurse it and require exact equality with every sorted manifest path/type/mode/byte/SHA-256 tuple, zero extras, zero symlinks/special files, zero `__pycache__`/`.pyc`, exact Node/uv/Python versions, exact hash-locked `pip freeze --all`, and byte-equal copied tracked harness inputs at the current final HEAD. Any later harness commit invalidates this runtime and requires a new seal; acquisition provenance remains unchanged.
 
-If the result is `fresh-only-eligible`, do not reuse `oracle-2026-08-21`. Repeat this preflight with `--fresh-only`, a new never-used run id/output directory, and approvals increased by another 500 collections, 948 documents, and worst-case Hydra spend. If that new run's own first stable-id/readback check fails, block; never downgrade again or adopt a server id. The remaining commands use the selected new run id and `--fresh-only` instead of `--resume`.
+- [ ] **Step 3: Run the only production capability command and verify the expected block**
 
-- [ ] **Step 3: Confirm secret and hard-limit availability without disclosure**
+Run: `npm run bench:longmemeval:capabilities -- --out artifacts/benchmarks/incomplete/oracle-capability-blocked-2026-08-21`
 
-Check only set/unset state for Hydra Cloud credentials, the selected answer-provider credentials/base URL, and official judge credentials. Require operator-approved cumulative totals and per-run ceilings for all answer attempts/input tokens/output tokens/spend and all judge batch attempts/call allowance/input tokens/output tokens/spend, explicit versioned provider/judge prices, answer and judge deadlines, and external provider/OpenAI hard limits at or below the recorded maxima. Ceilings count reservations and ambiguous attempts, not successes. Abort before spending if any control is absent or if cumulative ledger history plus worst-case remaining work exceeds an approval. Record only provider/requested model, expected response-model rule, judge alias/snapshot, numeric limits, price provenance/version, budget/run ids, and account/project-scope digests; never record secret length, prefix, or value.
+Expected: exit nonzero after atomically/fsyncing only `capability.json` with `executionAvailable: false` and safe reason `authoritative_hydra_scope_inventory_unavailable`. It binds the acquisition provenance, final clean HEAD/tree/tracked manifest, and exact dependency-runtime digest; it contains no raw account/database/secret/provider value. It performs zero Hydra writes, answer-provider calls, judge calls, hypotheses writes, score writes, or product-copy changes.
 
-- [ ] **Step 4: Execute or resume the serial cloud run**
+- [ ] **Step 4: Re-run the fail-closed and cleanliness checks**
 
-Run:
+Run: `npx vitest run tests/unit/longmemeval-execution-identity.test.ts tests/unit/longmemeval-dependency-runtime.test.ts tests/unit/longmemeval-execution-eligibility.test.ts tests/unit/longmemeval-capabilities-cli.test.ts tests/unit/longmemeval-manifest.test.ts tests/unit/longmemeval-attempt-state.test.ts tests/unit/longmemeval-judge-spend-cap.test.ts --maxWorkers=1`
 
-```bash
-npm run bench:longmemeval:cloud -- --resume --budget-id <account-project-budget-id> --run-id oracle-2026-08-21 --out artifacts/benchmarks/incomplete/oracle-2026-08-21 --approved-total-answer-attempts <cumulative-limit> --approved-total-answer-input-tokens <cumulative-limit> --approved-total-answer-output-tokens <cumulative-limit> --approved-total-answer-spend-usd <cumulative-limit>
-```
+Run: `git status --short`
 
-The capability gate already created the run and first phase, so `idempotent-upsert` execution resumes it. If interrupted in that verified mode, rerun the same command after both exclusive locks are absent or use explicit `--recover-stale-lock` only after proof succeeds. For the narrowly eligible branch, invoke the equivalent command once with `--fresh-only` and the new run id; never pass `--resume`. Keep concurrency at one. Before every answer call, require a new durable worst-case campaign-ledger reservation and matching checkpoint frame; an ambiguous call consumes it. Inspect every non-completed receipt/readback/retrieval/provider/audit/ledger failure and fix the root cause before resuming only the resumable mode; do not silently skip a question. A `fresh-only` interruption is never resumed, and its cumulative allocation/attempt reservations remain consumed.
+Expected: tests pass; only the documented ignored cache and blocked incomplete evidence may be new. No official benchmark artifact or score exists.
 
-- [ ] **Step 5: Verify and manifest exactly 500 hypotheses**
+- [ ] **Step 5: Stop; activation requires a new reviewed plan**
 
-Run the verifier independently. Require 500/500 unique ids, exact sorted-id digest, two keys per line, matching provenance/chained-checkpoint/framed-audit heads with exact orphan reconciliation, every document completed and read back, reconstructable exact bounded retrieval/provider-message evidence, zero forbidden key/value findings, exact clean Lacuna harness and upstream expected/observed blob tuples, recorded deterministic Hydra collection/source algorithms and proven mode, cumulative resource-ledger snapshot including abandoned/fallback reservations, successful/total attempt counts, worst-case reserved and measured-or-null usage/cost truth, no score fields, and an exact-secret scan with zero findings. Write and reverify non-circular `generation-manifest.json`. Only then atomically emit the immutable generation run under `artifacts/benchmarks/longmemeval/oracle-2026-08-21/`.
-
-- [ ] **Step 6: Run the pinned official evaluator**
-
-Run:
-
-```bash
-npm run bench:longmemeval:evaluate -- --budget-id <account-project-budget-id> --run-dir artifacts/benchmarks/longmemeval/oracle-2026-08-21 --approved-total-judge-batch-attempts <cumulative-limit> --approved-total-judge-call-allowance <cumulative-limit> --approved-total-judge-input-tokens <cumulative-limit> --approved-total-judge-output-tokens <cumulative-limit> --approved-total-judge-spend-usd <cumulative-limit>
-```
-
-Require every subprocess to pass the immediate clean-harness and pinned-Git-blob verification. Require each judge batch attempt to have a prior fsynced worst-case reservation and a closed immutable attempt directory/manifest; total attempts, not successes, must remain under the approved cumulative ceiling. Require exactly 500 unique official evaluator JSONL rows with judge snapshot `gpt-4o-2024-08-06`, then run the exact two-argument metrics command in its immutable attempt directory. Require validated overall/task-averaged/per-type/abstention metrics, zero secret findings, an exact evaluation resource-ledger snapshot, and a non-circular `evaluation-manifest.json` covering unchanged generation evidence plus every evaluator identity/attempt input/result/stdout/stderr/manifest and aggregate/final output. Re-run both manifest verifiers and require every generation digest, especially hypotheses, unchanged.
-
-- [ ] **Step 7: Perform an independent artifact review**
-
-Have a fresh review agent compare the official dataset id set/digests, hypotheses, both manifests, exact clean Lacuna harness commit/tree/manifest, every expected/observed upstream Git-blob tuple, chained generation/judge checkpoints, framed audit chains and orphan reconciliation, exact readback and bounded retrieval/prompt evidence, both cumulative resource-ledger snapshots including abandoned/fallback runs, every immutable judge/metrics attempt input/result/stdout/stderr/manifest, raw merged evaluator records, parsed metrics, requested/reported answer and judge identities, successful/total attempts, reserved and measured-or-null usage/cost, limits, retrieval failures, and forbidden-key/value plus exact-secret scans. Any discrepancy keeps all public product copy at `No official score exists`.
-
-- [ ] **Step 8: Update product claims only from the verified artifact**
-
-Show the exact official oracle score, date, 500/500 count, judge snapshot, requested/reported answer model, retrieval failure count, measured cost or `not reported`, and direct evaluation-manifest/artifact paths. Label it `LongMemEval oracle (evidence sessions only; HydraDB Cloud returned chunks)`. Do not say graph-enriched, deterministic output, bit-reproducible, LongMemEval-S/M, or leaderboard-comparable. Preserve the generated 64-question evaluation as a separate internal test and explicitly distinguish it.
-
-- [ ] **Step 9: Run final claim/build gates**
-
-Run: `npm run copy:lint`
-
-Run: `npm --prefix web run typecheck`
-
-Run: `npm --prefix web run build`
-
-Run: `npx vitest run tests/unit --maxWorkers=1`
-
-Expected: all commands pass; no page claims graph-enriched answering, deterministic output, LongMemEval-S/M, leaderboard rank, or an official score/identity/count differing from the evaluation-manifest-covered `official-metrics.json` and `artifact.json`.
-
-- [ ] **Step 10: Commit the verified run and evidence**
-
-```bash
-git add artifacts/benchmarks/longmemeval/oracle-2026-08-21 docs/BENCHMARK_LONGMEMEVAL.md docs/V10_RELEASE_STATUS.md web/src/landing/Evals.tsx web/src/app/routes/evaluations.tsx
-git commit -m "docs: publish verified official LongMemEval oracle evidence"
-```
+Do not run 500 questions or the paid judge under this plan. A successor plan may add executable commands only after all of these facts exist and are independently reviewed: a provider-authenticated stable Hydra account/database identity; atomic authoritative inventory/quota reservation for 500 additional collections and 948 documents; exact repeated-upsert capability within that same reserved scope; a machine-verified provider-enforced judge hard spend cap; and a newly captured final run identity/runtime/capability seal after the activation commits. It must retain the official evaluator/scoring, ground-truth isolation, bounded transports, attempt crash recovery, exact 500-id manifests, and truthful oracle labelling defined above. Until then every public surface remains at `No official score exists`, and there is no git-add/commit step for score evidence.

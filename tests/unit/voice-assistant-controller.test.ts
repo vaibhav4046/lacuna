@@ -103,12 +103,22 @@ async function flush(): Promise<void> {
   await Promise.resolve();
 }
 
+async function waitFor(check: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (check()) return;
+    await Promise.resolve();
+  }
+  throw new Error('test condition was not reached');
+}
+
 class FakeRuntime implements VoiceRuntime {
   readonly microphone: MicrophoneSession = { live: true, stop: () => undefined };
   queryResult = directAnswer();
+  queryPromise: Promise<PlannedVoiceAnswer> | null = null;
   queryCalls: string[] = [];
   spoken: string[] = [];
   speechFailure: VoiceRuntimeError | null = null;
+  holdSpeech = false;
   disposed = false;
 
   preparePlayback(): void {}
@@ -127,12 +137,20 @@ class FakeRuntime implements VoiceRuntime {
   }
   async query(text: string, _signal: AbortSignal): Promise<PlannedVoiceAnswer> {
     this.queryCalls.push(text);
-    return this.queryResult;
+    return this.queryPromise ?? this.queryResult;
   }
-  async speak(text: string, handlers: PlaybackHandlers, _signal: AbortSignal): Promise<void> {
+  async speak(text: string, handlers: PlaybackHandlers, signal: AbortSignal): Promise<void> {
     this.spoken.push(text);
     if (this.speechFailure !== null) throw this.speechFailure;
     handlers.started('unavailable');
+    if (!this.holdSpeech) return;
+    await new Promise<void>((_resolve, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new VoiceRuntimeError('interrupted')),
+        { once: true },
+      );
+    });
   }
 }
 
@@ -440,6 +458,131 @@ describe('public compatibility and adversarial lifecycle', () => {
     expect(runtime.spoken).toEqual(['Priya owns Atlas.']);
     expect(assistant.snapshot.operationPhase).toBe('idle');
     expect(assistant.snapshot.speech.planned?.answer?.answer).toBe('Priya owns Atlas.');
+  });
+
+  it('drops a public Ask result after its session binding changes', async () => {
+    const { assistant, executor, runtime, voice } = harness({
+      currentRoute: '/explore/dash', scope: 'public', sessionKey: 'session-a', workspaceKey: 'public-workspace',
+    });
+    const held = deferred<PlannedVoiceAnswer>();
+    runtime.queryPromise = held.promise;
+    const command = voice.submitTyped('Who owns Atlas?');
+    await flush();
+
+    assistant.setContext({
+      currentRoute: '/explore/dash', scope: 'public', sessionKey: 'session-b', workspaceKey: 'public-workspace',
+    });
+    held.resolve(directAnswer());
+    await command;
+
+    expect(executor.planCalls).toEqual([]);
+    expect(runtime.spoken).toEqual([]);
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'idle', result: null,
+      speech: { planned: null, state: 'INTERRUPTED' },
+    });
+  });
+
+  it('drops a public Ask result after disposal', async () => {
+    const { assistant, executor, runtime, voice } = harness({
+      currentRoute: '/explore/dash', scope: 'public', sessionKey: null, workspaceKey: 'public-workspace',
+    });
+    const held = deferred<PlannedVoiceAnswer>();
+    runtime.queryPromise = held.promise;
+    const command = voice.submitTyped('Who owns Atlas?');
+    await flush();
+
+    assistant.dispose();
+    held.resolve(directAnswer());
+    await command;
+
+    expect(executor.planCalls).toEqual([]);
+    expect(runtime.spoken).toEqual([]);
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'idle', result: null,
+      speech: { planned: null },
+    });
+  });
+
+  it('settles interpreting when media is interrupted and ignores the late plan', async () => {
+    const { assistant, executor, runtime, voice } = harness();
+    const held = deferred<VoiceOperationPlan>();
+    const summary = plan(
+      { version: 1, kind: 'summarize', resource: 'memory' },
+      REQUEST_IDS[0],
+      'Read the memory summary.',
+    );
+    executor.deferredPlans.set('summarize until interrupted', held.promise);
+    executor.results.set(summary, succeeded(summary, 'Memory summary ready with 2 items.', 2));
+    const command = voice.submitTyped('summarize until interrupted');
+    await flush();
+    expect(assistant.snapshot.operationPhase).toBe('interpreting');
+
+    voice.cancel();
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'refused',
+      result: { status: 'refused', summary: 'Operation interrupted.' },
+    });
+    held.resolve(summary);
+    await command;
+
+    expect(executor.executed).toEqual([]);
+    expect(runtime.spoken).toEqual([]);
+    expect(assistant.snapshot.operationPhase).toBe('refused');
+  });
+
+  it('settles executing when media is interrupted and ignores the late result', async () => {
+    const { assistant, executor, runtime, voice } = harness();
+    const summary = plan(
+      { version: 1, kind: 'summarize', resource: 'memory' },
+      REQUEST_IDS[0],
+      'Read the memory summary.',
+    );
+    const held = deferred<VoiceOperationResult>();
+    executor.plans.set('execute until interrupted', summary);
+    executor.results.set(summary, held.promise);
+    const command = voice.submitTyped('execute until interrupted');
+    await flush();
+    expect(assistant.snapshot.operationPhase).toBe('executing');
+
+    voice.cancel();
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'refused',
+      result: { status: 'refused', summary: 'Operation interrupted.' },
+    });
+    held.resolve(succeeded(summary, 'Memory summary ready with 2 items.', 2));
+    await command;
+
+    expect(runtime.spoken).toEqual([]);
+    expect(assistant.snapshot.operationPhase).toBe('refused');
+    expect(assistant.snapshot.result?.summary).toBe('Operation interrupted.');
+  });
+
+  it('preserves committed success when its result playback is stopped', async () => {
+    const { assistant, executor, runtime, voice } = harness();
+    const navigation = plan(
+      { version: 1, kind: 'navigate', route: 'graph' },
+      REQUEST_IDS[0],
+      'Open Graph.',
+    );
+    executor.plans.set('open graph and stop speech', navigation);
+    executor.results.set(navigation, succeeded(navigation, 'Opened Graph.'));
+    runtime.holdSpeech = true;
+    const command = voice.submitTyped('open graph and stop speech');
+    await waitFor(() => assistant.snapshot.speech.state === 'SPEAKING');
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'succeeded', result: { summary: 'Opened Graph.' },
+      speech: { state: 'SPEAKING' },
+    });
+
+    voice.cancel();
+    await command;
+
+    expect(executor.executed).toEqual([navigation]);
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'succeeded', result: { summary: 'Opened Graph.' },
+      speech: { state: 'INTERRUPTED' },
+    });
   });
 
   it('drops a stale planning callback after disposal', async () => {

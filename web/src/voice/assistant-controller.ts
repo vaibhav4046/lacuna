@@ -92,6 +92,10 @@ function sameBinding(left: VoiceAssistantContext, right: VoiceAssistantContext):
     && left.workspaceKey === right.workspaceKey;
 }
 
+function sameContext(left: VoiceAssistantContext, right: VoiceAssistantContext): boolean {
+  return left.currentRoute === right.currentRoute && sameBinding(left, right);
+}
+
 /**
  * Coordinates allowlisted operations without adding operation authority to the
  * microphone/playback machine. A pending mutation retains the exact trusted
@@ -125,7 +129,13 @@ export class VoiceAssistantController {
     ));
     this.#unsubscribeVoice = voice.subscribe((speech) => {
       this.#speech = speech;
-      if (speech.state === 'INTERRUPTED' && this.#pending !== null) {
+      if (speech.state === 'INTERRUPTED'
+        && (this.#operationPhase === 'interpreting' || this.#operationPhase === 'executing')) {
+        this.#generation += 1;
+        this.#clearPending();
+        this.#operationPhase = 'refused';
+        this.#result = fixedResult('refused', 'control_operation', 'Operation interrupted.');
+      } else if (speech.state === 'INTERRUPTED' && this.#pending !== null) {
         this.#generation += 1;
         this.#clearPending();
         this.#operationPhase = 'refused';
@@ -207,7 +217,14 @@ export class VoiceAssistantController {
     const control = text.toLocaleLowerCase('en-US');
     if (control === 'confirm') return this.#confirmPending(signal);
     if (control === 'cancel') return this.#cancelByCommand(signal);
-    if (this.#context.scope === 'public') return directAsk();
+    if (this.#context.scope === 'public') {
+      const generation = this.#generation;
+      const context = { ...this.#context };
+      const response = await directAsk();
+      this.#assertCurrent(generation, signal);
+      if (!sameContext(context, this.#context)) throw new VoiceRuntimeError('interrupted');
+      return response;
+    }
 
     this.#generation += 1;
     const generation = this.#generation;

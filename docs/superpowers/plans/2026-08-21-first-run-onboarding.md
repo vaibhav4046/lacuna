@@ -23,7 +23,10 @@
 - Session/account-binding changes abort and discard every pending preview, ingest, file, question, and answer result before it can update UI or write.
 - Task 2 starts only after connector Task 6 is complete: it consumes the reviewed deadline-aware `HydraCloud.ingestApp`, `ConnectorRunner`, readiness/max-record, and indeterminate-receipt controls rather than reimplementing them.
 - An exact Hydra receipt is durable `accepted` truth even before indexing completes; timeout or transport uncertainty can never downgrade it to `indeterminate` or `failed`.
-- Onboarding attempt state uses a dedicated authenticated-TLS Redis database with persistence enabled and `noeviction`; runtime never creates or repairs its administrative metadata automatically.
+- Every possibly dispatched onboarding write has a bounded Redis outbox/receipt entry keyed by owner generation plus random dispatch id before the Hydra call. Exact receipts and later positive deterministic-record reads are monotonic accepted truth across every original/retry dispatch; a missing record is never treated as proof that a dispatched write failed.
+- Onboarding attempt state uses a dedicated authenticated-TLS Redis service with persistence enabled and `noeviction`; runtime never creates or repairs its administrative metadata automatically.
+- Retry/maintenance lease timestamps and expiries come only from Redis `TIME` inside Lua. Application clocks and caller-supplied absolute timestamps never participate in Redis arbitration.
+- Security maintenance may globally retire an abandoned owner epoch only after a fail-closed drain longer than the complete request budget. It is explicit, audited, user-visible, and never authorizes an automatic resend.
 - Heavy verification runs with one worker.
 
 ---
@@ -167,6 +170,8 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 **Files:**
 - Create: `src/api/onboarding-attempt-store.ts`
 - Create: `src/api/onboarding-attempt-redis.ts`
+- Modify: `src/auth/accounts.ts`
+- Modify: `src/auth/store.ts`
 - Modify: `src/api/ingest.ts`
 - Modify: `src/api/workspace.ts`
 - Modify: `src/api/router.ts`
@@ -185,6 +190,7 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 - Create: `tests/unit/onboarding-attempt-store.test.ts`
 - Create: `tests/unit/onboarding-redis-admin.test.ts`
 - Create: `tests/integration/onboarding-attempt-redis.test.ts`
+- Test: `tests/unit/auth-api.test.ts`
 - Test: `tests/unit/connectors-files.test.ts`
 - Test: `tests/unit/web-connectors-client.test.ts`
 
@@ -194,8 +200,9 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 - Adds: `GET /api/workspace/questions` backed by bounded live workspace claims
 - Adds: `GET /api/workspace/onboarding/attempt` backed by a durable active-attempt pointer
 - Produces: one atomic fixed-size per-owner `RedisOnboardingAttemptStore`
-- Produces: atomic `begin`, `retryIndeterminate`, `finalize`, `reconcile`, and `retireIfActive` scripts over one owner record plus one fixed metadata record
-- Produces: `npm run onboarding:redis:init|audit|rotate` through one redacting administration CLI
+- Produces: atomic `begin`, `markDispatched`, `retryIndeterminate`, `finalizeDispatch`, `reconcile`, and `retireIfActive` scripts over one owner record plus one fixed metadata record
+- Produces: a bounded generation+dispatch Redis outbox/receipt ledger whose positive Hydra point-read reconciliation closes the post-receipt/pre-finalize crash gap without claiming Hydra CAS
+- Produces: `npm run onboarding:redis:keygen|init|audit|maintenance:enter|maintenance:force-retire|maintenance:exit|rotate` through one redacting administration CLI
 - Consumes: Task 6 absolute deadline/readiness/max-record controls through `ConnectorRunner`
 - Consumes: `HydraCloud.waitForIndexing(ids, options)` under the same settlement deadline
 
@@ -214,18 +221,41 @@ instances. Production uses one authenticated TLS Redis connection dedicated to
 onboarding operational state; missing/invalid configuration returns `503` and
 performs zero workspace writes. One fixed owner-keyed record is both active
 pointer and state, and one fixed versioned metadata record tracks the exact key
-fingerprint and count of non-retired owner records. Every mutation is one Lua
+fingerprint and count of non-retired owner records in the current owner epoch. Every mutation is one Lua
 compare-and-set over those two keys, which share one Redis cluster hash tag. The
 owner record stores only schema version, full keyed owner/input digests, random
 opaque attempt id, exact purpose/source kind, at most 25 internal expected record
-ids, generation/attempt count, state `pending | indeterminate | accepted |
-searchable | failed | retired`, safe counts/failure code, an optional bounded
-retry lease, and canonical timestamps—never raw workspace/email/title/text/file/
-token. `retired` is a permanent minimal tombstone that drops the input digest,
-expected ids, lease, counts, and failure detail but preserves owner digest,
-generation, attempt count, and retirement time.
+ids, owner epoch, generation/attempt count, state `pending | indeterminate |
+accepted | searchable | failed | retired`, safe counts/failure code, an optional
+bounded retry lease, and canonical Redis timestamps—never raw workspace/email/
+title/text/file/token. It also holds a maximum-eight-entry outbox/receipt ledger.
+Each entry is addressed by exact `(generation, dispatchId)`, where `dispatchId`
+is a fresh random 128-bit lowercase-hex value, and contains only state `reserved
+| dispatched | exact_receipt | reconciled`, Redis-time observations, and bounded
+accepted/refused bitmaps indexing the shared expected-id array. Provider error
+text is never stored. `retired` is a permanent minimal tombstone that drops the
+input digest, expected ids, lease, counts, failure detail, and dispatch details
+but preserves owner digest/epoch, generation, lifetime attempt count, monotonic
+retired-through generation, reason, and Redis retirement time.
 
-Transitions are atomic and monotonic. The only ordinary transitions are
+`begin` durably creates/read-backs the generation and its first `reserved`
+dispatch before any pre-write merge. Immediately before the network call,
+`markDispatched(owner, ownerEpoch, generation, attemptId, dispatchId)` atomically
+records `dispatched` using Redis `TIME`; failure/refusal means zero Hydra calls.
+After dispatch, absence of a receipt or process loss can only leave that entry
+`dispatched` and the owner `indeterminate`. An exact complete Hydra receipt is
+converted to accepted/refused bitmaps and passed to idempotent
+`finalizeDispatch`; its Lua arbitration and exact owner readback are the durable
+receipt. If the process dies after Hydra returns the exact receipt but before
+that Lua call, or if the Lua response is lost, resume queries each deterministic
+expected id with bounded `HydraCloud.inspect` and strictly validates its stored
+envelope/source identity. Positive matching records are durable acceptance
+evidence and `reconcile` monotonically records them against that dispatch;
+missing, partial, malformed, timed-out, or failed reads remain uncertain and
+can never prove refusal. This is a Redis outbox plus deterministic-upsert
+reconciliation boundary, not a Hydra transaction/CAS or exactly-once claim.
+
+Owner and per-dispatch transitions are atomic and monotonic. The only ordinary owner transitions are
 `pending -> failed | indeterminate | accepted | searchable`, `indeterminate ->
 accepted | searchable`, `accepted -> searchable`, and any non-retired state to
 `retired`; `searchable` and `retired` otherwise reject finalization. An exact,
@@ -238,15 +268,27 @@ begin, every failed-generation begin, and every indeterminate retry toward one
 lifetime maximum of eight, and refuse N+1.
 
 Define atomic `retryIndeterminate(owner, generation, attemptId, inputDigest,
-purpose, sourceKind, expectedIds, leaseId, leaseExpiresAt)`. It requires a newly
+purpose, sourceKind, expectedIds, dispatchId, leaseId)`. It requires a newly
 issued and consumed preview token whose current session/workspace/purpose/input
 binding matches the unresolved record exactly, preserves the same generation,
 attempt id and expected ids, increments the attempt count, and installs one
-random retry lease ending no later than the request settlement deadline. While
-an unexpired lease exists every competing retry refuses; after expiry a fresh
-token may acquire a new lease. Retry submission keeps state `indeterminate`
-until an exact receipt promotes it to `accepted/searchable`; another uncertain
-result only clears its matching lease and may not alter confirmed counts.
+random retry lease plus `reserved` outbox entry. The script accepts no timestamp
+or expiry argument: it calls Redis `TIME`, derives canonical integer
+milliseconds, and sets the lease expiry to exactly 165,000 ms later. The route
+may call it only while its own admission check has at least 170 seconds left, so
+the five-second finalize reserve remains, but every lease comparison is solely
+Redis-time based. While an unexpired lease exists every competing retry refuses;
+after expiry a fresh token may acquire a new lease. `markDispatched` rechecks the
+owner/lease immediately before the retry POST; if any dispatch has already
+promoted the owner to accepted/searchable, it refuses with zero Hydra calls.
+Once two calls are actually dispatched, either may settle first. Accepted ids
+from any original/retry dispatch are unioned and accepted always wins. An exact
+all-refused retry is recorded only for that dispatch and leaves the owner
+`indeterminate` while any earlier/later marked-dispatched entry lacks an exact
+all-refused outcome; it may set owner `failed` only when every dispatched entry
+is exact-all-refused, no positive record reconciliation exists, and no dispatch
+can still report acceptance. Another uncertain result clears only its matching
+lease and may not alter confirmed counts.
 
 Never replace an unresolved generation. Completion/explicit Skip atomically
 retires it and decrements metadata `activeCount` exactly once; owner records are
@@ -254,11 +296,19 @@ never deleted during normal runtime and have no TTL. Test cross-instance
 interleavings so accepted always wins an accepted-vs-indeterminate race, late
 failed/indeterminate updates cannot downgrade accepted/searchable, concurrent
 begin has one visible winner, only one retry lease is live, expired-lease retry
-requires a fresh matching token, a retry preserves ids, attempt N+1 refuses, an
+requires a fresh matching token, Redis `TIME` rather than process time controls
+lease acquisition/expiry, a retry preserves ids, attempt N+1 refuses, an
 unresolved attempt cannot be displaced, retirement is idempotent, late finalize
-against a missing/retired/wrong-generation record refuses without recreation or
-metadata change, malformed/oversized records fail closed, and pending creation
-must be confirmed before any workspace write.
+against a missing/retired/wrong-owner-epoch/wrong-generation/unknown-dispatch
+record refuses without recreation or metadata change, malformed/oversized
+records fail closed, and pending creation plus `markDispatched` must be confirmed
+before any workspace write. Fault-inject both (a) process death after an exact
+Hydra receipt but before Redis finalization and (b) a successfully applied
+`finalizeDispatch` whose response is lost. Resume must recover accepted truth by
+positive point reads or exact owner readback respectively, must keep Store
+disabled throughout, and must never demote or automatically resubmit. Test both
+orders of a late accepted original versus an exact-all-refused retry and prove
+the final owner is accepted in each order.
 
 - [ ] **Step 2: Add an API regression for delayed suggestions**
 
@@ -276,23 +326,45 @@ workspace route.
 Resume must first call `GET /api/workspace/onboarding/attempt`. A visible
 pending/indeterminate/accepted attempt disables Store even after refresh,
 bfcache, another tab, or server process loss. The status route rechecks its
-bounded internal accepted/expected ids in the current account collection under
-one deadline: all accepted ids completed becomes `searchable`; an exact receipt
-or provider status proving acceptance remains `accepted` while indexing is
-incomplete; a known pre-submit/refused zero becomes `failed`; missing/partial
-state after a possibly dispatched POST may promote `pending` to `indeterminate`
-but can never demote `accepted`. Only a conclusively failed attempt may enable a
-new generation automatically. An ambiguous retry is a distinct explicit action:
+bounded generation+dispatch ledger and internal accepted/expected ids in the
+current account collection under one deadline. It first exact-reads the owner;
+then, only for `dispatched` entries without a durable receipt, performs capped
+positive `inspect` reads. All accepted ids completed becomes `searchable`; an
+exact receipt or strictly matching stored record proving any acceptance remains
+`accepted` while indexing is incomplete; a `reserved` entry never marked
+dispatched or an exact all-refused set with no unresolved dispatch becomes
+`failed`. Missing records after a marked dispatch, partial/provider failure, or
+a lost reconciliation response remains `indeterminate` and can never demote
+`accepted`. Only a conclusively failed attempt may enable a new generation
+automatically. An ambiguous retry is a distinct explicit action:
 re-preview the retained text or reselected file, require a fresh matching token,
 acquire `retryIndeterminate` for the same record, and make one deterministic-
 upsert copy. It is never an automatic request and never replaces the unresolved
-record.
+record. Every retry runs reconciliation before lease acquisition and
+`markDispatched` immediately before Hydra; a concurrent late acceptance may make
+either gate refuse. If it races after dispatch, deterministic upsert convergence
+and accepted-wins Lua arbitration preserve truth without a CAS claim.
 
 - [ ] **Step 3: Run focused tests and verify RED**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts --maxWorkers=1`
 
 Expected: missing options/report fields, Redis store, and administration CLI.
+
+- [ ] **Step 3a: Install the reviewed minimal Redis client and lock it exactly**
+
+Run: `npm install --save-exact @redis/client@6.2.1`
+
+Require root `package.json` to contain exactly `"@redis/client": "6.2.1"`
+without `^`, `~`, tag, alias, or workspace indirection, and require
+`package-lock.json` to lock that package and its reviewed transitive
+`cluster-key-slot@1.1.2` with registry integrity. Do not add the aggregate
+`redis` package or unused module clients.
+
+Run: `npm ci`
+
+Expected: clean installation from the lock succeeds under the repository's
+Node 20+ engine before implementation continues.
 
 - [ ] **Step 4: Implement bounded indexing readiness**
 
@@ -323,7 +395,8 @@ bounded abort/deadline-aware calls; every call must end inside its five-second
 phase. The only Redis keys are exact fixed meta key
 `lacuna:onboarding:{attempt-v1}:meta` and server-derived owner key
 `lacuna:onboarding:{attempt-v1}:owner:<64-lowercase-hex-owner-digest>`. The common
-hash tag makes every meta+owner Lua mutation single-slot even on Redis Cluster.
+hash tag keeps every meta+owner Lua mutation co-located, although production
+deliberately refuses cluster/proxy mode for auditable `FLUSHDB SYNC` rotation.
 No route/client supplies a Redis key. Define HMAC framing as UTF-8 domain followed
 by each UTF-8 field prefixed with an unsigned four-byte big-endian byte length.
 Use exact independent domains `lacuna:onboarding:owner:v1\0`,
@@ -338,22 +411,31 @@ digest, normalized digest, parser version, type, and title carried by
 are excluded.
 
 The meta value is a strict at-most-2-KiB record
-`{ schema: 1, status: 'ready' | 'rotation_pending', keyFingerprint,
-activeCount, keyEpoch, createdAt, updatedAt, rotationNonce?,
-nextKeyFingerprint?, nextKeyEpoch? }`. `activeCount` is
-the number of non-retired owner records. Begin from a missing owner increments it;
-idempotent retirement decrements it once and replaces the owner value with its
-minimal permanent tombstone. Every runtime script first validates that meta
-exists, is schema 1/`ready`, has the current key fingerprint and a safe nonnegative
-count. Missing, malformed, fingerprint-mismatched, or `rotation_pending` meta is
-catastrophic operational unavailability: attempt-dependent routes return `503`,
-perform zero workspace writes, never synthesize/reset meta, and never treat the
-owner as absent. A completed account's session read remains authoritative and
-returns normally when its bounded cleanup observes this unavailability.
+`{ schema: 1, status: 'ready' | 'maintenance' | 'maintenance_retired' |
+'rotation_pending', keyFingerprint, activeCount, keyEpoch, ownerEpoch,
+forcedRetiredThroughOwnerEpoch, createdAtRedisMs, updatedAtRedisMs,
+maintenanceNonce?, maintenanceStartedAtRedisMs?, maintenanceDrainUntilRedisMs?,
+rotationNonce?, nextKeyFingerprint?, nextKeyEpoch? }`. Counters/epochs are
+canonical safe nonnegative integers mutated only inside Lua; every timestamp and
+lease/drain comparison is derived inside Lua from Redis `TIME`. `activeCount` is
+the number of non-retired owner records in the current owner epoch. Begin from a
+missing owner increments it; idempotent retirement
+decrements it once and replaces the owner value with its minimal permanent
+tombstone. Every runtime script first validates that meta exists, is schema 1/
+`ready`, has the current key fingerprint/owner epoch and a safe nonnegative
+count. Only finalize/reconcile/retire for a dispatch marked before maintenance
+may run while status is `maintenance`; all other non-`ready` operations refuse.
+Missing, malformed, fingerprint-mismatched, `maintenance_retired`, or
+`rotation_pending` meta is catastrophic operational unavailability:
+attempt-dependent routes return `503`, perform zero workspace writes, never
+synthesize/reset meta, and never treat the owner as absent. A completed
+account's session read remains authoritative and returns normally when its
+bounded cleanup observes this unavailability.
 
 Parse only a dedicated `LACUNA_ONBOARDING_REDIS_URL`: require authenticated
-`rediss:`, normal certificate/hostname validation, and a database dedicated to
-this feature; never fall back to generic/local Redis, Hydra, session, or preview
+`rediss:`, normal certificate/hostname validation, and a standalone database-0
+service dedicated to this feature; never fall back to generic/local Redis,
+Hydra, session, or preview
 credentials. The deployment must prove `maxmemory-policy=noeviction`, AOF enabled
 with `appendfsync=always`, and healthy persistence before initialization. Runtime
 performs a bounded five-second connect/auth/TLS, `PING`, persistence/policy, and
@@ -364,6 +446,36 @@ bounded singleton connection, fixed-key commands and audited scripts only—no
 queue, or reconnect queue. Cap an owner value at 16 KiB and a meta value at 2 KiB,
 and redact URL/host/credentials, secrets/fingerprints, script arguments, owner/
 workspace ids, and expected record ids from responses/logs/errors.
+
+Use only the exact pinned `@redis/client@6.2.1` API. Construct one lazy singleton
+with `disableOfflineQueue: true`, a 5,000 ms TLS connect timeout,
+`socket.reconnectStrategy: false`, no command retry, and a redacting error
+listener; an ended/error connection is unavailable for that request and is
+never backed by an in-memory queue. Load the reviewed scripts once and invoke
+only their server-returned SHA-1 identifiers through fixed `EVALSHA` key counts
+(SHA-1 is only Redis's script cache address, never an authentication primitive). Production supports only
+a dedicated standalone Redis service on database 0: the URL must contain
+nonempty authentication, use `rediss:`, select `/0`, and pass normal hostname/
+certificate verification. Cluster/proxy modes, a shared logical database, and
+any service whose administrative probes are denied are unsupported and fail
+closed.
+
+The init, audit, rotation, integration, and bounded runtime-start probes use the
+same strict decoder and exact pass criteria: `PING` is exactly `PONG`;
+`CONFIG GET maxmemory-policy appendonly appendfsync` returns exactly
+`noeviction`, `yes`, and `always`; `INFO server` has exactly one parseable
+`redis_version` at least 7.2.0 and `redis_mode:standalone`; `INFO persistence`
+has `loading:0`, `aof_enabled:1`, `aof_last_write_status:ok`, and
+`aof_last_bgrewrite_status:ok`; and `TIME`
+returns exactly two canonical decimal fields with seconds nonnegative,
+microseconds in `0..999999`, and a nondecreasing second observation. `PTTL` for
+meta and every owner key addressed by a bounded operation must be exactly `-1`;
+`-2` is allowed only for an expected absent owner/meta case explicitly handled
+by begin/init/rotation, while every nonnegative TTL is corruption. Runtime may cache a successful infrastructure
+probe only for the life of the healthy connection, but every Lua mutation still
+validates meta/fingerprint/status/epoch and exact-reads both values plus their
+`PTTL` before success. `CONFIG SET`, implicit repair, and a degraded-warning mode
+are forbidden.
 
 Parse `LACUNA_ONBOARDING_KEY` with no trimming: it is valid only when the source
 string is exactly 64 lowercase hexadecimal characters and decodes/round-trips to
@@ -379,59 +491,190 @@ It also documents destructive rotation and never contains a value.
 The complete onboarding service is absent unless Redis, meta probe, onboarding
 key, preview-token service, governed runner, and site origin are all valid.
 
+Extend the strict account schema with nullable server-owned
+`onboardingAttemptOwnerEpoch`, `onboardingAttemptKeyEpoch`, and
+`onboardingCleanupKeyEpoch`; legacy absence decodes as null. Before the first
+`begin` in an owner epoch, persist and exact-read back both current epochs on the
+authenticated account. This may
+conservatively record an epoch before a crash that performed no Redis begin, but
+may never lag an active owner. After successful retirement, exact-read back the
+meta key epoch into `onboardingCleanupKeyEpoch`. For `onboarded: true`, a missing
+owner is cleanup success only when no attempt epoch was ever recorded or current
+meta `keyEpoch` is strictly newer than the recorded attempt key epoch and is at
+least the recorded cleanup epoch (when present); it must not
+create a tombstone or decrement `activeCount`, and the account cleanup epoch is
+advanced idempotently. Missing owner in the same key epoch remains corruption.
+This makes completion -> zero-active rotation -> later session cleanup truthful
+after the audited flush instead of turning a completed user into `503`.
+
 Implement `scripts/onboarding-redis-admin.ts` with redacted, noninteractive
-`keygen`, `init --confirm-dedicated-empty`, `audit`, and
-`rotate --confirm-destructive` subcommands and expose them as
-`onboarding:redis:keygen|init|audit|rotate` package scripts. Add
-`test:onboarding-redis` for the explicit production-script integration test.
+`keygen`, `init --confirm-dedicated-empty`, `audit`,
+`maintenance-enter --confirm-block-onboarding`,
+`maintenance-force-retire --confirm-ambiguous`,
+`maintenance-exit --confirm-resume`, and `rotate --confirm-destructive`
+subcommands. Add these exact package scripts:
+
+```json
+{
+  "onboarding:redis:keygen": "tsx scripts/onboarding-redis-admin.ts keygen",
+  "onboarding:redis:init": "tsx scripts/onboarding-redis-admin.ts init",
+  "onboarding:redis:audit": "tsx scripts/onboarding-redis-admin.ts audit",
+  "onboarding:redis:maintenance:enter": "tsx scripts/onboarding-redis-admin.ts maintenance-enter",
+  "onboarding:redis:maintenance:force-retire": "tsx scripts/onboarding-redis-admin.ts maintenance-force-retire",
+  "onboarding:redis:maintenance:exit": "tsx scripts/onboarding-redis-admin.ts maintenance-exit",
+  "onboarding:redis:rotate": "tsx scripts/onboarding-redis-admin.ts rotate",
+  "test:onboarding-redis": "vitest run tests/integration/onboarding-attempt-redis.test.ts --maxWorkers=1"
+}
+```
+
 `init` refuses unless
 the dedicated database is empty, TLS/auth/persistence/noeviction checks pass, and
 the fixed meta `SET NX` exact readback succeeds; runtime never calls it. `audit`
-does no scan and reports only schema/status, key-fingerprint match, active count,
-key epoch, and policy/persistence health. Rotation reads a separate exact-format
-`LACUNA_ONBOARDING_NEXT_KEY`, and one Lua step changes meta to
-`rotation_pending` only when current fingerprint/version match and
-`activeCount === 0`; otherwise it atomically refuses. That state blocks all
-runtime operations. Because the service is dedicated, the confirmed command then
-uses `FLUSHDB SYNC` (not a scan), creates/read-backs fresh schema-1 `ready` meta
-with the next fingerprint and incremented key epoch, and zeroizes in-process old/
-next key buffers. Retired tombstones are permanent during normal operation; this
-audited zero-active destructive rotation is their only deletion path. A crash
-before or during reset leaves `rotation_pending` or missing meta and therefore
-runtime `503`; rerunning the explicit rotate command with both keys resumes by
-rotation nonce. No automatic init/recovery is permitted.
+does no scan and reports only schema/status, fingerprint match, active count,
+key/owner/forced-retirement epochs, Redis-time drain remaining, and the exact
+policy/persistence/TTL health booleans above.
 
-The exact operator sequence is:
+Maintenance entry is one Lua transition from matching `ready` meta. It obtains
+`maintenanceStartedAtRedisMs` from Redis `TIME`, generates/read-backs a random
+nonce, and sets `maintenanceDrainUntilRedisMs` to exactly 240,000 ms later. It
+immediately blocks begin/retry and any `reserved` dispatch from becoming
+`dispatched`, while allowing bounded finalize/reconcile/retire for dispatches
+already marked before entry. `maintenance-exit` may return to `ready` only before
+forced retirement and with the matching nonce. After the Redis-time drain,
+`maintenance-force-retire` serializes against those allowed finalizers. If the
+finalizer wins, its accepted truth is stored before retirement; if force wins,
+the late finalizer is refused. The force transition atomically sets
+`forcedRetiredThroughOwnerEpoch` to the old epoch, increments `ownerEpoch`, sets
+`activeCount` to zero, and enters `maintenance_retired` without reading or
+deleting owner keys. It cannot run early and cannot return to `ready`; rotation
+must follow. Thus no scan is needed and no request can remain live beyond the
+210-second handler budget when the 240-second drain expires.
+
+An unfinished account whose recorded attempt epoch is at/below the forced
+cutoff and whose owner is missing or stale receives an exact user-visible
+`security_maintenance_retired` state. Store/retry remain disabled; copy states
+that the prior write may have reached Memory. Its only progress action is
+`SKIP AND REVIEW MEMORY`, which exact-readback completes with outcome `skipped`
+before navigating to ordinary Memory; a direct pre-completion `/app` link is not
+offered because the workspace guard would reject it. Forced retirement never
+reopens Store or resets the lifetime eight-attempt counter. Completed accounts
+remain complete.
+Test two-client maintenance/finalize ordering, early force refusal, blocked new
+dispatch, forced stale-owner migration, exact-readback Skip, and late
+old-epoch finalizer refusal with zero owner/meta recreation.
+
+Ordinary rotation reads the next key only from an absolute mode-0600 key file
+passed as `--next-key-file`; runtime never reads `LACUNA_ONBOARDING_NEXT_KEY`.
+One Lua step enters `rotation_pending` only when fingerprint/version match and
+`activeCount === 0` (naturally or after forced maintenance). Before that step,
+the CLI atomically creates and fsyncs an exclusive mode-0600 rotation journal at
+the caller-supplied absolute `--journal` path. It contains the nonce, old/new
+key/owner epochs, forced cutoff, and old/next fingerprints authenticated by the
+old key, but no key bytes. After new-meta exact readback, the CLI atomically
+appends/fsyncs a completion section authenticated by the next key; a rerun that
+finds ready-next meta may repair only that missing completion section while both
+key files are present. Because the Redis service is dedicated, the confirmed
+command uses `FLUSHDB SYNC` (never a scan), verifies `DBSIZE 0`, creates with
+`SET NX` and exact-reads fresh schema-1 `ready` meta carrying the incremented key
+epoch, current/forced owner epochs, next fingerprint, and `activeCount: 0`, then
+zeroizes in-process key buffers. Retired tombstones are permanent during normal
+runtime; this audited rotation is their only deletion path.
+
+A rerun with the same two key files and journal is idempotent: matching
+`rotation_pending` resumes; missing meta is recoverable only when the journal
+MAC/epochs/nonces validate and `DBSIZE` is exactly zero; and already-`ready` meta
+with the exact next fingerprint, next key epoch, carried owner epoch/cutoff, and
+`activeCount: 0` returns `already_complete` without another flush. Every other
+missing/mismatched state stays `503` and requires an incident decision. No
+automatic init/recovery is permitted.
+
+`keygen --out <absolute-path>` creates a new file exclusively with mode 0600,
+writes exactly 64 lowercase hex plus LF, fsyncs it, and prints only `created`;
+`audit --key-file` and `rotate --current-key-file --next-key-file --journal`
+reject relative paths, symlinks, wrong ownership/permissions, and malformed key
+files. The admin key-file parser accepts exactly those 65 bytes and removes only
+the one mandatory final LF before passing the same 64-byte hex string to the
+strict decoder; this does not relax the no-trim environment parser. The exact
+first initialization is:
 
 ```bash
-npm run onboarding:redis:init -- --confirm-dedicated-empty
-npm run onboarding:redis:audit
-LACUNA_ONBOARDING_NEXT_KEY=<64-lowercase-hex> npm run onboarding:redis:rotate -- --confirm-destructive
-npm run onboarding:redis:audit
+npm run onboarding:redis:keygen -- --out /secure/lacuna/onboarding-current.key
+npm run onboarding:redis:init -- --key-file /secure/lacuna/onboarding-current.key --confirm-dedicated-empty
+npm run onboarding:redis:audit -- --key-file /secure/lacuna/onboarding-current.key --expect-ready
 ```
 
-`LACUNA_ONBOARDING_NEXT_KEY` is accepted only by the administration process,
-never by runtime composition, and is never printed. A rotation resume uses the
-same rotate command with current and next keys; `rotation_pending` validates its
-stored nonce/next fingerprint, while a post-flush missing-meta resume additionally
-requires an empty dedicated database. Any other missing-meta state requires an
-explicit incident decision and remains `503`.
+The `/secure/lacuna` paths below represent an encrypted operator volume outside
+the repository; commands refuse otherwise. For routine rotation, wait for
+natural `activeCount: 0` and use exactly:
+
+```bash
+npm run onboarding:redis:keygen -- --out /secure/lacuna/onboarding-next.key
+npm run onboarding:redis:audit -- --key-file /secure/lacuna/onboarding-current.key --expect-ready-zero-active
+npm run onboarding:redis:rotate -- --current-key-file /secure/lacuna/onboarding-current.key --next-key-file /secure/lacuna/onboarding-next.key --journal /secure/lacuna/onboarding-rotation.json --confirm-destructive
+```
+
+For a compromise rotation that cannot wait for abandoned active records, use
+exactly the maintenance sequence below and wait until audit reports exactly zero
+drain milliseconds before force-retire. If the incident is cancelled before
+force-retire, the only valid rollback is the shown nonce/journal-bound
+`maintenance-exit`; after force-retire no exit is permitted and rotation must
+finish.
+
+```bash
+npm run onboarding:redis:keygen -- --out /secure/lacuna/onboarding-next.key
+npm run onboarding:redis:audit -- --key-file /secure/lacuna/onboarding-current.key --expect-ready
+npm run onboarding:redis:maintenance:enter -- --key-file /secure/lacuna/onboarding-current.key --journal /secure/lacuna/onboarding-maintenance.json --confirm-block-onboarding
+npm run onboarding:redis:audit -- --key-file /secure/lacuna/onboarding-current.key --expect-maintenance
+npm run onboarding:redis:maintenance:force-retire -- --key-file /secure/lacuna/onboarding-current.key --journal /secure/lacuna/onboarding-maintenance.json --confirm-ambiguous
+npm run onboarding:redis:rotate -- --current-key-file /secure/lacuna/onboarding-current.key --next-key-file /secure/lacuna/onboarding-next.key --journal /secure/lacuna/onboarding-rotation.json --confirm-destructive
+```
+
+The pre-force incident-cancellation command is:
+
+```bash
+npm run onboarding:redis:maintenance:exit -- --key-file /secure/lacuna/onboarding-current.key --journal /secure/lacuna/onboarding-maintenance.json --confirm-resume
+```
+
+After either successful rotate path, promote the already-ready next fingerprint
+with exactly:
+
+```bash
+npm run onboarding:redis:audit -- --key-file /secure/lacuna/onboarding-next.key --expect-journal /secure/lacuna/onboarding-rotation.json
+npx vercel env rm LACUNA_ONBOARDING_KEY production --yes
+npx vercel env add LACUNA_ONBOARDING_KEY production < /secure/lacuna/onboarding-next.key
+npx vercel deploy --prod --yes
+npm run onboarding:redis:audit -- --key-file /secure/lacuna/onboarding-next.key --expect-journal /secure/lacuna/onboarding-rotation.json
+```
+
+On a lost/empty rotate response, rerun the identical `rotate` command before
+promotion; the `already_complete` case above is success. After the immutable
+production deployment is promoted, verify the new deployment id and onboarding
+smoke, wait at least the maximum 270-second old-function lifetime, audit once
+more with the next key/journal, then permanently revoke the old key version in
+the deployment secret manager and remove the old local key plus journals under
+the operator's audited secret-destruction procedure. Never restore the old key
+or deploy it as rollback. `LACUNA_ONBOARDING_NEXT_KEY` is rejected by runtime and
+admin composition so a warm instance cannot accidentally select it.
 
 Consume Task 6's deadline-aware `HydraCloud.ingestApp`, `ConnectorRunner`,
 readiness, `maxRecords: 25`, and indeterminate-submission controls. The text
 store and onboarding-marked file import prepare deterministic graph ids,
-atomically begin/read back `pending`, then submit. A complete exact receipt first
-finalizes `accepted` with accepted ids/counts; readiness may then promote it to
-`searchable`. Transport uncertainty may move only `pending` to `indeterminate`.
-If handler settlement is lost, the pre-existing pending record remains the
-recovery source. File preview and import both require one exact purpose
+atomically begin/read back `pending`, reserve/read back its dispatch, and mark it
+dispatched immediately before the one POST. A complete exact receipt first
+finalizes that dispatch and the accepted ids/counts; readiness may then promote
+the owner to `searchable`. Transport uncertainty may move only a marked dispatch
+to `indeterminate`. If handler settlement or Redis finalization is lost, its
+bounded outbox entry plus deterministic expected ids is the recovery source;
+only positive strict point reads create accepted truth. Hydra remains an
+unconditional deterministic upsert with no CAS, transaction, or negative-read
+guarantee. File preview and import both require one exact purpose
 `onboarding | connector`, authenticated inside `FilePreviewBinding`; cross-
 purpose reuse refuses before runner/state work. Normal connector imports never
 replace the onboarding owner record.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
 
 Run against a disposable dedicated persistence/noeviction Redis configured in
 `LACUNA_TEST_ONBOARDING_REDIS_URL`:
@@ -439,18 +682,24 @@ Run against a disposable dedicated persistence/noeviction Redis configured in
 `npm run test:onboarding-redis`
 
 The integration test executes the production Lua, uses two independent clients,
-and covers meta absence/mismatch, begin/finalize/reconcile races, accepted versus
-indeterminate ordering, retry lease expiry/contention, retirement/late finalize,
-N+1 refusal, persistence/noeviction probe failure, init/audit, zero-active
-rotation, active-count rotation refusal, and crash/resume rotation states. Missing
-test Redis configuration fails this explicit gate rather than silently skipping.
+and covers meta absence/mismatch, begin/mark-dispatched/finalize/reconcile races,
+exact-receipt-before-finalize crash, lost successful-finalize response, accepted
+versus indeterminate ordering, original-accepted versus retry-all-refused in both
+orders, Redis-TIME lease expiry/contention, retirement/late finalize, N+1 refusal,
+strict CONFIG/INFO/TIME/PTTL decoding, TTL corruption, persistence/noeviction/
+standalone probe failure, init/audit, completion -> zero-active rotation -> later
+session cleanup, routine zero-active rotation, active-count refusal, maintenance
+drain/forced owner-epoch retirement/finalizer concurrency, user-visible stale
+owner migration, and every pre-flush/post-flush/already-ready rotation resume
+state. Missing test Redis configuration fails this explicit gate rather than
+silently skipping.
 
 Expected: all tests pass and private context/Redis failures remain fail-closed.
 
 - [ ] **Step 6: Commit searchability readiness**
 
 ```bash
-git add src/api/onboarding-attempt-store.ts src/api/onboarding-attempt-redis.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts src/connectors/preview-token.ts api/index.ts web/src/api/client.ts web/src/api/connectors.ts scripts/onboarding-redis-admin.ts .env.example package.json package-lock.json tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/integration/onboarding-attempt-redis.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts
+git add src/api/onboarding-attempt-store.ts src/api/onboarding-attempt-redis.ts src/auth/accounts.ts src/auth/store.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts src/connectors/preview-token.ts api/index.ts web/src/api/client.ts web/src/api/connectors.ts scripts/onboarding-redis-admin.ts .env.example package.json package-lock.json tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/integration/onboarding-attempt-redis.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts
 git commit -m "feat(onboarding): wait for first memory to become searchable"
 ```
 
@@ -504,8 +753,12 @@ success, durable `accepted` indexing, ambiguous ingest and same-generation retry
 terminal answer completion, Back, refresh, and account-binding change. Cover
 completion cleanup failure followed by idempotent cleanup from a fresh process/
 session, permanent tombstone readback, and refusal of a late finalizer after
-retirement. A session with `onboarded: true` is complete; workspace presence
-alone never is.
+retirement. Add completion -> successful retire -> zero-active key rotation ->
+fresh-session coverage: newer key epoch plus absent owner is idempotent cleanup
+success, never owner recreation, decrement, `503`, or onboarding downgrade. Also
+cover the unfinished `security_maintenance_retired` state, its warning, disabled
+Store/retry, and exact-readback `SKIP AND REVIEW MEMORY`. A
+session with `onboarded: true` is complete; workspace presence alone never is.
 
 - [ ] **Step 2: Update source-contract tests for consequential steps**
 
@@ -533,6 +786,11 @@ Pending/indeterminate/accepted resumes at reconciliation with Store disabled;
 searchable then fetches questions and resumes Ask; conclusively failed/no
 attempt resumes Memory; retired while `onboarded: false`, missing/malformed meta,
 or store/provider failure is an explicit fail-closed system state, never empty.
+A forced-retirement cutoff matching the account's recorded owner epoch renders
+the dedicated maintenance consequence rather than generic absence and cannot
+enable onboarding Store/retry again; it offers only exact-readback
+`SKIP AND REVIEW MEMORY`, so an accepted-but-unrecorded write is never silently
+resubmitted.
 Workspace failure stays in workspace; later
 failures never call workspace creation again.
 
@@ -557,6 +815,11 @@ observes the tombstone. Cleanup failure never changes the completed session
 response and never launches a detached background promise. A late ingestion
 finalizer for a missing, retired, wrong-attempt, or wrong-generation record must
 refuse and must never recreate the owner record or alter meta.
+After an audited zero-active rotation has deleted tombstones, cleanup for a
+completed account treats missing owner plus a strictly newer validated meta key
+epoch as `already_clean_by_rotation`, advances the account cleanup epoch by an
+exact-readback bounded mutation, and never touches `activeCount`. Same-epoch
+absence, stale/unknown account epochs, and malformed meta still fail closed.
 
 - [ ] **Step 5: Implement paste preview and explicit store**
 
@@ -757,6 +1020,8 @@ Add `"smoke:onboarding": "tsx scripts/smoke-onboarding.ts"` to root `package.jso
 
 - [ ] **Step 5: Run local gates**
 
+Run: `npm ci`
+
 Run: `npm run typecheck`
 
 Run: `npm --prefix web run typecheck`
@@ -764,6 +1029,9 @@ Run: `npm --prefix web run typecheck`
 Run: `npm run build`
 
 Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/landing-session.test.ts tests/unit/web-auth-client.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+
+Run with `LACUNA_TEST_ONBOARDING_REDIS_URL` pointing only at the disposable
+strictly configured service: `npm run test:onboarding-redis`
 
 Expected: all commands exit zero.
 

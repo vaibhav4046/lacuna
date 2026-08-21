@@ -158,7 +158,7 @@ describe('Google OAuth HTTP boundary', () => {
 
     expect(tokenBody).toContain(`code_verifier=${verifier}`);
     expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('/signin?google=identity');
+    expect(response.headers.get('location')).toBe('/signin?google=provider_mismatch');
     expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith('lacuna_session='))).toBe(false);
     expect(store.find(email)).toMatchObject({ authProvider: 'password', providerSubject: null });
   });

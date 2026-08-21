@@ -2192,8 +2192,9 @@ export class ApiRouter {
       // A verified address is not enough to merge providers. Existing legacy,
       // password, or differently-bound Google records all fail closed until a
       // separately verified linking/migration flow exists.
-      if (!googleBinding(account, identity).allowed) {
-        return this.#redirect(response, '/signin?google=identity', clear);
+      const binding = googleBinding(account, identity);
+      if (!binding.allowed) {
+        return this.#redirect(response, `/signin?google=${binding.failure}`, clear);
       }
 
       const token = await this.#store.startSession(account.email, this.#now(), account.sessionVersion);

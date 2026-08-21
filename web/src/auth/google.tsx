@@ -19,7 +19,11 @@ const REASONS: Readonly<Record<string, string>> = {
   cancelled: 'Sign in with Google was cancelled. Nothing happened.',
   state: 'That sign in took too long to come back. Press the button again.',
   code: 'Google did not send an authorisation back. Try once more.',
-  identity: "Google identity could not be safely bound. Try a fresh Google account, or use this account's original sign-in method.",
+  identity: 'Google did not return a verifiable identity. Press the Google button again; if it repeats, the deployment credentials need repair.',
+  email_mismatch: 'Google returned a different address than the account record. Choose the Google account originally used for Lacuna.',
+  legacy_unbound: 'This address belongs to an older Lacuna account. Use its password or recovery code; automatic account merging is blocked to protect its workspace.',
+  provider_mismatch: 'This address was created with password sign-in. Use that password or its recovery code; Google cannot silently take over the workspace.',
+  subject_mismatch: 'This address is linked to a different Google identity. Choose the Google account originally used for Lacuna.',
   store: 'The account store did not answer. Nothing was changed.',
   unconfigured: 'Sign in with Google is not configured on this deployment.',
 };

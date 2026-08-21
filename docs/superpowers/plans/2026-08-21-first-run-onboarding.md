@@ -6,7 +6,7 @@
 
 **Architecture:** A pure onboarding state machine derives its resume phase from a durable account completion bit and a real workspace question index. A new authenticated preview route shares normalization and extraction with private ingest but never writes, then issues a short-lived session/workspace/input-bound token that the store route must consume. Authenticated reads always use `workspaceCollection(account.email)`; the user-chosen workspace label is presentation only, and only explicit `/api/explore/*` routes may access the public corpus. The onboarding UI reuses the connector file-preparation path and explicit private question/Ask APIs rather than creating a second memory system.
 
-**Tech Stack:** TypeScript, React, HydraDB Cloud, existing JSON/CSRF client, Vitest.
+**Tech Stack:** TypeScript, React, HydraDB Cloud, a dedicated persistence-backed Redis service, existing JSON/CSRF client, Vitest.
 
 **Spec:** `docs/superpowers/specs/2026-08-21-production-convergence-design.md`
 
@@ -22,6 +22,8 @@
 - Existing legacy accounts already marked `onboarded: true` must not be forced through onboarding again.
 - Session/account-binding changes abort and discard every pending preview, ingest, file, question, and answer result before it can update UI or write.
 - Task 2 starts only after connector Task 6 is complete: it consumes the reviewed deadline-aware `HydraCloud.ingestApp`, `ConnectorRunner`, readiness/max-record, and indeterminate-receipt controls rather than reimplementing them.
+- An exact Hydra receipt is durable `accepted` truth even before indexing completes; timeout or transport uncertainty can never downgrade it to `indeterminate` or `failed`.
+- Onboarding attempt state uses a dedicated authenticated-TLS Redis database with persistence enabled and `noeviction`; runtime never creates or repairs its administrative metadata automatically.
 - Heavy verification runs with one worker.
 
 ---
@@ -175,10 +177,14 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 - Modify: `web/src/api/connectors.ts`
 - Modify: `.env.example`
 - Modify: `package.json`
+- Modify: `package-lock.json`
+- Create: `scripts/onboarding-redis-admin.ts`
 - Test: `tests/unit/ingest-source.test.ts`
 - Test: `tests/unit/onboarding-api.test.ts`
 - Test: `tests/unit/workspace-api.test.ts`
 - Create: `tests/unit/onboarding-attempt-store.test.ts`
+- Create: `tests/unit/onboarding-redis-admin.test.ts`
+- Create: `tests/integration/onboarding-attempt-redis.test.ts`
 - Test: `tests/unit/connectors-files.test.ts`
 - Test: `tests/unit/web-connectors-client.test.ts`
 
@@ -188,6 +194,8 @@ git commit -m "feat(onboarding): preview private memory before ingest"
 - Adds: `GET /api/workspace/questions` backed by bounded live workspace claims
 - Adds: `GET /api/workspace/onboarding/attempt` backed by a durable active-attempt pointer
 - Produces: one atomic fixed-size per-owner `RedisOnboardingAttemptStore`
+- Produces: atomic `begin`, `retryIndeterminate`, `finalize`, `reconcile`, and `retireIfActive` scripts over one owner record plus one fixed metadata record
+- Produces: `npm run onboarding:redis:init|audit|rotate` through one redacting administration CLI
 - Consumes: Task 6 absolute deadline/readiness/max-record controls through `ConnectorRunner`
 - Consumes: `HydraCloud.waitForIndexing(ids, options)` under the same settlement deadline
 
@@ -204,23 +212,53 @@ Hydra call ends by the absolute deadline.
 Write a dedicated attempt-store regression against two independent store
 instances. Production uses one authenticated TLS Redis connection dedicated to
 onboarding operational state; missing/invalid configuration returns `503` and
-performs zero workspace writes. One owner-keyed record is both active pointer
-and state, with an atomic Lua compare-and-set version/generation. It stores only
-schema version, full keyed owner/input digests, random opaque attempt id, exact
-purpose/source kind, at most 25 internal expected record ids, generation/attempt
-count, state `pending | indeterminate | searchable | failed`, safe counts/failure
-code, and canonical timestamps—never raw workspace/email/title/text/file/token.
+performs zero workspace writes. One fixed owner-keyed record is both active
+pointer and state, and one fixed versioned metadata record tracks the exact key
+fingerprint and count of non-retired owner records. Every mutation is one Lua
+compare-and-set over those two keys, which share one Redis cluster hash tag. The
+owner record stores only schema version, full keyed owner/input digests, random
+opaque attempt id, exact purpose/source kind, at most 25 internal expected record
+ids, generation/attempt count, state `pending | indeterminate | accepted |
+searchable | failed | retired`, safe counts/failure code, an optional bounded
+retry lease, and canonical timestamps—never raw workspace/email/title/text/file/
+token. `retired` is a permanent minimal tombstone that drops the input digest,
+expected ids, lease, counts, and failure detail but preserves owner digest,
+generation, attempt count, and retirement time.
 
-Transitions are atomic and monotonic: `pending -> failed | indeterminate |
-searchable`, `indeterminate -> searchable`, and `searchable` is terminal.
-`failed` may begin a new generation only through explicit confirmation. Keep
-exactly one fixed-size record per owner, allow at most eight first-run attempts,
-refuse N+1, and never replace an unresolved generation. Completion/explicit Skip
-atomically retires the record; unresolved records do not expire silently. Test
-cross-instance interleavings so late failed/indeterminate updates cannot
-downgrade searchable, concurrent begin has one visible winner, an unresolved
-attempt cannot be displaced, malformed/oversized records fail closed, and a
-pending record must be confirmed before any workspace write.
+Transitions are atomic and monotonic. The only ordinary transitions are
+`pending -> failed | indeterminate | accepted | searchable`, `indeterminate ->
+accepted | searchable`, `accepted -> searchable`, and any non-retired state to
+`retired`; `searchable` and `retired` otherwise reject finalization. An exact,
+complete Hydra receipt first writes `accepted` plus the accepted-id subset and
+safe accepted/refused counts before readiness is reported. `accepted` remains
+accepted on readiness timeout/error and rejects every late `indeterminate` or
+`failed` write. `failed` may begin a new generation only through explicit
+confirmation. Keep exactly one fixed-size record per owner, count the initial
+begin, every failed-generation begin, and every indeterminate retry toward one
+lifetime maximum of eight, and refuse N+1.
+
+Define atomic `retryIndeterminate(owner, generation, attemptId, inputDigest,
+purpose, sourceKind, expectedIds, leaseId, leaseExpiresAt)`. It requires a newly
+issued and consumed preview token whose current session/workspace/purpose/input
+binding matches the unresolved record exactly, preserves the same generation,
+attempt id and expected ids, increments the attempt count, and installs one
+random retry lease ending no later than the request settlement deadline. While
+an unexpired lease exists every competing retry refuses; after expiry a fresh
+token may acquire a new lease. Retry submission keeps state `indeterminate`
+until an exact receipt promotes it to `accepted/searchable`; another uncertain
+result only clears its matching lease and may not alter confirmed counts.
+
+Never replace an unresolved generation. Completion/explicit Skip atomically
+retires it and decrements metadata `activeCount` exactly once; owner records are
+never deleted during normal runtime and have no TTL. Test cross-instance
+interleavings so accepted always wins an accepted-vs-indeterminate race, late
+failed/indeterminate updates cannot downgrade accepted/searchable, concurrent
+begin has one visible winner, only one retry lease is live, expired-lease retry
+requires a fresh matching token, a retry preserves ids, attempt N+1 refuses, an
+unresolved attempt cannot be displaced, retirement is idempotent, late finalize
+against a missing/retired/wrong-generation record refuses without recreation or
+metadata change, malformed/oversized records fail closed, and pending creation
+must be confirmed before any workspace write.
 
 - [ ] **Step 2: Add an API regression for delayed suggestions**
 
@@ -236,20 +274,25 @@ into empty. Private Ask must return evidence only through the authenticated
 workspace route.
 
 Resume must first call `GET /api/workspace/onboarding/attempt`. A visible
-pending/indeterminate attempt disables Store even after refresh, bfcache,
-another tab, or server process loss. The status route rechecks its bounded
-internal expected ids in the current account collection under one deadline:
-all completed becomes `searchable`; a known pre-submit/refused zero becomes
-`failed`; missing/partial state after a possibly dispatched POST remains
-`indeterminate`, never empty/failed. Only a conclusively failed attempt may
-enable a new Store automatically; ambiguous retry requires a new explicit user
-confirmation and deterministic-upsert copy, never an automatic request.
+pending/indeterminate/accepted attempt disables Store even after refresh,
+bfcache, another tab, or server process loss. The status route rechecks its
+bounded internal accepted/expected ids in the current account collection under
+one deadline: all accepted ids completed becomes `searchable`; an exact receipt
+or provider status proving acceptance remains `accepted` while indexing is
+incomplete; a known pre-submit/refused zero becomes `failed`; missing/partial
+state after a possibly dispatched POST may promote `pending` to `indeterminate`
+but can never demote `accepted`. Only a conclusively failed attempt may enable a
+new generation automatically. An ambiguous retry is a distinct explicit action:
+re-preview the retained text or reselected file, require a fresh matching token,
+acquire `retryIndeterminate` for the same record, and make one deterministic-
+upsert copy. It is never an automatic request and never replaces the unresolved
+record.
 
 - [ ] **Step 3: Run focused tests and verify RED**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts --maxWorkers=1`
 
-Expected: missing options/report fields.
+Expected: missing options/report fields, Redis store, and administration CLI.
 
 - [ ] **Step 4: Implement bounded indexing readiness**
 
@@ -275,46 +318,139 @@ workspace-scoped current claim views used by Ask. Exclude slot/synthetic,
 historical, retracted, contradicted, malformed, and missing-evidence claims;
 stable-sort and cap the provider reads and serialized response at three items.
 
-Implement `RedisOnboardingAttemptStore` through injected atomic scripts and
+Implement `RedisOnboardingAttemptStore` through audited atomic scripts and
 bounded abort/deadline-aware calls; every call must end inside its five-second
-phase. Parse only a dedicated `LACUNA_ONBOARDING_REDIS_URL`: require authenticated
-`rediss:` in production, never fall back to a generic/local Redis, Hydra token,
-session secret, or preview key. Parse a separate exact 32-byte
-`LACUNA_ONBOARDING_KEY` and derive owner/input digests with exact independent
-domains; rotation is destructive for unresolved attempts and must be coordinated
-only after they are resolved/skipped. The complete onboarding service is absent
-unless Redis, onboarding key, preview-token service, governed runner, and site
-origin are all valid. Document variable names/server-only/rotation behavior in
-`.env.example` without values.
+phase. The only Redis keys are exact fixed meta key
+`lacuna:onboarding:{attempt-v1}:meta` and server-derived owner key
+`lacuna:onboarding:{attempt-v1}:owner:<64-lowercase-hex-owner-digest>`. The common
+hash tag makes every meta+owner Lua mutation single-slot even on Redis Cluster.
+No route/client supplies a Redis key. Define HMAC framing as UTF-8 domain followed
+by each UTF-8 field prefixed with an unsigned four-byte big-endian byte length.
+Use exact independent domains `lacuna:onboarding:owner:v1\0`,
+`lacuna:onboarding:input:v1\0`, and
+`lacuna:onboarding:key-fingerprint:v1\0`; the fingerprint is the lowercase-hex
+HMAC of the zero-field fingerprint frame. The owner frame has exactly the
+trimmed/lowercased authenticated account email. The input frame has exactly
+purpose, source kind, and canonical token-bound input digest: text uses
+`sourceInputDigest(prepared)`, while file uses the SHA-256 of the same framed raw
+digest, normalized digest, parser version, type, and title carried by
+`FilePreviewBinding`. Workspace labels and all caller-provided owner identifiers
+are excluded.
 
-Use one bounded singleton client/connection, normal TLS certificate validation,
-fixed owner-key commands and audited scripts only—no `KEYS`, `SCAN`, pub/sub,
-caller-supplied key, or unbounded retry/reconnect queue. Cap serialized state at
-16 KiB, command attempts at one, and redact URL/host/credentials, keys, script
-arguments, workspace ids, and expected record ids from responses/logs/errors.
+The meta value is a strict at-most-2-KiB record
+`{ schema: 1, status: 'ready' | 'rotation_pending', keyFingerprint,
+activeCount, keyEpoch, createdAt, updatedAt, rotationNonce?,
+nextKeyFingerprint?, nextKeyEpoch? }`. `activeCount` is
+the number of non-retired owner records. Begin from a missing owner increments it;
+idempotent retirement decrements it once and replaces the owner value with its
+minimal permanent tombstone. Every runtime script first validates that meta
+exists, is schema 1/`ready`, has the current key fingerprint and a safe nonnegative
+count. Missing, malformed, fingerprint-mismatched, or `rotation_pending` meta is
+catastrophic operational unavailability: attempt-dependent routes return `503`,
+perform zero workspace writes, never synthesize/reset meta, and never treat the
+owner as absent. A completed account's session read remains authoritative and
+returns normally when its bounded cleanup observes this unavailability.
+
+Parse only a dedicated `LACUNA_ONBOARDING_REDIS_URL`: require authenticated
+`rediss:`, normal certificate/hostname validation, and a database dedicated to
+this feature; never fall back to generic/local Redis, Hydra, session, or preview
+credentials. The deployment must prove `maxmemory-policy=noeviction`, AOF enabled
+with `appendfsync=always`, and healthy persistence before initialization. Runtime
+performs a bounded five-second connect/auth/TLS, `PING`, persistence/policy, and
+meta/fingerprint probe before exposing mutation routes; probe failure leaves the
+complete onboarding service unavailable and never auto-initializes it. Use one
+bounded singleton connection, fixed-key commands and audited scripts only—no
+`KEYS`, `SCAN`, pub/sub, caller-supplied key, unbounded command retry, offline
+queue, or reconnect queue. Cap an owner value at 16 KiB and a meta value at 2 KiB,
+and redact URL/host/credentials, secrets/fingerprints, script arguments, owner/
+workspace ids, and expected record ids from responses/logs/errors.
+
+Parse `LACUNA_ONBOARDING_KEY` with no trimming: it is valid only when the source
+string is exactly 64 lowercase hexadecimal characters and decodes/round-trips to
+exactly 32 bytes. Reject uppercase, whitespace, prefixes, padding, base64, short,
+long, or ambiguous forms. `.env.example` documents it as server-only and gives
+the exact generation command:
+
+```bash
+node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex') + '\\n')"
+```
+
+It also documents destructive rotation and never contains a value.
+The complete onboarding service is absent unless Redis, meta probe, onboarding
+key, preview-token service, governed runner, and site origin are all valid.
+
+Implement `scripts/onboarding-redis-admin.ts` with redacted, noninteractive
+`keygen`, `init --confirm-dedicated-empty`, `audit`, and
+`rotate --confirm-destructive` subcommands and expose them as
+`onboarding:redis:keygen|init|audit|rotate` package scripts. Add
+`test:onboarding-redis` for the explicit production-script integration test.
+`init` refuses unless
+the dedicated database is empty, TLS/auth/persistence/noeviction checks pass, and
+the fixed meta `SET NX` exact readback succeeds; runtime never calls it. `audit`
+does no scan and reports only schema/status, key-fingerprint match, active count,
+key epoch, and policy/persistence health. Rotation reads a separate exact-format
+`LACUNA_ONBOARDING_NEXT_KEY`, and one Lua step changes meta to
+`rotation_pending` only when current fingerprint/version match and
+`activeCount === 0`; otherwise it atomically refuses. That state blocks all
+runtime operations. Because the service is dedicated, the confirmed command then
+uses `FLUSHDB SYNC` (not a scan), creates/read-backs fresh schema-1 `ready` meta
+with the next fingerprint and incremented key epoch, and zeroizes in-process old/
+next key buffers. Retired tombstones are permanent during normal operation; this
+audited zero-active destructive rotation is their only deletion path. A crash
+before or during reset leaves `rotation_pending` or missing meta and therefore
+runtime `503`; rerunning the explicit rotate command with both keys resumes by
+rotation nonce. No automatic init/recovery is permitted.
+
+The exact operator sequence is:
+
+```bash
+npm run onboarding:redis:init -- --confirm-dedicated-empty
+npm run onboarding:redis:audit
+LACUNA_ONBOARDING_NEXT_KEY=<64-lowercase-hex> npm run onboarding:redis:rotate -- --confirm-destructive
+npm run onboarding:redis:audit
+```
+
+`LACUNA_ONBOARDING_NEXT_KEY` is accepted only by the administration process,
+never by runtime composition, and is never printed. A rotation resume uses the
+same rotate command with current and next keys; `rotation_pending` validates its
+stored nonce/next fingerprint, while a post-flush missing-meta resume additionally
+requires an empty dedicated database. Any other missing-meta state requires an
+explicit incident decision and remains `503`.
 
 Consume Task 6's deadline-aware `HydraCloud.ingestApp`, `ConnectorRunner`,
 readiness, `maxRecords: 25`, and indeterminate-submission controls. The text
-store and onboarding-marked file import prepare their deterministic graph ids,
-atomically begin/read back `pending`, then submit. They atomically transition
-after exact receipt/readiness; transport uncertainty may move pending to
-`indeterminate` but can never downgrade confirmed acceptance. If handler
-settlement is lost, the pre-existing pending record remains the recovery source.
-File preview and import both require one exact purpose `onboarding | connector`,
-and that purpose is authenticated inside `FilePreviewBinding`; cross-purpose
-reuse refuses before runner/state work. Normal connector imports never replace
-the onboarding active record.
+store and onboarding-marked file import prepare deterministic graph ids,
+atomically begin/read back `pending`, then submit. A complete exact receipt first
+finalizes `accepted` with accepted ids/counts; readiness may then promote it to
+`searchable`. Transport uncertainty may move only `pending` to `indeterminate`.
+If handler settlement is lost, the pre-existing pending record remains the
+recovery source. File preview and import both require one exact purpose
+`onboarding | connector`, authenticated inside `FilePreviewBinding`; cross-
+purpose reuse refuses before runner/state work. Normal connector imports never
+replace the onboarding owner record.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts tests/unit/context-failure-api.test.ts --maxWorkers=1`
 
-Expected: all tests pass and private context failures remain fail-closed.
+Run against a disposable dedicated persistence/noeviction Redis configured in
+`LACUNA_TEST_ONBOARDING_REDIS_URL`:
+
+`npm run test:onboarding-redis`
+
+The integration test executes the production Lua, uses two independent clients,
+and covers meta absence/mismatch, begin/finalize/reconcile races, accepted versus
+indeterminate ordering, retry lease expiry/contention, retirement/late finalize,
+N+1 refusal, persistence/noeviction probe failure, init/audit, zero-active
+rotation, active-count rotation refusal, and crash/resume rotation states. Missing
+test Redis configuration fails this explicit gate rather than silently skipping.
+
+Expected: all tests pass and private context/Redis failures remain fail-closed.
 
 - [ ] **Step 6: Commit searchability readiness**
 
 ```bash
-git add src/api/onboarding-attempt-store.ts src/api/onboarding-attempt-redis.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts src/connectors/preview-token.ts api/index.ts web/src/api/client.ts web/src/api/connectors.ts .env.example package.json tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts
+git add src/api/onboarding-attempt-store.ts src/api/onboarding-attempt-redis.ts src/api/ingest.ts src/api/workspace.ts src/api/router.ts src/connectors/files.ts src/connectors/preview-token.ts api/index.ts web/src/api/client.ts web/src/api/connectors.ts scripts/onboarding-redis-admin.ts .env.example package.json package-lock.json tests/unit/ingest-source.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/integration/onboarding-attempt-redis.test.ts tests/unit/workspace-api.test.ts tests/unit/connectors-files.test.ts tests/unit/web-connectors-client.test.ts
 git commit -m "feat(onboarding): wait for first memory to become searchable"
 ```
 
@@ -335,6 +471,8 @@ git commit -m "feat(onboarding): wait for first memory to become searchable"
 - Test: `tests/unit/landing-session.test.ts`
 - Test: `tests/unit/auth-api.test.ts`
 - Test: `tests/unit/web-auth-client.test.ts`
+- Test: `tests/unit/onboarding-api.test.ts`
+- Test: `tests/unit/onboarding-attempt-store.test.ts`
 
 **Interfaces:**
 - Produces: `OnboardingPhase = 'workspace' | 'memory' | 'ask' | 'complete'`
@@ -362,9 +500,12 @@ it('resumes at Ask when an unfinished workspace has real questions', () => {
 
 Cover empty-workspace resume, durable completed legacy/current accounts, explicit
 skip before and after refresh, example insertion without storage, preview
-success, `indexing_pending`, ambiguous ingest, terminal answer completion, Back,
-refresh, and account-binding change. A session with `onboarded: true` is complete;
-workspace presence alone never is.
+success, durable `accepted` indexing, ambiguous ingest and same-generation retry,
+terminal answer completion, Back, refresh, and account-binding change. Cover
+completion cleanup failure followed by idempotent cleanup from a fresh process/
+session, permanent tombstone readback, and refusal of a late finalizer after
+retirement. A session with `onboarded: true` is complete; workspace presence
+alone never is.
 
 - [ ] **Step 2: Update source-contract tests for consequential steps**
 
@@ -388,10 +529,11 @@ accounts that already have `onboarded: true`. Post the workspace once, await a
 `session.refresh()` that returns the validated new `SessionState`, and transition
 to memory. On mount: `onboarded: true` is complete; otherwise workspace-null is
 workspace, and workspace-present first reads the durable active attempt.
-Pending/indeterminate resumes at reconciliation with Store disabled; searchable
-then fetches questions and resumes Ask; conclusively failed/no attempt resumes
-Memory; store/provider failure is an explicit retryable system state, never
-empty. Workspace failure stays in workspace; later
+Pending/indeterminate/accepted resumes at reconciliation with Store disabled;
+searchable then fetches questions and resumes Ask; conclusively failed/no
+attempt resumes Memory; retired while `onboarded: false`, missing/malformed meta,
+or store/provider failure is an explicit fail-closed system state, never empty.
+Workspace failure stays in workspace; later
 failures never call workspace creation again.
 
 Harden workspace creation itself with configured exact Origin, CSRF, current
@@ -405,10 +547,16 @@ Add exact `POST /api/workspace/onboarding/complete` body
 current session, session binding, and a bounded account mutation; persist
 `onboarded: true`, perform exact readback, then refresh. The UI calls it only
 after a qualifying evidence-backed private Ask or an explicit Skip and does not render completion
-until readback succeeds. After the account readback, atomically retire the
-owner's active attempt; if retirement is temporarily unavailable, the account's
-durable completed bit remains authoritative and a bounded cleanup retry may run
-inside the same request—never a detached background promise.
+until readback succeeds. After the account readback, atomically
+`retireIfActive` into the permanent owner tombstone and decrement meta active
+count exactly once. If retirement is temporarily unavailable, the account's
+durable completed bit remains authoritative. The completion request makes at
+most one bounded retry; every later authenticated session read/refresh for that
+completed account idempotently retries the same five-second cleanup until it
+observes the tombstone. Cleanup failure never changes the completed session
+response and never launches a detached background promise. A late ingestion
+finalizer for a missing, retired, wrong-attempt, or wrong-generation record must
+refuse and must never recreate the owner record or alter meta.
 
 - [ ] **Step 5: Implement paste preview and explicit store**
 
@@ -416,9 +564,12 @@ Keep title/text and the preview token in component memory only, call preview,
 render kept and unread sentences, and enable `STORE THIS MEMORY` only when the
 latest binding-matched preview has at least one kept statement. Send the exact
 same title/text plus `previewToken` to private ingest with
-`awaitSearchable: true` and `purpose: 'onboarding'`. For accepted-but-unsearchable or indeterminate results,
-retain the text, disable Store for that digest, enter a visible reconciliation
-state, and never automatically resubmit.
+`awaitSearchable: true` and `purpose: 'onboarding'`. For accepted-but-unsearchable
+or indeterminate results, retain the text, disable Store for that digest, enter a
+visible reconciliation state, and never automatically resubmit. A user-selected
+indeterminate retry first obtains a fresh same-purpose/input preview token, then
+acquires the bounded same-generation retry lease; token, digest, purpose, ids,
+generation, or lease mismatch performs zero workspace writes.
 
 `USE AN EXAMPLE` inserts labelled editable text only. `SKIP FOR NOW` calls the
 durable completion endpoint; only its exact-readback success transitions to a
@@ -456,14 +607,14 @@ response, browser Back, and bfcache restore.
 
 - [ ] **Step 8: Run state/UI tests and verify GREEN**
 
-Run: `npx vitest run tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-state.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/web-product-contracts.test.ts tests/unit/web-auth-client.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts --maxWorkers=1`
 
 Expected: all tests pass.
 
 - [ ] **Step 9: Commit the three-phase flow**
 
 ```bash
-git add src/auth/accounts.ts src/auth/store.ts src/api/router.ts web/src/onboarding/state.ts web/src/onboarding/Onboarding.tsx web/src/api/session.tsx web/src/landing/account-actions.ts tests/unit/onboarding-state.test.ts tests/unit/web-product-contracts.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts tests/unit/web-auth-client.test.ts
+git add src/auth/accounts.ts src/auth/store.ts src/api/router.ts web/src/onboarding/state.ts web/src/onboarding/Onboarding.tsx web/src/api/session.tsx web/src/landing/account-actions.ts tests/unit/onboarding-state.test.ts tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/web-product-contracts.test.ts tests/unit/landing-session.test.ts tests/unit/auth-api.test.ts tests/unit/web-auth-client.test.ts
 git commit -m "feat(onboarding): guide first memory into a real answer"
 ```
 
@@ -612,7 +763,7 @@ Run: `npm --prefix web run typecheck`
 
 Run: `npm run build`
 
-Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/landing-session.test.ts tests/unit/web-auth-client.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
+Run: `npx vitest run tests/unit/onboarding-api.test.ts tests/unit/onboarding-attempt-store.test.ts tests/unit/onboarding-redis-admin.test.ts tests/unit/onboarding-state.test.ts tests/unit/workspace-api.test.ts tests/unit/auth-api.test.ts tests/unit/landing-session.test.ts tests/unit/web-auth-client.test.ts tests/unit/web-connectors-client.test.ts tests/unit/web-product-contracts.test.ts --maxWorkers=1`
 
 Expected: all commands exit zero.
 
@@ -625,6 +776,12 @@ hard refresh, bfcache Back/Forward, visibility restore, and a second-tab session
 revalidation in the browser at desktop and 320 CSS-pixel layouts. Verify focus,
 keyboard operation, live errors, and file-reselection disclosure. Run the smoke
 script against the immutable deployment and capture only redacted states/statuses.
+Before the smoke, run `npm run onboarding:redis:audit` against the exact deployment
+configuration and `npm run test:onboarding-redis` against a disposable equivalent
+Redis; neither command may print endpoints, credentials, fingerprints, owner ids,
+input ids, or record bodies. Exercise a deployment with missing meta and prove
+onboarding mutation routes return `503` with zero workspace writes; restore only
+through the explicit audited administration command, never runtime initialization.
 
 - [ ] **Step 7: Commit the first-run gate**
 

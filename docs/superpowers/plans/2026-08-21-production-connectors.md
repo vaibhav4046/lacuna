@@ -333,6 +333,10 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 - Create: `src/connectors/webhook.ts`
 - Create: `src/connectors/webhook-store.ts`
 - Modify: `src/connectors/normalize.ts`
+- Modify: `src/connectors/types.ts`
+- Modify: `src/connectors/catalog.ts`
+- Modify: `src/connectors/run.ts`
+- Modify: `src/api/ingest.ts`
 - Modify: `src/api/router.ts`
 - Modify: `api/index.ts`
 - Modify: `src/server/server.ts`
@@ -340,6 +344,10 @@ git commit -m "feat(connectors): import pinned public HTTPS sources"
 - Modify: `.env.example`
 - Test: `tests/unit/connectors-webhook.test.ts`
 - Test: `tests/unit/connectors-api.test.ts`
+- Test: `tests/unit/connectors-normalize.test.ts`
+- Test: `tests/unit/connectors-catalog.test.ts`
+- Test: `tests/unit/connectors-run.test.ts`
+- Test: `tests/unit/ingest-source.test.ts`
 
 **Interfaces:**
 - Adds: `POST /api/workspace/connectors/webhook`
@@ -389,7 +397,7 @@ Use a dedicated exact-readback webhook record store. Persist endpoint first and 
 
 - [ ] **Step 6: Document configuration without a fallback secret**
 
-Add `LACUNA_WEBHOOK_KEY=` to `.env.example` with a generation command and explicit server-only/destructive-rotation note. A retired key must never be restored. In `api/index.ts`, instantiate the service only for a valid key and complete dependencies. Do not fall back to `HYDRA_TOKEN`, OAuth credentials, or a source-controlled constant. Redact webhook ids from application request/error paths. The linked project was verified with Fluid Compute enabled; set `api/index.ts` `maxDuration` to 180 seconds and re-verify after deployment. Stage a generous POST+webhook-path WAF rate-limit in log-only mode for traffic review; do not describe it as enforced until the staged rule is reviewed and published.
+Add `LACUNA_WEBHOOK_KEY=` to `.env.example` with a generation command and explicit server-only/destructive-rotation note. A retired key must never be restored. In `api/index.ts`, instantiate the service only for a valid key and complete dependencies. Do not fall back to `HYDRA_TOKEN`, OAuth credentials, or a source-controlled constant. Redact webhook ids from application request/error paths. The linked project was verified with Fluid Compute enabled and a current 300-second maximum; configure `api/index.ts` `maxDuration` to 270 seconds around a 240-second internal settlement budget, cap webhook ingestion at one 25-record batch, pass readiness ≤30 seconds, and re-verify after deployment. Stage a generous POST+webhook-path WAF rate-limit in log-only mode for traffic review; do not describe it as enforced until the staged rule is reviewed and published.
 
 - [ ] **Step 7: Run focused tests and verify GREEN**
 
@@ -400,7 +408,7 @@ Expected: all focused tests pass.
 - [ ] **Step 8: Commit signed webhooks**
 
 ```bash
-git add src/connectors/webhook.ts src/connectors/webhook-store.ts src/connectors/normalize.ts src/api/router.ts api/index.ts src/server/server.ts vercel.json .env.example tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts
+git add src/connectors/webhook.ts src/connectors/webhook-store.ts src/connectors/normalize.ts src/connectors/types.ts src/connectors/catalog.ts src/connectors/run.ts src/api/ingest.ts src/api/router.ts api/index.ts src/server/server.ts vercel.json .env.example tests/unit/connectors-webhook.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-normalize.test.ts tests/unit/connectors-catalog.test.ts tests/unit/connectors-run.test.ts tests/unit/ingest-source.test.ts
 git commit -m "feat(connectors): accept signed at-least-once webhooks"
 ```
 

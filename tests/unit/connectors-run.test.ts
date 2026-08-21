@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { IngestPreparedReport } from '../../src/api/ingest.js';
-import { IngestReadinessError } from '../../src/api/ingest.js';
+import { ingestPreparedSource, IngestReadinessError } from '../../src/api/ingest.js';
 import { ConnectorRunner, serializeConnectorRunResult } from '../../src/connectors/run.js';
 import type { ConnectorDocumentInput } from '../../src/connectors/normalize.js';
 import type {
@@ -11,6 +11,7 @@ import type {
   ConnectorStore,
   ConnectorWorkspaceState,
 } from '../../src/connectors/types.js';
+import { HydraCloud } from '../../src/hydra/cloud.js';
 import { HydraDecodeError, HydraTransportError } from '../../src/hydra/errors.js';
 
 const WORKSPACE = 'lacuna-ws-0123456789abcdef0123456789abcdef';
@@ -251,6 +252,74 @@ describe('ConnectorRunner', () => {
     });
     expect(JSON.stringify(result)).not.toContain('receipt');
     expect(JSON.stringify(result)).not.toContain('provider');
+  });
+
+  it('retains accepted work when the readiness request rejects after exact receipts', async () => {
+    const receiptIds: string[] = [];
+    const cloud = new HydraCloud(
+      {
+        baseUrl: 'https://api.example.invalid',
+        token: 'not-a-real-token',
+        database: 'lacuna',
+        collection: 'public-demo',
+      },
+      {
+        fetch: async (input, init) => {
+          const url = new URL(String(input));
+          if (init?.method === 'GET' && url.pathname.endsWith('/context/status')) {
+            throw new Error('provider readiness response: secret');
+          }
+          if (init?.method === 'GET') {
+            return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+          }
+          const form = init?.body as FormData;
+          const app = form.get('app_knowledge');
+          const records = typeof app === 'string' ? (JSON.parse(app) as { id: string }[]) : [];
+          receiptIds.push(...records.map((record) => record.id));
+          return Response.json({
+            data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
+          });
+        },
+      },
+    );
+    const store = new MemoryStore('stored', {
+      text: {
+        configuredAt: null,
+        lastAttemptAt: '2026-08-20T10:00:00.000Z',
+        lastSuccessAt: '2026-08-20T10:00:00.000Z',
+        lastFailure: null,
+        importedDocuments: 7,
+      },
+    });
+    const runner = new ConnectorRunner({
+      store,
+      now: tickingClock(),
+      ingest: (workspace, prepared, options) => ingestPreparedSource(cloud, workspace, prepared, options),
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text', documents: [document('Atlas', 'a: Atlas is owned by Priya.')], awaitSearchable: true,
+    });
+
+    expect(receiptIds).toHaveLength(4);
+    expect(result).toMatchObject({
+      acceptedDocuments: 1,
+      searchableDocuments: 0,
+      failedDocuments: 1,
+      acceptedRecords: 4,
+      refusedRecords: 0,
+      failure: 'readiness_failed',
+      observationWrite: 'stored',
+    });
+    expect(store.writes[0]?.next).toMatchObject({
+      importedDocuments: 8,
+      lastSuccessAt: expect.stringMatching(/^2026-08-21T10:00:00\.00\dZ$/u),
+      lastFailure: 'readiness_failed',
+    });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('provider readiness response');
+    expect(serialized).not.toContain('secret');
+    for (const id of receiptIds) expect(serialized).not.toContain(id);
   });
 
   it('maps refused receipts without returning their provider errors', async () => {

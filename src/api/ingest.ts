@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { HydraCloud, IngestResult, InspectedSource } from '../hydra/cloud.js';
+import type { HydraCloud, IngestResult, InspectedSource, SourceStatus } from '../hydra/cloud.js';
 import { INDEX_ID } from '../hydra/cloud-graph.js';
 import type { BuiltGraph, IndexRecord } from '../hydra/cloud-graph.js';
 import { buildCloudGraph, entityRecordId, toAppRecords, unwrapEnvelope } from '../hydra/cloud-graph.js';
@@ -392,7 +392,14 @@ async function preparedIngest(
   let searchable = false;
   let indexing: 'accepted' | 'completed' = 'accepted';
   if (options.awaitSearchable && receipts.accepted.length > 0) {
-    const statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, options.readiness);
+    let statuses: readonly SourceStatus[];
+    try {
+      statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, options.readiness);
+    } catch {
+      // No caller AbortSignal crosses this boundary. Once exact receipts exist,
+      // provider query, transport, and internal timeout errors are readiness failures.
+      throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
+    }
     if (statuses.some((status) => status.indexingStatus === 'failed' || status.indexingStatus === 'errored')) {
       throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
     }

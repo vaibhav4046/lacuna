@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
 import { FileAccounts } from '../../src/auth/accounts.js';
+import { hashPassword, verifyPassword } from '../../src/auth/password.js';
 import { AccountStore, newSessionVersion } from '../../src/auth/store.js';
 
 const CONFIG = {
@@ -72,6 +73,7 @@ beforeEach(async () => {
     secure: true,
     health: null,
     google: CONFIG,
+    legacyGoogleMigrationEmail: '  MIGRATE@example.com ',
   });
   server = createServer((request, response) => {
     const path = new URL(request.url ?? '/', 'http://test.invalid').pathname;
@@ -195,7 +197,9 @@ describe('Google OAuth HTTP boundary', () => {
   });
 
   it('does not merge a verified Google email into a password-owned account', async () => {
-    const email = 'person@example.com';
+    // This is the operator-allowlisted address. The allowlist must never
+    // override an explicit password-provider binding.
+    const email = 'migrate@example.com';
     const account = {
       email,
       passwordHash: 'not-a-real-hash',
@@ -245,7 +249,149 @@ describe('Google OAuth HTTP boundary', () => {
     expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith('lacuna_session='))).toBe(false);
     const attemptCookieName = Object.keys(held)[0];
     expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith(`${attemptCookieName}=`) && cookie.includes('Max-Age=0'))).toBe(true);
-    expect(store.find(email)).toMatchObject({ authProvider: 'password', providerSubject: null });
+    expect(store.find(email)).toEqual(account);
+  });
+
+  it('migrates only the explicitly allowlisted legacy account after verified Google OAuth', async () => {
+    const email = 'migrate@example.com';
+    const legacyPassword = 'legacy password under test';
+    const sessionVersion = newSessionVersion();
+    expect(store.create({
+      email,
+      passwordHash: await hashPassword(legacyPassword),
+      sessionVersion,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      workspace: 'Legacy workspace',
+      onboarded: true,
+      recoveryHash: 'legacy-recovery-hash',
+    })).not.toBeNull();
+    const oldSession = store.startSession(email, Date.now(), sessionVersion);
+
+    const begun = await start();
+    const held = cookies(begun);
+    const attempt = oauthAttempt(held);
+    if (attempt === null) throw new Error('OAuth proof missing');
+    vi.stubGlobal('fetch', (async (input: string | URL | Request) => {
+      if (String(input) === 'https://www.googleapis.com/oauth2/v3/certs') {
+        return Response.json({ keys: [publicJwk] }, { headers: { 'cache-control': 'max-age=3600' } });
+      }
+      return Response.json({ id_token: idToken({
+        aud: CONFIG.clientId,
+        iss: 'https://accounts.google.com',
+        exp: Math.floor(Date.now() / 1_000) + 600,
+        sub: 'migrated-google-subject',
+        email,
+        email_verified: true,
+        nonce: attempt.nonce,
+      }) });
+    }) as unknown as typeof fetch);
+
+    const response = await nativeFetch(`${base}/api/auth/google/callback?state=${encodeURIComponent(attempt.state)}&code=one-time-code`, {
+      redirect: 'manual',
+      headers: { cookie: cookieHeader(held) },
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/app/dash');
+    expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith('lacuna_session='))).toBe(true);
+    const migrated = store.find(email);
+    expect(migrated).toMatchObject({
+      email,
+      authProvider: 'google',
+      providerSubject: 'migrated-google-subject',
+      recoveryHash: null,
+      workspace: 'Legacy workspace',
+      onboarded: true,
+    });
+    expect(migrated?.sessionVersion).not.toBe(sessionVersion);
+    expect(await verifyPassword(legacyPassword, migrated?.passwordHash ?? '')).toBe(false);
+    expect(store.sessionFor(oldSession, Date.now())).toBeNull();
+  });
+
+  it('refuses an allowlisted legacy row that already carries a provider subject', async () => {
+    const email = 'migrate@example.com';
+    const partial = {
+      email,
+      passwordHash: await hashPassword('legacy password under test'),
+      providerSubject: 'partially-bound-subject',
+      sessionVersion: newSessionVersion(),
+      createdAt: '2026-08-01T00:00:00.000Z',
+      workspace: 'Legacy workspace',
+      onboarded: true,
+      recoveryHash: null,
+    };
+    expect(store.create(partial)).not.toBeNull();
+
+    const begun = await start();
+    const held = cookies(begun);
+    const attempt = oauthAttempt(held);
+    if (attempt === null) throw new Error('OAuth proof missing');
+    vi.stubGlobal('fetch', (async (input: string | URL | Request) => {
+      if (String(input) === 'https://www.googleapis.com/oauth2/v3/certs') {
+        return Response.json({ keys: [publicJwk] }, { headers: { 'cache-control': 'max-age=3600' } });
+      }
+      return Response.json({ id_token: idToken({
+        aud: CONFIG.clientId,
+        iss: 'https://accounts.google.com',
+        exp: Math.floor(Date.now() / 1_000) + 600,
+        sub: 'different-google-subject',
+        email,
+        email_verified: true,
+        nonce: attempt.nonce,
+      }) });
+    }) as unknown as typeof fetch);
+
+    const response = await nativeFetch(`${base}/api/auth/google/callback?state=${encodeURIComponent(attempt.state)}&code=one-time-code`, {
+      redirect: 'manual',
+      headers: { cookie: cookieHeader(held) },
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/signin?google=legacy_unbound');
+    expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith('lacuna_session='))).toBe(false);
+    expect(store.find(email)).toEqual(partial);
+  });
+
+  it('keeps an unapproved legacy account fail-closed after verified Google OAuth', async () => {
+    const email = 'not-approved@example.com';
+    expect(store.create({
+      email,
+      passwordHash: await hashPassword('legacy password under test'),
+      createdAt: '2026-08-01T00:00:00.000Z',
+      workspace: null,
+      onboarded: false,
+    })).not.toBeNull();
+
+    const begun = await start();
+    const held = cookies(begun);
+    const attempt = oauthAttempt(held);
+    if (attempt === null) throw new Error('OAuth proof missing');
+    vi.stubGlobal('fetch', (async (input: string | URL | Request) => {
+      if (String(input) === 'https://www.googleapis.com/oauth2/v3/certs') {
+        return Response.json({ keys: [publicJwk] }, { headers: { 'cache-control': 'max-age=3600' } });
+      }
+      return Response.json({ id_token: idToken({
+        aud: CONFIG.clientId,
+        iss: 'https://accounts.google.com',
+        exp: Math.floor(Date.now() / 1_000) + 600,
+        sub: 'unapproved-google-subject',
+        email,
+        email_verified: true,
+        nonce: attempt.nonce,
+      }) });
+    }) as unknown as typeof fetch);
+
+    const response = await nativeFetch(`${base}/api/auth/google/callback?state=${encodeURIComponent(attempt.state)}&code=one-time-code`, {
+      redirect: 'manual',
+      headers: { cookie: cookieHeader(held) },
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/signin?google=legacy_unbound');
+    expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith('lacuna_session='))).toBe(false);
+    const unchanged = store.find(email);
+    expect(unchanged?.authProvider).toBeUndefined();
+    expect(unchanged?.providerSubject).toBeUndefined();
   });
 
 });

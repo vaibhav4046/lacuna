@@ -268,6 +268,9 @@ const api = new ApiRouter({
       redirectUri: `${SITE_ORIGIN}/api/auth/google/callback`,
     },
   }),
+  ...(process.env['LACUNA_LEGACY_GOOGLE_MIGRATION_EMAIL'] === undefined ? {} : {
+    legacyGoogleMigrationEmail: process.env['LACUNA_LEGACY_GOOGLE_MIGRATION_EMAIL'],
+  }),
 });
 
 /**

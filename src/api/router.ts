@@ -317,6 +317,12 @@ export interface ApiOptions {
    * and every test works without ever touching Google.
    */
   readonly google?: GoogleConfig;
+  /**
+   * One legacy address an operator has explicitly approved for Google
+   * migration. The verified OAuth identity must still return this exact email.
+   * Remove the setting immediately after the one-time migration succeeds.
+   */
+  readonly legacyGoogleMigrationEmail?: string;
   /** Stable server-only key used to sign opaque graph pagination cursors. */
   readonly graphCursorKey?: string;
   readonly now?: () => number;
@@ -571,6 +577,7 @@ export class ApiRouter {
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
+  readonly #legacyGoogleMigrationEmail: string | undefined;
   readonly #graphCursorKey: string;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
@@ -607,6 +614,7 @@ export class ApiRouter {
     this.#relations = options.relations;
     this.#expansion = options.expansion;
     this.#google = options.google;
+    this.#legacyGoogleMigrationEmail = normaliseEmail(options.legacyGoogleMigrationEmail) ?? undefined;
     // A process-local key keeps development and tests safe by default. Hosted
     // deployments inject a stable secret so a cursor survives another
     // serverless instance without ever exposing the secret in the envelope.
@@ -2208,12 +2216,53 @@ export class ApiRouter {
         if (account === null) return this.#redirect(response, '/signin?google=store', clear);
       }
 
-      // A verified address is not enough to merge providers. Existing legacy,
-      // password, or differently-bound Google records all fail closed until a
-      // separately verified linking/migration flow exists.
+      // A verified address alone is not enough to merge providers. The only
+      // exception is a one-time operator-approved migration for one exact
+      // legacy address. Google still proves the address and stable subject;
+      // the server-side allowlist supplies the separate administrative proof.
       const binding = googleBinding(account, identity);
       if (!binding.allowed) {
-        return this.#redirect(response, `/signin?google=${binding.failure}`, clear);
+        if (
+          binding.failure !== 'legacy_unbound'
+          || this.#legacyGoogleMigrationEmail !== identity.email
+        ) {
+          return this.#redirect(response, `/signin?google=${binding.failure}`, clear);
+        }
+
+        // Resolve the expensive Argon2 decoy before the eligibility re-read so
+        // no local computation widens the remaining non-atomic write window.
+        const replacementPasswordHash = await decoy();
+        const replacementSessionVersion = newSessionVersion();
+
+        // Re-read at the write boundary. HydraDB does not offer conditional
+        // document updates, so this cannot be a CAS, but it prevents a stale
+        // callback from knowingly replacing a record whose credential epoch or
+        // provider changed after the first read. A partially bound legacy row
+        // is also refused instead of guessed into ownership.
+        const current = await this.#store.find(identity.email);
+        if (
+          current === null
+          || current.authProvider !== undefined
+          || (current.providerSubject !== undefined && current.providerSubject !== null)
+          || (current.sessionVersion ?? '') !== (account.sessionVersion ?? '')
+        ) {
+          return this.#redirect(response, '/signin?google=legacy_unbound', clear);
+        }
+
+        // Migration makes Google the sole credential. Rotating the credential
+        // epoch invalidates every legacy session; replacing both password
+        // recovery paths prevents an old secret from remaining a hidden second
+        // provider after the record says it is Google-owned.
+        const migrated: Account = {
+          ...current,
+          passwordHash: replacementPasswordHash,
+          authProvider: 'google',
+          providerSubject: identity.subject,
+          sessionVersion: replacementSessionVersion,
+          recoveryHash: null,
+        };
+        await this.#store.update(migrated);
+        account = migrated;
       }
 
       const token = await this.#store.startSession(account.email, this.#now(), account.sessionVersion);

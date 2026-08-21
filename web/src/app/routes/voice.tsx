@@ -10,6 +10,7 @@ const FAILURE_COPY = {
   permission_denied: 'Microphone permission was not granted. Type the question below or retry permission.',
   rate_limited: 'Voice is temporarily rate limited. The typed question path is still available.',
   provider_unavailable: 'The speech provider is unavailable. No audio is being simulated.',
+  playback_blocked: 'Your browser blocked sound' + '. Select Enable sound to retry this real answer.',
   interrupted: 'The voice run was interrupted. Partial speech was not sent to memory.',
   error: 'Voice did not complete. The typed question path is still available.',
 } as const;
@@ -48,7 +49,12 @@ export function VoiceRoute() {
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 'clamp(24px, 5vw, 64px)', alignItems: 'center' }}>
-        <VoiceOrb state={snapshot.state} signal={snapshot.signal} rms={snapshot.rms} waveform={snapshot.waveform} />
+        <VoiceOrb
+          state={snapshot.state}
+          signal={snapshot.signal}
+          rms={snapshot.rms}
+          waveform={snapshot.playbackAnalysis === 'unavailable' ? [] : snapshot.waveform}
+        />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', padding: '13px 15px' }}>
@@ -60,6 +66,9 @@ export function VoiceRoute() {
           <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
             <span style={label}>{VOICE_STATE_COPY[snapshot.state].status.toUpperCase()}</span>
             <span style={{ fontSize: '15px', color: '#BDBDBD', lineHeight: 1.65 }}>{VOICE_STATE_COPY[snapshot.state].detail}</span>
+            {snapshot.state === 'SPEAKING' && snapshot.playbackAnalysis === 'unavailable' ? (
+              <span style={{ ...label, color: '#FFB829' }}>AUDIO PLAYING · METER UNAVAILABLE</span>
+            ) : null}
             {snapshot.failure === null ? null : (
               <span role="alert" style={{ fontSize: '13.5px', color: '#FFB829', lineHeight: 1.6 }}>
                 {FAILURE_COPY[snapshot.failure]}
@@ -90,7 +99,9 @@ export function VoiceRoute() {
                   <button className="hv-edge35" onClick={() => void controller.retry()} style={{ ...button, background: 'none', color: '#BDBDBD', border: '1px solid rgba(255,255,255,0.16)' }}>RETRY</button>
                 ) : null}
                 {canReplay ? (
-                  <button className="hv-edge35" onClick={() => void controller.replay()} style={{ ...button, background: 'none', color: '#BDBDBD', border: '1px solid rgba(255,255,255,0.16)' }}>PLAY ANSWER</button>
+                  <button className="hv-edge35" onClick={() => void controller.replay()} style={{ ...button, background: 'none', color: '#BDBDBD', border: '1px solid rgba(255,255,255,0.16)' }}>
+                    {snapshot.failure === 'playback_blocked' && canReplay ? 'ENABLE SOUND' : 'PLAY ANSWER'}
+                  </button>
                 ) : null}
               </>
             )}
@@ -101,7 +112,7 @@ export function VoiceRoute() {
           ) : null}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 18px' }}>
-            <span style={label}>LEVEL</span><span style={{ ...label, color: '#BDBDBD' }}>{snapshot.signal === null ? '—' : snapshot.rms.toFixed(3)}</span>
+            <span style={label}>LEVEL</span><span style={{ ...label, color: '#BDBDBD' }}>{snapshot.playbackAnalysis === 'unavailable' || snapshot.signal === null ? '—' : snapshot.rms.toFixed(3)}</span>
             <span style={label}>SIGNAL</span><span style={{ ...label, color: '#BDBDBD' }}>{snapshot.signal?.toUpperCase() ?? 'NONE'}</span>
           </div>
         </div>

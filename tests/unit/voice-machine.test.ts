@@ -51,6 +51,7 @@ describe('voice states', () => {
     for (const state of VOICE_STATES) {
       for (const event of VOICE_EVENTS) expect(advanceVoice(state, event)).toBe(advance(state, event));
     }
+    expect(advanceVoice('SPEAKING', 'fail')).toBe('ERROR');
   });
 
   it('has facts and a stage decision for every state', () => {

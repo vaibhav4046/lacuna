@@ -75,7 +75,7 @@ export const VOICE_STATE_COPY: Readonly<Record<VoiceState, { readonly status: st
   ANSWERED: { status: 'Answered', detail: 'The context kernel returned a supported answer and its evidence. Playback has not started.' },
   ABSTAINED: { status: 'No evidence', detail: 'The context kernel refused to answer because the workspace did not support one.' },
   CONTRADICTED: { status: 'Contradicted', detail: 'The context kernel found live claims that disagree and preserved their evidence.' },
-  SPEAKING: { status: 'Speaking', detail: 'Real audio playback is active. Its analyser is the only signal moving the orb.' },
+  SPEAKING: { status: 'Speaking', detail: 'Real audio playback is active. The orb moves only when its analyser is available.' },
   INTERRUPTED: { status: 'Interrupted', detail: 'Capture, query or playback was cancelled. Partial speech was not sent to the context kernel.' },
   RATE_LIMITED: { status: 'Rate limited', detail: 'The server or speech provider refused more work. No simulated fallback is playing.' },
   PERMISSION_DENIED: { status: 'Microphone blocked', detail: 'The browser denied microphone access. Typed questions remain available.' },

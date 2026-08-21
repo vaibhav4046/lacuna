@@ -106,6 +106,14 @@ describe('web product contracts', () => {
     expect(shell).not.toContain('animation:');
   });
 
+  it('offers truthful recovery when browser playback is blocked or unmetered', () => {
+    const voice = readFileSync(new URL('../../web/src/app/routes/voice.tsx', import.meta.url), 'utf8');
+    expect(voice).toContain("playback_blocked: 'Your browser blocked sound'");
+    expect(voice).toContain("'ENABLE SOUND'");
+    expect(voice).toContain("snapshot.playbackAnalysis === 'unavailable'");
+    expect(voice).toContain('AUDIO PLAYING · METER UNAVAILABLE');
+  });
+
   it('uses the corpus predicate contract for deployed agent Context Packs', () => {
     const api = readFileSync(new URL('../../api/index.ts', import.meta.url), 'utf8');
     expect(api).toContain("import { PREDICATE_NAMES } from '../src/corpus/types.js'");

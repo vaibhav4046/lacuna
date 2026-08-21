@@ -17,6 +17,7 @@ const SCRIBE_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
 const SCRIBE_MODEL = 'scribe_v2_realtime';
 const TARGET_SAMPLE_RATE = 16_000;
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+const REQUEST_ACQUISITION_TIMEOUT_MS = 15_000;
 
 function frameFrom(analyser: AnalyserNode, buffer: Float32Array<ArrayBuffer>): SignalFrame {
   analyser.getFloatTimeDomainData(buffer);
@@ -125,28 +126,63 @@ class LiveMicrophone implements PcmMicrophone {
   }
 }
 
-function failureForStatus(status: number): RuntimeFailure {
+function providerFailureForStatus(status: number): RuntimeFailure {
   if (status === 429) return 'rate_limited';
-  if (status === 401 || status === 403 || status === 503) return 'provider_unavailable';
+  if (status === 503) return 'provider_unavailable';
   return 'error';
 }
 
-async function jsonRequest<T>(path: string, body: unknown, signal: AbortSignal): Promise<T> {
-  let response: Response;
+function queryFailureForStatus(status: number): RuntimeFailure {
+  return status === 429 ? 'rate_limited' : 'error';
+}
+
+interface RequestAcquisition {
+  readonly signal: AbortSignal;
+  dispose(): void;
+}
+
+/** Bound response headers and body acquisition, but never real audio playback. */
+function acquireRequest(signal: AbortSignal): RequestAcquisition {
+  const control = new AbortController();
+  const relayAbort = () => control.abort();
+  if (signal.aborted) control.abort();
+  else signal.addEventListener('abort', relayAbort, { once: true });
+  const timeout = globalThis.setTimeout(() => control.abort(), REQUEST_ACQUISITION_TIMEOUT_MS);
+  return {
+    signal: control.signal,
+    dispose: () => {
+      globalThis.clearTimeout(timeout);
+      signal.removeEventListener('abort', relayAbort);
+    },
+  };
+}
+
+async function jsonRequest<T>(
+  path: string,
+  body: unknown,
+  signal: AbortSignal,
+  failureForStatus: (status: number) => RuntimeFailure,
+): Promise<T> {
+  const acquisition = acquireRequest(signal);
   try {
-    response = await fetch(path, {
-      method: 'POST', credentials: 'same-origin', signal,
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...csrfHeaders() },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error');
-  }
-  if (!response.ok) throw new VoiceRuntimeError(failureForStatus(response.status));
-  try {
-    return await response.json() as T;
-  } catch {
-    throw new VoiceRuntimeError('error');
+    let response: Response;
+    try {
+      response = await fetch(path, {
+        method: 'POST', credentials: 'same-origin', signal: acquisition.signal,
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...csrfHeaders() },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error');
+    }
+    if (!response.ok) throw new VoiceRuntimeError(failureForStatus(response.status));
+    try {
+      return await response.json() as T;
+    } catch {
+      throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error');
+    }
+  } finally {
+    acquisition.dispose();
   }
 }
 
@@ -154,10 +190,17 @@ class ScribeSession implements TranscriptSession {
   readonly #socket: WebSocket;
   readonly #removePcm: () => void;
   readonly #removeAbort: () => void;
+  readonly #markClosedLocally: () => void;
   #closed = false;
 
-  constructor(socket: WebSocket, microphone: PcmMicrophone, signal: AbortSignal) {
+  constructor(
+    socket: WebSocket,
+    microphone: PcmMicrophone,
+    signal: AbortSignal,
+    markClosedLocally: () => void,
+  ) {
     this.#socket = socket;
+    this.#markClosedLocally = markClosedLocally;
     this.#removePcm = microphone.onPcm((chunk) => {
       if (!this.#closed && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ message_type: 'input_audio_chunk', audio_base_64: chunk }));
@@ -182,12 +225,13 @@ class ScribeSession implements TranscriptSession {
     this.#removePcm();
     this.#removeAbort();
     if (this.#socket.readyState === WebSocket.OPEN || this.#socket.readyState === WebSocket.CONNECTING) {
+      this.#markClosedLocally();
       this.#socket.close(1000, 'client complete');
     }
   }
 }
 
-async function playAudio(response: Response, handlers: PlaybackHandlers, signal: AbortSignal): Promise<void> {
+async function acquireAudio(response: Response, callerSignal: AbortSignal): Promise<Blob> {
   const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.toLowerCase();
   if (contentType !== 'audio/mpeg') {
     throw new VoiceRuntimeError('provider_unavailable');
@@ -209,7 +253,7 @@ async function playAudio(response: Response, handlers: PlaybackHandlers, signal:
     }
   } catch (error) {
     if (error instanceof VoiceRuntimeError) throw error;
-    throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'provider_unavailable');
+    throw new VoiceRuntimeError(callerSignal.aborted ? 'interrupted' : 'provider_unavailable');
   }
   const blob = new Blob(chunks, { type: contentType });
   if (blob.size === 0) throw new VoiceRuntimeError('provider_unavailable');
@@ -224,7 +268,10 @@ async function playAudio(response: Response, handlers: PlaybackHandlers, signal:
   if (!hasMp3Prefix(prefix)) {
     throw new VoiceRuntimeError('provider_unavailable');
   }
+  return blob;
+}
 
+async function playAudio(blob: Blob, handlers: PlaybackHandlers, signal: AbortSignal): Promise<void> {
   const url = URL.createObjectURL(blob);
   const audioElement = new Audio(url);
   const audioContext = new AudioContext({ latencyHint: 'interactive' });
@@ -252,27 +299,42 @@ async function playAudio(response: Response, handlers: PlaybackHandlers, signal:
   audioElement.addEventListener('playing', onPlaying);
 
   try {
-    await audioContext.resume();
     await new Promise<void>((resolve, reject) => {
+      let finished = false;
       const cleanup = () => {
         audioElement.removeEventListener('ended', ended);
         audioElement.removeEventListener('error', failed);
         signal.removeEventListener('abort', aborted);
       };
-      const ended = () => { cleanup(); resolve(); };
-      const failed = () => { cleanup(); reject(new VoiceRuntimeError('provider_unavailable')); };
+      const finish = (error?: VoiceRuntimeError) => {
+        if (finished) return;
+        finished = true;
+        cleanup();
+        if (error === undefined) resolve();
+        else reject(error);
+      };
+      const ended = () => finish();
+      const failed = () => finish(new VoiceRuntimeError('error'));
       const aborted = () => {
         audioElement.pause();
-        cleanup();
-        reject(new VoiceRuntimeError('interrupted'));
+        finish(new VoiceRuntimeError('interrupted'));
       };
       audioElement.addEventListener('ended', ended, { once: true });
       audioElement.addEventListener('error', failed, { once: true });
       signal.addEventListener('abort', aborted, { once: true });
-      void audioElement.play().catch(() => {
-        cleanup();
-        reject(new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error'));
-      });
+      if (signal.aborted) {
+        aborted();
+        return;
+      }
+      void audioContext.resume()
+        .then(() => {
+          if (signal.aborted) {
+            aborted();
+            return;
+          }
+          return audioElement.play();
+        })
+        .catch(() => finish(new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error')));
     });
   } finally {
     cancelAnimationFrame(raf);
@@ -317,7 +379,9 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
   }
 
   async singleUseToken(signal: AbortSignal): Promise<string> {
-    const result = await jsonRequest<unknown>(`${this.#base}/voice/token`, {}, signal);
+    const result = await jsonRequest<unknown>(
+      `${this.#base}/voice/token`, {}, signal, providerFailureForStatus,
+    );
     if (typeof result !== 'object' || result === null || Array.isArray(result)) {
       throw new VoiceRuntimeError('provider_unavailable');
     }
@@ -347,9 +411,11 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
     return new Promise<TranscriptSession>((resolve, reject) => {
       let session: ScribeSession | null = null;
       let settled = false;
+      let closedLocally = false;
       let timeout = 0;
       const closeHandshakeSocket = () => {
         if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          closedLocally = true;
           socket.close(1000, 'client cancelled');
         }
       };
@@ -382,7 +448,7 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
           if (settled) return;
           settled = true;
           window.clearTimeout(timeout);
-          session = new ScribeSession(socket, pcm, signal);
+          session = new ScribeSession(socket, pcm, signal, () => { closedLocally = true; });
           signal.removeEventListener('abort', abort);
           resolve(session);
         } else if (message.kind === 'partial') handlers.partial(message.text);
@@ -393,10 +459,10 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
         if (!settled) rejectHandshake('provider_unavailable');
         else handlers.failure('provider_unavailable');
       });
-      socket.addEventListener('close', (event) => {
+      socket.addEventListener('close', () => {
         window.clearTimeout(timeout);
         if (!settled) rejectHandshake(signal.aborted ? 'interrupted' : 'provider_unavailable');
-        else if (session !== null && event.code !== 1000 && !signal.aborted) {
+        else if (session !== null && !closedLocally && !signal.aborted) {
           handlers.failure('provider_unavailable');
         }
       });
@@ -404,21 +470,30 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
   }
 
   query(committedTranscript: string, signal: AbortSignal): Promise<PlannedVoiceAnswer> {
-    return jsonRequest<PlannedVoiceAnswer>(`${this.#base}/query`, { question: committedTranscript }, signal);
+    return jsonRequest<PlannedVoiceAnswer>(
+      `${this.#base}/query`, { question: committedTranscript }, signal, queryFailureForStatus,
+    );
   }
 
   async speak(spokenAnswer: string, handlers: PlaybackHandlers, signal: AbortSignal): Promise<void> {
-    let response: Response;
+    const acquisition = acquireRequest(signal);
+    let audio: Blob;
     try {
-      response = await fetch(`${this.#base}/voice/speech`, {
-        method: 'POST', credentials: 'same-origin', signal,
-        headers: { Accept: 'audio/mpeg', 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ text: spokenAnswer }),
-      });
-    } catch {
-      throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'provider_unavailable');
+      let response: Response;
+      try {
+        response = await fetch(`${this.#base}/voice/speech`, {
+          method: 'POST', credentials: 'same-origin', signal: acquisition.signal,
+          headers: { Accept: 'audio/mpeg', 'Content-Type': 'application/json', ...csrfHeaders() },
+          body: JSON.stringify({ text: spokenAnswer }),
+        });
+      } catch {
+        throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'provider_unavailable');
+      }
+      if (!response.ok) throw new VoiceRuntimeError(providerFailureForStatus(response.status));
+      audio = await acquireAudio(response, signal);
+    } finally {
+      acquisition.dispose();
     }
-    if (!response.ok) throw new VoiceRuntimeError(failureForStatus(response.status));
-    await playAudio(response, handlers, signal);
+    await playAudio(audio, handlers, signal);
   }
 }

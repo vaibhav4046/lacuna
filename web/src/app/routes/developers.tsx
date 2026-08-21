@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import { CONNECTOR_GROUPS, dotFor } from '../../design/connectors';
@@ -6,6 +6,7 @@ import { icStyle } from '../../design/icons';
 import { MONO } from '../../design/mark';
 import { DEVCODE } from '../../landing/copy';
 import { CLI_COMMAND_NAMES, MCP_TOOLS_LIST_REQUEST, mcpToolNames } from '../product-contracts';
+import { McpProbeCoordinator, mcpServerStatus } from '../mcp-status';
 
 /**
  * The DEVELOPERS group: MCP, SDK · API, CLI and Connectors.
@@ -43,7 +44,9 @@ export function Mcp() {
   const [probe, setProbe] = useState<'idle' | 'running' | string>('idle');
   const [copied, setCopied] = useState(false);
   const [tools, setTools] = useState<readonly string[] | null>(null);
+  const probes = useMemo(() => new McpProbeCoordinator(), []);
   const endpoint = `${window.location.origin}/mcp`;
+  const serverStatus = mcpServerStatus(tools);
 
   const config = `{
   "mcpServers": {
@@ -54,34 +57,33 @@ export function Mcp() {
   }
 }`;
 
-  async function listTools(showResult: boolean) {
-    if (showResult) setProbe('running');
-    try {
-      const names = await readMcpToolNames();
+  const listTools = useCallback(async (showResult: boolean) => {
+    if (showResult) {
+      setProbe('running');
+      setTools(null);
+    }
+    const result = await probes.run(readMcpToolNames);
+    if (result.kind === 'superseded') return;
+    if (result.kind === 'success') {
+      const names = result.value;
       setTools(names);
       if (showResult) setProbe(names.length > 0 ? `${names.length} TOOLS · ${names.join(' · ')}` : 'THE SERVER ANSWERED WITH NO TOOLS');
-    } catch {
+    } else {
       setTools([]);
       if (showResult) setProbe('THE SERVER DID NOT ANSWER');
     }
-  }
+  }, [probes]);
 
   useEffect(() => {
-    const control = new AbortController();
-    void readMcpToolNames(control.signal).then(
-      (names) => setTools(names),
-      () => {
-        if (!control.signal.aborted) setTools([]);
-      },
-    );
-    return () => control.abort();
-  }, []);
+    void listTools(false);
+    return () => probes.dispose();
+  }, [listTools, probes]);
 
   return (
     <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
       <div style={{ border: '1px solid rgba(128,82,255,0.4)', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#8052FF' }}></span>
-        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#FFFFFF' }}>SERVER · LIVE</span>
+        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: serverStatus === 'live' ? '#8052FF' : serverStatus === 'checking' ? '#7A7A7A' : '#FFB829' }}></span>
+        <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.18em', color: '#FFFFFF' }}>SERVER · {serverStatus.toUpperCase()}</span>
         <span style={{ fontFamily: MONO, fontSize: '11px', color: '#B79BFF' }}>{endpoint}</span>
       </div>
 

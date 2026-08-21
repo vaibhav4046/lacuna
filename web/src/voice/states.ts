@@ -40,15 +40,15 @@ const TRANSITIONS: Readonly<Record<VoiceState, Edges>> = {
   },
   ANSWERED: {
     playback_started: 'SPEAKING', throttle: 'RATE_LIMITED', provider_fail: 'PROVIDER_UNAVAILABLE',
-    interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+    interrupt: 'INTERRUPTED', fail: 'ERROR', retry: 'READY', reset: 'READY',
   },
   ABSTAINED: {
     playback_started: 'SPEAKING', throttle: 'RATE_LIMITED', provider_fail: 'PROVIDER_UNAVAILABLE',
-    interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+    interrupt: 'INTERRUPTED', fail: 'ERROR', retry: 'READY', reset: 'READY',
   },
   CONTRADICTED: {
     playback_started: 'SPEAKING', throttle: 'RATE_LIMITED', provider_fail: 'PROVIDER_UNAVAILABLE',
-    interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+    interrupt: 'INTERRUPTED', fail: 'ERROR', retry: 'READY', reset: 'READY',
   },
   SPEAKING: {
     playback_finished: 'READY', interrupt: 'INTERRUPTED', throttle: 'RATE_LIMITED',

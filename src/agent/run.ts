@@ -347,9 +347,10 @@ export async function runAgents(options: RunOptions): Promise<AgentRun> {
     if (options.source.subjects !== undefined && deadline - now() > 0) {
       try {
         const listed = await options.source.subjects(Math.max(1, Math.min(RESOLVER_TIMEOUT_MS, deadline - now())));
-        if (listed.value.length > 0) known = listed.value;
+        known = listed.value;
       } catch {
-        // A supplied bounded fallback is preferable to inventing a subject.
+        await transition('FAILED', 'the workspace subject index did not answer', { error: 'context_unavailable' });
+        return run;
       }
     }
 

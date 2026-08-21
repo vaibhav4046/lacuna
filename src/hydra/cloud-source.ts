@@ -8,6 +8,7 @@ import {
   type IndexRecord,
 } from './cloud-graph.js';
 import { emptySubject, orderMentions, type HydraSource, type Read } from './source.js';
+import { HydraDecodeError } from './errors.js';
 import { RetrievalDecodeError } from '../retrieval/errors.js';
 import type { DependentEdge, EntityHead } from '../retrieval/decode.js';
 import type { EvidenceRecord, QueryTrace, SubjectView } from '../retrieval/types.js';
@@ -82,7 +83,11 @@ export class CloudSource implements HydraSource {
       return { record: null, traces: [trace, ...indexTraces] };
     }
 
-    const record = parseEntity(unwrapEnvelope(source.envelope), name);
+    const text = unwrapEnvelope(source.envelope);
+    if (text === null) {
+      throw new HydraDecodeError('inspect response contains an unreadable stored entity envelope');
+    }
+    const record = parseEntity(text, name);
     this.#records.set(id, record);
     return { record, traces: [trace] };
   }
@@ -99,8 +104,20 @@ export class CloudSource implements HydraSource {
       ms: Math.round((performance.now() - started) * 10) / 10,
       readEpoch: null,
     };
-    const parsed = source === null ? null : parseIndex(unwrapEnvelope(source.envelope));
-    this.#index = parsed ?? { claims: {}, entities: {} };
+    if (source === null) {
+      this.#index = { claims: {}, entities: {} };
+      return { index: this.#index, traces: [trace] };
+    }
+
+    const text = unwrapEnvelope(source.envelope);
+    if (text === null) {
+      throw new HydraDecodeError('inspect response contains an unreadable stored index envelope');
+    }
+    const parsed = parseIndex(text);
+    if (parsed === null) {
+      throw new HydraDecodeError('inspect response contains a malformed stored index');
+    }
+    this.#index = parsed;
     return { index: this.#index, traces: [trace] };
   }
 
@@ -206,12 +223,14 @@ function parseIndex(text: string | null): IndexRecord | null {
   if (text === null) return null;
   try {
     const parsed = JSON.parse(text) as Partial<IndexRecord> | null;
-    if (parsed === null || typeof parsed.claims !== 'object' || parsed.claims === null) return null;
-    const entities = typeof parsed.entities === 'object' && parsed.entities !== null && !Array.isArray(parsed.entities)
-      ? parsed.entities
-      : {};
-    return { claims: parsed.claims, entities };
+    if (!stringMap(parsed?.claims) || !stringMap(parsed.entities)) return null;
+    return { claims: parsed.claims, entities: parsed.entities };
   } catch {
     return null;
   }
+}
+
+function stringMap(value: unknown): value is Readonly<Record<string, string>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && Object.values(value).every((entry) => typeof entry === 'string');
 }

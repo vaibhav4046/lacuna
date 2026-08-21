@@ -15,7 +15,7 @@ import {
   readJsonBody,
   serialiseCookie,
 } from '../auth/http.js';
-import { CredentialChanged, SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, type Account } from '../auth/store.js';
+import { CredentialChanged, SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, sessionVersionMatches, type Account } from '../auth/store.js';
 import type { Accounts } from '../auth/accounts.js';
 import { googleBinding } from '../auth/identity.js';
 import type { McpCapabilities } from '../auth/mcp-capability-store.js';
@@ -115,6 +115,14 @@ function parseGoogleAttempt(raw: string | undefined): GoogleAttempt | null {
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 /** A question should not sit behind a browser spinner for longer than this. */
 const ASK_TIMEOUT_MS = 10_000;
+
+/** A configured workspace store did not answer; never reinterpret that as empty memory. */
+class ContextUnavailable extends Error {
+  constructor() {
+    super('context unavailable');
+    this.name = 'ContextUnavailable';
+  }
+}
 
 /** A workspace name is a label, not an essay. */
 const MAX_WORKSPACE_CHARS = 120;
@@ -540,17 +548,13 @@ function standingOf(
 /**
  * The names a source holds, for the parser to match a sentence against.
  *
- * A source that cannot list them yields an empty list rather than an error: the
- * parser then finds no subject and the product says so, which is a better
- * outcome than a 500 on a question that was probably answerable.
+ * A successful empty list means the workspace holds no subjects. A failed
+ * read must propagate so the caller can report temporary unavailability rather
+ * than making the semantic claim that the requested topic does not exist.
  */
 async function knownSubjects(source: HydraSource): Promise<readonly string[]> {
-  if (source.subjects === undefined) return [];
-  try {
-    return (await source.subjects(8_000)).value;
-  } catch {
-    return [];
-  }
+  if (source.subjects === undefined) throw new ContextUnavailable();
+  return (await source.subjects(8_000)).value;
 }
 
 export class ApiRouter {
@@ -642,8 +646,9 @@ export class ApiRouter {
     const record = typeof token === 'string' && token !== ''
       ? await this.#store.sessionFor(token, this.#now())
       : null;
-    const account = record === null ? null : await this.#store.find(record.email);
-    if (account === null) return emptyWorkspace();
+    if (record === null) return emptyWorkspace();
+    const account = await this.#store.find(record.email);
+    if (account === null || !sessionVersionMatches(account, record)) return emptyWorkspace();
 
     // The sample workspace reads the corpus that ships here. Every other
     // account reads what it ingested, because a screen saying "no claims yet"
@@ -654,13 +659,11 @@ export class ApiRouter {
     }
 
     const openSource = this.#source;
-    if (openSource === undefined) return emptyWorkspace();
+    if (openSource === undefined) throw new ContextUnavailable();
     try {
       return await storeWorkspace(openSource(workspaceCollection(account.email)), ASK_TIMEOUT_MS);
     } catch {
-      // A store that did not answer is not an empty workspace, but the view has
-      // no way to say so, and inventing rows would be worse.
-      return emptyWorkspace();
+      throw new ContextUnavailable();
     }
   }
 
@@ -684,7 +687,9 @@ export class ApiRouter {
     if (typeof token !== 'string' || token === '') return null;
     try {
       const record = await this.#store.sessionFor(token, this.#now());
-      return record === null ? null : await this.#store.find(record.email);
+      if (record === null) return null;
+      const account = await this.#store.find(record.email);
+      return account !== null && sessionVersionMatches(account, record) ? account : null;
     } catch {
       return null;
     }
@@ -754,7 +759,7 @@ export class ApiRouter {
         ? await this.#store.sessionFor(token, this.#now())
         : null;
       const account = record === null ? null : await this.#store.find(record.email);
-      if (account === null) {
+      if (account === null || record === null || !sessionVersionMatches(account, record)) {
         send(response, 200, { signedIn: false }, this.#csrfCookie(cookies));
         return HANDLED;
       }
@@ -1182,8 +1187,13 @@ export class ApiRouter {
           return HANDLED;
         }
         const workspace = workspaceCollection(account.email);
-        const view = await this.#viewFor(cookies);
-        send(response, 200, recommendedAgents(workspace, view.memory));
+        try {
+          const view = await this.#viewFor(cookies);
+          send(response, 200, recommendedAgents(workspace, view.memory));
+        } catch (error) {
+          if (!(error instanceof ContextUnavailable)) throw error;
+          send(response, 503, { error: 'context_unavailable' });
+        }
         return HANDLED;
       }
 
@@ -1258,8 +1268,6 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      const view = await this.#viewFor(cookies);
-
       // Probed rather than listed: these two ask the endpoints and report what
       // answered, so they run before the static branches below.
       if (part === 'models') {
@@ -1271,9 +1279,29 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      const body = part === 'evaluations'
-        ? this.#evaluations ?? []
-        : workspacePart(view, part);
+      if (part === 'evaluations') {
+        send(response, 200, this.#evaluations ?? []);
+        return HANDLED;
+      }
+
+      const viewPart = part === 'changes' || part === 'conflicts' || part === 'connections'
+        || part === 'health' || part === 'memory' || part === 'categories'
+        || part === 'questions' || part === 'summary';
+      if (!viewPart) {
+        send(response, 404, { error: 'route' });
+        return HANDLED;
+      }
+
+      let view: WorkspaceView;
+      try {
+        view = await this.#viewFor(cookies);
+      } catch (error) {
+        if (!(error instanceof ContextUnavailable)) throw error;
+        send(response, 503, { error: 'context_unavailable' });
+        return HANDLED;
+      }
+
+      const body = workspacePart(view, part);
 
       if (body === null) {
         send(response, 404, { error: 'route' });
@@ -1522,12 +1550,16 @@ export class ApiRouter {
         return HANDLED;
       }
       const source = openSource(workspaceCollection(account.email));
-      send(response, 200, await plannedAskEnvelope(
-        source,
-        text,
-        await knownSubjects(source),
-        ASK_TIMEOUT_MS,
-      ));
+      try {
+        send(response, 200, await plannedAskEnvelope(
+          source,
+          text,
+          await knownSubjects(source),
+          ASK_TIMEOUT_MS,
+        ));
+      } catch {
+        send(response, 503, { error: 'context_unavailable' });
+      }
       return HANDLED;
     }
 
@@ -1571,7 +1603,14 @@ export class ApiRouter {
         return HANDLED;
       }
       const workspace = workspaceCollection(account.email);
-      const view = await this.#viewFor(cookies);
+      let view: WorkspaceView;
+      try {
+        view = await this.#viewFor(cookies);
+      } catch (error) {
+        if (!(error instanceof ContextUnavailable)) throw error;
+        send(response, 503, { error: 'context_unavailable' });
+        return HANDLED;
+      }
       const choice = recommendedAgents(workspace, view.memory)
         .find((recommendation) => recommendation.id === recommendationId);
       if (choice === undefined) {
@@ -1934,12 +1973,16 @@ export class ApiRouter {
         return HANDLED;
       }
       const source = openSource();
-      send(response, 200, await plannedAskEnvelope(
-        source,
-        text,
-        await knownSubjects(source),
-        ASK_TIMEOUT_MS,
-      ));
+      try {
+        send(response, 200, await plannedAskEnvelope(
+          source,
+          text,
+          await knownSubjects(source),
+          ASK_TIMEOUT_MS,
+        ));
+      } catch {
+        send(response, 503, { error: 'context_unavailable' });
+      }
       return HANDLED;
     }
 
@@ -2000,16 +2043,6 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      const token = cookies[SESSION_COOKIE];
-      const record = typeof token === 'string' && token !== ''
-        ? await this.#store.sessionFor(token, this.#now())
-        : null;
-      const account = record === null ? null : await this.#store.find(record.email);
-      if (account === null) {
-        send(response, 401, { error: 'session' });
-        return HANDLED;
-      }
-
       let body: Record<string, unknown> | null;
       try {
         body = await readJsonBody(request);
@@ -2020,6 +2053,14 @@ export class ApiRouter {
       const name = body?.['workspace'];
       if (typeof name !== 'string' || name.trim() === '' || name.length > MAX_WORKSPACE_CHARS) {
         send(response, 400, { error: 'workspace' });
+        return HANDLED;
+      }
+
+      // Authenticate at the write boundary, after the bounded body read. A
+      // credential rotation during request upload must revoke this mutation.
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
         return HANDLED;
       }
 

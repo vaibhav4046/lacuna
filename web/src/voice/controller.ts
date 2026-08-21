@@ -3,10 +3,8 @@ import { advanceVoice, type AudioSignal, type VoiceEvent, type VoiceState } from
 export type RuntimeFailure = 'permission_denied' | 'rate_limited' | 'provider_unavailable' | 'interrupted' | 'error';
 
 /**
- * The browser currently uses `provider_unavailable` for both configuration
- * failures and transient capture/playback failures. Keep recovery available
- * until those two cases have distinct runtime states; hiding it here would
- * strand a valid text answer after one failed audio playback.
+ * Keep recovery controls available after a speech or local playback failure;
+ * a valid typed answer may still be safe to replay.
  */
 export function voiceCaptureControls(failure: RuntimeFailure | null): {
   readonly startListening: boolean;
@@ -107,6 +105,8 @@ export interface VoiceSnapshot {
   readonly rms: number;
   readonly waveform: readonly number[];
   readonly failure: RuntimeFailure | null;
+  /** A real answer or explicit spoken fallback is buffered for a new playback attempt. */
+  readonly canReplay: boolean;
 }
 
 type Listener = (snapshot: VoiceSnapshot) => void;
@@ -146,7 +146,7 @@ export class VoiceController {
   readonly #listeners = new Set<Listener>();
   #snapshot: VoiceSnapshot = {
     state: 'READY', partialTranscript: '', transcript: '', planned: null,
-    signal: null, rms: 0, waveform: EMPTY_WAVEFORM, failure: null,
+    signal: null, rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
   };
   #generation = 0;
   #abort: AbortController | null = null;
@@ -304,7 +304,7 @@ export class VoiceController {
       ...this.#snapshot,
       state: advanceVoice(this.#snapshot.state, event),
       partialTranscript: '', transcript: '', planned: null, signal: null,
-      rms: 0, waveform: EMPTY_WAVEFORM, failure: null,
+      rms: 0, waveform: EMPTY_WAVEFORM, failure: null, canReplay: false,
     };
     this.#emit();
     return this.#generation;
@@ -352,6 +352,7 @@ export class VoiceController {
         return;
       }
       this.#spokenAnswer = spoken.text;
+      this.#update({ canReplay: true });
       this.#move(spoken.event);
       if (this.#snapshot.state === 'ANSWERED' || this.#snapshot.state === 'ABSTAINED'
         || this.#snapshot.state === 'CONTRADICTED') this.#outcome = this.#snapshot.state;

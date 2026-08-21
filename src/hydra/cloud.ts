@@ -1,4 +1,4 @@
-import { HydraQueryError, HydraTransportError } from './errors.js';
+import { HydraDecodeError, HydraQueryError, HydraTransportError } from './errors.js';
 import type { FetchLike } from './client.js';
 
 /**
@@ -94,6 +94,9 @@ const INGEST_TIMEOUT_MS = 120_000;
 
 /** Terminal states from the status endpoint. Anything else means keep polling. */
 const TERMINAL = new Set(['completed', 'errored', 'failed']);
+/** Receipt states observed in the ingest contract and exercised by every durable writer. */
+const INGEST_ACCEPTED = new Set(['queued', 'completed']);
+const INGEST_REFUSED = new Set(['errored', 'failed']);
 
 export class HydraCloud {
   readonly #config: CloudConfig;
@@ -234,13 +237,12 @@ export class HydraCloud {
 
     const { body } = await this.#send('/context/ingest', { method: 'POST', body: form }, INGEST_TIMEOUT_MS);
     const results = pick(pick(body, 'data'), 'results');
-    if (!Array.isArray(results)) return [];
-    return results.map((entry): IngestResult => ({
-      id: String(pick(entry, 'id') ?? ''),
-      filename: String(pick(entry, 'filename') ?? ''),
-      status: String(pick(entry, 'status') ?? 'unknown'),
-      error: (pick(entry, 'error') as string | null) ?? null,
-    }));
+    if (!Array.isArray(results)) {
+      throw new HydraDecodeError('ingest response has no results array');
+    }
+    const decoded = results.map(decodeIngestResult);
+    assertCompleteIngestReceipts(records, decoded);
+    return decoded;
   }
 
   /**
@@ -268,13 +270,19 @@ export class HydraCloud {
       ({ body, latencyMs } = await this.#send(`/context/inspect?${query.toString()}`, { method: 'GET' }, timeoutMs));
     } catch (error) {
       // A record that is not there is an answer, not a fault: it is what an
-      // out of scope name looks like when the store is addressed by id.
-      if (error instanceof HydraQueryError && (error.status === 404 || error.status === 400)) return null;
+      // out of scope name looks like when the store is addressed by id. The
+      // service also uses 400 and 404 for other refusals, so only its explicit
+      // missing-record code may be converted to null.
+      if (error instanceof HydraQueryError
+        && (error.status === 404 || error.status === 400)
+        && error.engineMessage === 'FILE_NOT_FOUND') return null;
       throw error;
     }
     const data = pick(body, 'data');
     const raw = pick(data, 'content');
-    if (typeof raw !== 'string' || raw === '') return null;
+    if (typeof raw !== 'string' || raw === '') {
+      throw new HydraDecodeError('inspect response has no stored content');
+    }
     return { id, envelope: raw, latencyMs };
   }
 
@@ -394,6 +402,48 @@ function pick(value: unknown, key: string): unknown {
 
 function asArray(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
+}
+
+function decodeIngestResult(entry: unknown): IngestResult {
+  const id = pick(entry, 'id');
+  const status = pick(entry, 'status');
+  const rawError = pick(entry, 'error');
+  if (typeof id !== 'string' || id === '' || typeof status !== 'string' || status === '') {
+    throw new HydraDecodeError('ingest response contains an incomplete receipt');
+  }
+  if (rawError !== undefined && rawError !== null && typeof rawError !== 'string') {
+    throw new HydraDecodeError('ingest response contains an invalid receipt error');
+  }
+
+  const error = typeof rawError === 'string' ? rawError : null;
+  const refused = error !== null && error !== '';
+  if (refused ? !INGEST_ACCEPTED.has(status) && !INGEST_REFUSED.has(status) : !INGEST_ACCEPTED.has(status)) {
+    throw new HydraDecodeError('ingest response contains an unrecognized receipt status');
+  }
+
+  return {
+    id,
+    filename: String(pick(entry, 'filename') ?? ''),
+    status,
+    error,
+  };
+}
+
+function assertCompleteIngestReceipts(
+  submitted: readonly AppRecord[],
+  results: readonly IngestResult[],
+): void {
+  const expected = new Set(submitted.map((record) => record.id));
+  const seen = new Set<string>();
+  for (const result of results) {
+    if (!expected.has(result.id) || seen.has(result.id)) {
+      throw new HydraDecodeError('ingest response contains an invalid receipt id');
+    }
+    seen.add(result.id);
+  }
+  if (seen.size !== expected.size || expected.size !== submitted.length) {
+    throw new HydraDecodeError('ingest response omits a submitted record id');
+  }
 }
 
 function numberOr(value: unknown): number | null {

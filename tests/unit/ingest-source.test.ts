@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { HydraCloud } from '../../src/hydra/cloud.js';
+import { HydraCloud, type AppRecord } from '../../src/hydra/cloud.js';
+import { HydraDecodeError, HydraQueryError } from '../../src/hydra/errors.js';
+import { INDEX_ID } from '../../src/hydra/cloud-graph.js';
 import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from '../../src/api/ingest.js';
 
 /**
@@ -32,6 +34,9 @@ function cloudThatRecords(sent: Sent[]): HydraCloud {
     },
     {
       fetch: async (input, init) => {
+        if (init?.method === 'GET') {
+          return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 400 });
+        }
         const form = init?.body as FormData;
         const app = form.get('app_knowledge');
         const records = typeof app === 'string'
@@ -52,11 +57,145 @@ function cloudThatRecords(sent: Sent[]): HydraCloud {
   );
 }
 
+function cloudWithInspectFailure(
+  sent: Sent[],
+  failure: 'index_unavailable' | 'entity_unavailable' | 'invalid_request' | 'malformed_success'
+    | 'malformed_envelope' | 'malformed_index' | 'malformed_entity' | 'malformed_entity_payload',
+): HydraCloud {
+  return new HydraCloud(
+    {
+      baseUrl: 'https://api.example.invalid',
+      token: 'not-a-real-token',
+      database: 'lacuna',
+      collection: 'public-demo',
+    },
+    {
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        if (init?.method === 'GET') {
+          const id = url.searchParams.get('id') ?? '';
+          const shouldFail = failure === 'index_unavailable'
+            ? id === INDEX_ID
+            : failure === 'entity_unavailable' || failure === 'malformed_entity' || failure === 'malformed_entity_payload'
+              ? id !== INDEX_ID
+              : id === INDEX_ID;
+          if (shouldFail) {
+            if (failure === 'malformed_success') return Response.json({ data: {} });
+            if (failure === 'malformed_envelope' || failure === 'malformed_entity') {
+              return Response.json({ data: { content: 'not a stored envelope' } });
+            }
+            if (failure === 'malformed_index') {
+              return Response.json({
+                data: { content: JSON.stringify({ content: { text: '{}' } }) },
+              });
+            }
+            if (failure === 'malformed_entity_payload') {
+              return Response.json({
+                data: { content: JSON.stringify({ content: { text: '{}' } }) },
+              });
+            }
+            const invalid = failure === 'invalid_request';
+            return Response.json({ error: { code: invalid ? 'INVALID_REQUEST' : 'TEMPORARILY_UNAVAILABLE' } }, {
+              status: invalid ? 400 : 503,
+            });
+          }
+          return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+        }
+
+        const form = init?.body as FormData;
+        const app = form.get('app_knowledge');
+        const records = typeof app === 'string'
+          ? (JSON.parse(app) as { id: string; collection: string }[])
+          : [];
+        sent.push({
+          url: String(input),
+          database: form.get('database') as string | null,
+          collection: form.get('collection') as string | null,
+          records,
+        });
+        return Response.json({
+          data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
+        });
+      },
+    },
+  );
+}
+
+function cloudWithReceiptFailure(
+  failure: 'missing_results' | 'non_array_results' | 'missing_receipt' | 'duplicate' | 'unexpected'
+    | 'missing_status' | 'unknown_status' | 'failed_without_error' | 'explicit_error',
+): HydraCloud {
+  return new HydraCloud(
+    {
+      baseUrl: 'https://api.example.invalid',
+      token: 'not-a-real-token',
+      database: 'lacuna',
+      collection: 'public-demo',
+    },
+    {
+      fetch: async (_input, init) => {
+        if (init?.method === 'GET') {
+          return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+        }
+
+        const form = init?.body as FormData;
+        const app = form.get('app_knowledge');
+        const records = typeof app === 'string'
+          ? (JSON.parse(app) as { id: string }[])
+          : [];
+        const results = records.map((record) => ({ id: record.id, status: 'queued', error: null }));
+
+        if (failure === 'missing_results') return Response.json({ data: {} });
+        if (failure === 'non_array_results') return Response.json({ data: { results: {} } });
+        if (failure === 'missing_receipt') return Response.json({ data: { results: results.slice(1) } });
+        if (failure === 'duplicate') {
+          return Response.json({ data: { results: [...results, results[0]] } });
+        }
+        if (failure === 'missing_status') {
+          return Response.json({
+            data: { results: records.map((record) => ({ id: record.id, error: null })) },
+          });
+        }
+        if (failure === 'unknown_status') {
+          return Response.json({
+            data: { results: records.map((record) => ({ id: record.id, status: 'unknown', error: null })) },
+          });
+        }
+        if (failure === 'failed_without_error') {
+          return Response.json({
+            data: { results: records.map((record) => ({ id: record.id, status: 'failed', error: null })) },
+          });
+        }
+        if (failure === 'explicit_error') {
+          return Response.json({
+            data: { results: records.map((record) => ({
+              id: record.id,
+              status: 'failed',
+              error: 'provider refused this record',
+            })) },
+          });
+        }
+        return Response.json({
+          data: { results: [...results, { id: 'lacuna:unexpected', status: 'queued', error: null }] },
+        });
+      },
+    },
+  );
+}
+
 const TRANSCRIPT = [
   'priya: Sessions are stored in Postgres.',
   'arun: Checkout is owned by Dana.',
   'priya: We migrated sessions to Redis.',
 ].join('\n');
+
+const RECEIPT_RECORD: AppRecord = {
+  id: 'lacuna:test:receipt',
+  title: 'Receipt contract',
+  type: 'custom',
+  timestamp: '2026-08-21T00:00:00.000Z',
+  text: '{}',
+};
 
 describe('where an ingested source is written', () => {
   it('never writes to the collection the public demo reads', async () => {
@@ -128,6 +267,149 @@ describe('what comes back', () => {
     const report = await ingestSource(cloudThatRecords([]), 'c', 'Standup', long);
     if (typeof report === 'string') throw new Error(`expected a report, got ${report}`);
     expect(report.truncated).toBe(true);
+  });
+});
+
+describe('read-before-write merge failures', () => {
+  it('writes nothing when the existing index is temporarily unavailable', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'index_unavailable'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraQueryError);
+    expect(sent).toEqual([]);
+  });
+
+  it('writes nothing when an existing entity cannot be read', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'entity_unavailable'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraQueryError);
+    expect(sent).toEqual([]);
+  });
+
+  it('does not reinterpret an unrelated 400 response as a missing index', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'invalid_request'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraQueryError);
+    expect(sent).toEqual([]);
+  });
+
+  it('writes nothing when a 2xx inspect response omits the stored content', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'malformed_success'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    expect(sent).toEqual([]);
+  });
+
+  it('writes nothing when an existing index has an unreadable stored envelope', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'malformed_envelope'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    expect(sent).toEqual([]);
+  });
+
+  it('writes nothing when an existing index payload is missing its maps', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'malformed_index'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    expect(sent).toEqual([]);
+  });
+
+  it('writes nothing when an existing entity has an unreadable stored envelope', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'malformed_entity'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    expect(sent).toEqual([]);
+  });
+
+  it('writes nothing when an existing entity payload is missing required fields', async () => {
+    const sent: Sent[] = [];
+
+    const result = ingestSource(cloudWithInspectFailure(sent, 'malformed_entity_payload'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('ingest receipt integrity', () => {
+  it('rejects a 2xx response with no results field', async () => {
+    const result = ingestSource(cloudWithReceiptFailure('missing_results'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects a 2xx response whose results field is not an array', async () => {
+    const result = ingestSource(cloudWithReceiptFailure('non_array_results'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects a batch with no receipt for one submitted record', async () => {
+    const result = ingestSource(cloudWithReceiptFailure('missing_receipt'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects a batch with duplicate receipts for one submitted record', async () => {
+    const result = ingestSource(cloudWithReceiptFailure('duplicate'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects a batch with a receipt for a record it did not submit', async () => {
+    const result = ingestSource(cloudWithReceiptFailure('unexpected'), 'c', 'Standup', TRANSCRIPT);
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+});
+
+describe('shared ingest receipt decoding', () => {
+  it('rejects a receipt with no status before any caller can report a successful write', async () => {
+    const result = cloudWithReceiptFailure('missing_status').ingestApp([RECEIPT_RECORD], 'c');
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects an unknown status before any caller can report a successful write', async () => {
+    const result = cloudWithReceiptFailure('unknown_status').ingestApp([RECEIPT_RECORD], 'c');
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects a failed status that carries no provider error', async () => {
+    const result = cloudWithReceiptFailure('failed_without_error').ingestApp([RECEIPT_RECORD], 'c');
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('rejects an empty receipt list at the shared boundary', async () => {
+    const result = cloudWithReceiptFailure('missing_receipt').ingestApp([RECEIPT_RECORD], 'c');
+
+    await expect(result).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('preserves an explicit provider error as a refused receipt', async () => {
+    const results = await cloudWithReceiptFailure('explicit_error').ingestApp([RECEIPT_RECORD], 'c');
+
+    expect(results).toEqual([{
+      id: RECEIPT_RECORD.id,
+      filename: '',
+      status: 'failed',
+      error: 'provider refused this record',
+    }]);
   });
 });
 

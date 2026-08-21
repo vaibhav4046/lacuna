@@ -11,6 +11,7 @@ import {
   unwrapEnvelope,
 } from '../../src/hydra/cloud-graph.js';
 import { CloudSource } from '../../src/hydra/cloud-source.js';
+import { HydraDecodeError } from '../../src/hydra/errors.js';
 import { ask, blastRadius, buildQuestion } from '../../src/retrieval/index.js';
 import { RetrievalDecodeError } from '../../src/retrieval/errors.js';
 
@@ -195,6 +196,34 @@ describe('citations', () => {
     const { cloud } = serving();
     const evidence = await new CloudSource(cloud).evidence(999_999_999, 5_000);
     expect(evidence.value).toEqual([]);
+  });
+});
+
+describe('index failure semantics', () => {
+  function cloudReturning(content: string): HydraCloud {
+    return new HydraCloud(CONFIG, {
+      fetch: async () => Response.json({ success: true, data: { content } }),
+    });
+  }
+
+  it('does not report an unreadable stored index envelope as an empty subject list', async () => {
+    const source = new CloudSource(cloudReturning('not a stored envelope'));
+
+    await expect(source.subjects(5_000)).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('does not report a malformed index payload as an empty subject list', async () => {
+    const envelope = JSON.stringify({ content: { text: 'not index json' } });
+    const source = new CloudSource(cloudReturning(envelope));
+
+    await expect(source.subjects(5_000)).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('does not report an index missing its entity map as an empty subject list', async () => {
+    const envelope = JSON.stringify({ content: { text: JSON.stringify({ claims: { '1': 'Sessions' } }) } });
+    const source = new CloudSource(cloudReturning(envelope));
+
+    await expect(source.subjects(5_000)).rejects.toBeInstanceOf(HydraDecodeError);
   });
 });
 

@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
+import { DEMO_WORKSPACE } from '../../src/api/workspace.js';
 import { AccountStore, newSessionVersion, type Account, type SessionRecord } from '../../src/auth/store.js';
 import { FileAccounts, type Accounts } from '../../src/auth/accounts.js';
+import { buildDemo } from '../../src/server/examples.js';
 
 /**
  * The auth surface, driven over a real socket.
@@ -36,6 +38,7 @@ let clock = Date.UTC(2026, 0, 1);
 class RotatingAccounts implements Accounts {
   readonly #delegate: Accounts;
   #rotateBeforeStart = false;
+  #rotateAfterSessionValidation = false;
 
   constructor(delegate: Accounts) {
     this.#delegate = delegate;
@@ -45,6 +48,10 @@ class RotatingAccounts implements Accounts {
     this.#rotateBeforeStart = true;
   }
 
+  rotateAfterNextSessionValidation(): void {
+    this.#rotateAfterSessionValidation = true;
+  }
+
   available(): Promise<boolean> { return this.#delegate.available(); }
   find(email: string): Promise<Account | null> { return this.#delegate.find(email); }
   create(account: Account): Promise<Account | null> { return this.#delegate.create(account); }
@@ -52,8 +59,16 @@ class RotatingAccounts implements Accounts {
   updateWorkspace(email: string, workspace: string): Promise<void> {
     return this.#delegate.updateWorkspace(email, workspace);
   }
-  sessionFor(token: string, now: number): Promise<SessionRecord | null> {
-    return this.#delegate.sessionFor(token, now);
+  async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
+    const record = await this.#delegate.sessionFor(token, now);
+    if (this.#rotateAfterSessionValidation && record !== null) {
+      this.#rotateAfterSessionValidation = false;
+      const account = await this.#delegate.find(record.email);
+      if (account !== null) {
+        await this.#delegate.update({ ...account, sessionVersion: newSessionVersion() });
+      }
+    }
+    return record;
   }
   endSession(token: string): Promise<void> { return this.#delegate.endSession(token); }
 
@@ -137,6 +152,7 @@ beforeAll(async () => {
     store: accounts,
     secure: false,
     health: async () => ({ command: 'doctor', ok: true, warnings: 0, exitCode: 0, checks: [] }),
+    inventory: buildDemo().inventory,
     now: () => clock,
   });
   server = createServer((request, response) => {
@@ -175,6 +191,68 @@ describe('the session endpoint', () => {
 
     expect(response.headers.getSetCookie()).toEqual([]);
     expect(jar.get('lacuna_csrf')).toBe(first);
+  });
+
+  it('rejects a session whose credential epoch changes before the account is returned', async () => {
+    nextMinute();
+    const jar = await primed();
+    expect((await post(jar, '/api/auth/signup', {
+      email: 'session-epoch@example.com', password: PASSWORD,
+    })).status).toBe(201);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await session(jar);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ signedIn: false });
+  });
+});
+
+describe('credential epoch authorization', () => {
+  it('does not authorize a private route from an account read after session rotation', async () => {
+    nextMinute();
+    const jar = await primed();
+    expect((await post(jar, '/api/auth/signup', {
+      email: 'private-epoch@example.com', password: PASSWORD,
+    })).status).toBe(201);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await fetch(url('/api/workspace/graph'), {
+      headers: { cookie: jar.header() },
+    });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'session' });
+  });
+
+  it('does not build a workspace view from an account read after session rotation', async () => {
+    nextMinute();
+    const jar = await primed();
+    const email = 'view-epoch@example.com';
+    expect((await post(jar, '/api/auth/signup', { email, password: PASSWORD })).status).toBe(201);
+    await accounts.updateWorkspace(email, DEMO_WORKSPACE);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await fetch(url('/api/workspace/memory'), {
+      headers: { cookie: jar.header() },
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ rows: [], total: 0, loaded: 0, demo: false });
+  });
+
+  it('does not let a stale credential epoch mutate workspace metadata', async () => {
+    nextMinute();
+    const jar = await primed();
+    const email = 'workspace-mutation-epoch@example.com';
+    expect((await post(jar, '/api/auth/signup', { email, password: PASSWORD })).status).toBe(201);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await post(jar, '/api/workspace', { workspace: 'Must not be written' });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'session' });
+    await expect(accounts.find(email)).resolves.toMatchObject({ workspace: null, onboarded: false });
   });
 });
 

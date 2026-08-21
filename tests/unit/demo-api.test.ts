@@ -100,6 +100,15 @@ describe('the demo workspace without a session', () => {
     }
   });
 
+  it('labels the bundled demo corpus without claiming a live HydraDB connection', async () => {
+    const response = await fetch(`${base}/api/explore/connections`);
+    const body = await response.json() as readonly { readonly n: string; readonly st: string }[];
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual([{ n: 'HydraDB', st: 'STATIC CORPUS' }]);
+    expect(body.some((connection) => connection.st === 'CONNECTED')).toBe(false);
+  });
+
   it('holds the corpus, where the signed-out workspace route holds nothing', async () => {
     const demo = (await (await fetch(`${base}/api/demo/memory`)).json()) as { total: number };
     const signedOut = (await (await fetch(`${base}/api/workspace/memory`)).json()) as { total: number };

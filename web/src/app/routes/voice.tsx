@@ -43,7 +43,7 @@ export function VoiceRoute() {
   const asking = snapshot.state === 'REQUESTING_PERMISSION' || snapshot.state === 'COMMITTED'
     || snapshot.state === 'CHECKING_CONTEXT';
   const controls = voiceCaptureControls(snapshot.failure);
-  const canReplay = controls.replay && answer !== null && snapshot.state !== 'SPEAKING' && !asking && !listening;
+  const canReplay = controls.replay && snapshot.canReplay && snapshot.state !== 'SPEAKING' && !asking && !listening;
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>

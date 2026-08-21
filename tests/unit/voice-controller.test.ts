@@ -155,6 +155,27 @@ describe('VoiceController successful context outcomes', () => {
     expect(states).toContain('ABSTAINED');
     expect(runtime.spoken).toEqual(['No supported storage claim.']);
   });
+
+  it('keeps the spoken fallback replayable when the planner has no answer object', async () => {
+    const runtime = new FakeRuntime();
+    runtime.queryResult = {
+      reading: null,
+      unread: 'No matching workspace fact.',
+      knownSubjects: [],
+      available: [],
+      answer: null,
+      ms: 4,
+    };
+    runtime.speechFailure = 'error';
+    const controller = new VoiceController(runtime);
+
+    await controller.submitTyped('What is unrecognised?');
+
+    expect(controller.snapshot.state).toBe('ERROR');
+    expect(controller.snapshot.planned?.answer).toBeNull();
+    expect(controller.snapshot.canReplay).toBe(true);
+    expect(runtime.spoken).toEqual(['I could not read that as a question for this workspace.']);
+  });
 });
 
 describe('VoiceController failures and adversarial lifecycle', () => {

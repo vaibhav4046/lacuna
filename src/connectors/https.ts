@@ -29,6 +29,8 @@ const MAX_JSON_MEMBERS = 100;
 const MAX_JSON_KEY_BYTES = 256;
 const MAX_JSON_PATH_BYTES = 1024;
 const TEXT_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
+const JSON_INLINE_CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u;
+const FLATTENED_JSON_CONTROL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const FIXED_HEADERS = Object.freeze({
   Accept: 'application/json, text/plain, text/markdown',
@@ -476,6 +478,25 @@ function jsonPointerPart(value: string): string {
   return value.replaceAll('~', '~0').replaceAll('/', '~1');
 }
 
+function hasUnpairedSurrogate(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      if (index + 1 >= value.length) return true;
+      const following = value.charCodeAt(index + 1);
+      if (following < 0xdc00 || following > 0xdfff) return true;
+      index += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function inertJsonLine(value: string): boolean {
+  return !JSON_INLINE_CONTROL.test(value) && !hasUnpairedSurrogate(value);
+}
+
 function flattenJson(value: unknown): string {
   const lines: string[] = [];
   const budget: JsonBudget = { nodes: 0, leaves: 0 };
@@ -488,7 +509,9 @@ function flattenJson(value: unknown): string {
       if (budget.leaves > MAX_JSON_LEAVES || Buffer.byteLength(path, 'utf8') > MAX_JSON_PATH_BYTES) {
         throw new HttpsImportError('https_json_invalid');
       }
-      lines.push(`${path === '' ? '/' : path} = ${JSON.stringify(node)}`);
+      const line = `${path === '' ? '/' : path} = ${JSON.stringify(node)}`;
+      if (!inertJsonLine(line)) throw new HttpsImportError('https_json_invalid');
+      lines.push(line);
       return;
     }
     if (Array.isArray(node)) {
@@ -503,7 +526,8 @@ function flattenJson(value: unknown): string {
     const normalized = new Set<string>();
     for (const key of keys) {
       const canonical = key.normalize('NFC');
-      if (canonical !== key || normalized.has(canonical) || Buffer.byteLength(key, 'utf8') > MAX_JSON_KEY_BYTES) {
+      if (!inertJsonLine(key) || canonical !== key || normalized.has(canonical)
+        || Buffer.byteLength(key, 'utf8') > MAX_JSON_KEY_BYTES) {
         throw new HttpsImportError('https_json_invalid');
       }
       normalized.add(canonical);
@@ -512,7 +536,11 @@ function flattenJson(value: unknown): string {
   };
   visit(value, '', 0);
   if (lines.length === 0) throw new HttpsImportError('https_json_invalid');
-  return lines.join('\n');
+  const flattened = lines.join('\n');
+  if (FLATTENED_JSON_CONTROL.test(flattened) || hasUnpairedSurrogate(flattened)) {
+    throw new HttpsImportError('https_json_invalid');
+  }
+  return flattened;
 }
 
 function decodeAndPrepare(

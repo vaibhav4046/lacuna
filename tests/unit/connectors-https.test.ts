@@ -398,6 +398,47 @@ describe('bounded HTTPS content preparation', () => {
   });
 
   it.each([
+    ['NUL', '{"bad\\u0000key":1}'],
+    ['line feed', '{"bad\\nkey":1}'],
+    ['carriage return', '{"bad\\rkey":1}'],
+    ['tab', '{"bad\\tkey":1}'],
+    ['C1 control', '{"bad\\u0085key":1}'],
+    ['line separator', '{"bad\\u2028key":1}'],
+    ['paragraph separator', '{"bad\\u2029key":1}'],
+    ['unpaired high surrogate', '{"bad\\ud800key":1}'],
+    ['unpaired low surrogate', '{"bad\\udc00key":1}'],
+  ])('rejects an escaped %s in a parsed JSON object key', async (_label, body) => {
+    const requests = new RequestFixture({
+      body,
+      rawHeaders: ['Content-Type', 'application/json', 'Content-Length', String(Buffer.byteLength(body))],
+    });
+    await expectCode(reader(new ResolverFixture(), requests).read(
+      'https://example.com/data', new AbortController().signal,
+    ), 'https_json_invalid');
+  });
+
+  it('rejects forbidden code points that JSON scalar serialization would leave in flattened text', async () => {
+    for (const body of ['{"safe":"bad\\u0085value"}', '{"safe":"bad\\u2028value"}']) {
+      const requests = new RequestFixture({
+        body,
+        rawHeaders: ['Content-Type', 'application/json', 'Content-Length', String(Buffer.byteLength(body))],
+      });
+      await expectCode(reader(new ResolverFixture(), requests).read(
+        'https://example.com/data', new AbortController().signal,
+      ), 'https_json_invalid');
+    }
+  });
+
+  it('preserves a valid surrogate pair in an NFC JSON key', async () => {
+    const body = '{"emoji\\ud83d\\ude00":1}';
+    const prepared = await reader(new ResolverFixture(), new RequestFixture({
+      body,
+      rawHeaders: ['Content-Type', 'application/json', 'Content-Length', String(Buffer.byteLength(body))],
+    })).read('https://example.com/data', new AbortController().signal);
+    expect(prepared.text).toBe('/emoji😀 = 1');
+  });
+
+  it.each([
     ['too deep', JSON.stringify({ a: { b: { c: { d: { e: { f: { g: { h: { i: 1 } } } } } } } } })],
     ['too many members', JSON.stringify(Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`k${index}`, index])))],
     ['too many array members', JSON.stringify(Array.from({ length: 101 }, (_, index) => index))],

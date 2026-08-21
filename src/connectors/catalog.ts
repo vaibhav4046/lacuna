@@ -27,6 +27,7 @@ export interface ConnectorCatalogueOptions {
   readonly webhookKey?: string | undefined;
   readonly fileImport?: boolean | undefined;
   readonly githubImport?: boolean | undefined;
+  readonly httpsImport?: boolean | undefined;
 }
 
 /**
@@ -37,10 +38,12 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
   const webhookConfigured = typeof options.webhookKey === 'string' && options.webhookKey.trim() !== '';
   const fileConfigured = options.fileImport === true;
   const githubConfigured = options.githubImport === true;
+  const httpsConfigured = options.httpsImport === true;
   return IMPLEMENTED.map((entry): ConnectorDescriptor => {
     const file = entry.group === 'FILES';
     const available = entry.id === 'webhook' ? webhookConfigured
       : entry.id === 'github' ? githubConfigured
+        : entry.id === 'https_api' ? httpsConfigured
         : !file || fileConfigured;
     return Object.freeze({
       ...entry,
@@ -48,6 +51,7 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
       reason: available ? null
         : entry.id === 'webhook' ? 'signing_not_configured'
           : entry.id === 'github' ? 'github_import_unavailable'
+            : entry.id === 'https_api' ? 'https_import_unavailable'
             : 'file_import_unavailable',
     });
   });

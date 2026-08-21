@@ -5,7 +5,7 @@ import { CONNECTOR_GROUPS } from '../../web/src/design/connectors.js';
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookKey: 'configured', fileImport: true, githubImport: true });
+    const entries = catalogue({ webhookKey: 'configured', fileImport: true, githubImport: true, httpsImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
       'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
@@ -26,6 +26,13 @@ describe('connector catalogue', () => {
     expect(catalogue({ githubImport: false }).find((entry) => entry.id === 'github'))
       .toMatchObject({ availability: 'unavailable', reason: 'github_import_unavailable' });
     expect(catalogue({ githubImport: true }).find((entry) => entry.id === 'github'))
+      .toMatchObject({ availability: 'available', reason: null });
+  });
+
+  it('fails public HTTPS import closed unless its pinned reader and runner are both available', () => {
+    expect(catalogue({ httpsImport: false }).find((entry) => entry.id === 'https_api'))
+      .toMatchObject({ availability: 'unavailable', reason: 'https_import_unavailable' });
+    expect(catalogue({ httpsImport: true }).find((entry) => entry.id === 'https_api'))
       .toMatchObject({ availability: 'available', reason: null });
   });
 

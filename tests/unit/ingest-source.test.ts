@@ -541,6 +541,63 @@ describe('prepared connector ingestion', () => {
     expect(persisted).not.toContain('public-demo');
   });
 
+  it('round-trips only the typed sanitized HTTPS evidence through Hydra persistence and retrieval', async () => {
+    const controlled = statefulAdversarialCloud();
+    const workspace = workspaceCollection('https-evidence@example.com');
+    const document = prepareConnectorDocument({
+      title: 'Public HTTPS JSON',
+      text: '[2025-01-02T03:04:05.000Z] a: Atlas is owned by Priya.',
+      provenance: {
+        connectorId: 'https_api',
+        sourceUrl: 'https://api.example.com/',
+        mediaType: 'application/json',
+        observedAt: '2026-08-21T10:00:00.000Z',
+        https: {
+          schemaVersion: 1,
+          pathDigest: 'a'.repeat(64),
+          retrievedAt: '2026-08-21T10:00:00.000Z',
+          rawDigest: 'b'.repeat(64),
+          parserVersion: 'https-v1',
+        },
+      },
+    });
+
+    await ingestPreparedSource(controlled.cloud, workspace, document, { awaitSearchable: false });
+    const source = new CloudSource(controlled.cloud.withCollection(workspace));
+    const subject = await source.subject('Atlas', 5_000);
+    const claim = subject.value.claims[0];
+    if (claim === undefined) throw new Error('missing HTTPS round-tripped claim');
+    const evidence = await source.evidence(claim.id, 5_000);
+
+    expect(evidence.value[0]?.connector).toEqual({
+      schemaVersion: 1,
+      connectorId: 'https_api',
+      sourceUrl: 'https://api.example.com/',
+      mediaType: 'application/json',
+      pathDigest: 'a'.repeat(64),
+      retrievedAt: '2026-08-21T10:00:00.000Z',
+      rawDigest: 'b'.repeat(64),
+      contentDigest: document.contentDigest,
+      parserVersion: 'https-v1',
+    });
+    const sessionMetadata = [...controlled.storedMetadata.entries()]
+      .find(([id]) => id.startsWith('lacuna:session:'))?.[1];
+    expect(sessionMetadata).toEqual({
+      lacuna_record: 'session',
+      lacuna_connector_schema: 1,
+      lacuna_connector_id: 'https_api',
+      lacuna_https_origin: 'https://api.example.com/',
+      lacuna_https_media_type: 'application/json',
+      lacuna_https_path_sha256: 'a'.repeat(64),
+      lacuna_https_retrieved_at: '2026-08-21T10:00:00.000Z',
+      lacuna_https_raw_sha256: 'b'.repeat(64),
+      lacuna_content_sha256: document.contentDigest,
+      lacuna_connector_parser_version: 'https-v1',
+    });
+    const persisted = JSON.stringify([...controlled.stored, ...controlled.storedMetadata]);
+    expect(persisted).not.toMatch(/private|token|93\.184|authorization|workspace|collection/u);
+  });
+
   it('waits for terminal completed indexing when requested', async () => {
     const result = await ingestPreparedSource(
       cloudWithIndexingStatus('completed'),

@@ -22,7 +22,11 @@ import {
   type GitHubImporterBoundary,
   type PreparedGitHubBatch,
 } from '../../src/connectors/github.js';
-import { prepareConnectorBatch } from '../../src/connectors/normalize.js';
+import {
+  HttpsImportError,
+  type PinnedHttpsReaderBoundary,
+} from '../../src/connectors/https.js';
+import { prepareConnectorBatch, prepareConnectorDocument } from '../../src/connectors/normalize.js';
 import { FilePreviewTokenService } from '../../src/connectors/preview-token.js';
 import { ConnectorRunner } from '../../src/connectors/run.js';
 import type {
@@ -90,6 +94,15 @@ let runnerCalls: {
 let fileBoundaryCalls: number;
 let githubBoundaryCalls: { readonly url: string; readonly aborted: boolean }[];
 let githubBoundaryFailure: Error | null;
+let httpsBoundaryCalls: { readonly url: string; readonly aborted: boolean }[];
+let httpsBoundaryFailure: Error | null;
+let pauseHttpsReader: boolean;
+let httpsReaderStarted: Promise<void>;
+let markHttpsReaderStarted: (() => void) | undefined;
+let releaseHttpsReader: (() => void) | undefined;
+let httpsReaderReleased: Promise<void>;
+let httpsReaderAborted: Promise<void>;
+let markHttpsReaderAborted: (() => void) | undefined;
 let readinessTimeout: boolean;
 let pauseGitHubImporter: boolean;
 let githubImporterStarted: Promise<void>;
@@ -183,6 +196,29 @@ async function postGitHub(
   return response;
 }
 
+async function postHttps(
+  jar: Jar,
+  body: unknown,
+  overrides: Readonly<Record<string, string | null>> = {},
+): Promise<Response> {
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    cookie: jar.header(),
+    'x-csrf-token': token,
+    origin: SITE_ORIGIN,
+  };
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === null) delete headers[name];
+    else headers[name] = value;
+  }
+  const response = await fetch(`${base}/api/workspace/connectors/api/import`, {
+    method: 'POST', headers, body: JSON.stringify(body),
+  });
+  jar.absorb(response);
+  return response;
+}
+
 function disconnectableGitHubRequest(jar: Jar): {
   readonly close: () => void;
   readonly closed: Promise<void>;
@@ -196,6 +232,34 @@ function disconnectableGitHubRequest(jar: Jar): {
     hostname: target.hostname,
     port: target.port,
     path: '/api/workspace/connectors/github/import',
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'content-length': Buffer.byteLength(body),
+      cookie: jar.header(),
+      'x-csrf-token': token,
+      origin: SITE_ORIGIN,
+    },
+  }, (response) => response.resume());
+  request.once('error', () => markClosed?.());
+  request.once('close', () => markClosed?.());
+  request.end(body);
+  return { close: () => request.destroy(), closed };
+}
+
+function disconnectableHttpsRequest(jar: Jar): {
+  readonly close: () => void;
+  readonly closed: Promise<void>;
+} {
+  const target = new URL(base);
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  const body = JSON.stringify({ url: 'https://api.example.com/data?token=secret' });
+  let markClosed: (() => void) | undefined;
+  const closed = new Promise<void>((resolve) => { markClosed = resolve; });
+  const request = httpRequest({
+    hostname: target.hostname,
+    port: target.port,
+    path: '/api/workspace/connectors/api/import',
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -235,6 +299,30 @@ async function disconnectDuringGitHubBody(jar: Jar): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 20));
 }
 
+async function disconnectDuringHttpsBody(jar: Jar): Promise<void> {
+  const target = new URL(base);
+  const token = decodeURIComponent(jar.values.get('lacuna_csrf') ?? '');
+  await new Promise<void>((resolve) => {
+    const request = httpRequest({
+      hostname: target.hostname,
+      port: target.port,
+      path: '/api/workspace/connectors/api/import',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': '4096',
+        cookie: jar.header(),
+        'x-csrf-token': token,
+        origin: SITE_ORIGIN,
+      },
+    });
+    request.once('error', () => resolve());
+    request.write('{"url":"https://api.example.com/data"');
+    setTimeout(() => request.destroy(), 5);
+  });
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+}
+
 function preparedGitHubBatch(): PreparedGitHubBatch {
   const commitSha = 'a'.repeat(40);
   const blobSha = 'b'.repeat(40);
@@ -268,6 +356,26 @@ function preparedGitHubBatch(): PreparedGitHubBatch {
   };
 }
 
+function preparedHttpsDocument() {
+  return prepareConnectorDocument({
+    title: 'Public HTTPS JSON',
+    text: '/owner = "Priya"',
+    provenance: {
+      connectorId: 'https_api',
+      sourceUrl: 'https://api.example.com/',
+      mediaType: 'application/json',
+      observedAt: '2026-08-21T12:00:00.000Z',
+      https: {
+        schemaVersion: 1,
+        pathDigest: 'e'.repeat(64),
+        retrievedAt: '2026-08-21T12:00:00.000Z',
+        rawDigest: 'f'.repeat(64),
+        parserVersion: 'https-v1',
+      },
+    },
+  });
+}
+
 async function listen(router: ApiRouter): Promise<void> {
   server = createServer((request, response) => {
     const path = new URL(request.url ?? '/', 'http://test.invalid').pathname;
@@ -286,6 +394,12 @@ beforeEach(async () => {
   fileBoundaryCalls = 0;
   githubBoundaryCalls = [];
   githubBoundaryFailure = null;
+  httpsBoundaryCalls = [];
+  httpsBoundaryFailure = null;
+  pauseHttpsReader = false;
+  httpsReaderStarted = new Promise<void>((resolve) => { markHttpsReaderStarted = resolve; });
+  httpsReaderReleased = new Promise<void>((resolve) => { releaseHttpsReader = resolve; });
+  httpsReaderAborted = new Promise<void>((resolve) => { markHttpsReaderAborted = resolve; });
   readinessTimeout = false;
   pauseGitHubImporter = false;
   githubImporterStarted = new Promise<void>((resolve) => { markGitHubImporterStarted = resolve; });
@@ -370,14 +484,32 @@ beforeEach(async () => {
       return preparedGitHubBatch();
     },
   };
+  const httpsReader: PinnedHttpsReaderBoundary = {
+    read: async (url, signal) => {
+      httpsBoundaryCalls.push({ url, aborted: signal.aborted });
+      if (httpsBoundaryFailure !== null) throw httpsBoundaryFailure;
+      if (pauseHttpsReader) {
+        markHttpsReaderStarted?.();
+        const onAbort = () => markHttpsReaderAborted?.();
+        if (signal.aborted) onAbort();
+        else signal.addEventListener('abort', onAbort, { once: true });
+        await httpsReaderReleased;
+        signal.removeEventListener('abort', onAbort);
+      }
+      return preparedHttpsDocument();
+    },
+  };
   const router = new ApiRouter({
     store: new FileAccounts(new AccountStore(directory)),
     secure: false,
     health: null,
     connectorStore,
-    connectorCatalog: () => catalogue({ webhookKey: 'configured', fileImport: true, githubImport: true }),
+    connectorCatalog: () => catalogue({
+      webhookKey: 'configured', fileImport: true, githubImport: true, httpsImport: true,
+    }),
     fileConnector,
     githubImporter,
+    httpsReader,
     connectorRunner: runner,
     siteOrigin: SITE_ORIGIN,
   });
@@ -892,6 +1024,177 @@ describe('workspace public GitHub import API', () => {
       availability: 'unavailable', reason: 'github_import_unavailable', state: 'idle',
     });
     expect(githubBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+  });
+});
+
+describe('workspace pinned public HTTPS import API', () => {
+  it('does no reader, runner, or observation work when the client disconnects in the body', async () => {
+    const jar = await signedIn('https-disconnect-body@example.com');
+    await disconnectDuringHttpsBody(jar);
+    expect(httpsBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('checks exact origin, CSRF, session, exact body, and quota before the reader', async () => {
+    const unsigned = new Jar();
+    unsigned.absorb(await fetch(`${base}/api/session`));
+    expect((await postHttps(unsigned, { url: 'https://api.example.com/data' })).status).toBe(401);
+
+    const jar = await signedIn('https-early@example.com');
+    expect((await postHttps(jar, { url: 'https://api.example.com/data' }, {
+      origin: 'https://attacker.example',
+    })).status).toBe(403);
+    expect((await postHttps(jar, { url: 'https://api.example.com/data' }, {
+      origin: null,
+    })).status).toBe(403);
+    expect((await postHttps(jar, { url: 'https://api.example.com/data' }, {
+      'x-csrf-token': null,
+    })).status).toBe(403);
+    for (const body of [
+      { url: 'https://api.example.com/data', workspace: workspaceCollection('attacker@example.com') },
+      { url: 'https://api.example.com/data', collection: 'public' },
+      { url: 'https://api.example.com/data', method: 'POST' },
+      { url: 'https://api.example.com/data', headers: { authorization: 'secret' } },
+      { url: 'https://api.example.com/data', redirects: true },
+      { url: 'https://api.example.com/data', tls: false },
+      { url: 'https://api.example.com/data', dns: '8.8.8.8' },
+    ]) {
+      const response = await postHttps(jar, body);
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({ error: 'invalid_https_request' });
+    }
+    expect(httpsBoundaryCalls).toEqual([]);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('uses the account workspace, awaits searchability, and returns only safe counts and digests', async () => {
+    const jar = await signedIn('https-owner@example.com');
+    const response = await postHttps(jar, { url: 'https://api.example.com/private?q=provider-secret' });
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      connectorId: 'https_api', submittedDocuments: 1, acceptedDocuments: 1,
+      searchableDocuments: 1, acceptedRecords: 4,
+      sourceDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      contentDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
+    });
+    expect(httpsBoundaryCalls).toEqual([{
+      url: 'https://api.example.com/private?q=provider-secret', aborted: false,
+    }]);
+    expect(runnerCalls).toEqual([expect.objectContaining({
+      workspace: workspaceCollection('https-owner@example.com'),
+      connectorId: 'https_api',
+      awaitSearchable: true,
+      text: '/owner = "Priya"',
+    })]);
+    expect(connectorStore.puts).toBe(1);
+    expect(JSON.stringify(body)).not.toMatch(/provider-secret|private|api\.example|https-owner|collection|workspace|rawDigest|pathDigest/u);
+  });
+
+  it('derives distinct server workspaces across an account swap', async () => {
+    const first = await signedIn('https-first@example.com');
+    const second = await signedIn('https-second@example.com');
+    expect((await postHttps(first, { url: 'https://api.example.com/data?account=second' })).status).toBe(200);
+    expect((await postHttps(second, { url: 'https://api.example.com/data?account=first' })).status).toBe(200);
+    expect(runnerCalls.map(({ workspace }) => workspace)).toEqual([
+      workspaceCollection('https-first@example.com'),
+      workspaceCollection('https-second@example.com'),
+    ]);
+  });
+
+  it('does not enter the runner when the client disconnects during preparation', async () => {
+    const jar = await signedIn('https-disconnect-reader@example.com');
+    pauseHttpsReader = true;
+    const request = disconnectableHttpsRequest(jar);
+    await httpsReaderStarted;
+
+    request.close();
+    await request.closed;
+    await httpsReaderAborted;
+    releaseHttpsReader?.();
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+
+    expect(httpsBoundaryCalls).toHaveLength(1);
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('stops readiness on disconnect but records accepted HTTPS work truthfully', async () => {
+    const jar = await signedIn('https-disconnect-readiness@example.com');
+    pauseRunnerReadiness = true;
+    const request = disconnectableHttpsRequest(jar);
+    await runnerReadinessStarted;
+
+    request.close();
+    await request.closed;
+    await runnerReadinessAborted;
+    releaseRunnerReadiness?.();
+    await vi.waitFor(() => expect(connectorStore.puts).toBe(1));
+
+    expect(connectorStore.state.https_api).toMatchObject({
+      importedDocuments: 1,
+      lastSuccessAt: expect.any(String),
+      lastFailure: 'readiness_failed',
+    });
+  });
+
+  it('maps typed and unknown reader errors to stable redacted responses with zero writes', async () => {
+    const jar = await signedIn('https-errors@example.com');
+    httpsBoundaryFailure = new HttpsImportError('https_peer_mismatch');
+    const mismatch = await postHttps(jar, { url: 'https://api.example.com/private?q=provider-secret' });
+    expect(mismatch.status).toBe(502);
+    expect(await mismatch.json()).toEqual({ error: 'https_peer_mismatch' });
+
+    httpsBoundaryFailure = new Error('93.184.216.34 CERT private?q=provider-secret');
+    const unknown = await postHttps(jar, { url: 'https://api.example.com/private?q=provider-secret' });
+    expect(unknown.status).toBe(502);
+    expect(await unknown.json()).toEqual({ error: 'https_import_failed' });
+    expect(runnerCalls).toEqual([]);
+    expect(connectorStore.puts).toBe(0);
+  });
+
+  it('spends the private ingest budget before a fifth network read', async () => {
+    const jar = await signedIn('https-budget@example.com');
+    for (let count = 0; count < 4; count += 1) {
+      expect((await postHttps(jar, { url: `https://api.example.com/${count}` })).status).toBe(200);
+    }
+    const limited = await postHttps(jar, { url: 'https://api.example.com/fifth' });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: 'workspace_ingest_budget' });
+    expect(httpsBoundaryCalls).toHaveLength(4);
+    expect(runnerCalls).toHaveLength(4);
+  });
+
+  it('fails catalogue and route availability closed without both reader and runner', async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    const router = new ApiRouter({
+      store: new FileAccounts(new AccountStore(directory)),
+      secure: false,
+      health: null,
+      connectorStore,
+      connectorCatalog: () => catalogue({
+        webhookKey: 'configured', fileImport: true, githubImport: true, httpsImport: false,
+      }),
+      siteOrigin: SITE_ORIGIN,
+    });
+    await listen(router);
+    const jar = await signedIn('https-unavailable@example.com');
+
+    const response = await postHttps(jar, { url: 'https://api.example.com/data' });
+    expect(response.status).toBe(501);
+    expect(await response.json()).toEqual({ error: 'https_import_unavailable' });
+    const catalogueResponse = await fetch(`${base}/api/workspace/connectors`, {
+      headers: { cookie: jar.header() },
+    });
+    const body = await catalogueResponse.json() as { connectors: readonly Record<string, unknown>[] };
+    expect(body.connectors.find((entry) => entry['id'] === 'https_api')).toMatchObject({
+      availability: 'unavailable', reason: 'https_import_unavailable', state: 'idle',
+    });
+    expect(httpsBoundaryCalls).toEqual([]);
     expect(runnerCalls).toEqual([]);
   });
 });

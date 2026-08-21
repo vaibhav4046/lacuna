@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { isCanonicalGitHubPath } from './evidence.js';
 import { isCanonicalGitHubRepositoryRoot } from './github-repository.js';
+import { canonicalizePublicHttpsUrl } from './https-url.js';
 import type { ConnectorId } from './types.js';
 
 export const MAX_CONNECTOR_DOCUMENTS = 30;
@@ -20,11 +21,15 @@ const MEDIA_TYPES = new Set<ConnectorMediaType>([
 const INPUT_KEYS = new Set(['title', 'text', 'provenance']);
 const PROVENANCE_KEYS = new Set(['connectorId', 'sourceUrl', 'mediaType', 'observedAt']);
 const GITHUB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'github']);
+const HTTPS_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'https']);
 const GITHUB_EVIDENCE_KEYS = new Set([
   'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
 const GITHUB_SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
+const HTTPS_EVIDENCE_KEYS = new Set([
+  'schemaVersion', 'pathDigest', 'retrievedAt', 'rawDigest', 'parserVersion',
+]);
 
 export type ConnectorMediaType =
   | 'text/plain'
@@ -39,6 +44,7 @@ export interface ConnectorProvenance {
   readonly mediaType: ConnectorMediaType;
   readonly observedAt: string;
   readonly github?: GitHubConnectorEvidence;
+  readonly https?: HttpsConnectorEvidence;
 }
 
 export interface GitHubConnectorEvidence {
@@ -49,6 +55,14 @@ export interface GitHubConnectorEvidence {
   readonly retrievedAt: string;
   readonly rawDigest: string;
   readonly parserVersion: 'github-v1';
+}
+
+export interface HttpsConnectorEvidence {
+  readonly schemaVersion: 1;
+  readonly pathDigest: string;
+  readonly retrievedAt: string;
+  readonly rawDigest: string;
+  readonly parserVersion: 'https-v1';
 }
 
 export interface ConnectorDocumentInput {
@@ -142,11 +156,14 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     throw new ConnectorNormalizationError('invalid_provenance');
   }
   const github = value['connectorId'] === 'github';
-  if (!hasExactKeys(value, github ? GITHUB_PROVENANCE_KEYS : PROVENANCE_KEYS)) {
+  const https = value['connectorId'] === 'https_api';
+  const expectedKeys = github ? GITHUB_PROVENANCE_KEYS : https ? HTTPS_PROVENANCE_KEYS : PROVENANCE_KEYS;
+  if (!hasExactKeys(value, expectedKeys)) {
     throw new ConnectorNormalizationError('invalid_provenance');
   }
   const normalizedSourceUrl = canonicalUrl(value['sourceUrl']);
   let githubEvidence: GitHubConnectorEvidence | undefined;
+  let httpsEvidence: HttpsConnectorEvidence | undefined;
   if (github) {
     const evidence = value['github'];
     if (!isRecord(evidence) || !hasExactKeys(evidence, GITHUB_EVIDENCE_KEYS)
@@ -177,12 +194,34 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
       parserVersion: evidence['parserVersion'],
     });
   }
+  if (https) {
+    const evidence = value['https'];
+    const canonicalOrigin = canonicalizePublicHttpsUrl(value['sourceUrl']);
+    if (!isRecord(evidence) || !hasExactKeys(evidence, HTTPS_EVIDENCE_KEYS)
+      || evidence['schemaVersion'] !== 1
+      || typeof evidence['pathDigest'] !== 'string' || !SHA256.test(evidence['pathDigest'])
+      || !canonicalInstant(evidence['retrievedAt']) || evidence['retrievedAt'] !== value['observedAt']
+      || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
+      || evidence['parserVersion'] !== 'https-v1'
+      || canonicalOrigin === null || canonicalOrigin.origin !== value['sourceUrl']
+      || canonicalOrigin.pathname !== '/' || canonicalOrigin.requestPath !== '/') {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    httpsEvidence = Object.freeze({
+      schemaVersion: 1,
+      pathDigest: evidence['pathDigest'],
+      retrievedAt: evidence['retrievedAt'],
+      rawDigest: evidence['rawDigest'],
+      parserVersion: evidence['parserVersion'],
+    });
+  }
   return Object.freeze({
     connectorId: value['connectorId'] as ConnectorId,
     sourceUrl: normalizedSourceUrl,
     mediaType: value['mediaType'] as ConnectorMediaType,
     observedAt: value['observedAt'],
     ...(githubEvidence === undefined ? {} : { github: githubEvidence }),
+    ...(httpsEvidence === undefined ? {} : { https: httpsEvidence }),
   });
 }
 
@@ -233,6 +272,14 @@ export function prepareConnectorDocument(input: ConnectorDocumentInput): Prepare
         blobSha: provenance.github.blobSha,
         rawDigest: provenance.github.rawDigest,
         parserVersion: provenance.github.parserVersion,
+      },
+    }),
+    ...(provenance.https === undefined ? {} : {
+      https: {
+        schemaVersion: provenance.https.schemaVersion,
+        pathDigest: provenance.https.pathDigest,
+        rawDigest: provenance.https.rawDigest,
+        parserVersion: provenance.https.parserVersion,
       },
     }),
   }));

@@ -66,6 +66,12 @@ import {
   GitHubImportError,
   type GitHubImporterBoundary,
 } from '../connectors/github.js';
+import {
+  HTTPS_IMPORT_DEADLINE_MS,
+  HttpsImportError,
+  HttpsReadCancelledError,
+  type PinnedHttpsReaderBoundary,
+} from '../connectors/https.js';
 import { PreviewTokenError } from '../connectors/preview-token.js';
 import {
   ConnectorRunCancelledError,
@@ -330,6 +336,8 @@ export interface ApiOptions {
   readonly fileConnector?: FileConnectorBoundary;
   /** Anonymous public-repository reader with a hardwired GitHub API boundary. */
   readonly githubImporter?: GitHubImporterBoundary;
+  /** DNS-pinned public HTTPS reader; absent when the hardened runtime boundary is unavailable. */
+  readonly httpsReader?: PinnedHttpsReaderBoundary;
   /** Shared governed ingestion runner used after an adapter has prepared content. */
   readonly connectorRunner?: Pick<ConnectorRunner, 'run'>;
   /** True behind TLS. Marks both cookies Secure. */
@@ -690,6 +698,7 @@ export class ApiRouter {
   readonly #connectorStore: ConnectorStore | undefined;
   readonly #fileConnector: FileConnectorBoundary | undefined;
   readonly #githubImporter: GitHubImporterBoundary | undefined;
+  readonly #httpsReader: PinnedHttpsReaderBoundary | undefined;
   readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
   readonly #connectorCatalog: () => readonly ConnectorDescriptor[];
   readonly #secure: boolean;
@@ -735,11 +744,13 @@ export class ApiRouter {
     this.#connectorStore = options.connectorStore;
     this.#fileConnector = options.fileConnector;
     this.#githubImporter = options.githubImporter;
+    this.#httpsReader = options.httpsReader;
     this.#connectorRunner = options.connectorRunner;
     this.#connectorCatalog = options.connectorCatalog
       ?? (() => catalogue({
         fileImport: this.#fileConnector !== undefined,
         githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
+        httpsImport: this.#httpsReader !== undefined && this.#connectorRunner !== undefined,
       }));
     this.#secure = options.secure;
     this.#health = options.health;
@@ -994,6 +1005,108 @@ export class ApiRouter {
         if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
         else send(response, 502, { error: 'github_import_failed' });
       } finally {
+        request.off('aborted', abortIfPremature);
+        response.off('close', abortIfPremature);
+        request.socket.off('close', abortIfPremature);
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/api/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'https_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const reader = this.#httpsReader;
+      const runner = this.#connectorRunner;
+      if (reader === undefined || runner === undefined) {
+        send(response, 501, { error: 'https_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      if (body === null || Object.keys(body).length !== 1 || typeof body['url'] !== 'string') {
+        send(response, 422, { error: 'invalid_https_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      let disconnected = false;
+      let deadlineExpired = false;
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) {
+          disconnected = true;
+          control.abort();
+        }
+      };
+      request.once('aborted', abortIfPremature);
+      response.once('close', abortIfPremature);
+      request.socket.once('close', abortIfPremature);
+      if ((response.destroyed || request.socket.destroyed)
+        && !response.writableEnded && !response.writableFinished) abortIfPremature();
+      const deadline = setTimeout(() => {
+        deadlineExpired = true;
+        control.abort();
+      }, HTTPS_IMPORT_DEADLINE_MS);
+      deadline.unref?.();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        const prepared = await reader.read(body['url'], control.signal);
+        if (disconnected) return HANDLED;
+        if (deadlineExpired) {
+          send(response, 504, { error: 'https_timeout' });
+          return HANDLED;
+        }
+        const result = await runner.run(workspace, {
+          connectorId: 'https_api',
+          documents: [{
+            title: prepared.title,
+            text: prepared.text,
+            provenance: prepared.provenance,
+          }],
+          awaitSearchable: true,
+        }, { signal: control.signal });
+        if (disconnected) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          sourceDigest: prepared.provenanceKey,
+          contentDigest: prepared.contentDigest,
+        });
+      } catch (error) {
+        if (disconnected) return HANDLED;
+        if (deadlineExpired || error instanceof HttpsReadCancelledError
+          || error instanceof ConnectorRunCancelledError) {
+          send(response, 504, { error: 'https_timeout' });
+        } else if (error instanceof HttpsImportError) {
+          send(response, error.status, { error: error.code });
+        } else {
+          send(response, 502, { error: 'https_import_failed' });
+        }
+      } finally {
+        clearTimeout(deadline);
         request.off('aborted', abortIfPremature);
         response.off('close', abortIfPremature);
         request.socket.off('close', abortIfPremature);

@@ -18,7 +18,8 @@ export type ConnectorFailureCode =
 export type ConnectorAvailabilityReason =
   | 'signing_not_configured'
   | 'file_import_unavailable'
-  | 'github_import_unavailable';
+  | 'github_import_unavailable'
+  | 'https_import_unavailable';
 
 export type ConnectorGroup = 'CODE' | 'FILES' | 'DATA';
 

@@ -74,6 +74,44 @@ describe('connector document normalization', () => {
     expect(observedLater.provenanceKey).toBe(first.provenanceKey);
   });
 
+  it('accepts only closed sanitized HTTPS evidence and binds path/raw/media while excluding retrieval time', () => {
+    const httpsProvenance = {
+      connectorId: 'https_api' as const,
+      sourceUrl: 'https://api.example.com/',
+      mediaType: 'application/json' as const,
+      observedAt: '2026-08-21T10:00:00.000Z',
+      https: {
+        schemaVersion: 1 as const,
+        pathDigest: 'a'.repeat(64),
+        retrievedAt: '2026-08-21T10:00:00.000Z',
+        rawDigest: 'b'.repeat(64),
+        parserVersion: 'https-v1' as const,
+      },
+    };
+    const first = prepareConnectorDocument({ title: 'HTTPS', text: '/a = 1', provenance: httpsProvenance });
+    const later = prepareConnectorDocument({
+      title: 'HTTPS', text: '/a = 1', provenance: {
+        ...httpsProvenance,
+        observedAt: '2026-08-22T10:00:00.000Z',
+        https: { ...httpsProvenance.https, retrievedAt: '2026-08-22T10:00:00.000Z' },
+      },
+    });
+    expect(later.sourceKey).toBe(first.sourceKey);
+    expect(later.provenanceKey).toBe(first.provenanceKey);
+    expect(() => prepareConnectorDocument({
+      title: 'bad', text: 'text', provenance: {
+        ...httpsProvenance,
+        sourceUrl: 'https://api.example.com/private?token=secret',
+      },
+    })).toThrowError(new ConnectorNormalizationError('invalid_provenance'));
+    expect(() => prepareConnectorDocument({
+      title: 'bad', text: 'text', provenance: {
+        ...httpsProvenance,
+        providerHeaders: { authorization: 'secret' },
+      } as never,
+    })).toThrowError(new ConnectorNormalizationError('invalid_provenance'));
+  });
+
   it.each([
     `https://github.com/${'a'.repeat(40)}/atlas`,
     'https://github.com/acme--labs/atlas',

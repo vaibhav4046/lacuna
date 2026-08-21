@@ -498,7 +498,7 @@ export class VoiceOperationExecutor {
     eligibleStatuses: ReadonlySet<string>,
     sessionBinding: string,
   ): Promise<VoiceOperationResult> {
-    const rawRuns = await getVoiceOperationJson('/api/workspace/runs', this.#api);
+    const rawRuns = await getVoiceOperationJson('/api/workspace/runs', this.#api, sessionBinding);
     const runs = readRuns(rawRuns);
     if (runs === null) return unavailableResult(plan, 'invalid_response');
     const target = one(runs.filter((run) => eligibleStatuses.has(run.status)));
@@ -513,7 +513,7 @@ export class VoiceOperationExecutor {
   }
 
   async #runSchedule(plan: VoiceOperationPlan, sessionBinding: string): Promise<VoiceOperationResult> {
-    const rawSchedules = await getVoiceOperationJson('/api/workspace/schedules', this.#api);
+    const rawSchedules = await getVoiceOperationJson('/api/workspace/schedules', this.#api, sessionBinding);
     const schedules = readSchedules(rawSchedules);
     if (schedules === null) return unavailableResult(plan, 'invalid_response');
     const target = one(schedules.filter((schedule) => schedule.enabled));

@@ -53,12 +53,15 @@ export function browserCsrfToken(): string {
 export async function getVoiceOperationJson(
   path: string,
   options: VoiceOperationApiOptions,
+  sessionBinding?: string,
 ): Promise<unknown> {
   try {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (sessionBinding !== undefined) headers['X-Lacuna-Voice-Binding'] = sessionBinding;
     const response = await options.fetchImpl(path, {
       method: 'GET',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers,
     });
     return await responseJson(response);
   } catch (error) {

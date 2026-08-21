@@ -1349,6 +1349,10 @@ export class ApiRouter {
       }
 
       if (part === 'agents' || part === 'runs' || part === 'tools' || part === 'schedules') {
+        if ((part === 'runs' || part === 'schedules') && !voiceBindingOk(request, cookies, false)) {
+          send(response, 401, { error: 'voice_binding' });
+          return HANDLED;
+        }
         const account = await this.#accountFor(cookies);
         if (account === null) {
           send(response, 401, { error: 'session' });

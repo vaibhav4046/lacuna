@@ -180,6 +180,40 @@ describe('voice operation planning boundary', () => {
     expectVoiceBinding(test.calls[1]!, SESSION_BINDING_A);
   });
 
+  it('keeps the planning-session binding on every target preflight after the browser session changes', async () => {
+    const cases = [
+      {
+        operation: { version: 1, kind: 'cancel_selected_run' } as const,
+        preflight: '/api/workspace/runs',
+        target: [{ id: 'active-run', status: 'RUNNING' }],
+        mutation: { id: 'active-run', status: 'CANCELLED' },
+      },
+      {
+        operation: { version: 1, kind: 'retry_selected_run' } as const,
+        preflight: '/api/workspace/runs',
+        target: [{ id: 'failed-run', status: 'FAILED' }],
+        mutation: { id: 'retried-run', status: 'COMPLETED' },
+      },
+      {
+        operation: { version: 1, kind: 'run_selected_schedule' } as const,
+        preflight: '/api/workspace/schedules',
+        target: [{ id: 'enabled-schedule', enabled: true }],
+        mutation: { outcome: 'DISPATCHED' },
+      },
+    ];
+
+    for (const sample of cases) {
+      const test = harness((path) => json(path === sample.preflight ? sample.target : sample.mutation));
+      const plan = await test.trust(planned(sample.operation));
+      test.setSessionBinding(SESSION_BINDING_B);
+
+      await expect(test.executor.execute(plan)).resolves.toMatchObject({ status: 'succeeded' });
+      expect(test.calls[1]).toMatchObject({ path: sample.preflight, init: { method: 'GET' } });
+      expectVoiceBinding(test.calls[1]!, SESSION_BINDING_A);
+      expectVoiceBinding(test.calls[2]!, SESSION_BINDING_A);
+    }
+  });
+
   it('rejects planner-supplied authority and executes no follow-up request', async () => {
     const poisoned = {
       ...planned({ version: 1, kind: 'navigate', route: 'dash' }),

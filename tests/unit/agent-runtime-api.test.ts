@@ -6,15 +6,43 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
-import { FileAccounts } from '../../src/auth/accounts.js';
-import { AccountStore, newSessionVersion } from '../../src/auth/store.js';
+import { FileAccounts, type Accounts } from '../../src/auth/accounts.js';
+import { AccountStore, newSessionVersion, type Account, type SessionRecord } from '../../src/auth/store.js';
+import { FileAgentRuntimeStore } from '../../src/agent/store.js';
 import type { AgentRun } from '../../src/agent/types.js';
+import { FileScheduleStore } from '../../src/scheduler/store.js';
 
 const VOICE_REQUEST_ID = '123e4567-e89b-42d3-a456-426614174000';
 let server: Server;
 let base: string;
 let directory: string;
 const idempotencyKeys: string[] = [];
+const preparedWorkspaces: string[] = [];
+
+class ObservedAccounts implements Accounts {
+  readonly #delegate: Accounts;
+  lookups = 0;
+
+  constructor(delegate: Accounts) { this.#delegate = delegate; }
+  available(): Promise<boolean> { return this.#delegate.available(); }
+  create(account: Account): Promise<Account | null> { return this.#delegate.create(account); }
+  update(account: Account): Promise<void> { return this.#delegate.update(account); }
+  updateWorkspace(email: string, workspace: string): Promise<void> {
+    return this.#delegate.updateWorkspace(email, workspace);
+  }
+  startSession(email: string, now: number, expectedSessionVersion?: string): Promise<string> {
+    return this.#delegate.startSession(email, now, expectedSessionVersion);
+  }
+  endSession(token: string): Promise<void> { return this.#delegate.endSession(token); }
+  find(email: string): Promise<Account | null> {
+    this.lookups += 1;
+    return this.#delegate.find(email);
+  }
+  sessionFor(token: string, now: number): Promise<SessionRecord | null> {
+    this.lookups += 1;
+    return this.#delegate.sessionFor(token, now);
+  }
+}
 
 interface Identity {
   readonly cookie: string;
@@ -27,7 +55,7 @@ interface BareIdentity {
   readonly csrf: string;
 }
 
-async function identity(accounts: FileAccounts, email: string): Promise<BareIdentity> {
+async function identity(accounts: Accounts, email: string): Promise<BareIdentity> {
   const now = Date.UTC(2026, 7, 21, 12);
   const sessionVersion = newSessionVersion();
   await accounts.create({
@@ -47,6 +75,7 @@ async function identity(accounts: FileAccounts, email: string): Promise<BareIden
 
 let who: Identity;
 let other: Identity;
+let observedAccounts: ObservedAccounts;
 
 async function withBinding(identity: BareIdentity): Promise<Identity> {
   const state = await (await fetch(`${base}/api/session`, {
@@ -80,16 +109,28 @@ async function run(body: unknown, binding?: string, identity = who): Promise<Res
   return postPath('/api/workspace/agent/run', body, identity, binding);
 }
 
+async function getPath(path: string, identity = who, binding?: string): Promise<Response> {
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    cookie: identity.cookie,
+  };
+  if (binding !== undefined) headers['x-lacuna-voice-binding'] = binding;
+  return fetch(`${base}${path}`, { headers });
+}
+
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'lacuna-agent-runtime-api-'));
-  const accounts = new FileAccounts(new AccountStore(directory));
-  const bareWho = await identity(accounts, 'voice-runtime@example.com');
-  const bareOther = await identity(accounts, 'voice-runtime-other@example.com');
+  observedAccounts = new ObservedAccounts(new FileAccounts(new AccountStore(directory)));
+  const bareWho = await identity(observedAccounts, 'voice-runtime@example.com');
+  const bareOther = await identity(observedAccounts, 'voice-runtime-other@example.com');
   const router = new ApiRouter({
-    store: accounts,
+    store: observedAccounts,
     secure: false,
     health: null,
     now: () => Date.UTC(2026, 7, 21, 12),
+    agentStore: new FileAgentRuntimeStore(directory),
+    scheduleStore: new FileScheduleStore(directory),
+    prepareAgents: async (workspace) => { preparedWorkspaces.push(workspace); },
     agent: async (workspace, task, options) => {
       idempotencyKeys.push(options?.idempotencyKey ?? 'missing');
       return {
@@ -120,6 +161,27 @@ afterAll(async () => {
 });
 
 describe('authenticated agent-run request identity', () => {
+  it('keeps ordinary target GETs compatible and accepts a matching voice binding', async () => {
+    for (const path of ['/api/workspace/runs', '/api/workspace/schedules']) {
+      expect((await getPath(path, other)).status, path).toBe(200);
+      expect((await getPath(path, other, other.binding)).status, path).toBe(200);
+    }
+  });
+
+  it('rejects stale and malformed target GET bindings before account or workspace lookup', async () => {
+    const lookupBefore = observedAccounts.lookups;
+    const prepareBefore = preparedWorkspaces.length;
+    for (const path of ['/api/workspace/runs', '/api/workspace/schedules']) {
+      for (const binding of [who.binding, '', 'A'.repeat(64), 'a'.repeat(63), 'g'.repeat(64)]) {
+        const denied = await getPath(path, other, binding);
+        expect(denied.status, `${path} ${binding.length}`).toBe(401);
+        await expect(denied.json()).resolves.toEqual({ error: 'voice_binding' });
+      }
+    }
+    expect(observedAccounts.lookups).toBe(lookupBefore);
+    expect(preparedWorkspaces).toHaveLength(prepareBefore);
+  });
+
   it('accepts a matching voice binding but rejects stale and malformed bindings before any dispatch', async () => {
     const body = { task: 'Prepare an evidence brief for Atlas.', requestId: VOICE_REQUEST_ID };
     const before = idempotencyKeys.length;

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { COMMANDS } from '../../src/cli/args.js';
+import * as browserContracts from '../../web/src/app/product-contracts.js';
 import {
   CLI_COMMAND_NAMES,
   MCP_TOOLS_LIST_REQUEST,
@@ -99,19 +100,85 @@ describe('web product contracts', () => {
     expect(mcpToolNames({})).toEqual([]);
   });
 
-  it('keeps the voice workspace reachable from every app route without simulating activity', () => {
+  it('opens one accessible voice dialog from every shell route without navigating or simulating activity', () => {
     const shell = readFileSync(new URL('../../web/src/app/Shell.tsx', import.meta.url), 'utf8');
-    expect(shell).toContain("go(`${scope.prefix}/voice`)");
-    expect(shell).toContain("aria-label={route === 'voice' ? 'Voice workspace is open' : 'Open voice workspace'}");
+    const dock = readFileSync(new URL('../../web/src/app/VoiceDock.tsx', import.meta.url), 'utf8');
+
+    expect(shell).toContain('<VoiceDock />');
+    expect(shell).not.toContain("onClick={() => go(`${scope.prefix}/voice`)}");
+    expect(dock).toContain('role="dialog"');
+    expect(dock).toContain('aria-modal="true"');
+    expect(dock).toContain('aria-label="Open voice assistant"');
+    expect(dock).toContain('onClick={dockOpen ? closeDock : openDock}');
+    expect(dock).toContain('START LISTENING');
+    expect(dock).toContain('onClick={() => void startListening()}');
+    expect(dock.match(/void startListening\(\)/gu)).toHaveLength(1);
+    expect(dock).toContain('pendingPreview');
+    expect(dock).toContain('CONFIRM');
+    expect(dock).toContain('CANCEL');
+    expect(dock).toContain('EXPAND VOICE');
     expect(shell).not.toContain('animation:');
+    expect(dock).not.toContain('animation:');
   });
 
   it('offers truthful recovery when browser playback is blocked or unmetered', () => {
-    const voice = readFileSync(new URL('../../web/src/app/routes/voice.tsx', import.meta.url), 'utf8');
+    const voice = readFileSync(new URL('../../web/src/app/VoiceDock.tsx', import.meta.url), 'utf8');
     expect(voice).toContain("playback_blocked: 'Your browser blocked sound'");
     expect(voice).toContain("'ENABLE SOUND'");
-    expect(voice).toContain("snapshot.playbackAnalysis === 'unavailable'");
+    expect(voice).toContain("speech.playbackAnalysis === 'unavailable'");
     expect(voice).toContain('AUDIO PLAYING · METER UNAVAILABLE');
+  });
+
+  it('keeps dock keyboard handling collapse-only on Escape and wraps focus on Tab', () => {
+    const dock = readFileSync(new URL('../../web/src/app/VoiceDock.tsx', import.meta.url), 'utf8');
+    const keyboardAction = Reflect.get(browserContracts, 'voiceDockKeyboardAction');
+    expect(keyboardAction).toBeTypeOf('function');
+    if (typeof keyboardAction !== 'function') return;
+
+    expect(keyboardAction('Escape', false, 1, 3)).toEqual({ kind: 'collapse' });
+    expect(keyboardAction('Tab', false, 2, 3)).toEqual({ kind: 'focus', index: 0 });
+    expect(keyboardAction('Tab', true, 0, 3)).toEqual({ kind: 'focus', index: 2 });
+    expect(keyboardAction('Enter', false, 1, 3)).toEqual({ kind: 'none' });
+
+    const handler = dock.slice(dock.indexOf('function handleDialogKey'), dock.indexOf('\n\n  return (', dock.indexOf('function handleDialogKey')));
+    expect(handler).toContain('closeDock()');
+    expect(handler).not.toContain('cancelPending');
+    expect(handler).not.toContain('confirm()');
+    expect(dock).toContain('else if (wasOpen.current) bubbleRef.current?.focus()');
+  });
+
+  it('bounds answer copy and counts before the compact dock renders them', () => {
+    const dockText = Reflect.get(browserContracts, 'voiceDockText');
+    const dockCount = Reflect.get(browserContracts, 'voiceDockCount');
+    expect(dockText).toBeTypeOf('function');
+    expect(dockCount).toBeTypeOf('function');
+    if (typeof dockText !== 'function' || typeof dockCount !== 'function') return;
+
+    expect(dockText('  observed answer  ')).toBe('observed answer');
+    expect(dockText('x'.repeat(700))).toBe(`${'x'.repeat(639)}…`);
+    expect(dockCount(7)).toBe('7');
+    expect(dockCount(12_000)).toBe('9,999+');
+  });
+
+  it('shares the shell controller with the expanded route and Ask voice action', () => {
+    const voiceRoute = readFileSync(new URL('../../web/src/app/routes/voice.tsx', import.meta.url), 'utf8');
+    const ask = readFileSync(new URL('../../web/src/app/routes/Ask.tsx', import.meta.url), 'utf8');
+
+    expect(voiceRoute).toContain('useVoiceAssistant()');
+    expect(voiceRoute).not.toContain('new BrowserVoiceRuntime');
+    expect(voiceRoute).not.toContain('new VoiceController');
+    expect(ask).toContain('const { openDock } = useVoiceAssistant()');
+    expect(ask).toContain('onClick={openDock}');
+    expect(ask).toContain('postFor<Planned>(`${base}/query`');
+  });
+
+  it('labels Explore voice as read-only and leaves its questions on the direct public query path', () => {
+    const dock = readFileSync(new URL('../../web/src/app/VoiceDock.tsx', import.meta.url), 'utf8');
+    const assistant = readFileSync(new URL('../../web/src/voice/assistant-controller.ts', import.meta.url), 'utf8');
+
+    expect(dock).toContain('EXPLORE · READ ONLY');
+    expect(assistant).toContain("if (this.#context.scope === 'public')");
+    expect(assistant).toContain('const response = await directAsk()');
   });
 
   it('uses the corpus predicate contract for deployed agent Context Packs', () => {

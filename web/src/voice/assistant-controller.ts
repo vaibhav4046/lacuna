@@ -5,6 +5,7 @@ import {
   type VoiceDirectAsk,
   type VoiceSnapshot,
 } from './controller';
+import { VoiceOperationRequestError } from '../api/voice-operations';
 import type { VoiceOperationPlan, VoiceOperationResult } from './operations';
 
 export const VOICE_OPERATION_PHASES = [
@@ -241,9 +242,10 @@ export class VoiceAssistantController {
     let planned: VoiceOperationPlan;
     try {
       planned = await this.#executor.plan(text, this.#context.currentRoute);
-    } catch {
+    } catch (error) {
       this.#assertCurrent(generation, signal);
-      const result = fixedResult('unavailable', 'request_failed', 'The operation could not be completed.');
+      const failure = error instanceof VoiceOperationRequestError ? error.failure : 'request_failed';
+      const result = fixedResult('unavailable', failure, 'The operation could not be completed.');
       this.#operationPhase = 'unavailable';
       this.#result = result;
       this.#emit();

@@ -4,6 +4,7 @@ import { postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { STANDING_COLOUR, STANDING_LABEL } from '../../design/standing';
+import { useVoiceAssistant } from '../../voice/assistant-context';
 import { askEndpoint } from '../product-contracts';
 
 /**
@@ -103,6 +104,7 @@ function noAnswerReason(reason: string | null, fallback: 'conflict' | 'missing')
 export function Ask() {
   const go = useNavigate();
   const { prefix, base, demo } = useScope();
+  const { openDock } = useVoiceAssistant();
   const suggested = useScoped<readonly Suggestion[]>('questions');
   const [asked, setAsked] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
@@ -274,7 +276,7 @@ export function Ask() {
           style={{ flex: 1, minWidth: '120px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
         />
         <button className="hv-violet" onClick={() => void runTyped()} style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '7px 12px' }}>ASK</button>
-        <button className="hv-edge35" onClick={() => go(`${prefix}/voice`)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
+        <button className="hv-edge35" onClick={openDock} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

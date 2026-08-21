@@ -22,6 +22,7 @@ import type {
   VoiceOperationResult,
 } from '../../web/src/voice/operations.js';
 import type { VoiceOperation } from '../../src/voice/operations.js';
+import { VoiceOperationRequestError } from '../../web/src/api/voice-operations.js';
 
 const REQUEST_IDS = [
   '11111111-1111-4111-8111-111111111111',
@@ -160,9 +161,11 @@ class FakeExecutor implements VoiceAssistantExecutor {
   readonly planCalls: Array<{ readonly text: string; readonly route: string }> = [];
   readonly executed: VoiceOperationPlan[] = [];
   deferredPlans = new Map<string, Promise<VoiceOperationPlan>>();
+  planFailures = new Map<string, unknown>();
 
   async plan(text: string, currentRoute: string): Promise<VoiceOperationPlan> {
     this.planCalls.push({ text, route: currentRoute });
+    if (this.planFailures.has(text)) throw this.planFailures.get(text);
     const held = this.deferredPlans.get(text);
     if (held !== undefined) return held;
     const planned = this.plans.get(text);
@@ -238,6 +241,22 @@ describe('immediate voice operations', () => {
       result: { operationKind: 'summarize', observedCount: 2 },
     });
     expect(runtime.spoken).toEqual(['Opened Graph.', 'Memory summary ready with 2 items.']);
+  });
+
+  it('preserves an authenticated planning refusal as session required', async () => {
+    const { assistant, executor, voice } = harness();
+    executor.planFailures.set(
+      'summarize after session expiry',
+      new VoiceOperationRequestError('session_required'),
+    );
+
+    await voice.submitTyped('summarize after session expiry');
+
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'unavailable',
+      result: { status: 'unavailable', failure: 'session_required' },
+    });
+    expect(executor.executed).toEqual([]);
   });
 
   it('speaks only the fixed observed summary while retaining the bounded Ask result', async () => {

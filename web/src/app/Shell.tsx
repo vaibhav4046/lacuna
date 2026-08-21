@@ -4,8 +4,10 @@ import { useSession } from '../api/session';
 import { useScope } from '../api/scope';
 import { icStyle } from '../design/icons';
 import { MONO, Mark } from '../design/mark';
+import { VoiceAssistantProvider } from '../voice/assistant-context';
 import { DEFAULT_ROUTE, NAV_GROUPS, isRouteKey, routeTitle } from './routes';
 import { RouteBody } from './RouteBody';
+import { VoiceDock } from './VoiceDock';
 
 /**
  * The signed-in frame: a sidebar of seven groups, a header, and the route.
@@ -50,7 +52,14 @@ export default function Shell() {
   const initial = email === null ? '' : (email[0] ?? '').toUpperCase();
 
   return (
-    <div data-shellroot="1" style={{ position: 'relative', zIndex: 1, display: 'flex', minHeight: '100vh', background: '#000000' }}>
+    <VoiceAssistantProvider
+      base={scope.base}
+      currentRoute={`${scope.prefix}/${route}`}
+      scope={scope.demo ? 'public' : 'private'}
+      sessionKey={email}
+      workspaceKey={workspace}
+    >
+      <div data-shellroot="1" style={{ position: 'relative', zIndex: 1, display: 'flex', minHeight: '100vh', background: '#000000' }}>
       <aside data-shellnav="1" style={{ width: '216px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', padding: '20px 14px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <button className="shell-brand" onClick={() => go('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '9px', padding: '6px 10px', textAlign: 'left' }}>
           <Mark size={17} />
@@ -127,33 +136,8 @@ export default function Shell() {
           <RouteBody route={route} />
         </div>
       </main>
-      <button
-        type="button"
-        aria-label={route === 'voice' ? 'Voice workspace is open' : 'Open voice workspace'}
-        aria-pressed={route === 'voice'}
-        title={route === 'voice' ? 'Voice workspace' : 'Open voice'}
-        onClick={() => go(`${scope.prefix}/voice`)}
-        style={{
-          position: 'fixed',
-          right: 'clamp(16px, 2vw, 28px)',
-          bottom: 'clamp(16px, 2vw, 28px)',
-          zIndex: 20,
-          width: '58px',
-          height: '58px',
-          display: 'grid',
-          placeItems: 'center',
-          padding: 0,
-          borderRadius: '50%',
-          border: route === 'voice' ? '1px solid rgba(255,184,41,0.72)' : '1px solid rgba(255,255,255,0.2)',
-          background: '#050505',
-          boxShadow: route === 'voice'
-            ? '0 0 0 5px rgba(255,184,41,0.07), 0 14px 42px rgba(0,0,0,0.58)'
-            : '0 14px 42px rgba(0,0,0,0.58)',
-          cursor: route === 'voice' ? 'default' : 'pointer',
-        }}
-      >
-        <Mark size={24} />
-      </button>
-    </div>
+        <VoiceDock />
+      </div>
+    </VoiceAssistantProvider>
   );
 }

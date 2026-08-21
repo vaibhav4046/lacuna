@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { handleLine } from '../../src/cli/shell.js';
@@ -63,5 +65,36 @@ describe('a line typed at the prompt', () => {
     const { lines, deps } = collect();
     await handleLine('?', deps);
     expect(lines.join('\n')).toContain('Commands');
+  });
+});
+
+describe('the authenticated voice shell owner', () => {
+  it('mounts exactly one provider and one dock around route content', () => {
+    const shell = readFileSync(new URL('../../web/src/app/Shell.tsx', import.meta.url), 'utf8');
+
+    expect(shell.match(/<VoiceAssistantProvider\b/gu)).toHaveLength(1);
+    expect(shell.match(/<VoiceDock\s*\/>/gu)).toHaveLength(1);
+    expect(shell.indexOf('<VoiceAssistantProvider')).toBeLessThan(shell.indexOf('<RouteBody'));
+    expect(shell.indexOf('<RouteBody')).toBeLessThan(shell.indexOf('<VoiceDock'));
+    for (const contextProp of ['currentRoute=', 'scope=', 'sessionKey=', 'workspaceKey=']) {
+      expect(shell).toContain(contextProp);
+    }
+  });
+
+  it('creates one owned controller stack and updates context without rebuilding it', () => {
+    const context = readFileSync(new URL('../../web/src/voice/assistant-context.tsx', import.meta.url), 'utf8');
+
+    for (const constructor of [
+      'new BrowserVoiceRuntime',
+      'new VoiceController',
+      'new VoiceOperationExecutor',
+      'new VoiceAssistantController',
+    ]) {
+      expect(context.split(constructor)).toHaveLength(2);
+    }
+    expect(context).toContain('assistant.setContext(context)');
+    expect(context).toContain('}, [base]);');
+    expect(context).toContain('assistant.dispose()');
+    expect(context).toContain('voice.dispose()');
   });
 });

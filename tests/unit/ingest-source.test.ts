@@ -271,6 +271,28 @@ describe('what comes back', () => {
 });
 
 describe('read-before-write merge failures', () => {
+  it('recognizes HydraDB documented detail.error_code missing-record responses', async () => {
+    const cloud = new HydraCloud(
+      {
+        baseUrl: 'https://api.example.invalid',
+        token: 'not-a-real-token',
+        database: 'lacuna',
+        collection: 'public-demo',
+      },
+      {
+        fetch: async () => Response.json({
+          detail: {
+            success: false,
+            message: 'File ID does not exist',
+            error_code: 'FILE_NOT_FOUND',
+          },
+        }, { status: 404 }),
+      },
+    );
+
+    await expect(cloud.inspect('lacuna:missing', 5_000)).resolves.toBeNull();
+  });
+
   it('writes nothing when the existing index is temporarily unavailable', async () => {
     const sent: Sent[] = [];
 

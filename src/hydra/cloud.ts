@@ -387,9 +387,17 @@ export class HydraCloud {
 async function errorCode(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json();
-    const error = pick(body, 'error');
-    const code = pick(error, 'code');
-    return typeof code === 'string' && code !== '' ? code : 'no error code';
+    // HydraDB's current documented envelope is
+    // `{ detail: { error_code } }`; the older context API also emitted
+    // `{ error: { code } }`. Read both machine-code fields and never surface
+    // the human message, which may contain request data.
+    const codes = [
+      pick(pick(body, 'detail'), 'error_code'),
+      pick(pick(body, 'error'), 'code'),
+      pick(body, 'error_code'),
+    ];
+    const code = codes.find((value) => typeof value === 'string' && value !== '');
+    return typeof code === 'string' ? code : 'no error code';
   } catch {
     return 'no error body';
   }

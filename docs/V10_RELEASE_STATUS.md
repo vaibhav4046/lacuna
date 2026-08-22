@@ -65,13 +65,15 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `665858d`
-(`fix(auth): wait for durable cloud account writes`) with the production-only
-file-preview and webhook signing keys enabled. Root typecheck and the
-135-module production build pass; the focused auth suite is 62/62, and the
-stable alias passed demo smoke 31/31, Google auth smoke 16/16, and auth
-boundary smoke 3/3. The stable alias points to the immutable deployment
-`https://lacuna-3lmxjwnft-vaibhav4046s-projects.vercel.app`.
+The current production deployment is product commit `15d6a42`
+(`fix(agents): satisfy strict binding prop types`) with the production-only
+file-preview and webhook signing keys enabled. Root and web typecheck/build
+pass; the full unit suite is 2,204/2,204, and the stable alias passed demo
+smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
+provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
+dispatch mutations now require the exact current-session binding, with browser
+requests sending it. The stable alias points to the immutable deployment
+`https://lacuna-ld5tlvofl-vaibhav4046s-projects.vercel.app` (`dpl_DZWSDYquskbqicRQShJuhrGVqDZt`).
 
 The first-run flow now creates a workspace, stores a real private memory through
 `POST /api/workspace/ingest`, proves a private answer through

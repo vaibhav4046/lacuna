@@ -99,6 +99,13 @@ Production voice operation check:
 - the controller navigated to `/app/graph` and loaded the graph route
 - no browser console errors or warnings were recorded
 
+Production connector review check:
+- entered the canonical public repository root
+  `https://github.com/vaibhav4046/lacuna`
+- `REVIEW SNAPSHOT` produced the explicit manual-import review state without
+  issuing a network import or changing workspace memory
+- the confirmation control remained separate and unpressed
+
 Production runtime scan:
 - Vercel grouped runtime errors for the production project returned no errors
   in the selected one-hour window after the connector lifecycle fix

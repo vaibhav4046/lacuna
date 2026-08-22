@@ -68,6 +68,12 @@ alias was still refused before body processing.
 The current production deployment is release commit `d5f9d02` with the
 production-only file-preview and webhook signing keys enabled. Root and web
 typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
+
+Candidate auth commits `b11b471` and `c48d58d` are pushed to
+`v10-zeus-release` and pass typecheck, web build and focused auth/session tests.
+They are not part of the accepted production deployment yet: Vercel rejected
+the promotion attempt on 2026-08-22 after the project's free daily deployment
+quota was exhausted.
 The stable alias points to immutable deployment
 `https://lacuna-ls23bt77b-vaibhav4046s-projects.vercel.app`
 (`dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`), aliased to

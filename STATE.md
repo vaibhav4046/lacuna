@@ -5,6 +5,12 @@ current production deployment. The current handoff is
 [`docs/V10_RELEASE_STATUS.md`](docs/V10_RELEASE_STATUS.md); V8 matrices remain
 dated evidence.
 
+The accepted production deployment remains `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`.
+Candidate commits `b11b471` and `c48d58d` add a durable-read optimisation and
+confirmed-session routing fix; they are pushed to `v10-zeus-release` but could
+not be promoted on 2026-08-22 because Vercel rejected a new deployment after
+the free daily deployment quota was exhausted.
+
 ## Accepted product gate
 
 - 117 unit test files and 2,271 tests passed with no skips in the latest serial verification.

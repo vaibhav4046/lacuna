@@ -78,21 +78,23 @@ The quickest judge path is the
 
 ### Release acceptance boundary
 
-The V10 production build passed web smoke 9/9, demo/API smoke 30/30 and the
-Google OAuth boundary 16/16. Its full unit suite passed 1,393/1,393, its build
-transformed 125 modules, and the two-hour Vercel release window contained no
-runtime error clusters or error/fatal logs. ChatGPT then called all seven public
-MCP tools against HydraDB Cloud; the redacted result ledger is in
+The current V10 production build passes web smoke 9/9, demo/API smoke 31/31,
+auth boundary smoke 3/3, Google OAuth security smoke 16/16, and the provider
+voice boundary 7/7. Its full unit suite passes 2,213/2,213, and the production
+web build and route matrix are green. ChatGPT has called all seven public MCP
+tools against HydraDB Cloud; the redacted result ledger is in
 [`artifacts/verification/2026-08-21-v10`](artifacts/verification/2026-08-21-v10).
 
 The repository does not publish an `@lacuna/sdk` package. The public read-only
-ChatGPT connector is accepted; Claude has not been tested. Google OAuth is
-accepted through the real account chooser but not through a completed human
-identity callback. Private MCP writes and provider-backed voice retain named
-production gates. Text and Custom ingestion are `AVAILABLE`. GitHub, GitLab,
-Linear, Jira, Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API,
-Webhook and Database source are `PLANNED`; none is `CONNECTED` or `SYNCING`.
-Spotify is not in the connector catalogue and is not implemented.
+ChatGPT connector is accepted; Claude has not been tested. Google OAuth passes
+the production security boundary through the chooser; selecting a human identity
+and accepting a fresh callback remain owner actions. Provider-backed voice passes
+its server/provider boundary, with typed Ask retained as the fallback when a
+browser blocks playback. The production connector catalogue exposes seven real
+workflows: GitHub snapshots, Markdown/Text/PDF/DOCX imports, public HTTPS reads,
+and signed webhooks. All are available on the current deployment. GitLab, Linear,
+Jira, Slack, Notion, Gmail, Confluence and database sync remain explicitly
+planned; Spotify is not catalogued or implemented.
 
 The public workspace exposes accepted agent run records for inspection but is
 not a shared scratchpad. The accepted production deployment returns

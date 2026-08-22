@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 113 files, 2,239/2,239 passed
+- current candidate full unit suite: 113 files, 2,240/2,240 passed
 - queued candidate adds bounded OAuth state/code parameters and a ten-second
   Google token/JWKS deadline; it is not yet production-promoted because the
   Vercel Hobby deployment quota is exhausted
@@ -31,6 +31,13 @@ Voice candidate hardening:
   fires after headers have arrived
 - the voice path returns `provider_unavailable` instead of remaining busy
 - the regression is covered by `tests/unit/voice-browser.test.ts`; not yet
+  production-promoted
+
+Connector candidate hardening:
+- the default GitHub fetch transport cancels its response body reader when the
+  bounded importer signal fires after headers arrive
+- the importer returns `github_timeout` rather than remaining busy
+- the regression is covered by `tests/unit/connectors-github.test.ts`; not yet
   production-promoted
 
 Fresh stable smoke rerun:

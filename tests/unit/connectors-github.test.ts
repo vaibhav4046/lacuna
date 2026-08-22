@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GitHubImporter,
@@ -111,6 +111,56 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('bounded public GitHub repository importer', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('cancels a stalled default fetch body after the importer deadline', async () => {
+    vi.useFakeTimers();
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+        releaseRead = resolve;
+      })),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+    };
+    const jsonBody = (value: unknown): ReadableStream<Uint8Array> => new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(json(value));
+        controller.close();
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url === API_ROOT) {
+        return { status: 200, url, redirected: false, body: jsonBody({
+          full_name: 'Acme/Atlas', private: false, default_branch: 'main',
+        }) } as unknown as Response;
+      }
+      if (url === `${API_ROOT}/commits/main`) {
+        return {
+          status: 200,
+          url,
+          redirected: false,
+          body: { getReader: () => reader },
+        } as unknown as Response;
+      }
+      throw new Error(`unexpected URL ${url}`);
+    }));
+
+    const pending = new GitHubImporter({ deadlineMs: 1000 })
+      .importPublicRepo('https://github.com/acme/atlas', new AbortController().signal)
+      .catch((error: unknown) => error);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    if (reader.cancel.mock.calls.length === 0) releaseRead({ done: true });
+    const failure = await pending;
+
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(failure).toMatchObject({ name: 'GitHubImportError', code: 'github_timeout' });
+  });
+
   it('normalizes one .git suffix and reads one immutable commit/tree/blob sequence with fixed anonymous headers', async () => {
     const source = Buffer.from('# Atlas\na: Atlas is owned by Priya.', 'utf8');
     const { transport } = fixture({ 'README.md': source });

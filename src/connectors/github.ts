@@ -172,15 +172,22 @@ class FetchGitHubTransport implements GitHubTransport {
     let bytes = 0;
     const reader = response.body?.getReader();
     if (reader !== undefined) {
-      for (;;) {
-        const next = await reader.read();
-        if (next.done) break;
-        bytes += next.value.byteLength;
-        if (bytes > request.maxResponseBytes) {
-          await reader.cancel();
-          throw new GitHubImportError('github_budget_exceeded');
+      const cancelReader = () => { void reader.cancel().catch(() => undefined); };
+      request.signal.addEventListener('abort', cancelReader, { once: true });
+      if (request.signal.aborted) cancelReader();
+      try {
+        for (;;) {
+          const next = await reader.read();
+          if (next.done) break;
+          bytes += next.value.byteLength;
+          if (bytes > request.maxResponseBytes) {
+            await reader.cancel();
+            throw new GitHubImportError('github_budget_exceeded');
+          }
+          chunks.push(next.value);
         }
-        chunks.push(next.value);
+      } finally {
+        request.signal.removeEventListener('abort', cancelReader);
       }
     }
     return {

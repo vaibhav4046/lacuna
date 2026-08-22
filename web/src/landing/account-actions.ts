@@ -20,6 +20,17 @@ export type LandingAccountActions =
     readonly links: readonly LandingLink[];
   };
 
+/**
+ * The hero is shared by guests and members, but its primary action must not
+ * discard an authenticated workspace by sending a member to the public demo.
+ * Unknown/failed session reads stay on the read-only demo until the provider
+ * has a verified identity; only a proven member gets a private destination.
+ */
+export function landingWorkspacePath(loaded: Loaded<SessionState>): string {
+  const account = landingAccountActions(loaded);
+  return account.state === 'member' ? account.primary.path : '/explore/dash';
+}
+
 export function landingAccountActions(loaded: Loaded<SessionState>): LandingAccountActions {
   if (loaded.state !== 'ready') return { state: 'pending' };
   if (!loaded.value.signedIn) {

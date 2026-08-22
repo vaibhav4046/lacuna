@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { landingAccountActions } from '../../web/src/landing/account-actions.js';
+import { landingAccountActions, landingWorkspacePath } from '../../web/src/landing/account-actions.js';
 
 describe('landing account actions', () => {
+  it('keeps a verified member on the private workspace from the hero', () => {
+    expect(landingWorkspacePath({
+      state: 'ready',
+      value: {
+        signedIn: true,
+        session: { email: 'member@example.com', binding: 'a'.repeat(64), workspace: 'Atlas', onboarded: true },
+      },
+    })).toBe('/app/dash');
+  });
+
+  it('keeps unknown or signed-out visitors on the public workspace', () => {
+    expect(landingWorkspacePath({ state: 'loading' })).toBe('/explore/dash');
+    expect(landingWorkspacePath({ state: 'ready', value: { signedIn: false } })).toBe('/explore/dash');
+  });
+
   it('returns to a signed-in workspace instead of offering another sign in', () => {
     expect(landingAccountActions({
       state: 'ready',

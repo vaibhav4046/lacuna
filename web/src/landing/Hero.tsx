@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 
+import { useSession } from '../api/session';
 import { MONO } from '../design/mark';
+import { landingWorkspacePath } from './account-actions';
 
 /**
  * The field is the hero. No frame, no duplicate logo and no decorative card:
@@ -9,6 +11,8 @@ import { MONO } from '../design/mark';
  */
 export function Hero() {
   const go = useNavigate();
+  const { loaded } = useSession();
+  const workspacePath = landingWorkspacePath(loaded);
 
   return (
     <section id="top" data-scene="hero" style={{ position: 'relative', height: '160vh' }}>
@@ -80,7 +84,7 @@ export function Hero() {
           >
             <button
               className="hv-violet"
-              onClick={() => go('/explore/dash')}
+              onClick={() => go(workspacePath)}
               style={{ background: '#8052FF', border: 'none', cursor: 'pointer', color: '#FFFFFF', fontSize: '15px', fontWeight: 500, padding: '13px 24px', borderRadius: '8px', whiteSpace: 'nowrap' }}
             >
               Open live workspace

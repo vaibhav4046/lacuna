@@ -129,11 +129,12 @@ async function session(jar: Jar): Promise<Response> {
   return response;
 }
 
-async function post(jar: Jar, path: string, body: unknown, options: { csrf?: string; origin?: string } = {}): Promise<Response> {
+async function post(jar: Jar, path: string, body: unknown, options: { csrf?: string; origin?: string; forwarded?: string } = {}): Promise<Response> {
   const token = options.csrf ?? jar.get('lacuna_csrf') ?? '';
   const headers: Record<string, string> = { 'content-type': 'application/json', cookie: jar.header() };
   if (token !== '') headers['x-csrf-token'] = decodeURIComponent(token);
   if (options.origin !== undefined) headers.origin = options.origin;
+  if (options.forwarded !== undefined) headers['x-forwarded-for'] = options.forwarded;
   const response = await fetch(url(path), { method: 'POST', headers, body: JSON.stringify(body) });
   jar.absorb(response);
   return response;
@@ -390,6 +391,20 @@ describe('sign in', () => {
     const codes: number[] = [];
     for (let i = 0; i < 9; i += 1) {
       codes.push((await post(jar, '/api/auth/signin', { email: 'flood@example.com', password: PASSWORD })).status);
+    }
+
+    expect(codes).toContain(429);
+    expect(codes.filter((code) => code === 401).length).toBeLessThanOrEqual(6);
+  });
+
+  it('does not let a client-supplied forwarded address bypass the rate limit', async () => {
+    nextMinute();
+    const jar = await primed();
+    const codes: number[] = [];
+    for (let i = 0; i < 9; i += 1) {
+      codes.push((await post(jar, '/api/auth/signin', {
+        email: 'spoofed-source@example.com', password: PASSWORD,
+      }, { forwarded: `198.51.100.${i + 1}` })).status);
     }
 
     expect(codes).toContain(429);

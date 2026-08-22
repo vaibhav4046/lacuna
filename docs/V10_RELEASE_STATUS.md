@@ -65,13 +65,13 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is the release of product commit `c1a0ce5`
-(`fix(voice): report connector setup success truthfully`). Root
+The current production deployment is the release of product commit `d4d1878`
+(`fix(landing): reflect connector availability`). Root
 typecheck and the 135-module production build pass; the focused demo/API
 contract suite is 31/31, the full unit baseline is 108 files / 2,197 tests,
 and the stable alias passed demo smoke 31/31, Google auth
 smoke 16/16, and auth boundary smoke 3/3. The stable alias points to the
-immutable deployment `https://lacuna-tx5fzdzmb-vaibhav4046s-projects.vercel.app`.
+immutable deployment `https://lacuna-gcob2872t-vaibhav4046s-projects.vercel.app`.
 
 The first-run flow now creates a workspace, stores a real private memory through
 `POST /api/workspace/ingest`, proves a private answer through

@@ -109,6 +109,22 @@ describe('the demo workspace without a session', () => {
     expect(body.some((connection) => connection.st === 'CONNECTED')).toBe(false);
   });
 
+  it('publishes only the redacted connector catalogue to signed-out users', async () => {
+    const response = await fetch(`${base}/api/explore/connectors`);
+    const body = await response.json() as {
+      readonly connectors: readonly Record<string, unknown>[];
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.connectors).toHaveLength(7);
+    for (const connector of body.connectors) {
+      expect(Object.keys(connector).sort()).toEqual(['availability', 'group', 'id', 'label', 'reason']);
+      expect(connector['id']).not.toBe('');
+      expect(connector['label']).not.toBe('');
+      expect(JSON.stringify(connector)).not.toMatch(/email|workspace|configuredAt|importedDocuments/iu);
+    }
+  });
+
   it('holds the corpus, where the signed-out workspace route holds nothing', async () => {
     const demo = (await (await fetch(`${base}/api/demo/memory`)).json()) as { total: number };
     const signedOut = (await (await fetch(`${base}/api/workspace/memory`)).json()) as { total: number };

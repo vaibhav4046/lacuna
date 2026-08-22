@@ -88,6 +88,16 @@ record(
   `${memory.body?.total ?? 0} rows`,
 );
 
+const publicConnectors = await json<{ connectors: readonly Record<string, unknown>[] }>('/api/explore/connectors');
+const connectorRows = publicConnectors.body?.connectors ?? [];
+record(
+  publicConnectors.status === 200
+    && connectorRows.length === 7
+    && connectorRows.every((connector) => Object.keys(connector).sort().join(',') === 'availability,group,id,label,reason'),
+  'public connector catalogue is redacted',
+  `${publicConnectors.status} ${connectorRows.length} entries`,
+);
+
 // 3. Read only. A write to it is not a route.
 const written = await fetch(`${target}/api/demo/questions`, { method: 'POST' });
 record(written.status === 404, 'the demo workspace refuses writes', `${written.status}`);

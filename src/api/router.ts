@@ -1568,6 +1568,15 @@ export class ApiRouter {
         send(response, 200, { label: headerModel(await modelRows(process.env)) });
         return HANDLED;
       }
+      if (part === 'connectors') {
+        // Public metadata only: never merge workspace observations, webhook
+        // state, imported counts, or account-derived identifiers here.
+        const connectors = this.#connectorCatalog().map(({ id, label, group, availability, reason }) => ({
+          id, label, group, availability, reason,
+        }));
+        send(response, 200, { connectors });
+        return HANDLED;
+      }
 
       if (part === 'graph') {
         if (!this.#readLimit.check(sourceKey(request), this.#now()).allowed) {

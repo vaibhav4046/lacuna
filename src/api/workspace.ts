@@ -259,6 +259,8 @@ export interface WorkspaceHealth {
 export interface MemoryRow {
   readonly claim: string;
   readonly entity: string;
+  /** The normalized predicate, kept beside the display string for Ask chips. */
+  readonly predicate: string;
   readonly src: string;
   readonly obs: string;
   readonly st: 'CUR' | 'SUP' | 'PRO' | 'CON' | 'UN';
@@ -358,6 +360,7 @@ export async function storeWorkspace(
       rows.push({
         claim: `${name} ${claim.predicate} ${claim.objectText}`,
         entity: name,
+        predicate: claim.predicate,
         src: 'Ingested source',
         obs: claim.validFrom.slice(0, 10),
         st: state,
@@ -381,7 +384,7 @@ export async function storeWorkspace(
       { l: 'Proposal', n: proposals, col: '#71717A' },
       { l: 'Contradicted', n: conflicted, col: '#FFB829' },
     ],
-    questions: [],
+    questions: storeSuggestions(rows),
   };
 }
 
@@ -429,6 +432,7 @@ export function demoWorkspace(inventory: Inventory): WorkspaceView {
   const rows: MemoryRow[] = inventory.claims.map((claim) => ({
     claim: claim.objectText === '' ? `${claim.subject} · ${claim.predicate}` : claim.objectText,
     entity: claim.subject,
+    predicate: claim.predicate,
     src: claim.source ?? 'not recorded',
     obs: shortDate(claim.observed),
     st: claim.state === 'current' ? 'CUR'
@@ -507,6 +511,49 @@ function suggestions(inventory: Inventory): readonly SuggestedQuestion[] {
       label: `${anySubject} · connection pool size — nothing states it`,
       subject: anySubject,
       predicate: 'pool_size',
+    });
+  }
+  return out;
+}
+
+/**
+ * Ask chips for a private workspace must come from the same bounded rows the
+ * Context screen just read. A separate static inventory made the dashboard
+ * show claims while Ask claimed the workspace was empty.
+ */
+function storeSuggestions(rows: readonly MemoryRow[]): readonly SuggestedQuestion[] {
+  const out: SuggestedQuestion[] = [];
+  const seen = new Set<string>();
+  const wanted: readonly (readonly [MemoryRow['st'], string])[] = [
+    ['CUR', 'is current'],
+    ['SUP', 'has been revised'],
+    ['CON', 'has sources that disagree'],
+  ];
+
+  for (const [state, why] of wanted) {
+    const row = rows.find((candidate) => candidate.st === state && !seen.has(`${candidate.entity}/${candidate.predicate}`));
+    if (row === undefined) continue;
+    const key = `${row.entity}/${row.predicate}`;
+    seen.add(key);
+    out.push({
+      label: `${row.entity} · ${row.predicate.replace(/_/g, ' ')} — ${why}`,
+      subject: row.entity,
+      predicate: row.predicate,
+    });
+  }
+
+  const first = rows[0];
+  if (first !== undefined) {
+    let predicate = 'pool_size';
+    let suffix = 2;
+    while (rows.some((row) => row.entity === first.entity && row.predicate === predicate)) {
+      predicate = `pool_size_${suffix}`;
+      suffix += 1;
+    }
+    out.push({
+      label: `${first.entity} · connection pool size — nothing states it`,
+      subject: first.entity,
+      predicate,
     });
   }
   return out;

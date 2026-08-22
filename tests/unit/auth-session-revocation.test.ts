@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { CloudAccounts, FileAccounts, type Accounts } from '../../src/auth/accounts.js';
+import { ACCOUNT_READY_TIMEOUT_MS, CloudAccounts, FileAccounts, type Accounts } from '../../src/auth/accounts.js';
 import { AccountStore, CredentialChanged, newSessionVersion, type Account } from '../../src/auth/store.js';
 import type { AppRecord, HydraCloud, IngestResult, InspectedSource } from '../../src/hydra/cloud.js';
 
@@ -52,6 +52,12 @@ class EventuallyConsistentRecordCloud extends RecordCloud {
       return null;
     }
     return super.inspect(id, timeoutMs, collection);
+  }
+}
+
+class HungReadinessCloud extends RecordCloud {
+  async readyForIngestion(): Promise<boolean> {
+    return await new Promise<boolean>(() => undefined);
   }
 }
 
@@ -122,6 +128,18 @@ async function provesWorkspaceUpdateCannotResurrect(accounts: Accounts): Promise
 }
 
 describe('credential-bound session versions', () => {
+  it('fails closed when the hosted readiness probe hangs', async () => {
+    vi.useFakeTimers();
+    try {
+      const accounts = new CloudAccounts(new HungReadinessCloud() as unknown as HydraCloud);
+      const pending = accounts.available();
+      await vi.advanceTimersByTimeAsync(ACCOUNT_READY_TIMEOUT_MS + 1);
+      await expect(pending).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('waits for queued Hydra account writes before minting a session', async () => {
     const accounts = new CloudAccounts(new EventuallyConsistentRecordCloud() as unknown as HydraCloud);
     expect(await accounts.create(ACCOUNT)).not.toBeNull();

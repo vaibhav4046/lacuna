@@ -53,6 +53,9 @@ export interface Accounts {
   endSession(token: string): Promise<void>;
 }
 
+/** Upper bound for the pre-auth hosted readiness check. */
+export const ACCOUNT_READY_TIMEOUT_MS = 8_000;
+
 /** The local answer: the existing directory-backed store, behind the seam. */
 export class FileAccounts implements Accounts {
   readonly #store: AccountStore;
@@ -199,10 +202,21 @@ export class CloudAccounts implements Accounts {
   }
 
   async available(): Promise<boolean> {
+    // Auth must not inherit the cloud client's 30-second transport deadline.
+    // A readiness probe is a guard, not the operation itself; if it stalls,
+    // fail closed quickly so sign-in can return a bounded, actionable error.
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await this.#cloud.readyForIngestion();
+      return await Promise.race([
+        this.#cloud.readyForIngestion(),
+        new Promise<false>((resolve) => {
+          deadline = setTimeout(() => resolve(false), ACCOUNT_READY_TIMEOUT_MS);
+        }),
+      ]);
     } catch {
       return false;
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
     }
   }
 

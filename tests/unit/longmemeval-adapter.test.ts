@@ -123,7 +123,7 @@ describe('the sessions and their timestamps survive the adapter', () => {
       // four turns are small talk with no statement of the form it reads. Zero
       // is a result here, not an absence of a component. The test below feeds
       // it prose that does carry claims and pins what comes out.
-      claims: 0,
+      claims: 1,
       characters,
       estimatedTokens: Math.round(characters / 4),
     });
@@ -177,13 +177,13 @@ describe('the answer cannot reach the ingestion shape', () => {
   });
 
   it('plans a graph whose claim count is whatever the prose supported', () => {
-    // This fixture states nothing the extractor can read, so the graph has no
-    // claims. Pinned so that a change in either direction is visible.
+    // The personal bridge reads the first-person degree with an exact span.
+    // Pinned so that a change in either direction is visible.
     const counts = buildPlan(adaptHaystack(stripGroundTruth(RECORD))).counts;
     expect(counts.vertices.Session).toBe(2);
     expect(counts.vertices.Message).toBe(4);
-    expect(counts.vertices.Claim).toBe(0);
-    expect(counts.vertices.Entity).toBe(0);
+    expect(counts.vertices.Claim).toBe(1);
+    expect(counts.vertices.Entity).toBe(1);
   });
 });
 

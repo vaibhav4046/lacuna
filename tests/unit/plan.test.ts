@@ -67,6 +67,13 @@ describe('the predicate', () => {
     expect(predicateIn('when does Lowbank launch', CORPUS)?.predicate).toBe('launch_date');
   });
 
+  it('maps personal-memory wording onto benchmark predicates', () => {
+    expect(predicateIn('How long is my daily commute?', ['commute_duration'])?.predicate)
+      .toBe('commute_duration');
+    expect(predicateIn('What was my previous occupation?', ['occupation'])?.predicate)
+      .toBe('occupation');
+  });
+
   it('matches a predicate by its own name, with no synonym entry needed', () => {
     // The point of this: a workspace built from a pasted transcript has
     // predicates this file has never heard of, and they still have to be

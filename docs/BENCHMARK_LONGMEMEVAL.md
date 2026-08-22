@@ -190,6 +190,7 @@ benchmarks/longmemeval/
   schema.ts     official record types, the ability map, the abstention test
   load.ts       reads and validates a dataset file, and strips ground truth
   adapt.ts      one question's haystack into raw sessions for ingestion
+  personal.ts   scoped, exact-span first-person fact extraction for this domain
   artifact.ts   what a run must record about itself
   run.ts        the deterministic hypothesis runner
   answerer.ts   the bounded planner-backed answerer
@@ -282,11 +283,15 @@ nothing about the shape that is published. They now hold against the published
 file: every record parses, and no serialised haystack contains `has_answer` or
 `answer_session_ids`.
 
-## The extractor does not read this domain, and the measurement says so
+## The extractor boundary and the measurement
 
-**117 claims came out of 3.3 million tokens, and a manual sample of them is
-mostly wrong.** This is the most important honest result in this document and it
-is not a good one.
+The production frame table still targets infrastructure prose. The benchmark
+adapter now adds a separate, high-precision personal bridge for explicit
+first-person degree, occupation, commute-duration and a few other facts; it does
+not widen the production extractor or pretend to read arbitrary English.
+Across the published oracle tier, **128 claims came out of 3.3 million tokens
+and 84/500 instances (16.8%) carried at least one**. This is ingest coverage,
+not answer accuracy or an official benchmark score.
 
 The frame table was written for infrastructure conversations: where a service
 stores its data, who owns it, what it depends on, what region it runs in.
@@ -315,20 +320,20 @@ survivors still shows `[storage] aims = protect the state's coral reefs` and
 Tightening further would be fitting the frames to this dataset, which is a
 different thing from reading it, so it was not done.
 
-**No LongMemEval score is claimed, and none would be meaningful until an
-extractor exists that reads this domain.** The deterministic runner is useful
-for measuring pipeline behavior and producing inspectable hypotheses, but its
-current sparse personal-domain coverage is not an accepted benchmark result.
+**No LongMemEval score is claimed.** The deterministic runner is useful for
+measuring pipeline behavior and producing inspectable hypotheses, but this
+scoped parser remains intentionally sparse and is not an accepted benchmark
+result.
 
 ## What a real run still needs
 
 Two components remain before an accepted official result.
 
-**A domain extractor and question/verbaliser.** The current planner handles the
-product's bounded vocabulary and is now wired into the deterministic runner,
-but LongMemEval asks questions such as "What degree did I graduate with?". A
-personal-domain extractor and broader parser must be added before a score would
-mean what the benchmark says it means.
+**Broader domain extraction and question/verbalisation.** The current bridge
+handles a small, explicit personal vocabulary and the planner maps those
+predicates into questions such as "What degree did I graduate with?". A broader
+parser and answer verbaliser are still required before a score would mean what
+the benchmark says it means.
 
 Then, to score it: an API key for the judge model, and the budget for 500 calls
 per run.
@@ -340,7 +345,7 @@ per run.
 | download | 15.4 MB (oracle), 277 MB (s), 2.74 GB (m). Public, no credential |
 | store | a HydraDB node. The runner is pinned to the node profile, as the other benchmarks are |
 | isolation | one question's haystack per graph. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph collide on keys |
-| missing code | a high-precision personal-domain extractor and broader question/verbaliser |
+| missing code | broader personal-domain extraction and question/verbalisation |
 | judge | `gpt-4o`, `gpt-4o-mini` or `llama-3.1-70b-instruct`, 500 calls, paid, not configured here |
 
 ## Honest status
@@ -351,7 +356,7 @@ per run.
 | loader and adapter | written, and run over all 500 published instances with 0 failures |
 | ground truth isolation | structural, and verified against the published file rather than fixtures |
 | dataset downloaded | yes, the oracle tier |
-| claim extraction from haystack prose | wired in, and **it does not read this domain**: 117 claims from 3.3M tokens (78/500 instances, 15.6%), mostly wrong on inspection |
+| claim extraction from haystack prose | scoped personal bridge plus core frames: 128 claims from 3.3M tokens (84/500 instances, 16.8% ingest coverage); no official score inferred |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | ingestion of a real haystack | adapted, not written to a store |
 | hypotheses produced | deterministic runner implemented; no full store-backed run accepted |

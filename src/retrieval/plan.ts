@@ -59,6 +59,11 @@ const SYNONYMS: readonly (readonly [string, readonly string[]])[] = [
   ['on_call_length', ['on call length', 'on call rotation', 'rotation length', 'on call', 'oncall', 'shift length']],
   ['contact', ['contact', 'point of contact', 'reach out to', 'escalation contact']],
   ['status', ['status', 'state of', 'progress']],
+  ['degree', ['degree', 'graduated with', 'education']],
+  ['occupation', ['occupation', 'job', 'work as', 'worked as', 'profession']],
+  ['commute_duration', ['commute', 'daily commute', 'how long is my commute', 'travel time']],
+  ['bedroom_color', ['bedroom color', 'bedroom colour', 'bedroom walls']],
+  ['yoga_location', ['yoga location', 'yoga classes', 'where do I take yoga']],
 ];
 
 /**

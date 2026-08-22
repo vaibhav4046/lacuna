@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { catalogue, mergeConnectorState } from '../../src/connectors/catalog.js';
-import { CONNECTOR_GROUPS } from '../../web/src/design/connectors.js';
+import { CONNECTOR_GROUPS, CONNECTOR_PRESENTATION } from '../../web/src/design/connectors.js';
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
@@ -13,6 +13,21 @@ describe('connector catalogue', () => {
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
     expect(entries.every((entry) => entry.label.trim() !== '' && entry.group.trim() !== '')).toBe(true);
     expect(entries.every((entry) => entry.availability === 'available')).toBe(true);
+  });
+
+  it('keeps the private runtime catalogue and the UI implementation map in lockstep', () => {
+    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true });
+    const runtime = new Map(entries.map((entry) => [entry.id, entry]));
+    const presentation = CONNECTOR_PRESENTATION.filter((entry) => entry.implementation === 'implemented');
+    const presentationIds = presentation.flatMap((entry) => entry.serverIds);
+
+    expect(new Set(presentationIds)).toEqual(new Set(runtime.keys()));
+    for (const entry of presentation) {
+      const id = entry.serverIds[0];
+      expect(id, entry.name).toBeDefined();
+      const descriptor = id === undefined ? undefined : runtime.get(id);
+      expect(descriptor, entry.name).toMatchObject({ label: entry.name, group: entry.group });
+    }
   });
 
   it('fails the webhook closed when deployment signing is not configured', () => {

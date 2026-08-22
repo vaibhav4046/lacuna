@@ -81,7 +81,7 @@ removed, password sign-in remains locked until session confirmation and route
 completion, recovery and first-run onboarding now fail closed if their session
 confirmation is missing, Agents task recommendations cannot replace a task
 while a run is busy, and the GitLab workflow anchor resolves to its real
-review/confirm surface. The latest serial unit suite passes 2,290/2,290
+review/confirm surface. The latest serial unit suite passes 2,291/2,291
 (117 files). The sign-in and recovery submit handlers also reject re-entry
 before their busy state can be observed, closing a rapid Enter/duplicate
 mutation edge. Work cancel/retry and schedule dispatch use the same guard, so

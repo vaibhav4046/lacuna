@@ -143,6 +143,31 @@ describe('a workspace whose subject index is unavailable', () => {
 });
 
 describe('a workspace with no subjects', () => {
+  it('completes an empty Context Health run with an explicit no-evidence report', async () => {
+    let modelCalls = 0;
+    const empty = {
+      ...sourceWith([]),
+      subjects: async () => ({ value: [], traces: [] }),
+    } as HydraSource;
+
+    const run = await runAgents({
+      ...BASE,
+      source: empty,
+      kind: 'CONTEXT_HEALTH',
+      task: 'Review the current context health for this workspace.',
+      fetchImpl: (async () => {
+        modelCalls += 1;
+        throw new Error('the model must not be called');
+      }) as typeof fetch,
+    });
+
+    expect(run.status).toBe('COMPLETED');
+    expect(run.error).toBeNull();
+    expect(run.result).toContain('no stored subjects');
+    expect(run.openQuestions).toEqual(['Add a source before the next context health review.']);
+    expect(modelCalls).toBe(0);
+  });
+
   it('refuses a fallback subject without calling a model', async () => {
     let modelCalls = 0;
     const source = sourceWith([{ predicate: 'storage', value: 'Redis', superseded: false }]);

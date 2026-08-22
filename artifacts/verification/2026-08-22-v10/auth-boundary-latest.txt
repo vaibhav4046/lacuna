@@ -158,6 +158,15 @@ Candidate recovery/onboarding repair:
 - source contract regressions are in `tests/unit/web-product-contracts.test.ts`;
   candidate-only until Vercel deployment quota resets
 
+Candidate workflow safety repairs:
+- Agents recommendation controls are disabled while a run is busy, preventing
+  a second task selection from reusing the in-flight idempotency key; the
+  source contract and focused agent tests pass
+- GitLab legacy and direct connector anchors now resolve to the real workflow
+  review surface; focused connector tests pass
+- the latest serial unit suite passes 2,279/2,279 across 117 files, with no
+  skips; candidate-only until Vercel deployment quota resets
+
 Candidate GitLab connector:
 - bounded public project snapshot workflow added with canonical project roots,
   fixed GitLab API origin, immutable default-branch commit, SHA-1 blob

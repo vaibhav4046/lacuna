@@ -70,14 +70,17 @@ production-only file-preview and webhook signing keys enabled. Root and web
 typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
 
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
-`dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8` and `e3c24ab`
+`dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440` and
+`bf987e2`
 are pushed to `v10-zeus-release`. They pass typecheck, web build, focused
 auth/Google/connector/DOCX tests, and the DOCX suite now runs 84/84 without
 the earlier extraction timeout; browser agent retries now preserve a UUID
 idempotency key after a lost response, the obsolete DOCX parser dependency is
 removed, password sign-in remains locked until session confirmation and route
 completion, recovery and first-run onboarding now fail closed if their session
-confirmation is missing, and the current serial unit suite passes 2,278/2,278
+confirmation is missing, Agents task recommendations cannot replace a task
+while a run is busy, and the GitLab workflow anchor resolves to its real
+review/confirm surface. The latest serial unit suite passes 2,279/2,279
 (117 files).
 They are not part of the accepted production
 deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the

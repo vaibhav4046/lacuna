@@ -80,11 +80,6 @@ provider cancellation responses, so a forged `error=access_denied` callback
 cannot consume an in-flight sign-in attempt. The full unit suite is 2,231/2,231
 (111 files), including this regression.
 
-The OAuth callback also rejects malformed or oversized state/code parameters
-before hashing or contacting Google, and bounds the token/JWKS exchange at ten
-seconds. A provider stall now returns to sign-in with a fixed timeout message
-instead of leaving the form frozen; no credential or provider detail is shown.
-
 Credential mutations now prime the CSRF cookie with a bounded, read-only
 `/api/session` preflight when a clean browser submits before the session
 provider's first read completes. The server still fails closed if the token
@@ -96,6 +91,17 @@ The first-run flow now creates a workspace, stores a real private memory through
 private connector and impact routes correctly return 401; public read-only
 explore routes remain available. A media render does not grant a product gate;
 the V10 film remains a separate artifact with its own acceptance steps.
+
+## Queued auth hardening
+
+Commit `72d0ddb` adds two bounded Google callback guards: malformed or
+oversized state/code is rejected before hashing or provider contact, and the
+token/JWKS exchange has a ten-second deadline that returns a fixed timeout
+message instead of freezing the sign-in form. Its preview build is ready at
+`dpl_ByvDjAVtUeCph1jsRo7Dny2aQvJt`; promotion is queued because the Vercel
+Hobby deployment quota is exhausted. The stable alias remains on the accepted
+production deployment above, so the live Google chooser/callback path is not
+replaced by a preview missing production secrets.
 
 ## Named boundaries
 

@@ -1,16 +1,16 @@
 # Current state
 
-Updated 2026-08-21. This file describes the accepted V10 product tree and its
+Updated 2026-08-22. This file describes the accepted V10 product tree and its
 current production deployment. The current handoff is
 [`docs/V10_RELEASE_STATUS.md`](docs/V10_RELEASE_STATUS.md); V8 matrices remain
 dated evidence.
 
 ## Accepted product gate
 
-- 84 unit test files and 1,393 tests passed with no skips.
+- 113 unit test files and 2,242 tests passed with no skips.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 125 modules. The entry is 287.26 kB,
-  94.32 kB gzip.
+- The production web bundle builds from 137 modules. The entry is 304.34 kB,
+  100.04 kB gzip.
 - Copy lint scans 58 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
@@ -47,10 +47,12 @@ dated evidence.
   code. The native Cypher adapter and 162-query compatibility probe target a
   separate self-hosted HydraDB node; they are genuine proof, not the deployed
   answer path.
-- Text and Custom ingestion are `AVAILABLE`. GitHub, GitLab, Linear, Jira,
-  Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API, Webhook and
-  Database source are `PLANNED`; none is `CONNECTED` or `SYNCING`. Spotify is
-  not in the connector catalogue and is not implemented.
+- One-off file ingestion (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub snapshot
+  import, public HTTPS/API import, and signed bounded webhook delivery are
+  implemented workflows. The production redacted catalogue exposes seven
+  descriptors and marks each available when its server-side support is
+  configured. GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database
+  source and Spotify are not implemented and remain planned.
 - The exact 399-character `package-session` blast-radius request is
   `NOT_PROVEN`. The subject is absent, the sentence exceeds the 300-character
   sentence API contract, and no Web, CLI or MCP blast-radius command carries
@@ -59,17 +61,17 @@ dated evidence.
 - The landing, dashboard, agents, tools, graph and mobile shell have been
   redesigned. Reduced motion disables non-essential movement.
 - Voice browser/runtime routes are implemented and fixture-tested. Typed Ask
-  remains available when the provider is absent.
+  remains available when the provider is absent. Candidate browser playback
+  and connector response readers now cancel stalled streams instead of leaving
+  the UI busy.
 
 ## Accepted production
 
 The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
-deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc`, built from product commit
-`05fe9d15dea75e4db7f5eb61d17533aa26e6e5a8`. Web passed 9/9, demo/API passed
-30/30, Google OAuth's pre-chooser boundary passed 16/16, and both normal and
-reduced-motion route sweeps passed 198/198. The anonymous-agent 403 boundary
-was also probed directly on that deployment. Public `main` and the release
-branch contain the exact accepted product source.
+deployment `dpl_Bdod4AG9yLCqiTnESEnxetQvJ4Ch`, built from product commit
+`ff4e23c`. The latest stable smoke passed demo 31/31, Google OAuth 16/16,
+auth boundary 3/3, and provider voice 7/7. Public `main` and the release
+branch contain the accepted product source.
 
 The selected narration voice is the verified ElevenLabs **Vaibhav Lalwani
 Professional** clone. Raw clone audio stays local and gitignored so a biometric

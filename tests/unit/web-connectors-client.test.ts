@@ -151,6 +151,36 @@ describe('browser file connector client', () => {
     await expect(timed).resolves.toEqual({ kind: 'indeterminate' });
   });
 
+  it('cancels a stalled connector response body when the caller aborts after headers', async () => {
+    let readStarted = false;
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => {
+        readStarted = true;
+        return new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+          releaseRead = resolve;
+        });
+      }),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      body: { getReader: () => reader },
+    })));
+    const caller = new AbortController();
+    const pending = getConnectorCatalogue(BINDING, caller.signal);
+
+    await vi.waitFor(() => expect(readStarted).toBe(true));
+    caller.abort();
+    if (reader.cancel.mock.calls.length === 0) releaseRead({ done: true });
+
+    await expect(pending).resolves.toEqual({ kind: 'discarded' });
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+  });
+
   it('strictly decodes the no-store catalogue and sends the exact session binding once', async () => {
     const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

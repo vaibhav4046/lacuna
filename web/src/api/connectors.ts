@@ -125,6 +125,7 @@ const FILE_IDS = ['markdown', 'text', 'pdf', 'docx'] as const;
 const MAX_RUN_DOCUMENTS = 30;
 const MAX_RUN_RECORDS = 1_000_000;
 const MAX_IMPORTED_DOCUMENTS = 1_000_000;
+const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const FAILURES = [
   'validation_failed', 'transport_failed', 'parse_failed', 'receipt_refused',
   'readiness_failed', 'readiness_timeout', 'signing_not_configured',
@@ -364,6 +365,49 @@ interface RequestOptions<T> {
   readonly successfulStatus?: (status: number) => boolean;
 }
 
+/**
+ * Read connector JSON through the response stream so caller cancellation and
+ * request deadlines also cancel a body that has already delivered headers.
+ * A few test/embedded-browser adapters expose only `json()`, so retain that
+ * compatibility fallback when no readable body is available.
+ */
+async function readResponseJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (response.body === null || typeof response.body?.getReader !== 'function') {
+    return response.json() as Promise<unknown>;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let abortReject!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { abortReject = reject; });
+  const onAbort = () => {
+    abortReject(new Error('connector response body read cancelled'));
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    if (signal.aborted) onAbort();
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > MAX_RESPONSE_BYTES) throw new Error('connector response body too large');
+      chunks.push(value);
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+}
+
 async function oneRequest<T>(options: RequestOptions<T>): Promise<ConnectorOutcome<T>> {
   const controller = new AbortController();
   let callerAborted = options.signal.aborted;
@@ -374,7 +418,7 @@ async function oneRequest<T>(options: RequestOptions<T>): Promise<ConnectorOutco
   const timeout = globalThis.setTimeout(() => { timedOut = true; controller.abort(); }, options.timeoutMs);
   try {
     const response = await fetch(options.path, { ...options.init, signal: controller.signal });
-    const body = await response.json() as unknown;
+    const body = await readResponseJson(response, controller.signal);
     if (callerAborted || options.signal.aborted) return { kind: 'discarded' };
     if (timedOut) return { kind: 'indeterminate' };
     const successful = options.successfulStatus?.(response.status) ?? response.ok;

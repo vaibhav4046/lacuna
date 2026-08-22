@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 113 files, 2,241/2,241 passed
+- current candidate full unit suite: 113 files, 2,242/2,242 passed
 - queued candidate adds bounded OAuth state/code parameters and a ten-second
   Google token/JWKS deadline; it is not yet production-promoted because the
   Vercel Hobby deployment quota is exhausted
@@ -46,6 +46,12 @@ HydraDB candidate hardening:
 - the client returns a bounded transport failure rather than remaining busy
 - the regression is covered by `tests/unit/client.test.ts`; not yet
   production-promoted
+
+Browser connector candidate hardening:
+- connector JSON is read through a bounded response stream
+- caller aborts and request deadlines cancel/release a stalled body reader
+- the regression is covered by `tests/unit/web-connectors-client.test.ts`; not
+  yet production-promoted
 
 Fresh stable smoke rerun:
 - `smoke:auth`: 3/3

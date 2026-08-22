@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { onRequestSocketClose, requestRemoteAddress, requestSocketDestroyed } from './request-lifecycle.js';
 
 import { hashPassword, MAX_PASSWORD_CHARS, MIN_PASSWORD_CHARS, verifyPassword } from '../auth/password.js';
 import { canonicalRecoveryCode, newRecoveryCode, normaliseRecoveryCode } from '../auth/recovery.js';
@@ -608,7 +609,7 @@ function sourceKey(request: IncomingMessage): string {
     const hop = first.split(',')[0];
     if (hop !== undefined && hop.trim() !== '') return hop.trim();
   }
-  return request.socket.remoteAddress ?? 'unknown';
+  return requestRemoteAddress(request) ?? 'unknown';
 }
 
 /**
@@ -1043,7 +1044,7 @@ export class ApiRouter {
       };
       request.once('aborted', abortIfPremature);
       response.once('close', abortIfPremature);
-      request.socket.once('close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
       const deadline = setTimeout(() => controller.abort(), Math.max(1, settlementDeadlineMs - this.#now()));
       deadline.unref?.();
       try {
@@ -1074,7 +1075,7 @@ export class ApiRouter {
         clearTimeout(deadline);
         request.off('aborted', abortIfPremature);
         response.off('close', abortIfPremature);
-        request.socket.off('close', abortIfPremature);
+        removeSocketClose();
       }
       return HANDLED;
     }
@@ -1184,8 +1185,8 @@ export class ApiRouter {
       };
       request.once('aborted', abortIfPremature);
       response.once('close', abortIfPremature);
-      request.socket.once('close', abortIfPremature);
-      if ((response.destroyed || request.socket.destroyed)
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
         && !response.writableEnded && !response.writableFinished) control.abort();
       try {
         if (control.signal.aborted) return HANDLED;
@@ -1216,7 +1217,7 @@ export class ApiRouter {
       } finally {
         request.off('aborted', abortIfPremature);
         response.off('close', abortIfPremature);
-        request.socket.off('close', abortIfPremature);
+        removeSocketClose();
       }
       return HANDLED;
     }
@@ -1273,8 +1274,8 @@ export class ApiRouter {
       };
       request.once('aborted', abortIfPremature);
       response.once('close', abortIfPremature);
-      request.socket.once('close', abortIfPremature);
-      if ((response.destroyed || request.socket.destroyed)
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
         && !response.writableEnded && !response.writableFinished) abortIfPremature();
       const deadline = setTimeout(() => {
         deadlineExpired = true;
@@ -1318,7 +1319,7 @@ export class ApiRouter {
         clearTimeout(deadline);
         request.off('aborted', abortIfPremature);
         response.off('close', abortIfPremature);
-        request.socket.off('close', abortIfPremature);
+        removeSocketClose();
       }
       return HANDLED;
     }

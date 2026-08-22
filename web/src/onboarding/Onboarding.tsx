@@ -5,6 +5,7 @@ import { hydraState, useHealth, UNCHECKED } from '../api/health';
 import { useSession } from '../api/session';
 import { icStyle } from '../design/icons';
 import { MONO, Mark } from '../design/mark';
+import { retryWhilePending } from './readiness';
 
 /** The private answer contract used by the final first-run proof. */
 export interface OnboardingAnswer {
@@ -115,7 +116,12 @@ export default function Onboarding() {
     const text = question.trim();
     if (text === '') { setProblem('Ask one private question first.'); return false; }
     setBusy(true);
-    const result = await postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined);
+    const result = await retryWhilePending(
+      () => postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined),
+      (value) => receipt?.searchable === false
+        && (value === null || value.answer === null || value.answer.status === 'NO_EVIDENCE'),
+      { attempts: receipt?.searchable === false ? 4 : 1 },
+    );
     setBusy(false);
     const reason = answerProblem(result);
     if (reason !== '') { setProblem(reason); return false; }

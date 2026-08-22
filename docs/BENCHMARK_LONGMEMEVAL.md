@@ -362,7 +362,7 @@ per run.
 |---|---|
 | download | 15.4 MB (oracle), 277 MB (s), 2.74 GB (m). Public, no credential |
 | store | a HydraDB node. The runner is pinned to the node profile, as the other benchmarks are |
-| isolation | one question's haystack per graph. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph collide on keys |
+| isolation | enforced by the runner: a multi-question run refuses unless a per-question source factory supplies isolated writable node graphs. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph would collide on keys |
 | missing code | broader personal-domain extraction and question/verbalisation |
 | judge | `gpt-4o`, `gpt-4o-mini` or `llama-3.1-70b-instruct`, 500 calls, paid, not configured here |
 
@@ -377,6 +377,6 @@ per run.
 | claim extraction from haystack prose | scoped personal bridge plus core frames: 128 claims from 3.3M tokens (84/500 instances, 16.8% ingest coverage); no official score inferred |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | ingestion of a real haystack | adapted, not written to a store |
-| hypotheses produced | deterministic runner implemented; no full store-backed run accepted |
+| hypotheses produced | deterministic runner implemented; multi-question runs fail closed without explicit per-question graph isolation; no full store-backed run accepted |
 | official evaluation run | no |
 | score | **none. No LongMemEval number exists for Lacuna** |

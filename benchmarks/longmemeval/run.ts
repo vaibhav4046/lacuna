@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { openSource } from '../../src/hydra/open.js';
+import { openSource, type OpenedSource } from '../../src/hydra/open.js';
 import type { HydraSource } from '../../src/hydra/source.js';
 import { buildPlan, runIngest } from '../../src/ingest/index.js';
 
@@ -60,6 +61,14 @@ export interface RunOptions {
   readonly answerer: LongMemEvalAnswerer;
   /** How many instances to attempt. All of them when absent. */
   readonly limit?: number;
+  /**
+   * Opens an isolated writable node for one question. A shared graph is safe
+   * for one question only: official haystack session ids repeat across
+   * instances, so looping them into one graph would silently mix evidence.
+   */
+  readonly sourceForQuestion?: (
+    question: IngestibleQuestion,
+  ) => OpenedSource | Promise<OpenedSource>;
 }
 
 export function hypothesisFor(
@@ -85,19 +94,37 @@ export async function runLongMemEval(options: RunOptions): Promise<RunOutcome> {
     throw new LongMemEvalRunError(`--limit ${String(options.limit)} selected no instances`);
   }
 
-  const opened = openSource();
-  if (opened.client === null) {
+  if (attempted.length > 1 && options.sourceForQuestion === undefined) {
+    throw new LongMemEvalRunError(
+      'LongMemEval multi-question runs require a per-question source factory for graph isolation.',
+    );
+  }
+
+  const sharedOpened = options.sourceForQuestion === undefined ? openSource() : null;
+  if (sharedOpened !== null && sharedOpened.client === null) {
     // Ingestion needs the node's write client, and the benchmarks in this
     // repository are pinned to the node so a network hop is not measured as
     // part of retrieval.
     throw new LongMemEvalRunError(
-      `LongMemEval ingestion needs the node profile, got ${opened.profile}. Set LACUNA_PROFILE=node.`,
+      `LongMemEval ingestion needs the node profile, got ${sharedOpened.profile}. Set LACUNA_PROFILE=node.`,
     );
   }
 
   const hypotheses: Hypothesis[] = [];
+  const descriptions = new Set<string>();
+  let profile: string = 'node';
   for (const record of attempted) {
     const question = stripGroundTruth(record);
+    const opened = options.sourceForQuestion === undefined
+      ? sharedOpened!
+      : await options.sourceForQuestion(question);
+    if (opened.client === null || opened.profile !== 'node') {
+      throw new LongMemEvalRunError(
+        `LongMemEval ingestion needs the node profile, got ${opened.profile}. Set LACUNA_PROFILE=node.`,
+      );
+    }
+    descriptions.add(opened.describe);
+    profile = options.sourceForQuestion === undefined ? opened.profile : 'node-factory';
     await runIngest(opened.client, buildPlan(adaptHaystack(question)));
     const hypothesis = await hypothesisFor(options.answerer, question, opened.source);
     hypotheses.push({ question_id: question.question_id, hypothesis });
@@ -113,9 +140,13 @@ export async function runLongMemEval(options: RunOptions): Promise<RunOutcome> {
     lacunaCommit: lacunaCommit(),
     ranAt: new Date().toISOString(),
     environment: environment(),
-    hydra: opened.describe,
+    hydra: descriptions.size === 1 ? [...descriptions][0]! : 'per-question node source factory',
     answerModel: options.answerer.model,
-    config: { limit: options.limit ?? null, profile: opened.profile },
+    config: {
+      limit: options.limit ?? null,
+      profile,
+      isolation: options.sourceForQuestion === undefined ? 'single-question' : 'per-question',
+    },
     questionsAttempted: attempted.length,
     hypothesesWritten: hypotheses.length,
     hypothesisFile: 'hypotheses.jsonl',
@@ -177,4 +208,9 @@ async function main(): Promise<void> {
   process.stdout.write(`Run artifact: ${outcome.artifactPath}\n`);
 }
 
-await main();
+// Keep the CLI entrypoint import-safe for unit tests and library callers. The
+// previous unconditional top-level invocation made importing `runLongMemEval`
+// parse the test runner's argv and throw before a test could exercise it.
+if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  await main();
+}

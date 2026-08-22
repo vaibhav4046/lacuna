@@ -69,8 +69,9 @@ export const KNOWN_LIMITATIONS: readonly string[] = [
   + '"answer". Lacuna never reads a session key to decide anything, but the signal is in the store.',
   'Session timestamps are stored verbatim in the dataset format ("2023/05/30 (Tue) 23:40"), which '
   + 'is not ISO 8601 and is not parsed.',
-  'One question per graph. Haystack session ids are drawn from a shared pool and repeat across '
-  + 'questions, so a second haystack in the same graph collides on keys.',
+  'The runner refuses multi-question runs without a per-question source factory. Haystack session '
+  + 'ids are drawn from a shared pool and repeat across questions, so a second haystack in the same '
+  + 'graph would collide on keys; a factory must provide isolated writable node graphs.',
   'longmemeval_m_cleaned.json cannot be loaded. At 2.74 GB it is past what JSON.parse can hold.',
   'The official evaluation is a paid LLM judge and has not been run by this repository.',
 ];

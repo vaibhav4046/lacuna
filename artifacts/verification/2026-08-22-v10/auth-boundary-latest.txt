@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 113 files, 2,242/2,242 passed
+- current candidate full unit suite: 114 files, 2,244/2,244 passed
 - queued candidate adds bounded OAuth state/code parameters and a ten-second
   Google token/JWKS deadline; it is not yet production-promoted because the
   Vercel Hobby deployment quota is exhausted
@@ -51,6 +51,13 @@ Browser connector candidate hardening:
 - connector JSON is read through a bounded response stream
 - caller aborts and request deadlines cancel/release a stalled body reader
 - the regression is covered by `tests/unit/web-connectors-client.test.ts`; not
+  yet production-promoted
+
+Agents/Work candidate hardening:
+- schedule, run-now, cancel and retry actions clear busy state after thrown
+  network or session failures
+- bounded recovery copy is shown instead of leaving controls frozen
+- focused regressions are covered by `tests/unit/agent-actions.test.ts`; not
   yet production-promoted
 
 Fresh stable smoke rerun:

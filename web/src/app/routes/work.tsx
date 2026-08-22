@@ -5,6 +5,7 @@ import { createClientRequestId } from '../../api/request-id';
 import { useScope, useScoped } from '../../api/scope';
 import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
+import { guardedAction } from '../agent-actions';
 import type { AgentRecord, AgentRunRecord, DailyScheduleRecord, RunStatus } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
 
@@ -73,15 +74,21 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
   async function action(kind: 'cancel' | 'retry'): Promise<void> {
     setMutating(true);
     setProblem(null);
-    const updated = await postFor<AgentRunRecord>(
-      `/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`,
-      {},
-      kind === 'retry' ? AGENT_REQUEST_TIMEOUT_MS : 15_000,
-      binding,
-    );
-    if (updated === null) setProblem(`${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`);
-    else onChange(updated);
-    setMutating(false);
+    try {
+      const result = await guardedAction(
+        () => postFor<AgentRunRecord>(
+          `/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`,
+          {},
+          kind === 'retry' ? AGENT_REQUEST_TIMEOUT_MS : 15_000,
+          binding,
+        ),
+        `${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`,
+      );
+      if (result.value === null) setProblem(result.message);
+      else onChange(result.value);
+    } finally {
+      setMutating(false);
+    }
   }
 
   return (
@@ -164,25 +171,32 @@ function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly 
     setMessage(null);
     const requestId = pendingRequests.current.get(schedule.id) ?? createClientRequestId('ui');
     pendingRequests.current.set(schedule.id, requestId);
-    const result = await postFor<{ readonly outcome: string; readonly runId: string | null }>(
-      `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
-      { requestId },
-      AGENT_REQUEST_TIMEOUT_MS,
-      binding,
-    );
-    if (result !== null) pendingRequests.current.delete(schedule.id);
-    if (result?.runId !== null && result?.runId !== undefined) {
-      try {
-        const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding);
-        const completed = current.find((run) => run.id === result.runId);
-        if (completed !== undefined) onRun(completed);
-      } catch {
-        // The run id remains in the success message. A failed refresh does not
-        // turn a completed dispatch into a reported failure.
+    try {
+      const dispatch = await guardedAction(
+        () => postFor<{ readonly outcome: string; readonly runId: string | null }>(
+          `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
+          { requestId },
+          AGENT_REQUEST_TIMEOUT_MS,
+          binding,
+        ),
+        'Run now did not complete.',
+      );
+      if (dispatch.value !== null) pendingRequests.current.delete(schedule.id);
+      const result = dispatch.value;
+      if (result?.runId !== null && result?.runId !== undefined) {
+        try {
+          const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding);
+          const completed = current.find((run) => run.id === result.runId);
+          if (completed !== undefined) onRun(completed);
+        } catch {
+          // The run id remains in the success message. A failed refresh does not
+          // turn a completed dispatch into a reported failure.
+        }
       }
+      setMessage(dispatch.message ?? (result === null ? 'Run now did not complete.' : `${result.outcome}${result.runId === null ? '' : ` · ${result.runId}`}`));
+    } finally {
+      setWorking(null);
     }
-    setMessage(result === null ? 'Run now did not complete.' : `${result.outcome}${result.runId === null ? '' : ` · ${result.runId}`}`);
-    setWorking(null);
   }
 
   return (

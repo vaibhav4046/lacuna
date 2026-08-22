@@ -4,6 +4,7 @@ import { postFor, postJson } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
+import { guardedAction } from '../agent-actions';
 import type { AgentRecommendationRecord, AgentRecord, AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
 
@@ -58,20 +59,26 @@ export function Agents() {
   async function scheduleRecommendation(recommendation: AgentRecommendationRecord): Promise<void> {
     setScheduling(recommendation.id);
     setRecommendationMessage(null);
-    const schedule = await postFor<DailyScheduleRecord>(
-      `/api/workspace/agent/recommendations/${encodeURIComponent(recommendation.id)}/schedule`,
-      {
-        cadence: recommendation.suggestedSchedule.cadence,
-        localTime: recommendation.suggestedSchedule.localTime,
-        timezone: recommendation.suggestedSchedule.timezone,
-      },
-      15_000,
-      binding,
-    );
-    setRecommendationMessage(schedule === null
-      ? 'The schedule was not created. Check the session and schedule controls.'
-      : `${schedule.name} will run daily at ${schedule.localTime} ${schedule.timezone}. Nothing ran now.`);
-    setScheduling(null);
+    try {
+      const result = await guardedAction(
+        () => postFor<DailyScheduleRecord>(
+          `/api/workspace/agent/recommendations/${encodeURIComponent(recommendation.id)}/schedule`,
+          {
+            cadence: recommendation.suggestedSchedule.cadence,
+            localTime: recommendation.suggestedSchedule.localTime,
+            timezone: recommendation.suggestedSchedule.timezone,
+          },
+          15_000,
+          binding,
+        ),
+        'The schedule was not created. Check the session and schedule controls.',
+      );
+      setRecommendationMessage(result.message ?? (result.value === null
+        ? 'The schedule was not created.'
+        : `${result.value.name} will run daily at ${result.value.localTime} ${result.value.timezone}. Nothing ran now.`));
+    } finally {
+      setScheduling(null);
+    }
   }
 
   async function launch(): Promise<void> {

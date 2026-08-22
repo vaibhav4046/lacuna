@@ -41,6 +41,7 @@ export default function Forgot() {
     && password.length >= MIN_PASSWORD && confirm === password;
 
   async function submit() {
+    if (busy) return;
     if (password.length < MIN_PASSWORD) {
       setProblem(`Password must be at least ${MIN_PASSWORD} characters.`);
       return;

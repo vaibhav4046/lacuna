@@ -17,6 +17,7 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
 
   async function submit() {
+    if (busy) return;
     setBusy(true);
     setProblem(null);
     try {

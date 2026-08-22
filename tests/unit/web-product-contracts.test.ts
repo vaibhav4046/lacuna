@@ -168,6 +168,7 @@ describe('web product contracts', () => {
 
   it('keeps password sign-in busy until the confirmed session has routed', () => {
     const signIn = readFileSync(new URL('../../web/src/auth/SignIn.tsx', import.meta.url), 'utf8');
+    expect(signIn).toContain('if (busy) return;');
     expect(signIn).toContain('try {');
     expect(signIn).toContain('} finally {\n      setBusy(false);');
     expect(signIn.indexOf('await refreshAfterMutation()')).toBeLessThan(signIn.indexOf('setBusy(false)'));
@@ -189,6 +190,7 @@ describe('web product contracts', () => {
     const submitStart = forgot.indexOf('  async function submit()');
     const submitEnd = forgot.indexOf('\n\n  if (issued !== null)', submitStart);
     const submit = forgot.slice(submitStart, submitEnd);
+    expect(submit).toContain('if (busy) return;');
     expect(submit).toContain('try {');
     expect(submit).toContain('await refreshAfterMutation()');
     expect(submit).toContain('} finally {\n      setBusy(false);');

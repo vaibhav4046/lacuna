@@ -321,6 +321,25 @@ describe('the browser auth client', () => {
     await expect(request).resolves.toMatchObject({ ok: false, status: 408 });
   });
 
+  it('primes the CSRF cookie before the first auth submit on a clean browser', async () => {
+    const browserDocument = { cookie: '' };
+    vi.stubGlobal('document', browserDocument);
+    const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push(init === undefined ? { input } : { input, init });
+      if (String(input) === '/api/session') {
+        browserDocument.cookie = 'lacuna_csrf=primed-token';
+        return { ok: true, status: 200, json: async () => ({ signedIn: false }) };
+      }
+      return { ok: false, status: 401, json: async () => ({ error: 'credentials' }) };
+    }));
+
+    await expect(postJson('/api/auth/signin', { email: 'fresh@example.com', password: 'not-a-password' }))
+      .resolves.toMatchObject({ ok: false, status: 401 });
+    expect(calls.map((call) => String(call.input))).toEqual(['/api/session', '/api/auth/signin']);
+    expect(new Headers(calls[1]?.init?.headers).get('x-csrf-token')).toBe('primed-token');
+  });
+
   it('settles an auth mutation when headers arrive but its response body stalls', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('document', { cookie: 'lacuna_csrf=csrf-under-test' });

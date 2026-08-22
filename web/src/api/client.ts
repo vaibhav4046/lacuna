@@ -148,6 +148,24 @@ export async function postJson(
       control.abort();
     }, timeoutMs);
     try {
+      // A person can press submit before the session provider's first read has
+      // returned. Prime the double-submit cookie in that narrow window so the
+      // first sign-in/signup action is not rejected as a mysterious 403. This
+      // request carries no mutation and is bounded by the same abort signal;
+      // if it cannot establish a token, the actual mutation still fails closed
+      // at the server rather than bypassing CSRF.
+      if (csrfToken() === '') {
+        try {
+          await fetch('/api/session', {
+            signal: control.signal,
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+          });
+        } catch {
+          // The mutation below produces the canonical connection/CSRF result.
+        }
+      }
       const response = await fetch(path, {
         method: 'POST',
         signal: control.signal,

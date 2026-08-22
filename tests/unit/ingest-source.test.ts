@@ -207,6 +207,34 @@ function cloudWithIndexingStatus(indexingStatus: string): HydraCloud {
   );
 }
 
+function cloudWithIndexingTransportFailure(): HydraCloud {
+  return new HydraCloud(
+    {
+      baseUrl: 'https://api.example.invalid',
+      token: 'not-a-real-token',
+      database: 'lacuna',
+      collection: 'public-demo',
+    },
+    {
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        if (init?.method === 'GET' && url.pathname.endsWith('/context/status')) {
+          throw new Error('status polling deadline');
+        }
+        if (init?.method === 'GET') {
+          return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+        }
+        const form = init?.body as FormData;
+        const app = form.get('app_knowledge');
+        const records = typeof app === 'string' ? (JSON.parse(app) as { id: string }[]) : [];
+        return Response.json({
+          data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
+        });
+      },
+    },
+  );
+}
+
 function cloudWithInspectFailure(
   sent: Sent[],
   failure: 'index_unavailable' | 'entity_unavailable' | 'invalid_request' | 'malformed_success'
@@ -687,6 +715,22 @@ describe('prepared connector ingestion', () => {
       workspaceCollection('queued@example.com'),
       prepared(),
       { awaitSearchable: true, readiness: { timeoutMs: 0, intervalMs: 0 } },
+    );
+    if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
+
+    expect(result).toMatchObject({
+      searchable: false,
+      indexing: 'accepted',
+    });
+    expect(result.accepted).toBeGreaterThan(0);
+  });
+
+  it('returns an accepted pending report when readiness polling hits a transport deadline', async () => {
+    const result = await ingestPreparedSource(
+      cloudWithIndexingTransportFailure(),
+      workspaceCollection('transport-pending@example.com'),
+      prepared(),
+      { awaitSearchable: true },
     );
     if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
 

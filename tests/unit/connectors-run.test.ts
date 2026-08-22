@@ -519,16 +519,16 @@ describe('ConnectorRunner', () => {
     expect(result).toMatchObject({
       acceptedDocuments: 1,
       searchableDocuments: 0,
-      failedDocuments: 1,
+      failedDocuments: 0,
       acceptedRecords: 4,
       refusedRecords: 0,
-      failure: 'readiness_failed',
+      failure: null,
       observationWrite: 'stored',
     });
     expect(store.writes[0]?.next).toMatchObject({
       importedDocuments: 8,
       lastSuccessAt: expect.stringMatching(/^2026-08-21T10:00:00\.00\dZ$/u),
-      lastFailure: 'readiness_failed',
+      lastFailure: null,
     });
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain('provider readiness response');

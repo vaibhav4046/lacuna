@@ -5,7 +5,7 @@ import { INDEX_ID } from '../hydra/cloud-graph.js';
 import type { BuiltGraph, IndexRecord } from '../hydra/cloud-graph.js';
 import { buildCloudGraph, entityRecordId, toAppRecords, unwrapEnvelope } from '../hydra/cloud-graph.js';
 import type { EntityRecord } from '../hydra/cloud-graph.js';
-import { HydraDecodeError, HydraIngestIndeterminateError } from '../hydra/errors.js';
+import { HydraDecodeError, HydraIngestIndeterminateError, HydraTransportError } from '../hydra/errors.js';
 import { extract } from '../extract/extract.js';
 import { toCorpus } from '../extract/adapt.js';
 import { buildPlan } from '../ingest/plan.js';
@@ -586,10 +586,15 @@ async function preparedIngest(
         ...(readinessTimeout === undefined ? {} : { timeoutMs: readinessTimeout }),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
       });
-    } catch {
-      // Once exact receipts exist, caller cancellation and provider
-      // query/transport failures are count-carrying readiness failures.
-      throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
+    } catch (error) {
+      // A caller cancellation is still a readiness failure because the
+      // operation was intentionally interrupted. A transport deadline after
+      // exact receipts, however, only means that indexing could not be
+      // confirmed in this request; the accepted records remain durable.
+      if (isAborted(options.signal) || !(error instanceof HydraTransportError)) {
+        throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
+      }
+      statuses = [];
     }
     if (statuses.some((status) => status.indexingStatus === 'failed' || status.indexingStatus === 'errored')) {
       throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);

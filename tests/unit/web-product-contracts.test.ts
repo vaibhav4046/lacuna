@@ -135,6 +135,14 @@ describe('web product contracts', () => {
     expect(shell).toContain("key={scope.demo ? 'explore' : identity ?? 'unvalidated'}");
   });
 
+  it('does not turn a failed private session read into a blank frozen page', () => {
+    const guard = readFileSync(new URL('../../web/src/app/RequireSession.tsx', import.meta.url), 'utf8');
+    expect(guard).toContain('{loaded.reason}');
+    expect(guard).toContain('Try again');
+    expect(guard).toContain('refresh');
+    expect(guard).not.toMatch(/if \(loaded\.state === 'failed'\) return null/u);
+  });
+
   it('invalidates every cookie-changing client mutation before its one validation read', () => {
     const provider = readFileSync(new URL('../../web/src/api/session.tsx', import.meta.url), 'utf8');
     const signIn = readFileSync(new URL('../../web/src/auth/SignIn.tsx', import.meta.url), 'utf8');

@@ -91,7 +91,7 @@ the production security boundary through the chooser; selecting a human identity
 and accepting a fresh callback remain owner actions. Provider-backed voice passes
 its server/provider boundary, with typed Ask retained as the fallback when a
 browser blocks playback. The production connector catalogue exposes seven real
-workflows: GitHub snapshots, Markdown/Text/PDF/DOCX imports, public HTTPS reads,
+workflows: GitHub snapshots, Markdown/Text/JSON/CSV/PDF/DOCX imports, public HTTPS reads,
 and signed webhooks. All are available on the current deployment. GitLab, Linear,
 Jira, Slack, Notion, Gmail, Confluence and database sync remain explicitly
 planned; Spotify is not catalogued or implemented.

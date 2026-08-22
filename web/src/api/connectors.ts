@@ -249,7 +249,7 @@ function decodeFileImport(value: unknown): FileImportResponse | null {
 }
 
 function fileTypeForName(name: string): FileConnectorId | null {
-  return /\.md$/iu.test(name) ? 'markdown' : /\.txt$/iu.test(name) ? 'text'
+  return /\.md$/iu.test(name) ? 'markdown' : /\.(?:txt|json|csv)$/iu.test(name) ? 'text'
     : /\.pdf$/iu.test(name) ? 'pdf' : /\.docx$/iu.test(name) ? 'docx' : null;
 }
 

@@ -21,7 +21,7 @@ import {
 
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_MULTIPART_BYTES = 8 * 1024 * 1024;
-export const FILE_PARSER_VERSION = 'files-v1';
+export const FILE_PARSER_VERSION = 'files-v2';
 
 const MAX_FILENAME_BYTES = 240;
 const PARSER_TIMEOUT_MS = 5_000;
@@ -32,7 +32,7 @@ const MAX_CONCURRENT_PARSERS = 2;
 const PREVIEW_EXCERPT_CHARS = 320;
 const SUPPORTED_TYPES = new Set(['text', 'markdown', 'pdf', 'docx']);
 const DANGEROUS_SUFFIXES = new Set([
-  'bat', 'cmd', 'com', 'docx', 'exe', 'html', 'js', 'markdown', 'md', 'mjs',
+  'bat', 'cmd', 'com', 'csv', 'docx', 'exe', 'html', 'js', 'json', 'markdown', 'md', 'mjs',
   'pdf', 'ps1', 'scr', 'svg', 'txt', 'vbs', 'zip',
 ]);
 const RESERVED_BASENAMES = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/iu;
@@ -136,7 +136,9 @@ function sha256(value: Uint8Array | string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function extensionPolicy(filename: string): { readonly title: string; readonly type: PreviewFileType; readonly mediaType: string } {
+type TextFileFormat = 'text' | 'json' | 'csv';
+
+function extensionPolicy(filename: string): { readonly title: string; readonly type: PreviewFileType; readonly mediaType: string; readonly format: TextFileFormat } {
   if (filename.length === 0
     || Buffer.byteLength(filename, 'utf8') > MAX_FILENAME_BYTES
     || CONTROL_OR_BIDI.test(filename)
@@ -157,7 +159,7 @@ function extensionPolicy(filename: string): { readonly title: string; readonly t
     || stemParts.slice(1).some((part) => DANGEROUS_SUFFIXES.has(part.toLowerCase()))
     || RESERVED_BASENAMES.test(stemParts[0] ?? '')
     || RESERVED_BASENAMES.test(canonicalStem)) fail('invalid_filename');
-  const type = extension === 'txt' ? 'text'
+  const type = extension === 'txt' || extension === 'json' || extension === 'csv' ? 'text'
     : extension === 'md' || extension === 'markdown' ? 'markdown'
       : extension === 'pdf' ? 'pdf'
         : extension === 'docx' ? 'docx'
@@ -165,19 +167,24 @@ function extensionPolicy(filename: string): { readonly title: string; readonly t
   if (type === null || !SUPPORTED_TYPES.has(type)) fail('unsupported_file');
   const title = canonicalStem.normalize('NFC').replace(/\s+/gu, ' ');
   if (title.length === 0 || title.length > 120) fail('invalid_filename');
-  const mediaType = type === 'text' ? 'text/plain'
+  const format: TextFileFormat = extension === 'json' ? 'json' : extension === 'csv' ? 'csv' : 'text';
+  const mediaType = format === 'json' ? 'application/json'
+    : format === 'csv' ? 'text/csv'
+      : type === 'text' ? 'text/plain'
     : type === 'markdown' ? 'text/markdown'
       : type === 'pdf' ? 'application/pdf'
         : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  return { title, type, mediaType };
+  return { title, type, mediaType, format };
 }
 
-function mediaTypeAgrees(type: PreviewFileType, mediaType: string): boolean {
+function mediaTypeAgrees(policy: ReturnType<typeof extensionPolicy>, mediaType: string): boolean {
   const normalized = mediaType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
   if (normalized === '' || normalized === 'application/octet-stream') return true;
-  if (type === 'text') return normalized === 'text/plain';
-  if (type === 'markdown') return normalized === 'text/markdown' || normalized === 'text/plain';
-  if (type === 'pdf') return normalized === 'application/pdf';
+  if (policy.format === 'json') return normalized === 'application/json' || normalized === 'text/plain';
+  if (policy.format === 'csv') return normalized === 'text/csv' || normalized === 'text/plain';
+  if (policy.type === 'text') return normalized === 'text/plain';
+  if (policy.type === 'markdown') return normalized === 'text/markdown' || normalized === 'text/plain';
+  if (policy.type === 'pdf') return normalized === 'application/pdf';
   return normalized === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 }
 
@@ -198,6 +205,67 @@ function decodeText(bytes: Buffer): string {
     if (error instanceof FileConnectorError) throw error;
     return fail('invalid_utf8');
   }
+}
+
+/** Validate JSON without accepting a syntactically plausible text blob. */
+function validateJson(text: string): void {
+  try {
+    JSON.parse(text) as unknown;
+  } catch {
+    fail('invalid_file');
+  }
+}
+
+/**
+ * Validate RFC-4180-style CSV while keeping the original UTF-8 text as the
+ * searchable source. This catches broken quoting before any workspace write,
+ * and bounds rows/columns so a delimiter-heavy upload cannot become an
+ * unbounded parser operation.
+ */
+function csvRows(text: string): number {
+  let quoted = false;
+  let closedQuote = false;
+  let fieldHasContent = false;
+  let fields = 0;
+  let rows = 0;
+  const finishField = () => { fields += 1; fieldHasContent = false; closedQuote = false; };
+  const finishRow = () => {
+    finishField();
+    rows += 1;
+    if (fields > 10_000 || rows > 100_000) fail('file_too_complex');
+    fields = 0;
+  };
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted) {
+      if (character === '"') {
+        if (text[index + 1] === '"') { index += 1; continue; }
+        quoted = false;
+        closedQuote = true;
+      }
+      continue;
+    }
+    if (closedQuote) {
+      if (character === ',') { finishField(); continue; }
+      if (character === '\n') { finishRow(); continue; }
+      if (character === '\r' && text[index + 1] === '\n') { index += 1; finishRow(); continue; }
+      fail('invalid_file');
+    }
+    if (character === '"' && !fieldHasContent) { quoted = true; fieldHasContent = true; continue; }
+    if (character === '"') fail('invalid_file');
+    if (character === ',') { finishField(); continue; }
+    if (character === '\n') { finishRow(); continue; }
+    if (character === '\r') {
+      if (text[index + 1] !== '\n') fail('invalid_file');
+      index += 1;
+      finishRow();
+      continue;
+    }
+    fieldHasContent = true;
+  }
+  if (quoted) fail('invalid_file');
+  if (fieldHasContent || fields > 0 || text.endsWith(',')) finishRow();
+  return rows;
 }
 
 interface ExtractedText {
@@ -453,7 +521,7 @@ function preparedDocument(
       provenance: {
         connectorId: type,
         sourceUrl: null,
-        mediaType: mediaType as 'text/plain' | 'text/markdown' | 'application/pdf'
+        mediaType: mediaType as 'text/plain' | 'text/markdown' | 'text/csv' | 'application/json' | 'application/pdf'
           | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         observedAt,
       },
@@ -475,7 +543,7 @@ export async function parseUploadedFile(
   if (bytes.length === 0) fail('empty_file');
   if (bytes.length > MAX_FILE_BYTES) fail('file_too_large', 413);
   const policy = extensionPolicy(input.filename);
-  if (!mediaTypeAgrees(policy.type, input.mediaType)) fail('unsupported_file');
+  if (!mediaTypeAgrees(policy, input.mediaType)) fail('unsupported_file');
 
   let extracted: ExtractedText;
   if (policy.type === 'pdf') {
@@ -485,10 +553,13 @@ export async function parseUploadedFile(
   } else {
     const text = decodeText(bytes);
     if (text.trim() === '') fail('empty_file');
+    if (policy.format === 'json') validateJson(text);
     extracted = {
       text,
       pages: 0,
-      paragraphs: text.split('\n').filter((line) => line.trim() !== '').length,
+      paragraphs: policy.format === 'csv'
+        ? csvRows(text)
+        : text.split('\n').filter((line) => line.trim() !== '').length,
       tables: 0,
     };
   }

@@ -286,7 +286,7 @@ export function connectorOutcomeMessage(result: ConnectorOutcome<unknown>): stri
     file_too_large: 'Choose one file smaller than 8 MiB.',
     file_required: 'Choose one exact file before previewing.',
     invalid_filename: 'Rename the file to a simple supported filename, then choose it again.',
-    unsupported_file: 'Choose a .txt, .md, .pdf, or .docx file.',
+    unsupported_file: 'Choose a .txt, .md, .json, .csv, .pdf, or .docx file.',
     invalid_file: 'The selected file failed structural validation. Choose a valid supported file.',
     invalid_utf8: 'Save the text file as UTF-8, then preview it again.',
     empty_file: 'Choose a non-empty file with importable text.',
@@ -396,10 +396,10 @@ export function commitAndRestoreWebhookTrigger(
 
 export function fileSelectionProblem(file: Pick<File, 'name' | 'size'> | null): string | null {
   if (file === null) return null;
-  const supported = /\.(?:txt|md|pdf|docx)$/iu.test(file.name);
+  const supported = /\.(?:txt|md|json|csv|pdf|docx)$/iu.test(file.name);
   return supported && file.size <= 8 * 1024 * 1024
     ? null
-    : 'Choose one .txt, .md, .pdf, or .docx file smaller than 8 MiB.';
+    : 'Choose one .txt, .md, .json, .csv, .pdf, or .docx file smaller than 8 MiB.';
 }
 
 /** Commit removal of the VoiceDock before allowing the webhook secret dialog to exist. */

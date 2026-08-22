@@ -456,7 +456,7 @@ describe('private connector workflow contracts', () => {
     expect(selectionProblem).toBeTypeOf('function');
     if (typeof selectionProblem !== 'function') return;
     const problem = selectionProblem(file('archive.exe', 'application/octet-stream'));
-    expect(problem).toBe('Choose one .txt, .md, .pdf, or .docx file smaller than 8 MiB.');
+    expect(problem).toBe('Choose one .txt, .md, .json, .csv, .pdf, or .docx file smaller than 8 MiB.');
     const html = await renderConnectorComponent('FileSourceField', {
       problem, disabled: false, onSelect: () => undefined,
     });

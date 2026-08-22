@@ -14,6 +14,7 @@ const CONNECTOR_IDS = new Set<ConnectorId>([
 const MEDIA_TYPES = new Set<ConnectorMediaType>([
   'text/plain',
   'text/markdown',
+  'text/csv',
   'application/json',
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -36,6 +37,7 @@ const WEBHOOK_EVIDENCE_KEYS = new Set(['schemaVersion', 'rawDigest', 'parserVers
 export type ConnectorMediaType =
   | 'text/plain'
   | 'text/markdown'
+  | 'text/csv'
   | 'application/json'
   | 'application/pdf'
   | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';

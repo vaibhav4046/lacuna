@@ -1011,6 +1011,29 @@ describe('workspace file preview and import API', () => {
     expect(connectorStore.puts).toBe(1);
   });
 
+  it('runs structured JSON and CSV files through the same exact preview/import boundary', async () => {
+    const jar = await signedIn('structured-files@example.com');
+    const json = new File(['{"owner":"Priya"}\n'], 'claims.json', { type: 'application/json' });
+    const jsonPreview = await postFile(jar, '/api/workspace/connectors/file/preview', json);
+    expect(jsonPreview.status).toBe(200);
+    const jsonBody = await jsonPreview.json() as { readonly type: string; readonly previewToken: string };
+    expect(jsonBody.type).toBe('text');
+    const jsonImport = await postFile(jar, '/api/workspace/connectors/file/import', json, jsonBody.previewToken);
+    expect(jsonImport.status).toBe(200);
+
+    const csv = new File(['owner,note\nPriya,"keeps, context"\n'], 'claims.csv', { type: 'text/csv' });
+    const csvPreview = await postFile(jar, '/api/workspace/connectors/file/preview', csv);
+    expect(csvPreview.status).toBe(200);
+    const csvBody = await csvPreview.json() as { readonly type: string; readonly paragraphs: number; readonly previewToken: string };
+    expect(csvBody).toMatchObject({ type: 'text', paragraphs: 2 });
+    const csvImport = await postFile(jar, '/api/workspace/connectors/file/import', csv, csvBody.previewToken);
+    expect(csvImport.status).toBe(200);
+    expect(runnerCalls.map((call) => call.text)).toEqual([
+      '{"owner":"Priya"}\n',
+      'owner,note\nPriya,"keeps, context"\n',
+    ]);
+  });
+
   it('rejects tamper, expiry, session/workspace swap, and title policy changes before writes', async () => {
     const first = await signedIn('first-preview@example.com');
     const second = await signedIn('second-preview@example.com');

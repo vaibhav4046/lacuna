@@ -281,6 +281,58 @@ describe('uploaded text and Markdown', () => {
     expect(prepared.rawDigest).not.toBe(prepared.normalizedDigest);
   });
 
+  it('validates bounded JSON uploads and keeps JSON provenance explicit', async () => {
+    const prepared = await parseUploadedFile({
+      filename: 'claims.json',
+      mediaType: 'application/json',
+      bytes: Buffer.from('{"owner":"Priya","active":true}\n', 'utf8'),
+      observedAt: OBSERVED_AT,
+    });
+
+    expect(prepared).toMatchObject({
+      type: 'text',
+      mediaType: 'application/json',
+      paragraphs: 1,
+      text: '{"owner":"Priya","active":true}\n',
+    });
+    expect(prepared.document.provenance).toMatchObject({
+      connectorId: 'text',
+      mediaType: 'application/json',
+      sourceUrl: null,
+      observedAt: OBSERVED_AT,
+    });
+  });
+
+  it('validates CSV quoting and reports row count without rewriting source bytes', async () => {
+    const prepared = await parseUploadedFile({
+      filename: 'claims.csv',
+      mediaType: 'text/csv',
+      bytes: Buffer.from('owner,note\nPriya,"keeps, context"\n', 'utf8'),
+      observedAt: OBSERVED_AT,
+    });
+
+    expect(prepared).toMatchObject({
+      type: 'text',
+      mediaType: 'text/csv',
+      paragraphs: 2,
+      text: 'owner,note\nPriya,"keeps, context"\n',
+    });
+    expect(prepared.document.provenance.mediaType).toBe('text/csv');
+  });
+
+  it.each([
+    ['claims.json', 'application/json', '{"owner":', 'invalid_file'],
+    ['claims.csv', 'text/csv', 'owner,"unterminated\n', 'invalid_file'],
+    ['claims.csv', 'text/csv', 'owner,"closed"tail\n', 'invalid_file'],
+  ] as const)('rejects malformed structured file %s with a stable code', async (filename, mediaType, text, code) => {
+    await expect(parseUploadedFile({
+      filename,
+      mediaType,
+      bytes: Buffer.from(text, 'utf8'),
+      observedAt: OBSERVED_AT,
+    })).rejects.toMatchObject({ code });
+  });
+
   it.each([
     ['../notes.txt', 'invalid_filename'],
     ['notes.pdf.txt', 'invalid_filename'],

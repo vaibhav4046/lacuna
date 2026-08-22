@@ -14,7 +14,7 @@ export interface ConnectorPresentation {
 export const CONNECTOR_PRESENTATION: readonly ConnectorPresentation[] = Object.freeze([
   { key: 'github', name: 'GitHub', group: 'CODE', workflow: 'github', serverIds: ['github'], implementation: 'implemented', summary: 'Bounded public repository snapshot.' },
   { key: 'markdown', name: 'Markdown', group: 'FILES', workflow: 'file', serverIds: ['markdown'], implementation: 'implemented', summary: 'Reviewed local Markdown file.' },
-  { key: 'text', name: 'Text', group: 'FILES', workflow: 'file', serverIds: ['text'], implementation: 'implemented', summary: 'Reviewed local text file.' },
+  { key: 'text', name: 'Text', group: 'FILES', workflow: 'file', serverIds: ['text'], implementation: 'implemented', summary: 'Reviewed local text, JSON or CSV file.' },
   { key: 'pdf', name: 'PDF', group: 'FILES', workflow: 'file', serverIds: ['pdf'], implementation: 'implemented', summary: 'Reviewed local PDF file.' },
   { key: 'docx', name: 'DOCX', group: 'FILES', workflow: 'file', serverIds: ['docx'], implementation: 'implemented', summary: 'Reviewed local DOCX file.' },
   { key: 'https-api', name: 'HTTPS API', group: 'DATA', workflow: 'https', serverIds: ['https_api'], implementation: 'implemented', summary: 'One bounded public HTTPS JSON or text read.' },

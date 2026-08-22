@@ -152,7 +152,7 @@ export function FileSourceField({ problem, disabled, inputRef, onSelect }: {
         type="file"
         ref={inputRef}
         disabled={disabled}
-        accept=".txt,.md,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept=".txt,.md,.json,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={(event) => onSelect(event.currentTarget.files?.[0] ?? null)}
       />
       {problem === null ? null : <p id="connector-file-error" role="alert" tabIndex={-1}>{problem}</p>}
@@ -442,12 +442,12 @@ export function PrivateConnectors() {
   const problemFor = (source: 'catalogue' | 'file' | 'github' | 'https' | 'webhook') =>
     problem?.source === source ? problem.message : null;
   const selectedType = selectedFile === null ? null : /\.md$/iu.test(selectedFile.name) ? 'markdown'
-    : /\.txt$/iu.test(selectedFile.name) ? 'text' : /\.pdf$/iu.test(selectedFile.name) ? 'pdf'
+    : /\.(?:txt|json|csv)$/iu.test(selectedFile.name) ? 'text' : /\.pdf$/iu.test(selectedFile.name) ? 'pdf'
       : /\.docx$/iu.test(selectedFile.name) ? 'docx' : null;
 
   async function previewSelected() {
     const held = selectedFile;
-    if (held === null || held.size > 8 * 1024 * 1024 || selectedType === null) { setProblem({ source: 'file', message: 'Choose one .txt, .md, .pdf, or .docx file smaller than 8 MiB.' }); return; }
+    if (held === null || held.size > 8 * 1024 * 1024 || selectedType === null) { setProblem({ source: 'file', message: 'Choose one .txt, .md, .json, .csv, .pdf, or .docx file smaller than 8 MiB.' }); return; }
     if (!available(selectedType)) { setProblem({ source: 'file', message: status(selectedType)?.availability === 'unavailable' ? 'This file importer is unavailable on this deployment.' : 'File import availability is unknown. Refresh recorded state.' }); return; }
     const generation = ++fileGeneration.current;
     dispatchReceipt({ type: 'dispatched', connector: 'file-preview' });

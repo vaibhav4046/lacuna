@@ -214,6 +214,13 @@ describe('web product contracts', () => {
     expect(work).toContain("getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding)");
   });
 
+  it('keeps Work schedule dispatch usable when randomUUID is absent', () => {
+    const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
+    expect(work).toContain("import { createClientRequestId } from '../../api/request-id';");
+    expect(work).toContain("createClientRequestId('ui')");
+    expect(work).not.toContain('crypto.randomUUID()');
+  });
+
   it('does not show a historical no-evidence health run as failed in its lifecycle', () => {
     const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
     expect(work).toContain('Historical empty-workspace health records');

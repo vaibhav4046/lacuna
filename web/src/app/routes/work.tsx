@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { getJson, postFor } from '../../api/client';
+import { createClientRequestId } from '../../api/request-id';
 import { useScope, useScoped } from '../../api/scope';
 import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
@@ -161,7 +162,7 @@ function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly 
   async function runNow(schedule: DailyScheduleRecord): Promise<void> {
     setWorking(schedule.id);
     setMessage(null);
-    const requestId = pendingRequests.current.get(schedule.id) ?? `ui-${crypto.randomUUID()}`;
+    const requestId = pendingRequests.current.get(schedule.id) ?? createClientRequestId('ui');
     pendingRequests.current.set(schedule.id, requestId);
     const result = await postFor<{ readonly outcome: string; readonly runId: string | null }>(
       `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,

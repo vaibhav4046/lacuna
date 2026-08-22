@@ -92,6 +92,10 @@ private connector and impact routes correctly return 401; public read-only
 explore routes remain available. A media render does not grant a product gate;
 the V10 film remains a separate artifact with its own acceptance steps.
 
+The Work schedule control uses the same browser-compatible request-id fallback
+as voice, so an embedded browser without `crypto.randomUUID` cannot strand
+`RUN NOW` in a busy state. The regression is covered by the web product gate.
+
 ## Queued auth hardening
 
 Commit `72d0ddb` adds two bounded Google callback guards: malformed or

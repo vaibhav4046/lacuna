@@ -18,7 +18,7 @@ Vercel rejected new deployments after the free daily deployment quota was
 exhausted.
 
 The latest candidate passes the complete serial unit suite: 117 files and
-2,280 tests, with no skips.
+2,281 tests, with no skips.
 
 ## Accepted product gate
 

@@ -80,7 +80,7 @@ The quickest judge path is the
 
 The current V10 production build passes web smoke 9/9, demo/API smoke 31/31,
 auth boundary smoke 3/3, Google OAuth security smoke 16/16, and the provider
-voice boundary 7/7. Its full unit suite passes 2,224/2,224, and the production
+voice boundary 7/7. Its full unit suite passes 2,225/2,225, and the production
 web build and route matrix are green. ChatGPT has called all seven public MCP
 tools against HydraDB Cloud; the redacted result ledger is in
 [`artifacts/verification/2026-08-21-v10`](artifacts/verification/2026-08-21-v10).

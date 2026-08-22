@@ -65,20 +65,20 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `7678df5`
-(`fix(work): show empty health as no evidence`) with the production-only
+The current production deployment is product commit `c60c48a`
+(`fix(connectors): align json csv product copy`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
-pass; the full unit suite is 2,224/2,224 (111 files), and the stable alias passed demo
+pass; the full unit suite is 2,225/2,225 (111 files), and the stable alias passed demo
 smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
 requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-quhvwkppy-vaibhav4046s-projects.vercel.app` (`dpl_8i43u3ThtDzCARhRzh7sAp5BGY8r`).
+`https://lacuna-px4b3t86u-vaibhav4046s-projects.vercel.app` (`dpl_GH8HfFUmP4f6ctuHGDoKJUbqy1wK`).
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback
-cannot consume an in-flight sign-in attempt. The full unit suite is 2,224/2,224
-(110 files), including this regression.
+cannot consume an in-flight sign-in attempt. The full unit suite is 2,225/2,225
+(111 files), including this regression.
 
 Credential mutations now prime the CSRF cookie with a bounded, read-only
 `/api/session` preflight when a clean browser submits before the session

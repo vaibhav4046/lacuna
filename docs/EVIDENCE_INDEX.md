@@ -39,7 +39,7 @@ not transfer without a named rerun.
 | provider-backed voice boundary, production | 7/7 voice smoke gates; real ElevenLabs single-use token and `audio/mpeg` response (25,958 bytes in this run), bounded without printing provider secrets | `scripts/smoke-voice.ts`, production deployment `dpl_5KeujWyUGzyccgA4tTh6pxH94wdL` |
 | private agent mutation binding, production code path | browser Agents/Work mutations send the validated current-session binding; server rejects missing, stale or malformed bindings on launch, scheduling, cancel, retry and schedule dispatch | `web/src/api/client.ts`, `web/src/app/routes/agents.tsx`, `web/src/app/routes/work.tsx`, `src/api/router.ts`, `tests/unit/agent-runtime-api.test.ts`, `tests/unit/agent-recommendations-api.test.ts`, production deployment `dpl_5KeujWyUGzyccgA4tTh6pxH94wdL` |
 | cross-browser voice capture guard | microphone capture uses the standard AudioContext or WebKit fallback, reports unsupported media devices as a bounded browser error, and retains native playback fallback | `web/src/voice/browser.ts`, `web/src/voice/playback.ts`, `tests/unit/voice-browser.test.ts` |
-| LongMemEval deterministic hypothesis pipeline | a model-free answerer now routes stripped questions through Lacuna's bounded sentence planner/resolver and emits inspectable hypotheses; no official judge score is claimed | `benchmarks/longmemeval/answerer.ts`, `benchmarks/longmemeval/run.ts`, `tests/unit/longmemeval-runner.test.ts`, `docs/BENCHMARK_LONGMEMEVAL.md` |
+| LongMemEval deterministic hypothesis pipeline | a model-free answerer now routes stripped questions through Lacuna's bounded sentence planner/resolver and emits inspectable hypotheses; the official-compatible judge client is fail-closed and no score is claimed | `benchmarks/longmemeval/answerer.ts`, `benchmarks/longmemeval/run.ts`, `benchmarks/longmemeval/judge.ts`, `tests/unit/longmemeval-runner.test.ts`, `tests/unit/longmemeval-judge.test.ts`, `docs/BENCHMARK_LONGMEMEVAL.md` |
 
 ## Candidate acceptance gaps
 
@@ -273,7 +273,7 @@ because shortest path needs two known endpoints and a question arrives with one.
 | The frame table reads seven properties, not English | every extract response, README | the `readableProperties` field on every response | same curl | `LIVE` |
 | 500 published LongMemEval instances: 0 parse failures, 0 adapter failures, 0 ground truth leaks | BENCHMARK_LONGMEMEVAL | [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json) | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
 | **The extractor does not read the LongMemEval domain**: 117 claims from 3.3M tokens (78/500 instances, 15.6%), mostly wrong on inspection | BENCHMARK_LONGMEMEVAL | same | same | `RECORDED` |
-| No LongMemEval score exists | BENCHMARK_LONGMEMEVAL | nothing, because nothing was run | there is no command | `UNAVAILABLE` |
+| No LongMemEval score exists; the deterministic hypothesis runner and official-compatible judge are implemented but no paid judge call has been made | BENCHMARK_LONGMEMEVAL | [docs/BENCHMARK_LONGMEMEVAL.md](BENCHMARK_LONGMEMEVAL.md), `benchmarks/longmemeval/judge.ts` | `npm run bench:longmemeval:judge -- --dataset ... --hypotheses ... --out ...` | `UNAVAILABLE` |
 
 The last three rows are the ones a sceptical reader should start with. The first
 two of them are the honest result of pointing this project's extractor at

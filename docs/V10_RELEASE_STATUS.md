@@ -68,7 +68,7 @@ alias was still refused before body processing.
 The current production deployment is product commit `6544847`
 (`fix(voice): support WebKit capture contexts`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
-pass; the full unit suite is 2,204/2,204, and the stable alias passed demo
+pass; the full unit suite is 2,209/2,209 (110 files), and the stable alias passed demo
 smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser

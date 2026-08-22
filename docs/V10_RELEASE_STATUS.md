@@ -71,7 +71,8 @@ typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
 
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,
-`bf987e2`, `750a9f5`, `3dafaa9`, `a9542ed`, `292532a` and `894c03d`
+`bf987e2`, `750a9f5`, `3dafaa9`, `a9542ed`, `292532a`, `894c03d` and
+`5e02c65`
 are pushed to `v10-zeus-release`. They pass typecheck, web build, focused
 auth/Google/connector/DOCX tests, and the DOCX suite now runs 84/84 without
 the earlier extraction timeout; browser agent retries now preserve a UUID
@@ -80,7 +81,7 @@ removed, password sign-in remains locked until session confirmation and route
 completion, recovery and first-run onboarding now fail closed if their session
 confirmation is missing, Agents task recommendations cannot replace a task
 while a run is busy, and the GitLab workflow anchor resolves to its real
-review/confirm surface. The latest serial unit suite passes 2,282/2,282
+review/confirm surface. The latest serial unit suite passes 2,283/2,283
 (117 files). The sign-in and recovery submit handlers also reject re-entry
 before their busy state can be observed, closing a rapid Enter/duplicate
 mutation edge. Work cancel/retry and schedule dispatch use the same guard, so

@@ -27,3 +27,21 @@ export async function retryWhilePending<T>(
   }
   return null;
 }
+
+export type StorageReadiness = 'ready' | 'checking' | 'not_configured' | 'failed';
+
+/** Translate the shared health chip into the onboarding gate's closed vocabulary. */
+export function storageReadiness(hydra: string): StorageReadiness {
+  if (hydra === 'CONNECTED') return 'ready';
+  if (hydra === 'NOT CONFIGURED') return 'not_configured';
+  if (hydra === 'FAILED') return 'failed';
+  return 'checking';
+}
+
+/** A truthful, actionable message for a first-run storage check that is not ready. */
+export function storageProblem(readiness: StorageReadiness): string | null {
+  if (readiness === 'ready') return null;
+  if (readiness === 'not_configured') return 'HydraDB is not configured on this deployment. Ask an operator to configure storage.';
+  if (readiness === 'failed') return 'HydraDB could not be reached. Check the deployment health, then try again.';
+  return 'The storage check is still checking. Wait a moment, then try again.';
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { postFor, postJson } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
+import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
 import type { AgentRecommendationRecord, AgentRecord, AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
@@ -33,6 +34,8 @@ function permission(agent: AgentRecord): string {
 
 export function Agents() {
   const scope = useScope();
+  const { loaded: session } = useSession();
+  const binding = session.state === 'ready' && session.value.signedIn ? session.value.session.binding : undefined;
   const agents = useScoped<readonly AgentRecord[]>('agents');
   const recommendations = useScoped<readonly AgentRecommendationRecord[]>('recommendations');
   const rows = agents.state === 'ready' ? agents.value : [];
@@ -62,6 +65,8 @@ export function Agents() {
         localTime: recommendation.suggestedSchedule.localTime,
         timezone: recommendation.suggestedSchedule.timezone,
       },
+      15_000,
+      binding,
     );
     setRecommendationMessage(schedule === null
       ? 'The schedule was not created. Check the session and schedule controls.'
@@ -78,6 +83,7 @@ export function Agents() {
         `${scope.base}/agent/run`,
         { task, agentId: researcher.id },
         AGENT_REQUEST_TIMEOUT_MS,
+        binding,
       );
       if (response.status === 429) setProblem('The run budget is busy. Try again after the current rate window.');
       else if (response.status === 401 || response.status === 403) setProblem('Permission required.');

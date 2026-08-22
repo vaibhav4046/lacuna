@@ -2326,6 +2326,10 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
       const account = await this.#accountFor(cookies);
       if (account === null) {
         send(response, 401, { error: 'session' });
@@ -2401,7 +2405,7 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      if (!voiceBindingOk(request, cookies, false)) {
+      if (!voiceBindingOk(request, cookies, true)) {
         send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
@@ -2468,7 +2472,7 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      if (!voiceBindingOk(request, cookies, false)) {
+      if (!voiceBindingOk(request, cookies, true)) {
         send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
@@ -2540,7 +2544,7 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      if (!voiceBindingOk(request, cookies, false)) {
+      if (!voiceBindingOk(request, cookies, true)) {
         send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }

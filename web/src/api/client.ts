@@ -24,6 +24,7 @@ export const PERMISSION_REQUIRED = 'Permission required.';
 
 const REASONS: ReadonlySet<string> = new Set([CONNECTION_FAILED, REQUEST_TIMED_OUT, PERMISSION_REQUIRED]);
 const REQUEST_TIMEOUT_MS = 15_000;
+const SESSION_BINDING = /^[0-9a-f]{64}$/u;
 
 function reasonForStatus(status: number): string {
   if (status === 401 || status === 403) return PERMISSION_REQUIRED;
@@ -130,6 +131,7 @@ export async function postJson(
   path: string,
   body: unknown,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
+  sessionBinding?: string,
 ): Promise<PostResult> {
   const send = async (): Promise<{
     readonly response: Response;
@@ -147,7 +149,7 @@ export async function postJson(
         method: 'POST',
         signal: control.signal,
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+        headers: mutationHeaders(sessionBinding),
         body: JSON.stringify(body),
       });
       // `fetch` resolves after headers. Keep its abort timer alive while the
@@ -207,6 +209,7 @@ export async function postFor<T>(
   path: string,
   body: unknown,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
+  sessionBinding?: string,
 ): Promise<T | null> {
   const control = new AbortController();
   const timeout = globalThis.setTimeout(() => control.abort(), timeoutMs);
@@ -215,7 +218,7 @@ export async function postFor<T>(
       method: 'POST',
       signal: control.signal,
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+      headers: mutationHeaders(sessionBinding),
       body: JSON.stringify(body),
     });
     if (!response.ok) return null;
@@ -225,4 +228,16 @@ export async function postFor<T>(
   } finally {
     globalThis.clearTimeout(timeout);
   }
+}
+
+function mutationHeaders(sessionBinding?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-CSRF-Token': csrfToken(),
+  };
+  if (sessionBinding !== undefined && SESSION_BINDING.test(sessionBinding)) {
+    headers['x-lacuna-voice-binding'] = sessionBinding;
+  }
+  return headers;
 }

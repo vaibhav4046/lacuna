@@ -39,6 +39,7 @@ function source(): HydraSource {
 
 class Jar {
   readonly #values = new Map<string, string>();
+  binding: string | null = null;
 
   absorb(response: Response): void {
     for (const line of response.headers.getSetCookie()) {
@@ -69,10 +70,12 @@ async function request(
   body?: unknown,
   csrf = true,
   origin: string | null = SITE_ORIGIN,
+  includeBinding = true,
 ): Promise<Response> {
   const headers: Record<string, string> = { cookie: jar.header(), accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (csrf) headers['x-csrf-token'] = jar.csrf();
+  if (includeBinding && jar.binding !== null) headers['x-lacuna-voice-binding'] = jar.binding;
   if (origin !== null) headers.origin = origin;
   const response = await fetch(`${base}${path}`, {
     method,
@@ -89,6 +92,10 @@ async function account(email: string): Promise<Jar> {
   await request(jar, '/api/session');
   const response = await request(jar, '/api/auth/signup', 'POST', { email, password: PASSWORD });
   if (response.status !== 201) throw new Error(`signup failed: ${response.status}`);
+  const session = await request(jar, '/api/session');
+  const state = await session.json() as { readonly session?: { readonly binding?: unknown } };
+  if (typeof state.session?.binding !== 'string') throw new Error('signup did not establish a binding');
+  jar.binding = state.session.binding;
   return jar;
 }
 
@@ -166,6 +173,7 @@ describe('agent recommendation API', () => {
     const valid = { cadence: 'DAILY', localTime: '09:30', timezone: 'Europe/London' };
 
     expect((await request(alice, path, 'POST', valid, false)).status).toBe(403);
+    expect((await request(alice, path, 'POST', valid, true, SITE_ORIGIN, false)).status).toBe(401);
     expect((await request(alice, path, 'POST', { ...valid, cadence: 'HOURLY' })).status).toBe(422);
     expect((await request(alice, path, 'POST', { ...valid, localTime: '25:00' })).status).toBe(422);
     expect((await request(alice, path, 'POST', { ...valid, timezone: 'UTC', task: 'replace the bounded task' })).status).toBe(422);

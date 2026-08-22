@@ -410,6 +410,26 @@ describe('the browser auth client', () => {
     await expect(request).resolves.toBeNull();
   });
 
+  it('sends the exact session voice binding on private mutations', async () => {
+    vi.stubGlobal('document', { cookie: 'lacuna_csrf=csrf-under-test' });
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+      headers: new Headers(),
+      requestHeaders: new Headers(init?.headers),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await postJson('/api/workspace/agent/run', { task: 'bounded' }, 65_000, 'a'.repeat(64));
+    await postFor('/api/workspace/schedules/schedule-1/run', {}, 65_000, 'a'.repeat(64));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const call of fetchMock.mock.calls) {
+      expect(new Headers(call[1]?.headers).get('x-lacuna-voice-binding')).toBe('a'.repeat(64));
+    }
+  });
+
   it('settles a stalled session read as a timeout instead of freezing route guards', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => (

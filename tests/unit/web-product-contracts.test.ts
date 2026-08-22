@@ -54,6 +54,15 @@ describe('web product contracts', () => {
     expect(developers).not.toContain('export function Connectors()');
   });
 
+  it('binds every agent/work mutation to the exact current session', () => {
+    const agents = readFileSync(new URL('../../web/src/app/routes/agents.tsx', import.meta.url), 'utf8');
+    const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
+    expect(agents).toContain("import { useSession } from '../../api/session';");
+    expect(agents).toContain('binding');
+    expect(work).toContain("import { useSession } from '../../api/session';");
+    expect(work).toContain('binding');
+  });
+
   it('keeps the landing connector scene aligned with public runtime availability', () => {
     const landing = readFileSync(new URL('../../web/src/landing/Conn.tsx', import.meta.url), 'utf8');
     expect(landing).toContain("fetch('/api/explore/connectors'");

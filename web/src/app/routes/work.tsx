@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import { getJson, postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
+import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
 import type { AgentRecord, AgentRunRecord, DailyScheduleRecord, RunStatus } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
@@ -33,10 +34,11 @@ function includes(filter: Filter, status: RunStatus): boolean {
     || filter === status;
 }
 
-function RunDetail({ run, agentName, demo, onChange }: {
+function RunDetail({ run, agentName, demo, binding, onChange }: {
   readonly run: AgentRunRecord;
   readonly agentName: string;
   readonly demo: boolean;
+  readonly binding?: string;
   readonly onChange: (run: AgentRunRecord) => void;
 }) {
   const [mutating, setMutating] = useState(false);
@@ -49,6 +51,7 @@ function RunDetail({ run, agentName, demo, onChange }: {
       `/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`,
       {},
       kind === 'retry' ? AGENT_REQUEST_TIMEOUT_MS : 15_000,
+      binding,
     );
     if (updated === null) setProblem(`${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`);
     else onChange(updated);
@@ -122,7 +125,7 @@ function RunDetail({ run, agentName, demo, onChange }: {
   );
 }
 
-function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (run: AgentRunRecord) => void }) {
+function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly binding?: string; readonly onRun: (run: AgentRunRecord) => void }) {
   const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
   const rows = schedules.state === 'ready' ? schedules.value : [];
   const [working, setWorking] = useState<string | null>(null);
@@ -138,6 +141,7 @@ function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (r
       `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
       { requestId },
       AGENT_REQUEST_TIMEOUT_MS,
+      binding,
     );
     if (result !== null) pendingRequests.current.delete(schedule.id);
     if (result?.runId !== null && result?.runId !== undefined) {
@@ -181,6 +185,8 @@ function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (r
 
 export function Work() {
   const scope = useScope();
+  const { loaded: session } = useSession();
+  const binding = session.state === 'ready' && session.value.signedIn ? session.value.session.binding : undefined;
   const loadedRuns = useScoped<readonly AgentRunRecord[]>('runs');
   const loadedAgents = useScoped<readonly AgentRecord[]>('agents');
   const [changedRuns, setChangedRuns] = useState<readonly AgentRunRecord[]>([]);
@@ -200,7 +206,7 @@ export function Work() {
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      <Schedules demo={scope.demo} onRun={replace} />
+      <Schedules demo={scope.demo} binding={binding} onRun={replace} />
       <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={head}>AGENT RUNS · OBSERVED EVENTS ONLY</div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -217,7 +223,7 @@ export function Work() {
         {loadedRuns.state === 'ready' && runs.length > 0 && visible.length === 0 ? (
           <Empty headline={`No ${filter.toLowerCase()} runs.`} detail="Choose another status to inspect the runs this workspace has recorded." />
         ) : null}
-        {visible.map((run) => <RunDetail key={run.id} run={run} agentName={names.get(run.agentId) ?? run.agentId} demo={scope.demo} onChange={replace} />)}
+        {visible.map((run) => <RunDetail key={run.id} run={run} agentName={names.get(run.agentId) ?? run.agentId} demo={scope.demo} binding={binding} onChange={replace} />)}
       </section>
     </div>
   );

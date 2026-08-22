@@ -105,7 +105,7 @@ async function postPath(
   });
 }
 
-async function run(body: unknown, binding?: string, identity = who): Promise<Response> {
+async function run(body: unknown, binding: string | undefined = who.binding, identity = who): Promise<Response> {
   return postPath('/api/workspace/agent/run', body, identity, binding);
 }
 

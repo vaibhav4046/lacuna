@@ -65,6 +65,17 @@ const ISSUERS = new Set(['https://accounts.google.com', 'accounts.google.com']);
 
 export class GoogleAuthError extends Error {}
 
+/**
+ * Fetch aborts can cross a realm boundary (or come from a polyfill), so an
+ * `instanceof DOMException` check is not a reliable way to recognise the
+ * provider deadline. The stable contract is the error name.
+ */
+function hasErrorName(error: unknown, names: readonly string[]): boolean {
+  return typeof error === 'object' && error !== null
+    && typeof (error as { readonly name?: unknown }).name === 'string'
+    && names.includes((error as { readonly name: string }).name);
+}
+
 export interface GoogleAuthorizationProof {
   /** OAuth PKCE verifier, kept server side for the callback. */
   readonly codeVerifier: string;
@@ -407,7 +418,7 @@ export async function identityFromCode(
       signal,
     });
   } catch (error) {
-    if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    if (hasErrorName(error, ['TimeoutError', 'AbortError'])) {
       throw new GoogleAuthError('the Google provider timed out');
     }
     throw error;

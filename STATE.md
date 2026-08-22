@@ -7,10 +7,10 @@ dated evidence.
 
 ## Accepted product gate
 
-- 115 unit test files and 2,258 tests passed with no skips.
+- 115 unit test files and 2,261 tests passed with no skips.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 138 modules. The entry is 304.34 kB,
-  100.04 kB gzip.
+- The production web bundle builds from 138 modules. The entry is 306.83 kB,
+  100.62 kB gzip.
 - Copy lint scans 58 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
@@ -47,12 +47,12 @@ dated evidence.
   code. The native Cypher adapter and 162-query compatibility probe target a
   separate self-hosted HydraDB node; they are genuine proof, not the deployed
   answer path.
-- One-off file ingestion (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub snapshot
-  import, public HTTPS/API import, and signed bounded webhook delivery are
-  implemented workflows. The production redacted catalogue exposes seven
-  descriptors and marks each available when its server-side support is
-  configured. GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database
-  source and Spotify are not implemented and remain planned.
+- One-off file ingestion (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub and GitLab
+  snapshot imports, public HTTPS/API import, and signed bounded webhook
+  delivery are implemented workflows. The production redacted catalogue
+  exposes eight descriptors and marks each available when its server-side
+  support is configured. Linear, Jira, Slack, Notion, Gmail, Confluence,
+  Database source and Spotify remain planned.
 - The exact 399-character `package-session` blast-radius request is
   `NOT_PROVEN`. The subject is absent, the sentence exceeds the 300-character
   sentence API contract, and no Web, CLI or MCP blast-radius command carries
@@ -69,8 +69,8 @@ dated evidence.
 ## Accepted production
 
 The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
-deployment `dpl_Bdod4AG9yLCqiTnESEnxetQvJ4Ch`, built from product commit
-`ff4e23c`. The latest stable smoke passed demo 31/31, Google OAuth 16/16,
+deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz`, built from product commit
+`a471baf`. The latest stable smoke passed demo 31/31, Google OAuth 16/16,
 auth boundary 3/3, and provider voice 7/7. Public `main` and the release
 branch contain the accepted product source.
 
@@ -102,8 +102,8 @@ capabilities. Nothing has been submitted or uploaded.
   large tenant counts.
 - CLI and MCP share canonical memory/evidence reads but do not expose agent
   lifecycle controls.
-- Existing pre-binding Google records deliberately fail closed until a separate
-  verified migration/linking flow exists.
+- Existing pre-binding Google records deliberately fail closed until the signed
+  in owner completes the verified Settings → Link Google migration flow.
 - MCP path-form capabilities may appear in infrastructure logs. Prefer
   `Authorization: Bearer <capability>` at `/mcp`; use
   `/mcp/w/<capability>` only when a client cannot set headers. Revoke the

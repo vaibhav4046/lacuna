@@ -36,6 +36,13 @@ function createAudioContext(): AudioContext {
   }
 }
 
+function hasErrorName(error: unknown, names: readonly string[]): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'name' in error
+    && names.includes((error as { readonly name?: unknown }).name as string);
+}
+
 function frameFrom(analyser: AnalyserNode, buffer: Float32Array<ArrayBuffer>): SignalFrame {
   analyser.getFloatTimeDomainData(buffer);
   let sum = 0;
@@ -365,7 +372,7 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
     } catch (error) {
-      if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
+      if (hasErrorName(error, ['NotAllowedError', 'SecurityError'])) {
         throw new VoiceRuntimeError('permission_denied');
       }
       throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error');

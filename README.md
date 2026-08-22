@@ -80,7 +80,7 @@ The quickest judge path is the
 
 The current V10 production build passes web smoke 9/9, demo/API smoke 31/31,
 auth boundary smoke 3/3, Google OAuth security smoke 16/16, and the provider
-voice boundary 7/7. Its full unit suite passes 2,231/2,231, and the production
+voice boundary 7/7. Its full unit suite passes 2,261/2,261, and the production
 web build and route matrix are green. ChatGPT has called all seven public MCP
 tools against HydraDB Cloud; the redacted result ledger is in
 [`artifacts/verification/2026-08-21-v10`](artifacts/verification/2026-08-21-v10).
@@ -90,11 +90,11 @@ ChatGPT connector is accepted; Claude has not been tested. Google OAuth passes
 the production security boundary through the chooser; selecting a human identity
 and accepting a fresh callback remain owner actions. Provider-backed voice passes
 its server/provider boundary, with typed Ask retained as the fallback when a
-browser blocks playback. The production connector catalogue exposes seven real
-workflows: GitHub snapshots, Markdown/Text/JSON/CSV/PDF/DOCX imports, public HTTPS reads,
-and signed webhooks. All are available on the current deployment. GitLab, Linear,
-Jira, Slack, Notion, Gmail, Confluence and database sync remain explicitly
-planned; Spotify is not catalogued or implemented.
+browser blocks playback. The production connector catalogue exposes eight real
+workflows: GitHub and GitLab snapshots, Markdown/Text/JSON/CSV/PDF/DOCX imports,
+public HTTPS reads, and signed webhooks. All are bounded, reviewable imports on
+the current deployment. Linear, Jira, Slack, Notion, Gmail, Confluence and
+database sync remain explicitly planned; Spotify is not catalogued or implemented.
 
 The public workspace exposes accepted agent run records for inspection but is
 not a shared scratchpad. The accepted production deployment returns

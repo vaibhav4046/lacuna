@@ -1,8 +1,9 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   GoogleAuthError,
+  GOOGLE_PROVIDER_TIMEOUT_MS,
   authorizeUrl,
   identityFromCode,
   newGoogleAuthorizationProof,
@@ -204,6 +205,16 @@ describe('an identity Lacuna refuses', () => {
       expect(result.error).toBeInstanceOf(GoogleAuthError);
       expect((result.error as Error).message).toBe('the Google provider timed out');
     }
+  });
+
+  it('maps a cross-realm timeout error to a stable provider timeout', async () => {
+    vi.useFakeTimers();
+    const provider = (async (_input: string | URL, init?: RequestInit) => await new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject({ name: 'TimeoutError' }), { once: true });
+    })) as unknown as typeof fetch;
+    const request = identityFromCode(CONFIG, 'one-time-code', provider);
+    await vi.advanceTimersByTimeAsync(GOOGLE_PROVIDER_TIMEOUT_MS);
+    await expect(request).rejects.toThrow('the Google provider timed out');
   });
 
   it('refuses something that is not a JWT at all', async () => {

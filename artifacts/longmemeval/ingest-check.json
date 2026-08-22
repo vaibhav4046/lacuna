@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-08-22T07:49:37.269Z",
+  "measuredAt": "2026-08-22T10:06:23.271Z",
   "dataset": "data/longmemeval_oracle.json",
   "instances": 500,
   "parseFailures": [],
@@ -18,5 +18,5 @@
     "region": 10,
     "storage:plan": 2
   },
-  "ms": 952
+  "ms": 591
 }

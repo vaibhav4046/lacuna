@@ -236,6 +236,38 @@ describe('playback audio guard', () => {
     }, new AbortController().signal)).rejects.toMatchObject({ failure: 'playback_blocked' });
   });
 
+  it('maps cross-realm autoplay errors by name, not DOMException identity', async () => {
+    class CrossRealmBlockedAudio {
+      paused = true;
+      ended = false;
+      constructor(_url: string) {}
+      addEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+      removeEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+      play(): Promise<void> { return Promise.reject({ name: 'NotAllowedError', message: 'gesture required' }); }
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', CrossRealmBlockedAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:cross-realm-blocked',
+      revokeObjectURL: () => undefined,
+    });
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.speak('Supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal)).rejects.toMatchObject({ failure: 'playback_blocked' });
+  });
+
   it('cleans an aborted native element and ignores a late playing event', async () => {
     let releasePlay!: () => void;
     const playGate = new Promise<void>((resolve) => { releasePlay = resolve; });
@@ -552,6 +584,18 @@ describe('playback audio guard', () => {
 });
 
 describe('realtime socket lifecycle', () => {
+  it('maps cross-realm microphone permission errors to permission_denied', async () => {
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockRejectedValue({ name: 'NotAllowedError', message: 'permission required' }),
+      },
+    });
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.openMicrophone(new AbortController().signal, () => undefined))
+      .rejects.toMatchObject({ failure: 'permission_denied' });
+  });
+
   it('uses the WebKit AudioContext fallback for microphone capture', async () => {
     class FakeContext {
       static readonly instances: FakeContext[] = [];

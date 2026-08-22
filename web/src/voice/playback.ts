@@ -40,7 +40,13 @@ function createContext(): AudioContext | null {
 }
 
 function isAutoplayRejection(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'NotAllowedError';
+  // DOMException objects can cross an iframe/worker boundary and lose their
+  // realm identity. Browser autoplay contracts are defined by the error name,
+  // so use the structural signal instead of `instanceof`.
+  return typeof error === 'object'
+    && error !== null
+    && 'name' in error
+    && (error as { readonly name?: unknown }).name === 'NotAllowedError';
 }
 
 /** Native audio is the playback contract; metering is an optional enhancement. */
@@ -71,6 +77,7 @@ export class PlaybackSession {
     // The DOM lib exposes `playsInline` on video but not audio even though
     // WebKit honors it for both. Keep the narrow runtime extension local.
     (element as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+    element.setAttribute?.('playsinline', '');
     element.preload = 'auto';
 
     // A context prepared before an async provider round trip may still be

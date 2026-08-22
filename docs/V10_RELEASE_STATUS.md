@@ -65,20 +65,20 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `ff4e23c`
-(`fix(voice): keep local fallback in browser boundary`) with the production-only
+The current production deployment is product commit `a471baf`
+(`feat(auth): add safe Google account linking`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
-pass; the current candidate full unit suite is 2,258/2,258 (115 files), and the stable alias passed demo
+pass; the current full unit suite is 2,261/2,261 (115 files), and the stable alias passed demo
 smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
 requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-hnrkm2gsb-vaibhav4046s-projects.vercel.app` (`dpl_Bdod4AG9yLCqiTnESEnxetQvJ4Ch`), aliased to `https://lacuna-five.vercel.app`.
+`https://lacuna-mtty3t0z6-vaibhav4046s-projects.vercel.app` (`dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz`), aliased to `https://lacuna-five.vercel.app`.
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback
-cannot consume an in-flight sign-in attempt. The current candidate full unit
-suite is 2,258/2,258 (115 files), including the serverless request-lifecycle
+cannot consume an in-flight sign-in attempt. The current full unit
+suite is 2,261/2,261 (115 files), including the serverless request-lifecycle
 adapter guard, stalled speech-body cancellation, GitHub body cancellation, and
 the embedded-browser Work request-id guard.
 
@@ -109,22 +109,19 @@ and `.removeListener` as optional serverless adapter capabilities as well. A
 valid HTTPS import cannot become a 500 merely because the hosting adapter omits
 an EventEmitter method; the focused connector suite covers the fail-closed hook.
 
-## Queued auth hardening
+## Deployed auth and reliability hardening
 
 Commit `72d0ddb` adds two bounded Google callback guards: malformed or
 oversized state/code is rejected before hashing or provider contact, and the
 token/JWKS exchange has a ten-second deadline that returns a fixed timeout
-message instead of freezing the sign-in form. The current release-branch
-preview is `dpl_EeU5TvrryEDZ3CLGsSNv9ZBDCh8y`; its preview environment has no
-production Hydra context store, and promotion is still queued because the
-Vercel Hobby deployment quota is exhausted. The stable alias remains on the
-accepted production deployment above, so it is not replaced by an unsafe preview.
+message instead of freezing the sign-in form. The release-branch preview had no
+production Hydra context store; the already-built release was promoted through
+Vercel to the stable deployment recorded above.
 
-The candidate voice boundary now cancels both speech and JSON response readers
+The voice boundary now cancels both speech and JSON response readers
 when response headers arrive but the provider stream stalls, returning a bounded
 provider failure instead of leaving the voice controller busy. The regressions
-are covered in the 2,258-test candidate suite and are not described as live
-until promotion succeeds.
+are covered in the 2,261-test suite and are part of the promoted release.
 
 The candidate GitHub transport also cancels its response body reader when the
 bounded importer signal fires after headers arrive. Its regression returns a
@@ -132,28 +129,28 @@ bounded `github_timeout` rather than leaving a connector run waiting forever.
 
 The candidate HydraDB client now cancels a response body reader when the caller
 aborts after headers arrive, returning a bounded transport failure rather than
-leaving a query waiting forever. Its regression is covered in the 2,258-test
-candidate suite.
+leaving a query waiting forever. Its regression is covered in the 2,261-test
+suite.
 
 The candidate browser connector client now reads JSON through a bounded response
 stream, cancelling and releasing the reader when the caller aborts or a request
 deadline fires. Its regression covers a stalled response after headers arrive
-and is included in the 2,258-test candidate suite.
+and is included in the 2,261-test suite.
 
 The candidate Agents and Work actions now guard schedule, run-now, cancel and
 retry requests. A thrown network or session failure clears the busy state and
 shows bounded recovery copy instead of freezing the control; the helper has two
-focused regressions in the 2,258-test candidate suite.
+focused regressions in the 2,261-test suite.
 
 The shared browser API client now uses the same bounded response-reader
 contract for session, workspace and agent reads/mutations. A caller or deadline
 abort cancels and releases a stalled JSON body instead of freezing route guards
-or action controls; the focused regression is included in the 2,258-test suite.
+or action controls; the focused regression is included in the 2,261-test suite.
 
 Failed data panels across Agents, Work, Context and connector views now expose
 a keyboard-sized `Try again` action. A transient read failure can be retried
 without leaving the route at an inert error message; the contract regression is
-included in the 2,258-test candidate suite.
+included in the 2,261-test suite.
 
 Private route guards now render a bounded session-check status and a visible
 retry action when the session read fails. A transient auth/network error no
@@ -182,7 +179,7 @@ disabling the field itself.
 | Google sign-in | The production boundary is accepted 16/16, and an authorized owner browser completed a fresh Google account chooser and callback. A different identity or account transfer is not claimed. |
 | Voice | The deployed provider-backed voice boundary passes 7/7: a real ElevenLabs single-use token and bounded `audio/mpeg` response are returned without exposing secrets. The owner browser round trip reaches authenticated listening, and read-only typed questions remain visible when browser playback cannot be confirmed. Embedded-browser planner request failures now use the same deterministic local grammar for navigation/read-only intents; mutation and confirmation intents still fail closed when the optional planner is unavailable. |
 | Scheduler | Daily definitions are persisted. The hosted adapter does not claim distributed exactly-once execution. |
-| Connector catalogue | Private workflows are implemented for one-off file ingestion (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub snapshot import, public HTTPS/API import, and signed bounded at-least-once webhook delivery. Current production catalogue truth reports all seven implemented workflows `available` after fresh server-only signing keys were provisioned. Remaining providers are planned; Spotify is not catalogued or implemented. |
+| Connector catalogue | Private workflows are implemented for one-off file ingestion (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub and GitLab snapshot imports, public HTTPS/API import, and signed bounded at-least-once webhook delivery. Current production catalogue truth reports all eight implemented workflows `available` after fresh server-only signing keys were provisioned. Remaining providers are planned; Spotify is not catalogued or implemented. |
 | Exact `package-session` blast request | `NOT_PROVEN`. The subject is absent, the 399-character request exceeds the 300-character sentence contract, and no Web, CLI or MCP blast command exposes the requested semantics. See `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json`. This does not negate the four generated gold blast-radius cases or the fixed `tenant-router` impact proof. |
 
 ## Submission media

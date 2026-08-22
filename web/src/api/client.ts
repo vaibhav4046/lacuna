@@ -36,7 +36,7 @@ function reasonFor(error: unknown): string {
   return error instanceof Error && REASONS.has(error.message) ? error.message : CONNECTION_FAILED;
 }
 
-export async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
+export async function getJson<T>(path: string, signal: AbortSignal, sessionBinding?: string): Promise<T> {
   const control = new AbortController();
   const relayAbort = () => control.abort();
   let timedOut = false;
@@ -50,7 +50,7 @@ export async function getJson<T>(path: string, signal: AbortSignal): Promise<T> 
     const response = await fetch(path, {
       signal: control.signal,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...sessionBindingHeader(sessionBinding) },
     });
     if (!response.ok) throw new Error(reasonForStatus(response.status));
     return (await response.json()) as T;
@@ -70,13 +70,16 @@ export async function getJson<T>(path: string, signal: AbortSignal): Promise<T> 
  * mount: the first effect's response is thrown away instead of racing the
  * second one into state.
  */
-export function useLoaded<T>(path: string): Loaded<T> {
+export function useLoaded<T>(path: string, sessionBinding?: string): Loaded<T> {
   const [result, setResult] = useState<Loaded<T>>({ state: 'loading' });
 
   useEffect(() => {
     const control = new AbortController();
     setResult({ state: 'loading' });
-    getJson<T>(path, control.signal).then(
+    if (path.startsWith('/api/workspace/') && sessionBinding === undefined) {
+      return () => control.abort();
+    }
+    getJson<T>(path, control.signal, sessionBinding).then(
       (value) => {
         if (!control.signal.aborted) setResult({ state: 'ready', value });
       },
@@ -85,7 +88,7 @@ export function useLoaded<T>(path: string): Loaded<T> {
       },
     );
     return () => control.abort();
-  }, [path]);
+  }, [path, sessionBinding]);
 
   return result;
 }
@@ -236,8 +239,11 @@ function mutationHeaders(sessionBinding?: string): Record<string, string> {
     Accept: 'application/json',
     'X-CSRF-Token': csrfToken(),
   };
-  if (sessionBinding !== undefined && SESSION_BINDING.test(sessionBinding)) {
-    headers['x-lacuna-voice-binding'] = sessionBinding;
-  }
-  return headers;
+  return { ...headers, ...sessionBindingHeader(sessionBinding) };
+}
+
+function sessionBindingHeader(sessionBinding?: string): Readonly<Record<string, string>> {
+  return sessionBinding !== undefined && SESSION_BINDING.test(sessionBinding)
+    ? { 'x-lacuna-voice-binding': sessionBinding }
+    : {};
 }

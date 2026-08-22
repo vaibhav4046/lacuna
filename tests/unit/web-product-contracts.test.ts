@@ -198,6 +198,15 @@ describe('web product contracts', () => {
     expect(onboarding).toContain("postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined)");
   });
 
+  it('keeps private Work reads bound after route hydration and dispatch refresh', () => {
+    const scope = readFileSync(new URL('../../web/src/api/scope.tsx', import.meta.url), 'utf8');
+    const client = readFileSync(new URL('../../web/src/api/client.ts', import.meta.url), 'utf8');
+    const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
+    expect(scope).toContain('useLoaded<T>(`${scope.base}/${part}`, sessionBinding)');
+    expect(client).toContain("path.startsWith('/api/workspace/') && sessionBinding === undefined");
+    expect(work).toContain("getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding)");
+  });
+
   it('documents private MCP access with capabilities, never workspace names', () => {
     const developers = readFileSync(new URL('../../web/src/app/routes/developers.tsx', import.meta.url), 'utf8');
     expect(developers).toContain('Authorization: Bearer');

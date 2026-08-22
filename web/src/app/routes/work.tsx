@@ -146,7 +146,7 @@ function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly 
     if (result !== null) pendingRequests.current.delete(schedule.id);
     if (result?.runId !== null && result?.runId !== undefined) {
       try {
-        const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal);
+        const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding);
         const completed = current.find((run) => run.id === result.runId);
         if (completed !== undefined) onRun(completed);
       } catch {

@@ -430,6 +430,21 @@ describe('the browser auth client', () => {
     }
   });
 
+  it('sends the exact session voice binding on private run reads', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => [],
+      headers: new Headers(),
+      requestHeaders: new Headers(init?.headers),
+    })));
+
+    await getJson('/api/workspace/runs', new AbortController().signal, 'b'.repeat(64));
+
+    const call = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(new Headers(call?.[1]?.headers).get('x-lacuna-voice-binding')).toBe('b'.repeat(64));
+  });
+
   it('settles a stalled session read as a timeout instead of freezing route guards', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => (

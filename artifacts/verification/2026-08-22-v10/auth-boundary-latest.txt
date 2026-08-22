@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 114 files, 2,249/2,249 passed
+- current candidate full unit suite: 114 files, 2,250/2,250 passed
 - queued candidate adds bounded OAuth state/code parameters and bounded token/
   JWKS JSON reads under the ten-second Google deadline; it is not yet
   production-promoted because the
@@ -31,6 +31,8 @@ Candidate verification:
 Voice candidate hardening:
 - a stalled speech body reader is cancelled when the bounded acquisition signal
   fires after headers have arrived
+- a stalled JSON voice response reader is cancelled when the bounded acquisition
+  signal fires after headers have arrived
 - the voice path returns `provider_unavailable` instead of remaining busy
 - the regression is covered by `tests/unit/voice-browser.test.ts`; not yet
   production-promoted

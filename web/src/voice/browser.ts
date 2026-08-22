@@ -18,6 +18,7 @@ const SCRIBE_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
 const SCRIBE_MODEL = 'scribe_v2_realtime';
 const TARGET_SAMPLE_RATE = 16_000;
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+const MAX_JSON_RESPONSE_BYTES = 1 * 1024 * 1024;
 const REQUEST_ACQUISITION_TIMEOUT_MS = 15_000;
 
 type AudioContextConstructor = new (options?: AudioContextOptions) => AudioContext;
@@ -157,6 +158,44 @@ interface RequestAcquisition {
   dispose(): void;
 }
 
+/** Consume JSON through a bounded reader so headers without a body cannot strand voice. */
+async function readJsonBody(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (response.body === null || typeof response.body?.getReader !== 'function') {
+    return response.json() as Promise<unknown>;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let abortReject!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { abortReject = reject; });
+  const onAbort = () => {
+    abortReject(new Error('voice response body read cancelled'));
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    if (signal.aborted) onAbort();
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > MAX_JSON_RESPONSE_BYTES) throw new Error('voice response body too large');
+      chunks.push(value);
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+}
+
 /** Bound response headers and body acquisition, but never real audio playback. */
 function acquireRequest(signal: AbortSignal): RequestAcquisition {
   const control = new AbortController();
@@ -193,7 +232,7 @@ async function jsonRequest<T>(
     }
     if (!response.ok) throw new VoiceRuntimeError(failureForStatus(response.status));
     try {
-      return await response.json() as T;
+      return await readJsonBody(response, acquisition.signal) as T;
     } catch {
       throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'error');
     }

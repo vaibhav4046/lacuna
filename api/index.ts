@@ -75,12 +75,15 @@ const snapshot = createSnapshotHandler(process.cwd());
  * two runs of the same task are comparable. Absent when nothing is configured,
  * which makes the route answer 501 instead of pretending to have run.
  */
-const groq = configured(process.env).find((provider) => provider.name === 'groq' && provider.apiKey !== undefined);
+const agentProvider = configured(process.env).find((provider) => (
+  (provider.name === 'groq' || provider.name === 'perplexity') && provider.apiKey !== undefined
+));
 // Pinned to a model this account actually serves, confirmed against the
 // provider's own model list rather than assumed. A name that is not there
 // answers 404 and the run fails at the model call, which is how the first
 // attempt failed.
-const AGENT_MODEL = 'groq/compound-mini';
+const AGENT_MODEL = process.env['LACUNA_AGENT_MODEL']
+  ?? (agentProvider?.name === 'perplexity' ? 'sonar' : 'groq/compound-mini');
 
 /** Names the public corpus holds, used to find what a task is about. */
 const SUBJECT_NAMES: readonly string[] = [
@@ -269,13 +272,13 @@ const api = new ApiRouter({
       ingestSource(cloud, collection, title, text),
     // One agent run over that workspace, when a real model provider answers.
     // Absent otherwise, so the route says 501 rather than inventing a run.
-    ...(groq === undefined ? {} : {
+  ...(agentProvider === undefined ? {} : {
       // The router admits only an authenticated workspace here. The nullable
       // type remains at the injected boundary for compatibility, but anonymous
       // public run creation is refused before this function can be called.
       agent: (collection: string | null, task: string, run = {}) => runAgents({
         source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),
-        provider: groq,
+        provider: agentProvider,
         model: AGENT_MODEL,
         workspace: collection ?? 'public',
         collection: collection ?? 'public',
@@ -297,7 +300,7 @@ const api = new ApiRouter({
       prepareAgents: async (workspace: string): Promise<void> => {
         await agentRuntime.putAgents(
           workspace,
-          builtInAgents(workspace, groq.name, AGENT_MODEL, new Date().toISOString()),
+            builtInAgents(workspace, agentProvider.name, AGENT_MODEL, new Date().toISOString()),
         );
       },
       prepareSchedule: async (workspace: string): Promise<void> => {

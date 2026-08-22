@@ -99,7 +99,13 @@ export function VoiceAssistantProvider({
   const [snapshot, setSnapshot] = useState<VoiceAssistantSnapshot | null>(null);
   const [dockOpen, setDockOpen] = useState(false);
 
+  // Build the owner from an authenticated binding. Route changes are kept
+  // inside setContext below, but an initial session transition must replace a
+  // stack that was created while the session was still loading; otherwise the
+  // executor can retain a null binding even while the shell is signed in.
   useEffect(() => {
+    setOwner(null);
+    setSnapshot(null);
     const created = createVoiceAssistantOwner(
       base,
       (path) => navigateRef.current(path),
@@ -112,7 +118,7 @@ export function VoiceAssistantProvider({
       unsubscribe();
       created.dispose();
     };
-  }, [base]);
+  }, [base, scope, sessionKey, workspaceKey]);
 
   useLayoutEffect(() => {
     if (owner !== null) owner.assistant.setContext(context);

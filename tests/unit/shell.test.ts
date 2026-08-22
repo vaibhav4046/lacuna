@@ -83,7 +83,7 @@ describe('the authenticated voice shell owner', () => {
     expect(shell).not.toContain('sessionKey={email}');
   });
 
-  it('creates one owned controller stack and updates context without rebuilding it', () => {
+  it('creates one owned controller stack and rebuilds only when its auth binding changes', () => {
     const context = readFileSync(new URL('../../web/src/voice/assistant-context.tsx', import.meta.url), 'utf8');
 
     for (const constructor of [
@@ -95,7 +95,8 @@ describe('the authenticated voice shell owner', () => {
       expect(context.split(constructor)).toHaveLength(2);
     }
     expect(context).toContain('assistant.setContext(context)');
-    expect(context).toContain('}, [base]);');
+    expect(context).toContain('}, [base, scope, sessionKey, workspaceKey]);');
+    expect(context).not.toContain('currentRoute]);');
     expect(context).toContain('assistant.dispose()');
     expect(context).toContain('voice.dispose()');
     expect(context).toContain('new VoiceOperationExecutor({ navigate, sessionBinding })');

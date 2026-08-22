@@ -1,0 +1,27 @@
+Lacuna V10 auth boundary verification — 2026-08-22
+
+Stable production: https://lacuna-five.vercel.app
+
+Live password boundary:
+- GET /api/session issued a CSRF cookie: true
+- POST /api/auth/signin without x-csrf-token: HTTP 403
+- POST /api/auth/signin with the issued CSRF cookie/header and invalid credentials: HTTP 401
+
+Live Google start boundary:
+- GET /api/auth/google/start: HTTP 302
+- redirect uses scope=openid email profile only
+- redirect carries code_challenge_method=S256 and a nonce
+- redirect response: Cache-Control no-store, private
+- OAuth attempt cookie: HttpOnly; Secure; SameSite=Lax; Max-Age=600
+- response policy: strict CSP, frame-ancestors 'none', X-Frame-Options DENY,
+  Referrer-Policy strict-origin-when-cross-origin, and HSTS preload
+
+Live callback refusal:
+- malformed callback state redirects to /signin?google=state
+- the attempt cookie is cleared; no token exchange is reached
+
+Candidate verification:
+- current candidate full unit suite: 113 files, 2,238/2,238 passed
+- queued candidate adds bounded OAuth state/code parameters and a ten-second
+  Google token/JWKS deadline; it is not yet production-promoted because the
+  Vercel Hobby deployment quota is exhausted

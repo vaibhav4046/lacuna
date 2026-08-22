@@ -285,6 +285,18 @@ describe('private connector workflow contracts', () => {
     expect(html).toContain('Recorded observations may lag');
   });
 
+  it('shows accepted documents with unconfirmed readiness as syncing, not failed', async () => {
+    const catalogue = { connectors: [{
+      id: 'https_api', label: 'HTTPS API', group: 'DATA', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: '2026-08-21T12:00:00.000Z', lastSuccessAt: '2026-08-21T12:00:00.000Z',
+      lastFailure: 'readiness_failed', importedDocuments: 3, state: 'failed',
+    }] };
+    const html = await renderConnectorComponent('Observation', { catalogue, catalogueState: 'ready' });
+    expect(html).toContain('SYNCING');
+    expect(html).not.toContain('>FAILED<');
+    expect(html).toContain('Accepted documents are stored; search indexing has not been confirmed.');
+  });
+
   it('closes an already-open VoiceDock before rendering the one secret dialog owner', async () => {
     const transition = Reflect.get(browserContracts, 'revealExclusiveSecret');
     expect(transition).toBeTypeOf('function');

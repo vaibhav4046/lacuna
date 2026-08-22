@@ -115,18 +115,32 @@ export function Observation({ catalogue, catalogueState }: {
         <p>{REVIEWED_OBSERVATION_COPY.mayLag}</p>
       </div>
       <div className="connector-observation-grid">
-        {catalogue.connectors.map((connector) => (
+        {catalogue.connectors.map((connector) => {
+          // A prior run can have durable accepted documents while its bounded
+          // indexing read timed out. That is not a failed import: the records
+          // exist, and search readiness is the only unconfirmed part. Keep the
+          // historical failure detail visible, but do not label the connector
+          // FAILED in a way that contradicts the accepted count.
+          const readinessPending = connector.availability === 'available'
+            && connector.importedDocuments > 0
+            && (connector.lastFailure === 'readiness_failed' || connector.lastFailure === 'readiness_timeout');
+          const state = connector.availability === 'available'
+            ? readinessPending ? 'syncing' : connector.state
+            : 'unavailable';
+          return (
           <article key={connector.id}>
-            <span className="connector-status"><i style={{ background: dotFor(connector.availability === 'available' ? connector.state : 'unavailable') }} />{connector.availability === 'available' ? connector.state.toUpperCase() : 'UNAVAILABLE'}</span>
+            <span className="connector-status"><i style={{ background: dotFor(state) }} />{connector.availability === 'available' ? state.toUpperCase() : 'UNAVAILABLE'}</span>
             <h3>{connector.label}</h3>
             <dl>
               <div><dt>{REVIEWED_OBSERVATION_COPY.importedDocuments}</dt><dd>{connector.importedDocuments}</dd></div>
               <div><dt>{REVIEWED_OBSERVATION_COPY.lastSuccessAt}</dt><dd>{connector.lastSuccessAt === null ? '—' : new Date(connector.lastSuccessAt).toLocaleString()}</dd></div>
               <div><dt>{REVIEWED_OBSERVATION_COPY.lastFailure}</dt><dd>{connector.lastFailure ?? '—'}</dd></div>
             </dl>
-            {connector.reason === null ? null : <p>Required server support is not configured.</p>}
+            {readinessPending ? <p>Accepted documents are stored; search indexing has not been confirmed.</p>
+              : connector.reason === null ? null : <p>Required server support is not configured.</p>}
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

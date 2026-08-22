@@ -24,7 +24,8 @@ Candidate verification:
 - current candidate full unit suite: 114 files, 2,245/2,245 passed
 - queued candidate adds bounded OAuth state/code parameters and a ten-second
   Google token/JWKS deadline; it is not yet production-promoted because the
-  Vercel Hobby deployment quota is exhausted
+  Vercel Hobby deployment quota is exhausted. Current branch preview:
+  `dpl_EdtFRMoQWo5XBcbencCJnepDACpN` (no production Hydra context store).
 
 Voice candidate hardening:
 - a stalled speech body reader is cancelled when the bounded acquisition signal

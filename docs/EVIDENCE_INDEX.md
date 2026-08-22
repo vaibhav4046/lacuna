@@ -38,6 +38,7 @@ not transfer without a named rerun.
 | public connector catalogue, production | 31/31 demo smoke gates; seven redacted entries, all seven `available`, no private observations | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `scripts/smoke-demo.ts` |
 | provider-backed voice boundary, production | 7/7 voice smoke gates; real ElevenLabs single-use token and `audio/mpeg` response (27,212 bytes in this run), bounded without printing provider secrets | `scripts/smoke-voice.ts`, production deployment `dpl_DZWSDYquskbqicRQShJuhrGVqDZt` |
 | private agent mutation binding, production code path | browser Agents/Work mutations send the validated current-session binding; server rejects missing, stale or malformed bindings on launch, scheduling, cancel, retry and schedule dispatch | `web/src/api/client.ts`, `web/src/app/routes/agents.tsx`, `web/src/app/routes/work.tsx`, `src/api/router.ts`, `tests/unit/agent-runtime-api.test.ts`, `tests/unit/agent-recommendations-api.test.ts`, production deployment `dpl_DZWSDYquskbqicRQShJuhrGVqDZt` |
+| cross-browser voice capture guard | microphone capture uses the standard AudioContext or WebKit fallback, reports unsupported media devices as a bounded browser error, and retains native playback fallback | `web/src/voice/browser.ts`, `web/src/voice/playback.ts`, `tests/unit/voice-browser.test.ts` |
 
 ## Candidate acceptance gaps
 

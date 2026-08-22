@@ -485,6 +485,64 @@ describe('playback audio guard', () => {
 });
 
 describe('realtime socket lifecycle', () => {
+  it('uses the WebKit AudioContext fallback for microphone capture', async () => {
+    class FakeContext {
+      static readonly instances: FakeContext[] = [];
+      readonly destination = {} as AudioDestinationNode;
+      readonly sampleRate = 48_000;
+      constructor() { FakeContext.instances.push(this); }
+      createMediaStreamSource(_stream: MediaStream): MediaStreamAudioSourceNode {
+        return { connect: () => undefined, disconnect: () => undefined } as unknown as MediaStreamAudioSourceNode;
+      }
+      createAnalyser(): AnalyserNode {
+        return {
+          fftSize: 0,
+          smoothingTimeConstant: 0,
+          connect: () => undefined,
+          disconnect: () => undefined,
+          getFloatTimeDomainData: () => undefined,
+        } as unknown as AnalyserNode;
+      }
+      createScriptProcessor(): ScriptProcessorNode {
+        return {
+          onaudioprocess: null,
+          connect: () => undefined,
+          disconnect: () => undefined,
+        } as unknown as ScriptProcessorNode;
+      }
+      createGain(): GainNode {
+        return {
+          gain: { value: 0 },
+          connect: () => undefined,
+          disconnect: () => undefined,
+        } as unknown as GainNode;
+      }
+      resume(): Promise<void> { return Promise.resolve(); }
+      close(): Promise<void> { return Promise.resolve(); }
+    }
+
+    const track = { readyState: 'live', stop: vi.fn() } as unknown as MediaStreamTrack;
+    const stream = {
+      getAudioTracks: () => [track],
+      getTracks: () => [track],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn().mockResolvedValue(stream);
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('webkitAudioContext', FakeContext);
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const microphone = await runtime.openMicrophone(new AbortController().signal, () => undefined);
+
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(FakeContext.instances).toHaveLength(1);
+    expect(microphone.live).toBe(true);
+    microphone.stop();
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
+
   it('closes a connecting Scribe socket when capture is interrupted', async () => {
     class PendingSocket {
       static readonly CONNECTING = 0;

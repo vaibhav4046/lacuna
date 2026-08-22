@@ -20,6 +20,21 @@ const TARGET_SAMPLE_RATE = 16_000;
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 const REQUEST_ACQUISITION_TIMEOUT_MS = 15_000;
 
+type AudioContextConstructor = new (options?: AudioContextOptions) => AudioContext;
+
+function createAudioContext(): AudioContext {
+  const constructors = globalThis as typeof globalThis & {
+    webkitAudioContext?: AudioContextConstructor;
+  };
+  const Context = constructors.AudioContext ?? constructors.webkitAudioContext;
+  if (Context === undefined) throw new VoiceRuntimeError('error');
+  try {
+    return new Context({ latencyHint: 'interactive' });
+  } catch {
+    throw new VoiceRuntimeError('error');
+  }
+}
+
 function frameFrom(analyser: AnalyserNode, buffer: Float32Array<ArrayBuffer>): SignalFrame {
   analyser.getFloatTimeDomainData(buffer);
   let sum = 0;
@@ -75,7 +90,7 @@ class LiveMicrophone implements PcmMicrophone {
 
   constructor(stream: MediaStream, onSignal: (frame: SignalFrame) => void) {
     this.#stream = stream;
-    this.#audio = new AudioContext({ latencyHint: 'interactive' });
+    this.#audio = createAudioContext();
     this.#source = this.#audio.createMediaStreamSource(stream);
     this.#analyser = this.#audio.createAnalyser();
     this.#analyser.fftSize = 1024;
@@ -290,6 +305,9 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
 
   async openMicrophone(signal: AbortSignal, onSignal: (frame: SignalFrame) => void): Promise<MicrophoneSession> {
     if (signal.aborted) throw new VoiceRuntimeError('interrupted');
+    if (typeof navigator.mediaDevices?.getUserMedia !== 'function') {
+      throw new VoiceRuntimeError('error');
+    }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({

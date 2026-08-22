@@ -78,17 +78,17 @@ The quickest judge path is the
 
 ### Release acceptance boundary
 
-The current V10 production build passes web smoke 9/9, demo/API smoke 31/31,
+The current V10 production build passes web smoke 9/9, demo/API smoke 32/32,
 auth boundary smoke 3/3, Google OAuth security smoke 16/16, and the provider
-voice boundary 7/7. Its full unit suite passes 2,261/2,261, and the production
+voice boundary 7/7. Its full unit suite passes 2,294/2,294, and the production
 web build and route matrix are green. ChatGPT has called all seven public MCP
 tools against HydraDB Cloud; the redacted result ledger is in
 [`artifacts/verification/2026-08-21-v10`](artifacts/verification/2026-08-21-v10).
 
 The repository does not publish an `@lacuna/sdk` package. The public read-only
 ChatGPT connector is accepted; Claude has not been tested. Google OAuth passes
-the production security boundary through the chooser; selecting a human identity
-and accepting a fresh callback remain owner actions. Provider-backed voice passes
+the production security boundary, and an authorized owner browser completed the
+chooser-to-dashboard callback with session persistence. Provider-backed voice passes
 its server/provider boundary, with typed Ask retained as the fallback when a
 browser blocks playback. The production connector catalogue exposes eight real
 workflows: GitHub and GitLab snapshots, Markdown/Text/JSON/CSV/PDF/DOCX imports,

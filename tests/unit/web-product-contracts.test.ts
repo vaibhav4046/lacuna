@@ -72,6 +72,13 @@ describe('web product contracts', () => {
     expect(landing).toContain('whiteSpace: \'nowrap\'');
   });
 
+  it('keeps file connector copy aligned with the implemented JSON and CSV formats', () => {
+    const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    expect(route).toContain('Text, Markdown, JSON, CSV, PDF, or DOCX');
+    expect(onboarding).toContain('TXT · MD · JSON · CSV · PDF · DOCX · AVAILABLE');
+  });
+
   it('uses truthful recorded observations, inert planned cards, and a contained one-time secret modal', () => {
     const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
     const observation = Reflect.get(browserContracts, 'REVIEWED_OBSERVATION_COPY');

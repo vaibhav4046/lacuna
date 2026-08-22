@@ -551,7 +551,7 @@ export function PrivateConnectors() {
 
       <div className="connector-workflow-grid">
         <section id="file" className="connector-card" aria-labelledby="file-heading" tabIndex={-1}>
-          <span className="connector-kicker">FILES · REVIEW THEN IMPORT</span><h2 id="file-heading">Text, Markdown, PDF, or DOCX</h2>
+          <span className="connector-kicker">FILES · REVIEW THEN IMPORT</span><h2 id="file-heading">Text, Markdown, JSON, CSV, PDF, or DOCX</h2>
           <FileSourceField problem={problemFor('file')} disabled={pending !== null} inputRef={fileInput} onSelect={(file) => { fileGeneration.current += 1; setSelectedFile(file); setFilePreview(null); const nextProblem = fileSelectionProblem(file); setProblem((held) => nextProblem === null ? held?.source === 'file' ? null : held : { source: 'file', message: nextProblem }); }} />
           {selectedType === null ? null : <ConnectorAvailabilityNotice catalogueState={catalogueState} connector={currentStatus(selectedType)} unavailableCopy="This importer is unavailable on this deployment." />}
           <button type="button" disabled={selectedFile === null || selectedType === null || problemFor('file') !== null || !available(selectedType) || pending !== null} onClick={() => void previewSelected()}>{pending === 'file-preview' ? 'PREVIEWING…' : 'PREVIEW FILE'}</button>

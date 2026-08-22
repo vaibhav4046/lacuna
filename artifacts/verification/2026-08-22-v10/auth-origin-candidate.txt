@@ -1,0 +1,20 @@
+Lacuna V10 auth origin binding candidate — 2026-08-22
+
+Candidate commit: d47687e (code fix aea3ee0)
+
+Evidence:
+- `npx vitest run tests/unit/auth-api.test.ts`: 31/31 passed, including the
+  cross-origin auth mutation refusal regression.
+- `npm run typecheck`: passed.
+- `npm run build`: passed.
+- Production stable alias remained independently verified: Google browser
+  chooser → callback → `/app/dash` succeeded and persisted after reload.
+- Preview `https://lacuna-4obnm7o5d-vaibhav4046s-projects.vercel.app` returned
+  403 `permission` for a POST carrying `Origin: https://evil.example` and a
+  valid CSRF token.
+
+Promotion status:
+- Production promotion was rejected by Vercel's free daily deployment quota:
+  `api-deployments-free-per-day` / retry in 24 hours.
+- Stable `https://lacuna-five.vercel.app` therefore remains deployment
+  `dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L` until the next quota window.

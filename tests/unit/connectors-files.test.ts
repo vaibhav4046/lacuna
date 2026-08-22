@@ -778,7 +778,7 @@ describe('DOCX central-directory policy and extraction', () => {
       )),
     ), 'invalid_file'],
     ['zip-bomb', docx([{ name: 'word/media/repeated.bin', data: Buffer.alloc(200_000, 0x41), deflate: true }]), 'file_too_complex'],
-  ] as const)('rejects %s DOCX input before Mammoth', async (_name, bytes, code) => {
+  ] as const)('rejects %s DOCX input before text extraction', async (_name, bytes, code) => {
     await expect(parseUploadedFile({
       filename: 'runbook.docx',
       mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -791,7 +791,7 @@ describe('DOCX central-directory policy and extraction', () => {
     ['styles', 'word/styles.xml'],
     ['numbering', 'word/numbering.xml'],
     ['notes', 'word/footnotes.xml'],
-  ] as const)('streams actual forged %s expansion before Mammoth can consume it', async (_label, name) => {
+  ] as const)('streams actual forged %s expansion before text extraction can consume it', async (_label, name) => {
     const expansion = Buffer.concat([
       Buffer.from('<?xml version="1.0"?><root>'),
       Buffer.alloc(200_000, 0x20),

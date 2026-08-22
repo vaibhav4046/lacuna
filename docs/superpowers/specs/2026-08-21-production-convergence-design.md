@@ -155,7 +155,8 @@ Extension and sniffed content must agree.
 - `.txt`, `.md`, and `.markdown` are decoded as UTF-8 with an optional BOM.
 - `.pdf` is parsed server-side with `pdfjs-dist`; encrypted PDFs and PDFs with
   no extractable text are refused.
-- `.docx` is parsed server-side with `mammoth`; macros are never executed and
+- `.docx` is parsed server-side after bounded ZIP preflight and direct XML text
+  extraction; macros are never executed and
   embedded media is ignored.
 
 The normalized title defaults to the sanitized filename. The source record

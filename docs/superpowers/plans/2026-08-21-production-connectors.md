@@ -6,7 +6,7 @@
 
 **Architecture:** One server-owned connector catalogue and one `ConnectorRunner` normalize every supported source into `PreparedConnectorDocument` records before calling the existing governed `ingestSource` path for the authenticated workspace collection. Durable connector configuration lives in a separate HydraDB collection keyed by an opaque workspace digest; it never enters workspace retrieval. Network and upload adapters enforce hard budgets before extraction, and the private React surface renders only server-observed state.
 
-**Tech Stack:** TypeScript, React, HydraDB Cloud, Node `https`/DNS primitives, `@fastify/busboy`, `pdfjs-dist`, `mammoth`, Vitest.
+**Tech Stack:** TypeScript, React, HydraDB Cloud, Node `https`/DNS primitives, `@fastify/busboy`, `pdfjs-dist`, bounded DOCX XML extraction, Vitest.
 
 **Spec:** `docs/superpowers/specs/2026-08-21-production-convergence-design.md`
 
@@ -183,7 +183,7 @@ git commit -m "feat(connectors): converge imports through governed ingestion"
 
 - [ ] **Step 1: Install bounded parsers**
 
-Run: `npm install @fastify/busboy pdfjs-dist mammoth`
+Run: `npm install @fastify/busboy pdfjs-dist`
 
 Expected: root `package.json` and lockfile record runtime dependencies available to the Vercel function.
 
@@ -203,7 +203,7 @@ Expected: parsers and routes are absent.
 
 - [ ] **Step 5: Implement streaming multipart and file extraction**
 
-Parse one stream with `@fastify/busboy` and stop reading at 8 MiB. Accept `.txt`, `.md`, `.markdown`, `.pdf`, `.docx`; use UTF-8 fatal decoding for text, `pdfjs-dist` text items for PDF, and `mammoth.extractRawText({ buffer })` for DOCX. Normalize output once through `prepareConnectorDocument`. Preview invokes the shared extraction preview but never the runner; import verifies the digest then invokes the runner with `awaitSearchable: true`.
+Parse one stream with `@fastify/busboy` and stop reading at 8 MiB. Accept `.txt`, `.md`, `.markdown`, `.pdf`, `.docx`; use UTF-8 fatal decoding for text, `pdfjs-dist` text items for PDF, and bounded direct XML text extraction for DOCX after ZIP preflight. Normalize output once through `prepareConnectorDocument`. Preview invokes the shared extraction preview but never the runner; import verifies the digest then invokes the runner with `awaitSearchable: true`.
 
 - [ ] **Step 6: Add the browser multipart client**
 

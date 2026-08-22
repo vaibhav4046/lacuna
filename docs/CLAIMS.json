@@ -502,15 +502,14 @@
       "measured": {
         "available": [
           "GitHub",
-          "HTTPS API"
-        ],
-        "unavailable_in_current_deployment": [
           "Markdown",
           "Text",
           "PDF",
           "DOCX",
+          "HTTPS API",
           "Webhook"
         ],
+        "unavailable_in_current_deployment": [],
         "planned": [
           "GitLab",
           "Linear",
@@ -533,7 +532,7 @@
         "tests/unit/demo-api.test.ts"
       ],
       "reproduce": "npm run smoke:demo -- https://lacuna-five.vercel.app && npx vitest run tests/unit/connectors-api.test.ts tests/unit/demo-api.test.ts --maxWorkers=1",
-      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF. GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify are not implemented."
+      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF, and the webhook secret is revealed only once. GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify are not implemented."
     },
     {
       "id": "package-session-blast-request",

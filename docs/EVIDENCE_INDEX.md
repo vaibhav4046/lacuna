@@ -18,7 +18,7 @@ not transfer without a named rerun.
 | anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
-| connector truth table | Public redacted catalogue exposes seven descriptors; current production marks GitHub and HTTPS API `available`, while file formats and webhook are `unavailable` until deployment capabilities are configured; remaining providers stay planned | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `src/connectors/catalog.ts`, `tests/unit/demo-api.test.ts` |
+| connector truth table | Public redacted catalogue exposes seven descriptors; current production marks all seven implemented workflows `available` after fresh file-preview and webhook signing keys were provisioned; remaining providers stay planned | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `src/connectors/catalog.ts`, `tests/unit/demo-api.test.ts`, production deployment `dpl_93UMoChPtTTSYXJXT8nTtpu98Em3` |
 | historical V8 landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
 | historical V8 landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
 | graph overview | 140 loaded of 453 | `artifacts/screens/v8/memory-field.png` |
@@ -35,7 +35,7 @@ not transfer without a named rerun.
 | rejected V8-film visual audit | 3 contact sheets and 8 key frames, retained as historical inspection evidence only | `artifacts/video/judges-master/` |
 | historical V8 production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
 | accepted V10 production baseline | exact accepted probes and deployment id | `docs/V10_RELEASE_STATUS.md` |
-| public connector catalogue, production | 31/31 demo smoke gates; seven redacted entries, no private observations | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `scripts/smoke-demo.ts` |
+| public connector catalogue, production | 31/31 demo smoke gates; seven redacted entries, all seven `available`, no private observations | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `scripts/smoke-demo.ts` |
 
 ## Candidate acceptance gaps
 

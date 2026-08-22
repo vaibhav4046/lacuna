@@ -65,12 +65,13 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is the release of product commit `665858d`
-(`fix(auth): wait for durable cloud account writes`). Root typecheck and the
+The current production deployment is product commit `665858d`
+(`fix(auth): wait for durable cloud account writes`) with the production-only
+file-preview and webhook signing keys enabled. Root typecheck and the
 135-module production build pass; the focused auth suite is 62/62, and the
 stable alias passed demo smoke 31/31, Google auth smoke 16/16, and auth
 boundary smoke 3/3. The stable alias points to the immutable deployment
-`https://lacuna-p5dsa8qhh-vaibhav4046s-projects.vercel.app`.
+`https://lacuna-3lmxjwnft-vaibhav4046s-projects.vercel.app`.
 
 The first-run flow now creates a workspace, stores a real private memory through
 `POST /api/workspace/ingest`, proves a private answer through
@@ -91,7 +92,7 @@ the V10 film remains a separate artifact with its own acceptance steps.
 | Google sign-in | The production boundary is accepted 16/16 through the real Google account chooser. Selecting a human identity and accepting a fresh provider callback remain owner actions. |
 | Voice | Browser states and provider routes are not an accepted provider-backed production audio session. Typed Ask is the supported fallback. |
 | Scheduler | Daily definitions are persisted. The hosted adapter does not claim distributed exactly-once execution. |
-| Connector catalogue | Private workflows are implemented for one-off file ingestion (TXT/MD/PDF/DOCX), public GitHub snapshot import, public HTTPS/API import, and signed bounded at-least-once webhook delivery. Current production catalogue truth is GitHub + HTTPS API `available`; file formats and webhook are `unavailable` until their server capabilities/signing key are configured. Remaining providers are planned; Spotify is not catalogued or implemented. |
+| Connector catalogue | Private workflows are implemented for one-off file ingestion (TXT/MD/PDF/DOCX), public GitHub snapshot import, public HTTPS/API import, and signed bounded at-least-once webhook delivery. Current production catalogue truth reports all seven implemented workflows `available` after fresh server-only signing keys were provisioned. Remaining providers are planned; Spotify is not catalogued or implemented. |
 | Exact `package-session` blast request | `NOT_PROVEN`. The subject is absent, the 399-character request exceeds the 300-character sentence contract, and no Web, CLI or MCP blast command exposes the requested semantics. See `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json`. This does not negate the four generated gold blast-radius cases or the fixed `tenant-router` impact proof. |
 
 ## Submission media

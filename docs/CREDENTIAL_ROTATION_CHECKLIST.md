@@ -20,6 +20,7 @@ Last inventory: 2026-08-19.
 | `LACUNA_ACCOUNTS_DIR`, `LACUNA_SECURE_COOKIES` | Vercel, Production environment | AVAILABLE | durable accounts |
 | `GROQ_API_KEY` | `.env.local`, `.env.deploy` | AVAILABLE, the provider answered 200 | the model router, one real provider |
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | historical local/deploy files, if still present | NOT INSTALLED on Vercel Production | final narration and product voice remain blocked until the owner supplies and later rotates the server-only values |
+| `LACUNA_FILE_PREVIEW_KEY`, `LACUNA_WEBHOOK_KEY` | Vercel, Production environment | AVAILABLE, encrypted at rest | enables the signed file preview/import token and signed webhook lifecycle; values are server-only and never shown in the catalogue |
 | `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` | `.env.deploy` | present, not exercised this run | optional model providers in the router |
 | GitHub | `gh` keyring | AVAILABLE, signed in | pushing this repository |
 | Vercel | CLI session | AVAILABLE, signed in | preview and production deployments |
@@ -30,7 +31,7 @@ Last inventory: 2026-08-19.
 | --- | --- | --- |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | The local provider-bound candidate passes OAuth HTTP/security tests. Production must be redeployed and reverified with a fresh identity; legacy unbound records fail closed. |
 | Supabase project URL and keys | MISSING | Nothing today. Accounts are durable in HydraDB Cloud already, so the Supabase path described in the earlier plan is not on the critical path and starting it now would replace a working, tested auth store with an untested one. |
-| A connector credential of any kind | MISSING | One real connector syncing. The Connectors screen reports the honest empty state. |
+| A provider account credential for third-party sync | MISSING | GitHub snapshot, HTTPS/API, file import and webhook workflows are enabled; GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify remain planned. |
 
 ## One secret to rotate, and why
 

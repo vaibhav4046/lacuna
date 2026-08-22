@@ -109,8 +109,8 @@ callback refusal, and missing-CSRF refusal.
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback
-cannot consume an in-flight sign-in attempt. The current full unit
-suite is 2,261/2,261 (115 files), including the serverless request-lifecycle
+cannot consume an in-flight sign-in attempt. A historical regression run
+covered the serverless request-lifecycle
 adapter guard, stalled speech-body cancellation, GitHub body cancellation, and
 the embedded-browser Work request-id guard.
 

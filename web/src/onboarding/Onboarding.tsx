@@ -145,10 +145,17 @@ export default function Onboarding() {
     if (step === 4) {
       if (answer === null) { await proveAnswer(); return; }
       setBusy(true);
-      await refreshAfterMutation();
-      setBusy(false);
-      go(DASHBOARD_PATH);
-      window.scrollTo(0, 0);
+      try {
+        const session = await refreshAfterMutation();
+        if (session === null || !session.signedIn || session.session.workspace === null) {
+          setProblem('Your workspace was created, but the session could not be confirmed. Try again.');
+          return;
+        }
+        go(DASHBOARD_PATH);
+        window.scrollTo(0, 0);
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     setStep(step + 1);

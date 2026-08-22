@@ -51,11 +51,18 @@ export default function Forgot() {
     }
     setBusy(true);
     setProblem(null);
-    const result = await recover(email, code, password);
-    setBusy(false);
-    if ('problem' in result) { setProblem(result.problem); return; }
-    await refreshAfterMutation();
-    setIssued(result.recoveryCode);
+    try {
+      const result = await recover(email, code, password);
+      if ('problem' in result) { setProblem(result.problem); return; }
+      const session = await refreshAfterMutation();
+      if (session === null || !session.signedIn) {
+        setProblem('Your password changed, but the session could not be confirmed. Try again.');
+        return;
+      }
+      setIssued(result.recoveryCode);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (issued !== null) {

@@ -172,6 +172,28 @@ describe('web product contracts', () => {
     expect(signIn.indexOf('await refreshAfterMutation()')).toBeLessThan(signIn.indexOf('setBusy(false)'));
   });
 
+  it('keeps first-run onboarding busy until the validated session has routed', () => {
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    const transitionStart = onboarding.indexOf("if (step === 4) {");
+    const transitionEnd = onboarding.indexOf("    setStep(step + 1);", transitionStart);
+    const transition = onboarding.slice(transitionStart, transitionEnd);
+    expect(transition).toContain('try {');
+    expect(transition).toContain('await refreshAfterMutation()');
+    expect(transition).toContain('} finally {\n        setBusy(false);');
+    expect(transition.indexOf('await refreshAfterMutation()')).toBeLessThan(transition.indexOf('setBusy(false)'));
+  });
+
+  it('keeps recovery busy through session confirmation and always releases the form lock', () => {
+    const forgot = readFileSync(new URL('../../web/src/auth/Forgot.tsx', import.meta.url), 'utf8');
+    const submitStart = forgot.indexOf('  async function submit()');
+    const submitEnd = forgot.indexOf('\n\n  if (issued !== null)', submitStart);
+    const submit = forgot.slice(submitStart, submitEnd);
+    expect(submit).toContain('try {');
+    expect(submit).toContain('await refreshAfterMutation()');
+    expect(submit).toContain('} finally {\n      setBusy(false);');
+    expect(submit.indexOf('await refreshAfterMutation()')).toBeLessThan(submit.indexOf('setBusy(false)'));
+  });
+
   it('distinguishes reviewed one-off imports from configured at-least-once webhook delivery', () => {
     const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');

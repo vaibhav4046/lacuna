@@ -108,11 +108,12 @@ this exact TypeError.
 Commit `72d0ddb` adds two bounded Google callback guards: malformed or
 oversized state/code is rejected before hashing or provider contact, and the
 token/JWKS exchange has a ten-second deadline that returns a fixed timeout
-message instead of freezing the sign-in form. Its preview build is ready at
-`dpl_ByvDjAVtUeCph1jsRo7Dny2aQvJt`; promotion is queued because the Vercel
-Hobby deployment quota is exhausted. The stable alias remains on the accepted
-production deployment above, so the live Google chooser/callback path is not
-replaced by a preview missing production secrets.
+message instead of freezing the sign-in form. Candidate `42ab436` carries that
+hardening forward together with the serverless connector socket guard. Its
+preview build is `dpl_5gZuGA173TBvQEsupCgR4d4evfF8`; promotion is queued because
+the Vercel Hobby deployment quota is exhausted. The stable alias remains on the
+accepted production deployment above, so it is not replaced by a preview missing
+production secrets.
 
 ## Named boundaries
 

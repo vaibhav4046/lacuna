@@ -6,7 +6,7 @@ const REASONS: Readonly<Record<string, string>> = {
   identity: 'Google sign-in did not finish. Try again.',
   email_mismatch: 'Choose the Google account you previously used for Lacuna.',
   legacy_unbound: 'This older account is not linked to Google. Sign in with its existing password below first, then use Settings → Link Google. If you saved a recovery code, use Forgot password.',
-  provider_mismatch: 'This account uses a password. Sign in with your password or recovery code.',
+  provider_mismatch: 'This account uses a password. Sign in with it first, then open Settings → Link Google. If you saved a recovery code, use Forgot password.',
   subject_mismatch: 'Choose the Google account you previously used for Lacuna.',
   rate: 'Too many sign-in windows were opened. Wait a few minutes, then try once.',
   store: 'Sign-in is temporarily unavailable. Try again in a moment.',

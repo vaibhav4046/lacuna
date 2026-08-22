@@ -303,6 +303,14 @@ describe('the browser auth client', () => {
     expect(problem).not.toContain('password or recovery code');
   });
 
+  it('gives password-owned Google accounts a safe linking path', () => {
+    const problem = googleProblem('?google=provider_mismatch') ?? '';
+
+    expect(problem).toContain('Sign in with it first');
+    expect(problem).toContain('Settings → Link Google');
+    expect(problem).toContain('Forgot password');
+  });
+
   it('settles a stalled auth mutation as a timeout instead of leaving the form busy forever', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('document', { cookie: 'lacuna_csrf=csrf-under-test' });

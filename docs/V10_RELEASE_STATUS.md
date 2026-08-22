@@ -81,11 +81,14 @@ removed, password sign-in remains locked until session confirmation and route
 completion, recovery and first-run onboarding now fail closed if their session
 confirmation is missing, Agents task recommendations cannot replace a task
 while a run is busy, and the GitLab workflow anchor resolves to its real
-review/confirm surface. The latest serial unit suite passes 2,283/2,283
+review/confirm surface. The latest serial unit suite passes 2,284/2,284
 (117 files). The sign-in and recovery submit handlers also reject re-entry
 before their busy state can be observed, closing a rapid Enter/duplicate
 mutation edge. Work cancel/retry and schedule dispatch use the same guard, so
-rapid clicks cannot issue a second lifecycle mutation.
+rapid clicks cannot issue a second lifecycle mutation. Password-owned Google
+callbacks also explain the safe migration path directly: prove the existing
+password session first, then use Settings → Link Google; the callback still
+never auto-merges a verified address into a password account.
 They are not part of the accepted production
 deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the
 project's free daily deployment quota was exhausted.

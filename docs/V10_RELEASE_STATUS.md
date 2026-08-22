@@ -65,7 +65,7 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `c60c48a`
+The current production deployment is product commit `c63032b`
 (`fix(connectors): align json csv product copy`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
 pass; the full unit suite is 2,225/2,225 (111 files), and the stable alias passed demo
@@ -73,7 +73,7 @@ smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
 requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-px4b3t86u-vaibhav4046s-projects.vercel.app` (`dpl_GH8HfFUmP4f6ctuHGDoKJUbqy1wK`).
+`https://lacuna-le3okh65r-vaibhav4046s-projects.vercel.app` (`dpl_5jVMVKXyLCP9QP8Ni2ZrwUtKLFc3`), aliased to `https://lacuna-five.vercel.app`.
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback
@@ -102,7 +102,7 @@ the V10 film remains a separate artifact with its own acceptance steps.
 | Public agent preview | Accepted run records are readable. Production refuses anonymous run creation with `403 public_preview_read_only`; signed-in workspace runs remain implemented behind session, CSRF and durable workspace budgets. |
 | Private MCP write | Candidate code issues a random digest-only bearer with `createdAt` and `expiresAt`; it fails at the 30-day expiry or on earlier revocation. `Authorization: Bearer` at `/mcp` is preferred because `/mcp/w/<capability>` URLs may be logged. Version-1 capabilities fail closed and must be reminted after rollout. A production issue/use/revoke/expiry proof remains required. |
 | Google sign-in | The production boundary is accepted 16/16, and an authorized owner browser completed a fresh Google account chooser and callback. A different identity or account transfer is not claimed. |
-| Voice | The deployed provider-backed voice boundary now passes 7/7: a real ElevenLabs single-use token and bounded `audio/mpeg` response are returned without exposing secrets. Browser capture now uses standard or WebKit AudioContext with a bounded unsupported-device failure; native-first playback, microphone/STT and interruption still require an owner browser session; typed Ask remains the supported fallback. |
+| Voice | The deployed provider-backed voice boundary passes 7/7: a real ElevenLabs single-use token and bounded `audio/mpeg` response are returned without exposing secrets. The owner browser round trip reaches authenticated listening, and read-only typed questions remain visible when browser playback cannot be confirmed; navigation/mutation commands remain fail-closed if the optional intent planner is unavailable. |
 | Scheduler | Daily definitions are persisted. The hosted adapter does not claim distributed exactly-once execution. |
 | Connector catalogue | Private workflows are implemented for one-off file ingestion (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub snapshot import, public HTTPS/API import, and signed bounded at-least-once webhook delivery. Current production catalogue truth reports all seven implemented workflows `available` after fresh server-only signing keys were provisioned. Remaining providers are planned; Spotify is not catalogued or implemented. |
 | Exact `package-session` blast request | `NOT_PROVEN`. The subject is absent, the 399-character request exceeds the 300-character sentence contract, and no Web, CLI or MCP blast command exposes the requested semantics. See `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json`. This does not negate the four generated gold blast-radius cases or the fixed `tenant-router` impact proof. |

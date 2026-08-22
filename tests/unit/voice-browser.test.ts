@@ -203,6 +203,66 @@ describe('playback audio guard', () => {
     await expect(pending).resolves.toBeUndefined();
   });
 
+  it('keeps native playback working when a legacy browser returns no play promise', async () => {
+    class LegacyAudio {
+      static instance: LegacyAudio | null = null;
+      paused = true;
+      ended = false;
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+
+      constructor(_url: string) { LegacyAudio.instance = this; }
+
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+
+      play(): undefined {
+        this.paused = false;
+        queueMicrotask(() => {
+          for (const type of ['playing', 'ended']) {
+            if (type === 'ended') this.ended = true;
+            for (const listener of this.#listeners.get(type) ?? []) {
+              if (typeof listener === 'function') listener(new Event(type));
+              else listener.handleEvent(new Event(type));
+            }
+          }
+        });
+        return undefined;
+      }
+
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', LegacyAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:legacy-no-promise',
+      revokeObjectURL: () => undefined,
+    });
+
+    const started: string[] = [];
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.speak('Supported answer.', {
+      started: (analysis) => started.push(analysis),
+      signal: () => undefined,
+    }, new AbortController().signal)).resolves.toBeUndefined();
+    expect(started).toEqual(['unavailable']);
+    expect(LegacyAudio.instance?.ended).toBe(true);
+  });
+
   it('finishes native playback when the optional analyser cannot attach', async () => {
     class NativeAudio {
       paused = true;

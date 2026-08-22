@@ -191,6 +191,7 @@ benchmarks/longmemeval/
   load.ts       reads and validates a dataset file, and strips ground truth
   adapt.ts      one question's haystack into raw sessions for ingestion
   personal.ts   scoped, exact-span first-person fact extraction for this domain
+  coverage.ts   official question-type coverage summary for the published run
   artifact.ts   what a run must record about itself
   run.ts        the deterministic hypothesis runner
   answerer.ts   the bounded planner-backed answerer
@@ -274,7 +275,22 @@ Written to [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/in
 | sessions | 948 |
 | messages | 10,960 |
 | estimated tokens | 3,303,216 |
-| read in | 0.6s |
+| read in | 1.5s |
+
+The same artifact also records coverage by the official question type, so the
+16.8% aggregate cannot hide a type-specific gap:
+
+| question type | instances | with a claim | claims | abstentions |
+| --- | ---: | ---: | ---: | ---: |
+| single-session-user | 70 | 8 | 9 | 6 |
+| single-session-assistant | 56 | 6 | 7 | 0 |
+| single-session-preference | 30 | 2 | 3 | 0 |
+| multi-session | 133 | 25 | 37 | 12 |
+| temporal-reasoning | 133 | 25 | 42 | 6 |
+| knowledge-update | 78 | 18 | 30 | 6 |
+
+These are extraction/ingestion counts only. They are not per-type accuracy,
+retrieval recall or an official LongMemEval score.
 
 The first three rows are the ones worth having. The format reader and the
 leakage guarantee were previously tested only against fixtures handwritten from

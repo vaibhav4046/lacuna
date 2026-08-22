@@ -22,6 +22,7 @@ import {
   serialiseHypotheses,
   type LongMemEvalRecord,
 } from '../../benchmarks/longmemeval/schema.js';
+import { coverageByQuestionType } from '../../benchmarks/longmemeval/coverage.js';
 import { buildPlan } from '../../src/ingest/plan.js';
 import type { Corpus } from '../../src/corpus/types.js';
 
@@ -278,6 +279,25 @@ describe('question types map onto the ability taxonomy', () => {
     for (const type of QUESTION_TYPES) {
       expect(abilityOf(type)).toBeTypeOf('string');
     }
+  });
+});
+
+describe('published coverage is grouped by the official question type', () => {
+  it('counts instances, abstentions and extracted claims without changing the type taxonomy', () => {
+    const rows = coverageByQuestionType([
+      { question: stripGroundTruth(RECORD), claims: 1 },
+      { question: stripGroundTruth(ABSTENTION), claims: 0 },
+    ]);
+    expect(rows.find((row) => row.questionType === 'single-session-user')).toEqual({
+      questionType: 'single-session-user',
+      ability: 'information_extraction',
+      instances: 2,
+      instancesWithClaim: 1,
+      claims: 1,
+      abstentions: 1,
+    });
+    expect(rows).toHaveLength(6);
+    expect(rows.every((row) => row.instances >= 0 && row.claims >= 0)).toBe(true);
   });
 });
 

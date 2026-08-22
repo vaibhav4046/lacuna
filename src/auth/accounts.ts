@@ -43,6 +43,13 @@ export interface Accounts {
   /** Mint only if the account still has the credential epoch the caller authenticated. */
   startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string>;
   sessionFor(token: string, now: number): Promise<SessionRecord | null>;
+  /**
+   * Validate a session and return the already-read account in one durable
+   * operation. Cloud-backed auth must not read the same account twice merely
+   * to render /api/session; implementations without this optimisation keep
+   * using sessionFor + find through the router fallback.
+   */
+  sessionAccountFor?(token: string, now: number): Promise<{ readonly record: SessionRecord; readonly account: Account } | null>;
   endSession(token: string): Promise<void>;
 }
 
@@ -80,6 +87,13 @@ export class FileAccounts implements Accounts {
 
   async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
     return this.#store.sessionFor(token, now);
+  }
+
+  async sessionAccountFor(token: string, now: number): Promise<{ readonly record: SessionRecord; readonly account: Account } | null> {
+    const record = this.#store.sessionFor(token, now);
+    if (record === null) return null;
+    const account = this.#store.find(record.email);
+    return account !== null && sessionVersionMatches(account, record) ? { record, account } : null;
   }
 
   async endSession(token: string): Promise<void> {
@@ -252,6 +266,17 @@ export class CloudAccounts implements Accounts {
     const account = await this.find(record.email);
     if (account === null || !sessionVersionMatches(account, record)) return null;
     return record;
+  }
+
+  /** Validate the token and retain the account read used for epoch checking. */
+  async sessionAccountFor(token: string, now: number): Promise<{ readonly record: SessionRecord; readonly account: Account } | null> {
+    const tokenHash = hashToken(token);
+    const value = await this.#read<unknown>(this.#sessionId(tokenHash));
+    if (!isSession(value) || value.tokenHash !== tokenHash || value.expiresAt <= now) return null;
+    const account = await this.find(value.email);
+    return account !== null && sessionVersionMatches(account, value)
+      ? { record: value, account }
+      : null;
   }
 
   async endSession(token: string): Promise<void> {

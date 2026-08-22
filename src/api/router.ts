@@ -903,6 +903,8 @@ export class ApiRouter {
     const token = cookies[SESSION_COOKIE];
     if (typeof token !== 'string' || token === '') return null;
     try {
+      const joined = await this.#store.sessionAccountFor?.(token, this.#now());
+      if (joined !== undefined) return joined?.account ?? null;
       const record = await this.#store.sessionFor(token, this.#now());
       if (record === null) return null;
       const account = await this.#store.find(record.email);
@@ -1486,10 +1488,15 @@ export class ApiRouter {
 
     if (path === '/api/session' && method === 'GET') {
       const token = cookies[SESSION_COOKIE];
-      const record = typeof token === 'string' && token !== ''
-        ? await this.#store.sessionFor(token, this.#now())
+      const joined = typeof token === 'string' && token !== ''
+        ? await this.#store.sessionAccountFor?.(token, this.#now())
         : null;
-      const account = record === null ? null : await this.#store.find(record.email);
+      let record = joined?.record ?? null;
+      let account = joined?.account ?? null;
+      if (joined === undefined && typeof token === 'string' && token !== '') {
+        record = await this.#store.sessionFor(token, this.#now());
+        account = record === null ? null : await this.#store.find(record.email);
+      }
       if (account === null || record === null || !sessionVersionMatches(account, record)) {
         send(response, 200, { signedIn: false }, this.#csrfCookie(cookies));
         return HANDLED;

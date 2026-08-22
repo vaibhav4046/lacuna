@@ -19,10 +19,10 @@ import type {
 
 export const PUBLIC_WORKSPACE_PATH = '/explore/dash' as const;
 
-const CONNECTOR_HASHES = new Set(['#file', '#github', '#https-api', '#webhook']);
+const CONNECTOR_HASHES = new Set(['#file', '#github', '#gitlab', '#https-api', '#webhook']);
 
 const CONNECTOR_TARGETS = new Map([
-  ['#file', 'file'], ['#github', 'github'], ['#https-api', 'https-api'], ['#webhook', 'webhook'],
+  ['#file', 'file'], ['#github', 'github'], ['#gitlab', 'gitlab'], ['#https-api', 'https-api'], ['#webhook', 'webhook'],
 ] as const);
 
 /** Hash-safe legacy aliases; unknown fragments never become selector or state input. */
@@ -34,7 +34,7 @@ export function connectorAliasTarget(path: string, hash: string): string | null 
 }
 
 /** Closed hash-to-DOM mapping used by both direct routes and legacy aliases. */
-export function connectorAnchorTarget(hash: string): 'file' | 'github' | 'https-api' | 'webhook' | null {
+export function connectorAnchorTarget(hash: string): 'file' | 'github' | 'gitlab' | 'https-api' | 'webhook' | null {
   return CONNECTOR_TARGETS.get(hash as '#file') ?? null;
 }
 

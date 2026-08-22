@@ -36,6 +36,7 @@ describe('web product contracts', () => {
     expect(alias).toBeTypeOf('function');
     if (typeof alias !== 'function') return;
     expect(alias('/app/connectors', '#file')).toBe('/app/conn#file');
+    expect(alias('/app/connectors', '#gitlab')).toBe('/app/conn#gitlab');
     expect(alias('/explore/connectors', '#https-api')).toBe('/explore/conn#https-api');
     expect(alias('/app/connectors', '#secret')).toBe('/app/conn');
     expect(alias('/elsewhere', '#file')).toBeNull();

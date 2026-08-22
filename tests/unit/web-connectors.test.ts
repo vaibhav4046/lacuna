@@ -480,6 +480,7 @@ describe('private connector workflow contracts', () => {
       return;
     }
     expect(target('#file')).toBe('file');
+    expect(target('#gitlab')).toBe('gitlab');
     expect(target('#https-api')).toBe('https-api');
     expect(target('#File')).toBeNull();
     expect(target('#unknown')).toBeNull();

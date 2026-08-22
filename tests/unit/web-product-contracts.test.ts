@@ -276,6 +276,18 @@ describe('web product contracts', () => {
     expect(work).not.toContain('crypto.randomUUID()');
   });
 
+  it('rejects duplicate Work mutations before their busy state renders', () => {
+    const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
+    const actionStart = work.indexOf("  async function action(kind: 'cancel' | 'retry')");
+    const actionEnd = work.indexOf('\n\n  return (', actionStart);
+    const action = work.slice(actionStart, actionEnd);
+    const runStart = work.indexOf('  async function runNow(schedule: DailyScheduleRecord)');
+    const runEnd = work.indexOf('\n\n  return (', runStart);
+    const runNow = work.slice(runStart, runEnd);
+    expect(action).toContain('if (mutating) return;');
+    expect(runNow).toContain('if (working !== null) return;');
+  });
+
   it('makes a browser agent retry idempotent after a lost response', () => {
     const agents = readFileSync(new URL('../../web/src/app/routes/agents.tsx', import.meta.url), 'utf8');
     expect(agents).toContain("import { createClientUuid } from '../../api/request-id';");

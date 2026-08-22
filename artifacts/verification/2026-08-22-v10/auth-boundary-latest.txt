@@ -168,6 +168,8 @@ Candidate workflow safety repairs:
   review surface; focused connector tests pass
 - the latest serial unit suite passes 2,279/2,279 across 117 files, with no
   skips; candidate-only until Vercel deployment quota resets
+- Work cancel/retry and schedule dispatch also reject duplicate lifecycle
+  mutations before their busy state renders; focused product contracts pass
 
 Candidate GitLab connector:
 - bounded public project snapshot workflow added with canonical project roots,

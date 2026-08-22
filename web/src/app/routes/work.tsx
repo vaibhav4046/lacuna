@@ -72,6 +72,7 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
   const displayedStatus = effectiveStatus(run);
 
   async function action(kind: 'cancel' | 'retry'): Promise<void> {
+    if (mutating) return;
     setMutating(true);
     setProblem(null);
     try {
@@ -167,6 +168,7 @@ function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly 
   const pendingRequests = useRef(new Map<string, string>());
 
   async function runNow(schedule: DailyScheduleRecord): Promise<void> {
+    if (working !== null) return;
     setWorking(schedule.id);
     setMessage(null);
     const requestId = pendingRequests.current.get(schedule.id) ?? createClientRequestId('ui');

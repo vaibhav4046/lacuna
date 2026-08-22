@@ -83,7 +83,8 @@ while a run is busy, and the GitLab workflow anchor resolves to its real
 review/confirm surface. The latest serial unit suite passes 2,279/2,279
 (117 files). The sign-in and recovery submit handlers also reject re-entry
 before their busy state can be observed, closing a rapid Enter/duplicate
-mutation edge.
+mutation edge. Work cancel/retry and schedule dispatch use the same guard, so
+rapid clicks cannot issue a second lifecycle mutation.
 They are not part of the accepted production
 deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the
 project's free daily deployment quota was exhausted.

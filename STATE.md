@@ -11,8 +11,8 @@ Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `bf987e2` and `750a9f5`
 add durable-read/session routing fixes, GitLab observation persistence,
 LongMemEval evidence alignment, bounded DOCX XML extraction, and idempotent
-browser agent retries, duplicate-submit auth guards, and remove the obsolete
-DOCX parser dependency. They are
+browser agent retries, duplicate-submit auth and Work guards, and remove the
+obsolete DOCX parser dependency. They are
 pushed to `v10-zeus-release` but could not be promoted on 2026-08-22 because
 Vercel rejected new deployments after the free daily deployment quota was
 exhausted.

@@ -44,6 +44,7 @@ import { ElevenLabsVoiceProvider, VoiceBoundary, elevenLabsVoiceConfig } from '.
 import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
 import { PREDICATE_NAMES } from '../src/corpus/types.js';
+import { READABLE_PROPERTIES } from '../src/extract/extract.js';
 import { planVoiceIntent } from '../src/voice/intent.js';
 import { catalogue } from '../src/connectors/catalog.js';
 import { CloudConnectorStore } from '../src/connectors/store.js';
@@ -287,11 +288,12 @@ const api = new ApiRouter({
         collection: collection ?? 'public',
         task,
         knownSubjects: SUBJECT_NAMES,
-        // Keep the runtime on the same vocabulary ingestion writes. A former
-        // hand-built subset omitted temporal fields such as runbook_owner and
-        // included fields the corpus never stores, producing healthy-looking
-        // runs with the wrong Context Pack.
-        predicates: [...PREDICATE_NAMES],
+        // Keep the runtime on both vocabularies ingestion writes: the synthetic
+        // corpus predicates and the bounded extractor properties used by
+        // private notes/connectors. Recommendations can originate from either
+        // path; querying only the corpus set made a valid private suggestion
+        // complete with an empty Context Pack.
+        predicates: [...new Set([...PREDICATE_NAMES, ...READABLE_PROPERTIES])],
         store: agentRuntime,
         ...(run.idempotencyKey === undefined ? {} : { idempotencyKey: run.idempotencyKey }),
         ...(run.kind === undefined ? {} : { kind: run.kind }),

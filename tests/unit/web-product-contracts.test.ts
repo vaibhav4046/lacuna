@@ -427,10 +427,11 @@ describe('web product contracts', () => {
     expect(assistant).toContain('const response = await directAsk()');
   });
 
-  it('uses the corpus predicate contract for deployed agent Context Packs', () => {
+  it('uses corpus and extractor predicate contracts for deployed agent Context Packs', () => {
     const api = readFileSync(new URL('../../api/index.ts', import.meta.url), 'utf8');
     expect(api).toContain("import { PREDICATE_NAMES } from '../src/corpus/types.js'");
-    expect(api).toContain('predicates: [...PREDICATE_NAMES]');
+    expect(api).toContain("import { READABLE_PROPERTIES } from '../src/extract/extract.js'");
+    expect(api).toContain('predicates: [...new Set([...PREDICATE_NAMES, ...READABLE_PROPERTIES])]');
     expect(api).not.toContain('const AGENT_PREDICATES =');
   });
 

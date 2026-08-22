@@ -92,7 +92,7 @@ const publicConnectors = await json<{ connectors: readonly Record<string, unknow
 const connectorRows = publicConnectors.body?.connectors ?? [];
 record(
   publicConnectors.status === 200
-    && connectorRows.length === 7
+    && connectorRows.length === 8
     && connectorRows.every((connector) => Object.keys(connector).sort().join(',') === 'availability,group,id,label,reason'),
   'public connector catalogue is redacted',
   `${publicConnectors.status} ${connectorRows.length} entries`,

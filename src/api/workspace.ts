@@ -316,7 +316,7 @@ export async function storeWorkspace(
   timeoutMs: number,
   limit = MEMORY_PAGE,
 ): Promise<WorkspaceView> {
-  if (source.subjects === undefined) return emptyWorkspace();
+  if (source.subjects === undefined) throw new Error('workspace subject listing unavailable');
 
   const { value: names } = await source.subjects(timeoutMs);
   const rows: MemoryRow[] = [];
@@ -454,7 +454,9 @@ export function demoWorkspace(inventory: Inventory): WorkspaceView {
     demo: true,
     changes,
     conflicts,
-    connections: [{ n: 'HydraDB', st: 'CONNECTED' }],
+    // These rows come from the bundled, deterministic judge corpus. They prove
+    // the product contract without asserting that a live store answered now.
+    connections: [{ n: 'HydraDB', st: 'STATIC CORPUS' }],
     runs: [],
     health: { current, historical, conflicts: conflicted },
     memory: rows.slice(0, MEMORY_PAGE),
@@ -559,13 +561,8 @@ export async function plannedAskEnvelope(
    * hand-written predicate list, and it invented three properties the corpus
    * does not hold while missing six it does.
    */
-  let recorded: readonly string[] = [];
-  try {
-    const held = await source.subject(subject, timeoutMs);
-    recorded = [...new Set(held.value?.claims.map((claim) => claim.predicate) ?? [])];
-  } catch {
-    recorded = [];
-  }
+  const held = await source.subject(subject, timeoutMs);
+  const recorded = [...new Set(held.value?.claims.map((claim) => claim.predicate) ?? [])];
 
   // What is askable is wider than what is recorded, on purpose: a property this
   // subject does not hold still reaches the resolver, which answers that

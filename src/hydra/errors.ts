@@ -26,6 +26,13 @@ export class HydraGuardError extends HydraError {}
  */
 export class HydraTransportError extends HydraError {}
 
+/** A submitted ingest may have landed, but no complete exact receipt survived. */
+export class HydraIngestIndeterminateError extends HydraError {
+  constructor() {
+    super('HydraDB ingest receipt is indeterminate');
+  }
+}
+
 /** HydraDB answered, and answered with a non-2xx status. */
 export class HydraQueryError extends HydraError {
   readonly status: number;

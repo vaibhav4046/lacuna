@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HydraClient, unwrapEngineMessage } from '../../src/hydra/client.js';
 import { loadHydraConfig, type HydraLimits } from '../../src/hydra/config.js';
@@ -251,6 +251,39 @@ describe('paging', () => {
 });
 
 describe('failures', () => {
+  it('cancels a stalled response body when the caller aborts after headers arrive', async () => {
+    let readStarted = false;
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => {
+        readStarted = true;
+        return new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+          releaseRead = resolve;
+        });
+      }),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+      releaseLock: vi.fn(),
+    };
+    const response = {
+      ok: true,
+      status: 200,
+      body: { getReader: () => reader },
+    } as unknown as Response;
+    const caller = new AbortController();
+    const c = client(() => response);
+    const pending = c.query({ cypher: 'RETURN 1 AS id', signal: caller.signal })
+      .catch((error: unknown) => error);
+
+    await vi.waitFor(() => expect(readStarted).toBe(true));
+    caller.abort();
+    if (reader.cancel.mock.calls.length === 0) releaseRead({ done: true });
+    const failure = await pending;
+
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+    expect(failure).toMatchObject({ name: 'HydraTransportError' });
+  });
+
   it('turns an engine refusal into a HydraQueryError carrying the exact message', async () => {
     const message = 'RETURN currently supports <binding>.<property> or count(*)';
     const c = client(() => new Response(JSON.stringify({ error: { message } }), {

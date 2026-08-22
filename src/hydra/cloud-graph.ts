@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 
 import type { IngestPlan, PlannedEdge, VertexRow } from '../ingest/plan.js';
+import {
+  connectorEvidenceMetadata,
+  type PersistedConnectorEvidence,
+} from '../connectors/evidence.js';
 import type { DependentEdge } from '../retrieval/decode.js';
 import type {
   ClaimRecord,
@@ -172,6 +176,7 @@ export interface SessionRecord {
   readonly title: string;
   readonly timestamp: string;
   readonly text: string;
+  readonly connector?: PersistedConnectorEvidence;
 }
 
 export interface BuiltGraph {
@@ -186,7 +191,10 @@ export interface BuiltGraph {
  * the seed and nothing else, and two runs write the same bytes under the same
  * ids rather than accumulating duplicates.
  */
-export function buildCloudGraph(plan: IngestPlan): BuiltGraph {
+export function buildCloudGraph(
+  plan: IngestPlan,
+  connector?: PersistedConnectorEvidence,
+): BuiltGraph {
   const t = tablesOf(plan);
   const about = group(plan.edges, 'ABOUT');           // claim -> entity
   const mentions = group(plan.edges, 'MENTIONS');     // claim -> entity
@@ -243,6 +251,7 @@ export function buildCloudGraph(plan: IngestPlan): BuiltGraph {
         ts: message.ts,
         sessionId: message.sessionId,
         sessionTitle: session.title,
+        ...(connector === undefined ? {} : { connector }),
       }];
     })
     .sort((a, b) => {
@@ -360,6 +369,7 @@ export function buildCloudGraph(plan: IngestPlan): BuiltGraph {
       text: (messagesBySession.get(sessionId) ?? [])
         .map((message) => `${message.role}: ${message.text}`)
         .join('\n'),
+      ...(connector === undefined ? {} : { connector }),
     }));
 
   return {
@@ -415,7 +425,10 @@ export function toAppRecords(graph: BuiltGraph): readonly AppRecord[] {
       type: 'custom',
       timestamp: session.timestamp,
       text: session.text,
-      metadata: { lacuna_record: 'session' },
+      metadata: {
+        lacuna_record: 'session',
+        ...connectorEvidenceMetadata(session.connector),
+      },
     });
   }
 

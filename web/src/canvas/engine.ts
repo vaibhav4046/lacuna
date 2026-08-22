@@ -176,7 +176,14 @@ export class MemoryFieldEngine {
     return out;
   }
   detectScene() {
-    if (!this._scenes) this._scenes = Array.prototype.slice.call(document.querySelectorAll('[data-scene]'));
+    // App.tsx lazy-loads the landing route. The engine mounts while Suspense is
+    // still showing its fallback, so the first query can legitimately return
+    // an empty list. An empty/disconnected cache must be refreshed or the
+    // field remains in `hero` forever even while the page scrolls through real
+    // scenes.
+    if (!this._scenes || this._scenes.length === 0 || this._scenes.some((scene) => !scene.isConnected)) {
+      this._scenes = Array.prototype.slice.call(document.querySelectorAll('[data-scene]'));
+    }
     const vh = innerHeight;
     let best = null, bo = -1e9;
     for (let i = 0; i < this._scenes.length; i++) {
@@ -232,8 +239,13 @@ export class MemoryFieldEngine {
       this.CLPOS.forEach((A, i) => S.push({ x: W * A[0], y: H * A[1], r: m * 0.06, id: 'any' + i, label: ['CLAUDE', 'CODEX', 'LOCAL', 'VOICE', 'CUSTOM'][i] + ' · SAME PACK' }));
       S.push({ x: W * 0.5, y: H * 0.57, r: m * 0.05, id: 'anyP', label: 'ONE PACK · NO COPIES' });
     } else if (sc === 'pack') {
-      const k = 1;
-      S.push({ x: W * 0.58, y: H * 0.55, r: m * 0.07, id: 'packP', label: 'CLICK · OPEN THE PACK' });
+      // The pack glides right only at the end of the chapter. Keep the pointer
+      // target on that exact rendered centre; a fixed 58% target left the
+      // visible core more than 200px away in the judged frame.
+      const pr = this._vis.pack || 0;
+      const slide = this.ez(this.cl((pr - 0.8) * 5));
+      const core = W < 760 ? 34 : 48;
+      S.push({ x: W * 0.44 + slide * W * 0.14, y: H * 0.55, r: Math.max(core, m * 0.07), id: 'packP', label: 'CLICK · OPEN THE PACK' });
     } else if (sc === 'gap' || sc === 'void') {
       S.push({ x: W * 0.5, y: H * 0.55, r: m * 0.11, id: 'gapC', label: 'THE GAP · NOTHING SUPPORTED THIS CLAIM' });
     } else if (sc === 'temporal') {
@@ -266,8 +278,8 @@ export class MemoryFieldEngine {
     let x = p.r2 * W, y = p.r3 * H, a = 0.2, sz = 1;
     if (sc === 'hero' || sc === 'auth' || sc === 'onboard' || sc === 'core' || sc === 'final') {
       const wide = W >= 1280, mid = W >= 900;
-      let S = m * (wide ? 0.40 : mid ? 0.33 : 0.30) * (1 + pr * 0.35);
-      let hx = W * (wide ? 0.70 : mid ? 0.78 : 0.5), hy = H * (mid ? 0.52 : 0.70), j = 0.105, out = 0.22, base = 0.9;
+      let S = m * (wide ? 0.34 : mid ? 0.31 : 0.28) * (1 + pr * 0.30);
+      let hx = W * (wide ? 0.75 : mid ? 0.78 : 0.5), hy = H * (mid ? 0.53 : 0.70), j = 0.105, out = 0.22, base = 0.9;
       if (sc === 'auth') { S = m * 0.17; hx = W * (W < 900 ? 0.5 : 0.30); hy = H * (W < 900 ? 0.22 : 0.46); j = 0.05; out = 0.10; base = 0.42; }
       if (sc === 'onboard') { S = m * 0.15; hx = W * (W < 900 ? 0.5 : 0.86); hy = H * (W < 900 ? 0.16 : 0.76); j = 0.05; out = 0.08; base = 0.45; }
       if (sc === 'core') { S = m * 0.19; hx = W * (W < 1100 ? 0.80 : 0.74); hy = H * 0.55; j = 0.09; out = 0.16; base = 0.8; }
@@ -306,7 +318,7 @@ export class MemoryFieldEngine {
         let E = 6;
         for (let s2 = 1; s2 < 6; s2++) { if (i >= lim[s2]) { E = s2; break; } }
         const fs = Math.min(5, Math.floor(this.cl((pr - 0.06) / 0.78) * 6));
-        if (E !== 6 && fs >= E) { const side = p.r2 < 0.5 ? -1 : 1; x = cx + side * (HW[E] * W + 40 + p.r3 * 80); y = H * Y[E] + g2 * 22; a = 0.15; }
+        if (E !== 6 && fs >= E) { const side = p.r2 < 0.5 ? -1 : 1; x = cx + side * (HW[E] * W + 40 + p.r3 * 80); y = H * Y[E] + g2 * 22; a = 0.32; }
         else { const stg = E === 6 ? fs : Math.min(fs, E - 1); x = cx + (p.r2 - 0.5) * 2 * HW[stg] * W; y = H * (Y[stg] + (p.r3 - 0.5) * 0.05); a = i < 6 ? 1 : 0.8; if (i < 1) { sz = 1.6; a = 1; } }
       }
     } else if (sc === 'rot' || sc === 'org') {
@@ -342,7 +354,10 @@ export class MemoryFieldEngine {
     } else if (sc === 'pack') {
       const k = this.ez(this.cl((pr - 0.08) / 0.6)), slide = this.ez(this.cl((pr - 0.8) * 5));
       const px = W * 0.44 + slide * W * 0.14, py = H * 0.55;
-      const R = m * 0.36 * (1 - k) + 16 * k;
+      // A 96px desktop / 68px mobile core remains legible after compression
+      // and gives the interaction a real, forgiving target.
+      const core = W < 760 ? 34 : 48;
+      const R = m * 0.36 * (1 - k) + core * k;
       const SRC = [[0.15, 0.30], [0.20, 0.80], [0.80, 0.26], [0.86, 0.72]];
       const fo = this.focus && this.focus.id === 'packP' && performance.now() < this.focus.until;
       if (p.r1 < 0.05) { const A = SRC[i % 4]; x = W * A[0] + g1 * 11; y = H * A[1] + g2 * 11; a = 0.85; }
@@ -376,7 +391,7 @@ export class MemoryFieldEngine {
         else { const t = this.ez((T - 0.78) / 0.22); qx = Rx + (W * 0.5 - Rx) * t; qy = Ry + (H * 0.24 - Ry) * t; aa = p.r3 < 0.5 ? 1 : 0.25; if (p.amber) { aa = 1; sz = 1.3; } }
         x = qx + (p.r2 - 0.5) * 15; y = qy + (p.r3 - 0.5) * 15; a = aa;
       }
-      else { x = p.r2 * W; y = p.r3 * H; a = 0.06; }
+      else { x = p.r2 * W; y = p.r3 * H; a = 0.10; }
     } else if (sc === 'route') {
       const cx = W * 0.5, cy = H * 0.46, act = Math.floor(tm / 2100) % 4;
       const MA = [[0.26, 0.72], [0.42, 0.72], [0.58, 0.72], [0.74, 0.72]];
@@ -418,7 +433,7 @@ export class MemoryFieldEngine {
       else { const EP = [[0.07, 0.56], [0.93, 0.56], [0.5, 0.15], [0.5, 0.93]], A = EP[i % 4]; x = W * A[0] + g1 * 10; y = H * A[1] + g2 * 10; a = 0.5; }
     } else if (sc === 'quiet' || sc === 'off') {
       x = p.r1 < 0.5 ? W * 0.05 * p.r2 : W * (1 - 0.05 * p.r2);
-      y = p.r3 * H; a = sc === 'quiet' ? 0.22 : 0.05;
+      y = p.r3 * H; a = sc === 'quiet' ? 0.26 : 0.08;
     }
     p.tx = x; p.ty = y; p.ta = a; p.tsz = sz;
   }
@@ -429,23 +444,23 @@ export class MemoryFieldEngine {
     if (sc === 'real') {
       const AX = W < 900 ? 0.74 : 0.60, AY = W < 900 ? 0.26 : 0.55;
       const N = [[0.58, 0.26, 'README · REDIS', 1], [0.82, 0.24, 'SLACK · PROPOSAL', 1], [0.50, 0.66, 'PR #184 · POSTGRES', -1], [0.82, 0.84, 'RUNBOOK · POSTGRES', -1]];
-      ctx.textAlign = 'center'; ctx.font = '500 10px ' + mono;
+      ctx.textAlign = 'center'; ctx.font = '500 11.5px ' + mono;
       const th = [0.05, 0.11, 0.17, 0.23];
       for (let i2 = 0; i2 < 4; i2++) {
-        const al = this.cl((pr - th[i2]) * 8) * (pr > 0.34 && i2 < 2 ? 0.4 : 0.9);
+        const al = this.cl((pr - th[i2]) * 8) * (pr > 0.34 && i2 < 2 ? 0.78 : 0.95);
         if (al < 0.02) continue;
-        ctx.globalAlpha = al; ctx.fillStyle = '#9A9A9A';
+        ctx.globalAlpha = al; ctx.fillStyle = '#B8B8C0';
         ctx.fillText(N[i2][2], W * N[i2][0], H * N[i2][1] + N[i2][3] * (m * 0.05 * 1.5 + 20) + (N[i2][3] < 0 ? 6 : 0));
       }
       if (pr > 0.34) {
         const nx = W * AX, ny = H * AY;
         ctx.globalAlpha = this.cl((pr - 0.34) * 5) * 0.8;
-        ctx.strokeStyle = 'rgba(255,255,255,0.24)'; ctx.setLineDash([3, 6]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 6]);
         ctx.beginPath(); ctx.moveTo(W * N[0][0], H * N[0][1]); ctx.lineTo(W * N[0][0] + (nx - W * N[0][0]) * 0.6, H * N[0][1] + (ny - H * N[0][1]) * 0.6); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(W * N[1][0], H * N[1][1]); ctx.lineTo(W * N[1][0] + (nx - W * N[1][0]) * 0.5, H * N[1][1] + (ny - H * N[1][1]) * 0.5); ctx.stroke();
         ctx.setLineDash([]);
         ctx.globalAlpha = this.cl((pr - 0.34) * 5);
-        ctx.strokeStyle = 'rgba(128,82,255,0.6)'; ctx.lineWidth = 1.3;
+        ctx.strokeStyle = 'rgba(155,123,255,0.76)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(W * N[2][0], H * N[2][1]); ctx.lineTo(nx, ny); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(W * N[3][0], H * N[3][1]); ctx.lineTo(nx, ny); ctx.stroke();
         ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.4)';
@@ -453,131 +468,157 @@ export class MemoryFieldEngine {
       }
       ctx.textAlign = 'left';
     }
-    if (sc === 'gap' || sc === 'void') { ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.beginPath(); ctx.ellipse(W * 0.5, H * 0.55, m * 0.21, m * 0.105, 0, -1.05, 4.18); ctx.stroke(); }
+    if (sc === 'gap' || sc === 'void') { ctx.globalAlpha = 1; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.ellipse(W * 0.5, H * 0.55, m * 0.21, m * 0.105, 0, -1.05, 4.18); ctx.stroke(); }
     if (sc === 'arch') {
       const cx = W * (W < 1100 ? 0.56 : 0.60), cy = H * (W < 1100 ? 0.64 : 0.56), hn = this.hydraNodes(W, H, 'arch');
       ctx.globalAlpha = this.cl((pr - 0.15) * 4);
-      for (let e = 0; e < hn.edges.length; e++) { const [a2, b2] = hn.edges[e]; ctx.strokeStyle = Math.sin(e * 3.7) > 0.75 ? 'rgba(128,82,255,0.42)' : 'rgba(255,255,255,0.13)'; ctx.beginPath(); ctx.moveTo(hn.pts[a2][0], hn.pts[a2][1]); ctx.lineTo(hn.pts[b2][0], hn.pts[b2][1]); ctx.stroke(); }
+      ctx.lineWidth = 1.5;
+      for (let e = 0; e < hn.edges.length; e++) { const [a2, b2] = hn.edges[e]; ctx.strokeStyle = Math.sin(e * 3.7) > 0.75 ? 'rgba(155,123,255,0.76)' : 'rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.moveTo(hn.pts[a2][0], hn.pts[a2][1]); ctx.lineTo(hn.pts[b2][0], hn.pts[b2][1]); ctx.stroke(); }
       ctx.globalAlpha = this.cl((pr - 0.35) * 4);
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.ellipse(cx, cy, m * 0.28, m * 0.19, 0, -1.1, 4.2); ctx.stroke();
-      ctx.font = '500 9.5px ' + mono; ctx.fillStyle = '#7A7A84'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.ellipse(cx, cy, m * 0.28, m * 0.19, 0, -1.1, 4.2); ctx.stroke();
+      ctx.font = '500 11.5px ' + mono; ctx.fillStyle = '#B8B8C0'; ctx.textAlign = 'center';
       const MOD = ['SCOPE', 'EVIDENCE', 'CONFLICTS', 'ABSTENTION', 'HEALTH', 'COMPILER', 'ROUTER', 'RUNTIME', 'TOOL MESH', 'POLICY', 'TRACE'];
-      ctx.globalAlpha = this.cl((pr - 0.2) * 4); ctx.fillStyle = '#9A9A9A'; ctx.font = '500 10px ' + mono;
+      for (let k2 = 0; k2 < MOD.length; k2++) {
+        const an = -1.12 + k2 * (5.38 / (MOD.length - 1));
+        ctx.fillText(MOD[k2], cx + Math.cos(an) * m * 0.32, cy + Math.sin(an) * m * 0.225);
+      }
+      ctx.globalAlpha = this.cl((pr - 0.2) * 4); ctx.fillStyle = '#B2B2BA'; ctx.font = '500 11px ' + mono;
       if (pr > 0.58) {
         ctx.globalAlpha = this.cl((pr - 0.58) * 5);
         ctx.strokeStyle = 'rgba(128,82,255,0.5)'; ctx.beginPath(); ctx.moveTo(cx + m * 0.16, cy - m * 0.02); ctx.lineTo(W * 0.86 - 22, H * 0.50); ctx.stroke();
-        ctx.fillStyle = '#9A9A9A'; ctx.fillText('CONTEXT PACK', W * 0.86, H * 0.50 + 34);
+        ctx.fillStyle = '#B2B2BA'; ctx.fillText('CONTEXT PACK', W * 0.86, H * 0.50 + 34);
       }
-      if (pr > 0.76) { ctx.globalAlpha = this.cl((pr - 0.76) * 5); ctx.fillStyle = '#7A7A84'; ctx.fillText('REMEMBER WHAT MATTERS', W * 0.72, H * 0.36); }
+      if (pr > 0.76) { ctx.globalAlpha = this.cl((pr - 0.76) * 5); ctx.fillStyle = '#A8A8B2'; ctx.fillText('REMEMBER WHAT MATTERS', W * 0.72, H * 0.36); }
       ctx.textAlign = 'left';
     }
     if (sc === 'funnel') {
       const cx = W * (W < 760 ? 0.44 : 0.62), Y = [0.14, 0.29, 0.44, 0.58, 0.72, 0.86], HW = [0.16, 0.115, 0.082, 0.055, 0.032, 0.008];
       const L = ['RAW CONTEXT', 'SCOPE', 'RETRIEVAL', 'GRAPH', 'CURRENT · EVIDENCE', 'CONTEXT PACK'], C = [256, 96, 31, 12, 6, 1];
       const fs = Math.min(5, Math.floor(this.cl((pr - 0.06) / 0.78) * 6));
-      ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(cx - HW[0] * W, H * Y[0]); for (let s2 = 1; s2 < 6; s2++) ctx.lineTo(cx - HW[s2] * W, H * Y[s2]); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(cx + HW[0] * W, H * Y[0]); for (let s2 = 1; s2 < 6; s2++) ctx.lineTo(cx + HW[s2] * W, H * Y[s2]); ctx.stroke();
-      ctx.font = '500 10px ' + mono; ctx.textAlign = 'left';
+      ctx.font = '500 11.5px ' + mono; ctx.textAlign = 'left';
       for (let s2 = 0; s2 < 6; s2++) {
-        ctx.globalAlpha = s2 <= fs ? 0.9 : 0.25;
-        ctx.fillStyle = s2 === 5 ? '#8052FF' : '#9A9A9A';
+        ctx.globalAlpha = s2 <= fs ? 1 : 0.78;
+        ctx.fillStyle = s2 === 5 ? '#A78BFA' : '#B6B6BE';
         ctx.fillText(L[s2] + ' · ' + C[s2], cx + HW[0] * W + (W < 760 ? 12 : 26), H * Y[s2] + 3);
       }
+      ctx.lineWidth = 1;
     }
     if (sc === 'temporal') {
       const tx = W * (W < 900 ? 0.5 : 0.70), ty = H * 0.55, RR = [m * 0.115, m * 0.185, m * 0.255], hov = d.st.hoverRev;
       for (let ring = 0; ring < 3; ring++) {
-        let al = [0.26, 0.10, 0.10][ring];
-        if (hov >= 0) al = (2 - hov) === ring ? 0.4 : 0.05;
+        let al = [0.52, 0.40, 0.36][ring];
+        if (hov >= 0) al = (2 - hov) === ring ? 0.62 : 0.20;
         ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,' + al + ')';
+        ctx.lineWidth = 1.5;
         if (ring === 1) ctx.setLineDash([3, 6]);
         ctx.beginPath(); ctx.ellipse(tx, ty, RR[ring] * 1.3, RR[ring] * 0.88, 0, -1.2 + ring * 0.5, 4.0 + ring * 0.5); ctx.stroke();
         ctx.setLineDash([]);
       }
-      ctx.font = '400 11px ' + mono;
+      ctx.font = '500 11.5px ' + mono;
       const LB = ['Postgres', 'proposal', 'Redis'];
       for (let ring = 0; ring < 3; ring++) {
-        let al = ring === 0 ? 0.9 : 0.4;
-        if (hov >= 0) al = (2 - hov) === ring ? 1 : 0.15;
-        ctx.globalAlpha = al; ctx.fillStyle = ring === 0 ? '#FFFFFF' : '#9A9A9A';
+        let al = ring === 0 ? 1 : 0.68;
+        if (hov >= 0) al = (2 - hov) === ring ? 1 : 0.30;
+        ctx.globalAlpha = al; ctx.fillStyle = ring === 0 ? '#FFFFFF' : '#B0B0B8';
         ctx.fillText(LB[ring], tx + RR[ring] * 1.3 + 10, ty + 4);
       }
     }
     if (sc === 'contra') {
       const L = this.ez(this.cl((pr - 0.22) * 2.2)), y0 = H * 0.60, x0 = W * 0.14, xs = W * 0.50, xe0 = W * 0.86;
-      ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.40)';
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xs, y0); ctx.stroke();
       if (L > 0.01) { const xe = xs + (xe0 - xs) * L; ctx.beginPath(); ctx.moveTo(xs, y0); ctx.lineTo(xe, y0 - H * 0.15 * L); ctx.stroke(); ctx.beginPath(); ctx.moveTo(xs, y0); ctx.lineTo(xe, y0 + H * 0.15 * L); ctx.stroke(); }
+      if (L > 0.42) {
+        const xe = xs + (xe0 - xs) * L;
+        ctx.font = '500 11.5px ' + mono; ctx.fillStyle = '#C8C8CF'; ctx.textAlign = 'right';
+        ctx.fillText('PRIYA RAMAN · CURRENT', xe - 10, y0 - H * 0.15 * L - 12);
+        ctx.fillText('RASMUS BERG · CURRENT', xe - 10, y0 + H * 0.15 * L + 22);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#FFB829'; ctx.fillText('UNRESOLVED', xs, y0 + 30);
+        ctx.textAlign = 'left';
+      }
     }
     if (sc === 'pack') {
       const k = this.ez(this.cl((pr - 0.08) / 0.6)), slide = this.ez(this.cl((pr - 0.8) * 5));
       const px = W * 0.44 + slide * W * 0.14, py = H * 0.55, SRC = [[0.15, 0.30], [0.20, 0.80], [0.80, 0.26], [0.86, 0.72]];
-      ctx.globalAlpha = 0.16 + 0.14 * k; ctx.strokeStyle = '#FFFFFF';
+      ctx.globalAlpha = 0.38 + 0.14 * k; ctx.lineWidth = 1.5; ctx.strokeStyle = '#FFFFFF';
       for (let s2 = 0; s2 < 4; s2++) { ctx.beginPath(); ctx.moveTo(W * SRC[s2][0], H * SRC[s2][1]); ctx.lineTo(px, py); ctx.stroke(); }
       const fo = this.focus && this.focus.id === 'packP' && performance.now() < this.focus.until;
-      if (fo) { ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.fillStyle = '#BDBDBD'; ctx.textAlign = 'center'; const OF = [[-0.09, -0.07, 'FACTS'], [0.09, -0.07, 'EVIDENCE'], [-0.09, 0.07, 'CONSTRAINTS'], [0.09, 0.07, 'OPEN QUESTIONS']]; OF.forEach((o) => ctx.fillText(o[2], px + o[0] * m, py + o[1] * m + m * 0.045)); ctx.textAlign = 'left'; }
+      if (fo) { ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.fillStyle = '#D0D0D6'; ctx.textAlign = 'center'; const OF = [[-0.09, -0.07, 'FACTS'], [0.09, -0.07, 'EVIDENCE'], [-0.09, 0.07, 'CONSTRAINTS'], [0.09, 0.07, 'OPEN QUESTIONS']]; OF.forEach((o) => ctx.fillText(o[2], px + o[0] * m, py + o[1] * m + m * 0.045)); ctx.textAlign = 'left'; }
     }
     if (sc === 'speed') {
-      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#7A7A84';
+      ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#B0B0B8';
       ctx.fillText('RAW HISTORY', W * 0.30, H * 0.55 + m * 0.26 + 26);
       ctx.fillText('CONTEXT PACK', W * 0.72, H * 0.55 + 40);
       ctx.textAlign = 'left';
     }
     if (sc === 'any') {
       const cx = W * 0.5, cy = H * 0.57, act = Math.floor(tm / 1900) % 5;
-      for (let j2 = 0; j2 < 5; j2++) { const A = this.CLPOS[j2]; ctx.globalAlpha = 1; ctx.strokeStyle = j2 === act ? 'rgba(128,82,255,0.55)' : 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.moveTo(W * A[0], H * A[1]); ctx.lineTo(cx, cy); ctx.stroke(); }
+      ctx.lineWidth = 1.5;
+      for (let j2 = 0; j2 < 5; j2++) { const A = this.CLPOS[j2]; ctx.globalAlpha = 1; ctx.strokeStyle = j2 === act ? 'rgba(155,123,255,0.76)' : 'rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.moveTo(W * A[0], H * A[1]); ctx.lineTo(cx, cy); ctx.stroke(); }
     }
     if (sc === 'harness') {
       const cx = W * (W < 900 ? 0.5 : 0.62), cy = H * (W < 900 ? 0.74 : 0.56);
-      ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.38)';
       ctx.beginPath(); ctx.ellipse(cx, cy, m * 0.30, m * 0.205, 0, -1.15, 4.25); ctx.stroke();
-      ctx.font = '500 9.5px ' + mono; ctx.fillStyle = '#7A7A84'; ctx.textAlign = 'center';
+      ctx.font = '500 11.5px ' + mono; ctx.fillStyle = '#B8B8C0'; ctx.textAlign = 'center';
       const MOD = ['AGENT RUNTIME', 'MODEL ROUTER', 'SKILL ENGINE', 'TOOL MESH', 'POLICY', 'CONTEXT COMPILER', 'TRACE', 'HYDRADB ADAPTER'];
       for (let k2 = 0; k2 < 8; k2++) { const an = -1.1 + k2 * (5.35 / 7); ctx.fillText(MOD[k2], cx + Math.cos(an) * m * 0.345, cy + Math.sin(an) * m * 0.24); }
-      ctx.fillStyle = '#9A9A9A'; ctx.font = '500 10px ' + mono;
+      ctx.fillStyle = '#B2B2BA'; ctx.font = '500 11px ' + mono;
       ctx.fillText('CONTEXT KERNEL', cx, cy + m * 0.13);
       ctx.textAlign = 'left';
     }
     if (sc === 'hand') {
-      ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.38)';
       ctx.beginPath(); ctx.moveTo(W * 0.22 + m * 0.05, H * 0.555); ctx.lineTo(W * 0.5 - m * 0.05, H * 0.505); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(W * 0.5 + m * 0.05, H * 0.505); ctx.lineTo(W * 0.78 - m * 0.05, H * 0.555); ctx.stroke();
-      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#7A7A84';
+      ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#B8B8C0';
       ctx.fillText('PLANNER', W * 0.22, H * 0.56 + m * 0.045 + 24);
       ctx.fillText('CODER', W * 0.5, H * 0.50 + m * 0.045 + 24);
       ctx.fillText('REVIEWER', W * 0.78, H * 0.56 + m * 0.045 + 24);
-      ctx.fillText('SHARED MEMORY', W * 0.5, H * 0.24 - 22);
+      ctx.fillText('SHARED MEMORY', W * 0.5, H * 0.31);
       ctx.textAlign = 'left';
     }
     if (sc === 'route') {
       const cx = W * 0.5, cy = H * 0.46, act = Math.floor(tm / 2100) % 4, MA = [[0.26, 0.72], [0.42, 0.72], [0.58, 0.72], [0.74, 0.72]];
-      for (let j2 = 0; j2 < 4; j2++) { ctx.globalAlpha = 1; ctx.strokeStyle = j2 === act ? 'rgba(128,82,255,0.55)' : 'rgba(255,255,255,0.13)'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(W * MA[j2][0], H * MA[j2][1]); ctx.stroke(); }
-      ctx.globalAlpha = 0.9; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#9A9A9A';
+      ctx.lineWidth = 1.5;
+      for (let j2 = 0; j2 < 4; j2++) { ctx.globalAlpha = 1; ctx.strokeStyle = j2 === act ? 'rgba(155,123,255,0.76)' : 'rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(W * MA[j2][0], H * MA[j2][1]); ctx.stroke(); }
+      ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.textAlign = 'center'; ctx.fillStyle = '#B8B8C0';
       ctx.fillText('CONTEXT PACK', cx, cy + 40); ctx.textAlign = 'left';
     }
     if (sc === 'conn') {
       const GA = [[0.22, 0.40], [0.76, 0.38], [0.24, 0.74], [0.76, 0.74]];
-      ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.38)';
       for (let j2 = 0; j2 < 4; j2++) { ctx.beginPath(); ctx.moveTo(W * GA[j2][0], H * GA[j2][1]); ctx.lineTo(W * 0.5, H * 0.54); ctx.stroke(); }
     }
     if (sc === 'hydra') {
       const hn = this.hydraNodes(W, H, 'hydra');
       ctx.globalAlpha = 1;
-      for (let e = 0; e < hn.edges.length; e++) { const [a2, b2] = hn.edges[e]; ctx.strokeStyle = Math.sin(e * 3.7) > 0.75 ? 'rgba(128,82,255,0.45)' : 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.moveTo(hn.pts[a2][0], hn.pts[a2][1]); ctx.lineTo(hn.pts[b2][0], hn.pts[b2][1]); ctx.stroke(); }
+      ctx.lineWidth = 1.5;
+      for (let e = 0; e < hn.edges.length; e++) { const [a2, b2] = hn.edges[e]; ctx.strokeStyle = Math.sin(e * 3.7) > 0.75 ? 'rgba(155,123,255,0.76)' : 'rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.moveTo(hn.pts[a2][0], hn.pts[a2][1]); ctx.lineTo(hn.pts[b2][0], hn.pts[b2][1]); ctx.stroke(); }
+      ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.fillStyle = '#C8C8CF'; ctx.textAlign = 'center';
+      const hyLabels = [['ENTITY', -0.12, -0.10], ['CLAIM', 0.12, -0.04], ['EVIDENCE', -0.07, 0.14], ['REVISION', 0.16, 0.15]];
+      for (const label of hyLabels) ctx.fillText(label[0], W * 0.52 + W * label[1], H * 0.53 + H * label[2]);
+      ctx.textAlign = 'left';
     }
     if (sc === 'voice') {
       const vx = W * (W < 900 ? 0.5 : 0.56), vy = H * 0.56;
-      ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.38)';
       ctx.beginPath(); ctx.arc(vx, vy, m * 0.16 * 1.14, 0, 6.283); ctx.stroke();
     }
     if (sc === 'mcp') {
       const EP = [[0.07, 0.56], [0.93, 0.56]];
-      ctx.globalAlpha = 0.5; ctx.strokeStyle = '#FFFFFF';
+      ctx.globalAlpha = 0.62; ctx.lineWidth = 1.5; ctx.strokeStyle = '#FFFFFF';
       for (let s2 = 0; s2 < 2; s2++) ctx.strokeRect(W * EP[s2][0] - 5, H * EP[s2][1] - 5, 10, 10);
-      ctx.globalAlpha = 0.14; ctx.setLineDash([3, 5]);
+      ctx.globalAlpha = 0.40; ctx.setLineDash([3, 5]);
       ctx.beginPath(); ctx.moveTo(W * 0.07, H * 0.56); ctx.lineTo(W * 0.93, H * 0.56); ctx.stroke();
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.fillStyle = '#C8C8CF'; ctx.textAlign = 'center';
+      ctx.fillText('MCP CLIENT', W * 0.07, H * 0.56 + 32);
+      ctx.fillText('LACUNA SERVER', W * 0.93, H * 0.56 + 32);
+      ctx.textAlign = 'left';
     }
     if (!this.rm && this.mx > 0) {
       const near = [];
@@ -599,7 +640,7 @@ export class MemoryFieldEngine {
     const hot = this._hot, fo = this.focus && performance.now() < this.focus.until ? this.focus : null;
     const lab = fo || hot;
     if (lab && lab.label) {
-      ctx.globalAlpha = 0.95; ctx.font = '500 10px ' + mono; ctx.textAlign = 'center';
+      ctx.globalAlpha = 1; ctx.font = '500 11.5px ' + mono; ctx.textAlign = 'center';
       ctx.fillStyle = fo ? '#FFB829' : '#EDEDED';
       ctx.fillText(lab.label, lab.x, lab.y - (lab.r || m * 0.06) - 12);
       ctx.textAlign = 'left';
@@ -617,18 +658,18 @@ export class MemoryFieldEngine {
     if (sc === 'real') { F('real-q', rm ? 1 : S((pr - 0.28) * 5)); F('real-a', rm ? 1 : S((pr - 0.46) * 5)); }
     if (sc === 'gap') { F('gap-q', rm ? 1 : S((pr - 0.1) * 5)); F('gap-a', rm ? 1 : S((pr - 0.48) * 5)); }
     if (sc === 'void') F('void-a', rm ? 1 : S((pr - 0.3) * 5));
-    if (sc === 'pack') F('pack-l', rm ? 1 : S((pr - 0.55) * 5));
+    if (sc === 'pack') F('pack-l', rm ? 1 : S((pr - 0.40) * 6));
     if (sc === 'contra') F('contra-x', rm ? 1 : S((pr - 0.5) * 4));
     if (sc === 'voice') {
       const k = rm ? 0 : Math.floor(tm / 2600) % 5;
       const vs = q('[data-vs]');
-      for (let i2 = 0; i2 < vs.length; i2++) vs[i2].style.color = i2 === k ? '#FFFFFF' : '#7A7A7A';
+      for (let i2 = 0; i2 < vs.length; i2++) vs[i2].style.color = i2 === k ? '#FFFFFF' : '#9A9AA3';
       const vt = q('[data-vt]');
       for (let i2 = 0; i2 < vt.length; i2++) { const on = (k >= 1 && i2 === 0) || (k === 3 && i2 === 1) || (k === 4 && i2 === 2); vt[i2].style.opacity = on ? 1 : 0.14; }
     }
-    if (sc === 'any') { const act = rm ? 0 : Math.floor(tm / 1900) % 5; const cls = q('[data-client]'); for (let i2 = 0; i2 < cls.length; i2++) cls[i2].style.color = i2 === act ? '#FFFFFF' : '#7A7A84'; }
-    if (sc === 'route') { const act = rm ? 0 : Math.floor(tm / 2100) % 4; const mo = q('[data-model]'); for (let i2 = 0; i2 < mo.length; i2++) mo[i2].style.color = i2 === act ? '#FFFFFF' : '#7A7A84'; }
-    if (sc === 'hand') { const T = rm ? 0.1 : (tm % 8000) / 8000; const phn = T < 0.20 ? 0 : T < 0.42 ? 1 : T < 0.78 ? 2 : 3; const hs = q('[data-ho]'); for (let i2 = 0; i2 < hs.length; i2++) hs[i2].style.color = i2 === phn ? '#FFFFFF' : '#7A7A84'; }
+    if (sc === 'any') { const act = rm ? 0 : Math.floor(tm / 1900) % 5; const cls = q('[data-client]'); for (let i2 = 0; i2 < cls.length; i2++) cls[i2].style.color = i2 === act ? '#FFFFFF' : '#9A9AA3'; }
+    if (sc === 'route') { const act = rm ? 0 : Math.floor(tm / 2100) % 4; const mo = q('[data-model]'); for (let i2 = 0; i2 < mo.length; i2++) mo[i2].style.color = i2 === act ? '#FFFFFF' : '#9A9AA3'; }
+    if (sc === 'hand') { const T = rm ? 0.1 : (tm % 8000) / 8000; const phn = T < 0.20 ? 0 : T < 0.42 ? 1 : T < 0.78 ? 2 : 3; const hs = q('[data-ho]'); for (let i2 = 0; i2 < hs.length; i2++) hs[i2].style.color = i2 === phn ? '#FFFFFF' : '#9A9AA3'; }
   }
   loop(t) {
     if (this.raf) cancelAnimationFrame(this.raf);
@@ -663,6 +704,15 @@ export class MemoryFieldEngine {
     const seen = this._vis[sc] || 0;
     if (pr > seen) this._vis[sc] = pr; else pr = seen;
     this._sc = sc;
+    // Expose only semantic render state, never memory content. Browser and
+    // accessibility audits can now prove the canvas followed the visible
+    // chapter instead of inferring it from a screenshot hash.
+    // Do not call this `data-scene`: that selector belongs exclusively to
+    // narrative sections and making the fixed canvas match it would cause the
+    // detector to select the canvas itself on every frame.
+    delete cv.dataset.scene;
+    cv.dataset.activeScene = sc;
+    cv.dataset.activeProgress = pr.toFixed(3);
     const m = Math.min(W, H);
     const d = { sc, pr, tm: this.rm ? 4000 : t, W, H, m, st: this.state };
     this.applyHtml(d);
@@ -685,7 +735,7 @@ export class MemoryFieldEngine {
     const ctx = cv.getContext('2d');
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    ctx.lineWidth = 0.9;
+    ctx.lineWidth = 1.05;
     const lerp = (this.rm || this._prime) ? 1 : 0.055, drift = this.rm ? 0 : 1;
     const fo = this.focus && performance.now() < this.focus.until ? this.focus : null;
     for (let i = 0; i < this.P.length; i++) {
@@ -696,9 +746,9 @@ export class MemoryFieldEngine {
       if (bs) { const dx = p.tx - bs.x, dy = p.ty - bs.y, rr = (bs.r || m * 0.06) * 1.15; if (dx * dx + dy * dy < rr * rr) boost = fo ? 1.6 : 1.4; else if (fo) boost = 0.75; }
       p.x += (p.tx - p.x) * lerp; p.y += (p.ty - p.y) * lerp;
       p.ca += (p.ta * boost - p.ca) * ((this.rm || this._prime) ? 1 : 0.09);
-      let a = Math.min(1, p.ca * (0.35 + p.z * 0.75));
+      let a = Math.min(1, p.ca * (0.48 + p.z * 0.72));
       if (a <= 0.015) continue;
-      const s = p.s * (0.7 + p.z * 0.8) * p.tsz * (1 + 0.12 * Math.sin(t * 0.0002 + p.ph * 3) * drift);
+      const s = p.s * (0.88 + p.z * 0.86) * p.tsz * (1 + 0.12 * Math.sin(t * 0.0002 + p.ph * 3) * drift);
       let x = p.x + drift * Math.sin(t * 0.0006 + p.ph) * 1.7 * p.z;
       let y = p.y + drift * Math.cos(t * 0.0005 + p.ph * 1.7) * 1.4 * p.z;
       if (!this.rm && this.mx > 0) {

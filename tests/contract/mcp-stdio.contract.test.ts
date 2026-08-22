@@ -7,8 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { generateCorpus } from '../../src/corpus/index.js';
 import { loadHydraConfig, type HydraConfig } from '../../src/hydra/config.js';
 import { describeNode } from '../../src/mcp/result.js';
-import { SERVER_NAME, SERVER_VERSION, TOOL_TIMEOUT_MS } from '../../src/mcp/server.js';
-import { TOOLS } from '../../src/mcp/tools.js';
+import { SERVER_ICONS, SERVER_NAME, SERVER_VERSION, TOOL_TIMEOUT_MS } from '../../src/mcp/server.js';
+import { toolsFor } from '../../src/mcp/tools.js';
 import { ABSTENTION_REASONS } from '../../src/model/abstention.js';
 import { MAX_TERM_CHARS, parseVia } from '../../src/retrieval/index.js';
 
@@ -296,7 +296,7 @@ function schemaProblems(schema: unknown, value: unknown, path: string): string[]
 }
 
 function outputSchemaFor(name: string): unknown {
-  const tool = TOOLS.find((one) => one.name === name);
+  const tool = toolsFor(false).find((one) => one.name === name);
   if (tool === undefined) throw new Error(`no tool is named ${name}`);
   return tool.outputSchema;
 }
@@ -390,19 +390,24 @@ describe('the MCP server over stdio', () => {
         });
         const result = hello.result as Record<string, unknown>;
         expect(result['protocolVersion']).toEqual(PROTOCOL_VERSION);
-        expect(result['serverInfo']).toEqual({ name: SERVER_NAME, version: SERVER_VERSION });
+        expect(result['serverInfo']).toEqual({
+          name: SERVER_NAME,
+          version: SERVER_VERSION,
+          title: 'Lacuna',
+          icons: SERVER_ICONS.map((icon) => ({ ...icon, sizes: [...icon.sizes] })),
+        });
       } finally {
         await fresh.stop();
       }
     });
 
-    it('lists four read-only tools, each with an output schema', async () => {
+    it('lists the seven public read-only tools, each with an output schema', async () => {
       const frame = await session.request('tools/list', {});
       expect(frame.error).toBeUndefined();
       const tools = (frame.result as Record<string, unknown>)['tools'] as Record<string, unknown>[];
 
       expect(tools.map((tool) => tool['name']).sort()).toEqual(
-        TOOLS.map((tool) => tool.name).slice().sort(),
+        toolsFor(false).map((tool) => tool.name).slice().sort(),
       );
       for (const tool of tools) {
         expect(isRecord(tool['inputSchema']), `${String(tool['name'])} has no input schema`).toBe(true);

@@ -1,9 +1,10 @@
 import { Suspense, lazy } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { MemoryField } from './canvas/MemoryField';
 import { SessionProvider } from './api/session';
 import { RequireSession } from './app/RequireSession';
 import { ScopeProvider } from './api/scope';
+import { connectorAliasTarget } from './app/product-contracts';
 
 const Landing = lazy(() => import('./landing/Landing'));
 const SignIn = lazy(() => import('./auth/SignIn'));
@@ -14,6 +15,12 @@ const Shell = lazy(() => import('./app/Shell'));
 const Judge = lazy(() => import('./pages/Judge').then((module) => ({ default: module.Judge })));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const LegacyDemo = lazy(() => import('./pages/LegacyDemo').then((module) => ({ default: module.LegacyDemo })));
+
+function ConnectorAlias() {
+  const location = useLocation();
+  const target = connectorAliasTarget(location.pathname, location.hash);
+  return <Navigate to={target ?? '/'} replace />;
+}
 
 /**
  * The canvas mounts once, above the router, the way it sits above every view
@@ -33,8 +40,10 @@ export default function App() {
         <Route path="/forgot" element={<Forgot />} />
         <Route path="/onboarding" element={<RequireSession><Onboarding /></RequireSession>} />
         <Route path="/app" element={<Navigate to="/app/dash" replace />} />
+        <Route path="/app/connectors" element={<ConnectorAlias />} />
         <Route path="/app/:route" element={<RequireSession><Shell /></RequireSession>} />
         <Route path="/explore" element={<Navigate to="/explore/dash" replace />} />
+        <Route path="/explore/connectors" element={<ConnectorAlias />} />
         <Route path="/explore/:route" element={<ScopeProvider demo><Shell /></ScopeProvider>} />
         {/*
           The public workspace used to live under /demo. Those links are in

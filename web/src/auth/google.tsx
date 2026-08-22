@@ -1,6 +1,8 @@
 import { MONO } from '../design/mark';
 import { GOOGLE_G, markUri } from '../design/brand';
 
+export { googleProblem } from './google-problem';
+
 /**
  * The Google button, and the sentence a failed round trip leaves behind.
  *
@@ -14,22 +16,6 @@ import { GOOGLE_G, markUri } from '../design/brand';
  * the reader: a cancelled sign in needs no action, a stale round trip needs the
  * button pressing again, and an unverified address needs the password form.
  */
-
-const REASONS: Readonly<Record<string, string>> = {
-  cancelled: 'Sign in with Google was cancelled. Nothing happened.',
-  state: 'That sign in took too long to come back. Press the button again.',
-  code: 'Google did not send an authorisation back. Try once more.',
-  identity: "Google identity could not be safely bound. Try a fresh Google account, or use this account's original sign-in method.",
-  store: 'The account store did not answer. Nothing was changed.',
-  unconfigured: 'Sign in with Google is not configured on this deployment.',
-};
-
-/** The message for a reason the API sent, or null when there is nothing to say. */
-export function googleProblem(search: string): string | null {
-  const reason = new URLSearchParams(search).get('google');
-  if (reason === null) return null;
-  return REASONS[reason] ?? 'Sign in with Google did not complete.';
-}
 
 export function GoogleButton({ label, showDivider = true }: { label: string; showDivider?: boolean }) {
   return (

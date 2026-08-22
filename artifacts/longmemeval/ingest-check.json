@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-08-19T12:05:24.655Z",
+  "measuredAt": "2026-08-22T14:35:10.486Z",
   "dataset": "data/longmemeval_oracle.json",
   "instances": 500,
   "parseFailures": [],
@@ -8,15 +8,68 @@
   "sessions": 948,
   "messages": 10960,
   "estimatedTokens": 3303216,
-  "claims": 116,
-  "instancesWithAtLeastOneClaim": 80,
-  "coverage": 16,
+  "claims": 128,
+  "instancesWithAtLeastOneClaim": 84,
+  "coverage": 16.8,
   "bySlot": {
-    "storage": 55,
+    "storage": 58,
     "policy": 28,
     "depends_on": 19,
-    "region": 12,
-    "storage:plan": 2
+    "region": 10,
+    "degree": 8,
+    "storage:plan": 2,
+    "commute_duration": 2,
+    "bedroom_color": 1
   },
-  "ms": 646
+  "byQuestionType": [
+    {
+      "questionType": "single-session-user",
+      "ability": "information_extraction",
+      "instances": 70,
+      "instancesWithClaim": 8,
+      "claims": 9,
+      "abstentions": 6
+    },
+    {
+      "questionType": "single-session-assistant",
+      "ability": "information_extraction",
+      "instances": 56,
+      "instancesWithClaim": 6,
+      "claims": 7,
+      "abstentions": 0
+    },
+    {
+      "questionType": "single-session-preference",
+      "ability": "preference",
+      "instances": 30,
+      "instancesWithClaim": 2,
+      "claims": 3,
+      "abstentions": 0
+    },
+    {
+      "questionType": "multi-session",
+      "ability": "multi_session_reasoning",
+      "instances": 133,
+      "instancesWithClaim": 25,
+      "claims": 37,
+      "abstentions": 12
+    },
+    {
+      "questionType": "temporal-reasoning",
+      "ability": "temporal_reasoning",
+      "instances": 133,
+      "instancesWithClaim": 25,
+      "claims": 42,
+      "abstentions": 6
+    },
+    {
+      "questionType": "knowledge-update",
+      "ability": "knowledge_updates",
+      "instances": 78,
+      "instancesWithClaim": 18,
+      "claims": 30,
+      "abstentions": 6
+    }
+  ],
+  "ms": 1523
 }

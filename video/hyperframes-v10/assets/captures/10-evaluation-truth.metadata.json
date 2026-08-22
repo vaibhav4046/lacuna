@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-evaluation-truth",
+  "capturedAt": "2026-08-21T03:26:02.929Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/explore/evals",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "10-evaluation-truth.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 4.167,
+    "bytes": 132246,
+    "sha256": "9e6a4a89a165c201b4e656fbd48a2f196de30d12ea43ba1d87b6ab6cf7c29c75",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 125,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 109,
+    "savedFrames": 79,
+    "acknowledgedFrames": 109,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 30,
+    "targetFrames": 125,
+    "uniqueSourceFramesUsed": 79,
+    "duplicatedTargetFrames": 46,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 20,
+    "longestSourceGapMs": 110,
+    "uniqueSourcePayloads": 2,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 5,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/evaluations",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/longmemeval",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 5,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/evaluations",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/longmemeval",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 5,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/evaluations",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/longmemeval",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 650
+      },
+      "startedAtMs": 146,
+      "durationMs": 650,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "scroll",
+        "durationMs": 1700,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "main",
+        "align": "end"
+      },
+      "startedAtMs": 796,
+      "durationMs": 1744,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "wait",
+        "durationMs": 1000
+      },
+      "startedAtMs": 2540,
+      "durationMs": 1012,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

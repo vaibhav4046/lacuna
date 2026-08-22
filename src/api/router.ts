@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { onLifecycleEvent, onRequestSocketClose, requestRemoteAddress, requestSocketDestroyed } from './request-lifecycle.js';
 
 import { hashPassword, MAX_PASSWORD_CHARS, MIN_PASSWORD_CHARS, verifyPassword } from '../auth/password.js';
 import { canonicalRecoveryCode, newRecoveryCode, normaliseRecoveryCode } from '../auth/recovery.js';
@@ -15,17 +16,25 @@ import {
   readJsonBody,
   serialiseCookie,
 } from '../auth/http.js';
-import { SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, type Account } from '../auth/store.js';
+import { CredentialChanged, SESSION_TTL_MS, StoreUnavailable, hashToken, mintToken, newSessionVersion, sameDigest, sessionVersionMatches, type Account } from '../auth/store.js';
+import { VOICE_BINDING_HEADER, voiceBindingVerdict, voiceSessionBinding } from '../auth/voice-binding.js';
 import type { Accounts } from '../auth/accounts.js';
 import { googleBinding } from '../auth/identity.js';
 import type { McpCapabilities } from '../auth/mcp-capability-store.js';
 import { MCP_CAPABILITY_SHAPE } from '../auth/mcp-capability.js';
 import { FixedWindow, type RateLimitOptions, type RateLimitVerdict } from '../server/ratelimit.js';
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, plannedAskEnvelope, storeWorkspace, validateQuestion } from './workspace.js';
-import { MAX_SOURCE_CHARS, ingestSource, validateSource, workspaceCollection } from './ingest.js';
+import { MAX_SOURCE_CHARS, ingestSource, serializeIngestReport, validateSource, workspaceCollection } from './ingest.js';
 import { graphImpact } from './impact.js';
+import {
+  runWorkspaceImpact,
+  WORKSPACE_IMPACT_LIMITS,
+  type WorkspaceImpactResult,
+} from './workspace-impact.js';
+import type { HydraImpactReadPort } from '../hydra/impact-read.js';
+import { canonicalEntityName } from '../retrieval/resolve.js';
 import type { WorkspaceView } from './workspace.js';
-import { authorizeUrl, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
+import { authorizeUrl, GoogleAuthError, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
 import { extractionReport } from './extract-demo.js';
 import type { HydraSource } from '../hydra/source.js';
@@ -56,7 +65,38 @@ import {
   recommendedDailySchedule,
   runScheduleNow,
 } from '../scheduler/dispatcher.js';
-import type { VoiceBoundary, VoiceBoundaryResult } from './voice.js';
+import { addStreamingAudioBytes, type VoiceBoundary, type VoiceBoundaryResult } from './voice.js';
+import { VOICE_ROUTES } from '../voice/operations.js';
+import { MAX_VOICE_TRANSCRIPT_CHARS, type VoiceIntentPlan, type VoiceScope } from '../voice/intent.js';
+import { catalogue, mergeConnectorState } from '../connectors/catalog.js';
+import { FileConnectorError, type FileConnectorBoundary } from '../connectors/files.js';
+import {
+  GitHubImportError,
+  type GitHubImporterBoundary,
+} from '../connectors/github.js';
+import {
+  GitLabImportError,
+  type GitLabImporterBoundary,
+} from '../connectors/gitlab.js';
+import {
+  HTTPS_IMPORT_DEADLINE_MS,
+  HttpsImportError,
+  HttpsReadCancelledError,
+  type PinnedHttpsReaderBoundary,
+} from '../connectors/https.js';
+import { PreviewTokenError } from '../connectors/preview-token.js';
+import {
+  ConnectorRunCancelledError,
+  serializeConnectorRunResult,
+  type ConnectorRunner,
+} from '../connectors/run.js';
+import type { ConnectorDescriptor, ConnectorStore } from '../connectors/types.js';
+import {
+  WebhookBodyError,
+  WebhookBodyReader,
+  WebhookRejectedError,
+  type WebhookService,
+} from '../connectors/webhook.js';
 
 /**
  * The JSON surface the React application talks to.
@@ -74,20 +114,62 @@ import type { VoiceBoundary, VoiceBoundaryResult } from './voice.js';
 
 /** Six attempts a minute per address is generous for a person and useless for a script. */
 /**
- * The state cookie for the Google round trip, and how long it may sit unused.
+ * One cookie namespace per Google round trip, and how long it may sit unused.
  *
- * Ten minutes is longer than a person needs to pick an account and shorter than
- * a browser left open overnight, and it is cleared on every outcome including
- * the failures.
+ * The state digest in each name lets two tabs keep independent PKCE and nonce
+ * proofs. A second click must not overwrite the first valid attempt. Ten
+ * minutes is longer than a person needs to pick an account and shorter than a
+ * browser left open overnight.
  */
-const GOOGLE_STATE_COOKIE = 'lacuna_google_state';
-const GOOGLE_PKCE_COOKIE = 'lacuna_google_pkce';
-const GOOGLE_NONCE_COOKIE = 'lacuna_google_nonce';
+const GOOGLE_ATTEMPT_COOKIE = 'lacuna_google_attempt';
 const GOOGLE_STATE_TTL_SECONDS = 600;
+const GOOGLE_CODE_MAX_CHARS = 2_048;
+const GOOGLE_START_LIMIT = { limit: 8, windowMs: GOOGLE_STATE_TTL_SECONDS * 1_000, maxKeys: 4_096 };
+
+interface GoogleAttempt {
+  readonly state: string;
+  readonly codeVerifier: string;
+  readonly nonce: string;
+  /** A link attempt is only issued from an already authenticated session. */
+  readonly mode?: 'signin' | 'link';
+  readonly sessionVersion?: string;
+}
+
+const GOOGLE_PROOF_SHAPE = /^[A-Za-z0-9_-]{43}$/u;
+
+function googleAttemptCookie(state: string): string {
+  return `${GOOGLE_ATTEMPT_COOKIE}_${hashToken(state).slice(0, 24)}`;
+}
+
+function parseGoogleAttempt(raw: string | undefined): GoogleAttempt | null {
+  if (raw === undefined || raw.length > 512) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+    const attempt = value as Partial<GoogleAttempt>;
+    if (!GOOGLE_PROOF_SHAPE.test(attempt.state ?? '')
+      || !GOOGLE_PROOF_SHAPE.test(attempt.codeVerifier ?? '')
+      || !GOOGLE_PROOF_SHAPE.test(attempt.nonce ?? '')) return null;
+    if (attempt.mode !== undefined && attempt.mode !== 'signin' && attempt.mode !== 'link') return null;
+    if (attempt.mode === 'link' && attempt.sessionVersion !== undefined
+      && (typeof attempt.sessionVersion !== 'string' || !GOOGLE_PROOF_SHAPE.test(attempt.sessionVersion))) return null;
+    return attempt as GoogleAttempt;
+  } catch {
+    return null;
+  }
+}
 
 const SIGNIN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 /** A question should not sit behind a browser spinner for longer than this. */
 const ASK_TIMEOUT_MS = 10_000;
+
+/** A configured workspace store did not answer; never reinterpret that as empty memory. */
+class ContextUnavailable extends Error {
+  constructor() {
+    super('context unavailable');
+    this.name = 'ContextUnavailable';
+  }
+}
 
 /** A workspace name is a label, not an essay. */
 const MAX_WORKSPACE_CHARS = 120;
@@ -121,16 +203,95 @@ const RECOVER_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
  */
 const PUBLIC_READ_LIMIT = { limit: 60, windowMs: 60_000, maxKeys: 8_192 };
 const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
-/**
- * A public run spends two model calls, so its budget is not the read budget.
- * Four a minute is enough for somebody trying the thing and far too little to
- * be worth pointing at a bill.
- */
-const PUBLIC_RUN_LIMIT = { limit: 4, windowMs: 60_000, maxKeys: 8_192 };
 /** Private spend ceilings are keyed by the server-derived workspace id. */
 const PRIVATE_RUN_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const PRIVATE_INGEST_LIMIT = { limit: 4, windowMs: 5 * 60_000, maxKeys: 4_096 };
+const PRIVATE_FILE_LIMIT = { limit: 12, windowMs: 5 * 60_000, maxKeys: 4_096 };
 const PRIVATE_MCP_ISSUE_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
+const PRIVATE_VOICE_INTENT_LIMIT = { limit: 30, windowMs: 60_000, maxKeys: 4_096 };
+
+const VOICE_REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const VOICE_ROUTE_KEYS = new Set<string>(VOICE_ROUTES);
+
+export interface VoiceIntentRequest {
+  readonly version: 1;
+  readonly requestId: string;
+  readonly transcript: string;
+  readonly currentRoute: string;
+  readonly scope: VoiceScope;
+}
+
+interface AgentRunRequest {
+  readonly task: string;
+  readonly agentId?: string;
+  readonly requestId?: string;
+}
+
+/** Closed body for a browser or voice run. A UUID request id enables safe replay. */
+function readAgentRunRequest(value: unknown): AgentRunRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const body = value as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(body);
+  if (keys.some((key) => key !== 'task' && key !== 'agentId' && key !== 'requestId')) return null;
+  if (typeof body['task'] !== 'string' || body['task'].trim() === '' || body['task'].length > 600) return null;
+  if (body['agentId'] !== undefined && typeof body['agentId'] !== 'string') return null;
+  if (body['requestId'] !== undefined
+    && (typeof body['requestId'] !== 'string' || !VOICE_REQUEST_ID.test(body['requestId']))) return null;
+  return {
+    task: body['task'],
+    ...(typeof body['agentId'] === 'string' ? { agentId: body['agentId'] } : {}),
+    ...(typeof body['requestId'] === 'string' ? { requestId: body['requestId'] } : {}),
+  };
+}
+
+/** Origin headers serialize to the origin only. Paths and trailing slashes are not equivalent input. */
+export function exactVoiceOrigin(origin: string | undefined, expectedOrigin: string): boolean {
+  if (origin === undefined) return false;
+  try {
+    const expected = new URL(expectedOrigin);
+    const given = new URL(origin);
+    return expectedOrigin === expected.origin
+      && origin === expected.origin
+      && given.username === ''
+      && given.password === '';
+  } catch {
+    return false;
+  }
+}
+
+function voiceRouteScope(route: unknown): VoiceScope | null {
+  if (typeof route !== 'string') return null;
+  const match = /^\/(app|explore)\/([^/]+)$/u.exec(route);
+  if (match === null || !VOICE_ROUTE_KEYS.has(match[2] ?? '')) return null;
+  return match[1] === 'explore' ? 'public' : 'private';
+}
+
+/** Strict boundary for the only client-controlled values the pure planner receives. */
+export function readVoiceIntentRequest(value: unknown): VoiceIntentRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const body = value as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(body).sort();
+  if (keys.length !== 4
+    || keys[0] !== 'currentRoute'
+    || keys[1] !== 'requestId'
+    || keys[2] !== 'transcript'
+    || keys[3] !== 'version') return null;
+  const scope = voiceRouteScope(body['currentRoute']);
+  if (body['version'] !== 1
+    || typeof body['requestId'] !== 'string'
+    || !VOICE_REQUEST_ID.test(body['requestId'])
+    || typeof body['transcript'] !== 'string'
+    || body['transcript'].length > MAX_VOICE_TRANSCRIPT_CHARS
+    || typeof body['currentRoute'] !== 'string'
+    || scope === null) return null;
+  return {
+    version: 1,
+    requestId: body['requestId'],
+    transcript: body['transcript'],
+    currentRoute: body['currentRoute'],
+    scope,
+  };
+}
 
 interface RememberedOperations {
   readonly windowStart: number;
@@ -192,6 +353,24 @@ export interface ApiOptions {
   readonly allowPasswordSignup?: boolean;
   /** Random, revocable capabilities used to authorize private MCP access. */
   readonly mcpCapabilities?: McpCapabilities;
+  /** Durable non-secret connector observations, separate from workspace memory. */
+  readonly connectorStore?: ConnectorStore;
+  /** Deployment-specific availability over the closed server catalogue. */
+  readonly connectorCatalog?: () => readonly ConnectorDescriptor[];
+  /** Authenticated preview/import boundary; absent unless parser, signer, runner, and store exist. */
+  readonly fileConnector?: FileConnectorBoundary;
+  /** Anonymous public-repository reader with a hardwired GitHub API boundary. */
+  readonly githubImporter?: GitHubImporterBoundary;
+  /** Anonymous public-project reader with a hardwired GitLab API boundary. */
+  readonly gitlabImporter?: GitLabImporterBoundary;
+  /** DNS-pinned public HTTPS reader; absent when the hardened runtime boundary is unavailable. */
+  readonly httpsReader?: PinnedHttpsReaderBoundary;
+  /** Shared governed ingestion runner used after an adapter has prepared content. */
+  readonly connectorRunner?: Pick<ConnectorRunner, 'run'>;
+  /** Complete signed-webhook lifecycle and delivery service; absent fails closed. */
+  readonly webhookService?: Pick<WebhookService, 'issue' | 'state' | 'revoke' | 'admit' | 'accept'>;
+  /** Strict raw entity reader, injectable only for deterministic boundary tests. */
+  readonly webhookBodyReader?: Pick<WebhookBodyReader, 'read'>;
   /** True behind TLS. Marks both cookies Secure. */
   readonly secure: boolean;
   /** Runs the same checks `lacuna doctor` runs. Null when no node is configured. */
@@ -214,6 +393,8 @@ export interface ApiOptions {
    * exactly as long as the request that filled it.
    */
   readonly source?: (collection?: string) => HydraSource;
+  /** Strict Hydra-native impact reader, scoped by the server-derived collection. */
+  readonly impact?: (collection?: string) => HydraImpactReadPort;
   /**
    * Writes one source into a collection. Absent where nothing can be written,
    * and the route then answers 501 rather than pretending to have stored it.
@@ -254,6 +435,8 @@ export interface ApiOptions {
   readonly voice?: VoiceBoundary;
   /** Canonical trusted origin used for the voice Origin check. */
   readonly siteOrigin?: string;
+  /** Pure deterministic planner, composed independently of the speech provider. */
+  readonly voiceIntent?: (transcript: string, currentRoute: string, scope: VoiceScope) => VoiceIntentPlan;
   /** The ingested corpus, which is what the demo workspace is made of. */
   readonly inventory?: Inventory;
   /**
@@ -296,6 +479,12 @@ export interface ApiOptions {
    * and every test works without ever touching Google.
    */
   readonly google?: GoogleConfig;
+  /**
+   * One legacy address an operator has explicitly approved for Google
+   * migration. The verified OAuth identity must still return this exact email.
+   * Remove the setting immediately after the one-time migration succeeds.
+   */
+  readonly legacyGoogleMigrationEmail?: string;
   /** Stable server-only key used to sign opaque graph pagination cursors. */
   readonly graphCursorKey?: string;
   readonly now?: () => number;
@@ -359,15 +548,27 @@ async function sendVoiceResult(
     'X-Content-Type-Options': 'nosniff',
   });
   const reader = body.getReader();
+  let streamedBytes = 0;
   try {
     for (;;) {
       const chunk = await reader.read();
       if (chunk.done || control.signal.aborted) break;
+      const nextBytes = addStreamingAudioBytes(streamedBytes, chunk.value.byteLength);
+      if (nextBytes === null) {
+        control.abort();
+        await reader.cancel().catch(() => undefined);
+        if (!response.destroyed) response.destroy();
+        return;
+      }
+      streamedBytes = nextBytes;
       if (!response.write(Buffer.from(chunk.value))) {
         await Promise.race([once(response, 'drain'), once(response, 'close')]);
       }
     }
     if (!response.writableEnded) response.end();
+  } catch {
+    control.abort();
+    if (!response.destroyed) response.destroy();
   } finally {
     if (control.signal.aborted) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
@@ -376,6 +577,36 @@ async function sendVoiceResult(
 
 function firstHeader(value: string | readonly string[] | undefined): string | undefined {
   return typeof value === 'string' ? value : value?.[0];
+}
+
+function voiceBindingOk(
+  request: IncomingMessage,
+  cookies: Readonly<Record<string, string>>,
+  required: boolean,
+): boolean {
+  const token = cookies[SESSION_COOKIE];
+  const verdict = voiceBindingVerdict(
+    request.headers[VOICE_BINDING_HEADER],
+    typeof token === 'string' && token !== '' ? hashToken(token) : null,
+  );
+  return verdict === 'matching' || (!required && verdict === 'absent');
+}
+
+function isPrivateConnectorOperation(path: string, method: string): boolean {
+  if (method === 'GET') {
+    return path === '/api/workspace/connectors'
+      || path === '/api/workspace/connectors/webhook';
+  }
+  if (method === 'POST') {
+    return path === '/api/workspace/connectors/webhook'
+      || path === '/api/workspace/connectors/file/preview'
+      || path === '/api/workspace/connectors/file/import'
+      || path === '/api/workspace/connectors/github/import'
+      || path === '/api/workspace/connectors/gitlab/import'
+      || path === '/api/workspace/connectors/api/import';
+  }
+  return method === 'DELETE'
+    && /^\/api\/workspace\/connectors\/webhook\/[A-Za-z0-9_-]{22}$/u.test(path);
 }
 
 /**
@@ -391,7 +622,7 @@ function sourceKey(request: IncomingMessage): string {
     const hop = first.split(',')[0];
     if (hop !== undefined && hop.trim() !== '') return hop.trim();
   }
-  return request.socket.remoteAddress ?? 'unknown';
+  return requestRemoteAddress(request) ?? 'unknown';
 }
 
 /**
@@ -501,26 +732,43 @@ function standingOf(
 /**
  * The names a source holds, for the parser to match a sentence against.
  *
- * A source that cannot list them yields an empty list rather than an error: the
- * parser then finds no subject and the product says so, which is a better
- * outcome than a 500 on a question that was probably answerable.
+ * A successful empty list means the workspace holds no subjects. A failed
+ * read must propagate so the caller can report temporary unavailability rather
+ * than making the semantic claim that the requested topic does not exist.
  */
 async function knownSubjects(source: HydraSource): Promise<readonly string[]> {
-  if (source.subjects === undefined) return [];
-  try {
-    return (await source.subjects(8_000)).value;
-  } catch {
-    return [];
-  }
+  if (source.subjects === undefined) throw new ContextUnavailable();
+  return (await source.subjects(8_000)).value;
+}
+
+/**
+ * The signed-in sample workspace is the public corpus shown by the dashboard.
+ * Its view is intentionally backed by the demo source, while a real account
+ * is isolated in the collection derived from its email. Keeping this choice in
+ * one helper prevents sentence Ask and voice Ask from silently reading a
+ * different, empty tenant than the workspace the page just rendered.
+ */
+function workspaceReadCollection(account: Pick<Account, 'email' | 'workspace'>): string | undefined {
+  return account.workspace === DEMO_WORKSPACE ? undefined : workspaceCollection(account.email);
 }
 
 export class ApiRouter {
   readonly #store: Accounts;
   readonly #allowPasswordSignup: boolean;
   readonly #mcpCapabilities: McpCapabilities | undefined;
+  readonly #connectorStore: ConnectorStore | undefined;
+  readonly #fileConnector: FileConnectorBoundary | undefined;
+  readonly #githubImporter: GitHubImporterBoundary | undefined;
+  readonly #gitlabImporter: GitLabImporterBoundary | undefined;
+  readonly #httpsReader: PinnedHttpsReaderBoundary | undefined;
+  readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
+  readonly #webhookService: Pick<WebhookService, 'issue' | 'state' | 'revoke' | 'admit' | 'accept'> | undefined;
+  readonly #webhookBodyReader: Pick<WebhookBodyReader, 'read'>;
+  readonly #connectorCatalog: () => readonly ConnectorDescriptor[];
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: ((collection?: string) => HydraSource) | undefined;
+  readonly #impact: ((collection?: string) => HydraImpactReadPort) | undefined;
   readonly #ingest: ApiOptions['ingest'];
   readonly #agent: ApiOptions['agent'];
   readonly #agentStore: AgentRuntimeStore | undefined;
@@ -531,6 +779,7 @@ export class ApiRouter {
   readonly #cronWorkspaces: readonly string[];
   readonly #voice: VoiceBoundary | undefined;
   readonly #siteOrigin: string | undefined;
+  readonly #voiceIntent: ApiOptions['voiceIntent'];
   readonly #inventory: Inventory | undefined;
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #continuity: Readonly<Record<string, unknown>> | undefined;
@@ -538,25 +787,47 @@ export class ApiRouter {
   readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
+  readonly #legacyGoogleMigrationEmail: string | undefined;
   readonly #graphCursorKey: string;
   readonly #now: () => number;
   readonly #signinLimit = new FixedWindow(SIGNIN_LIMIT);
+  readonly #googleStartLimit = new FixedWindow(GOOGLE_START_LIMIT);
   readonly #signupLimit = new FixedWindow(SIGNUP_LIMIT);
   readonly #recoverLimit = new FixedWindow(RECOVER_LIMIT);
   readonly #readLimit = new FixedWindow(PUBLIC_READ_LIMIT);
   readonly #walkLimit = new FixedWindow(PUBLIC_WALK_LIMIT);
-  readonly #runLimit = new FixedWindow(PUBLIC_RUN_LIMIT);
   readonly #privateRunLimit = new WorkspaceRunWindow(PRIVATE_RUN_LIMIT);
   readonly #privateIngestLimit = new FixedWindow(PRIVATE_INGEST_LIMIT);
+  readonly #privateFileLimit = new FixedWindow(PRIVATE_FILE_LIMIT);
   readonly #privateMcpIssueLimit = new FixedWindow(PRIVATE_MCP_ISSUE_LIMIT);
+  readonly #privateVoiceIntentLimit = new FixedWindow(PRIVATE_VOICE_INTENT_LIMIT);
 
   constructor(options: ApiOptions) {
     this.#store = options.store;
     this.#allowPasswordSignup = options.allowPasswordSignup ?? true;
     this.#mcpCapabilities = options.mcpCapabilities;
+    this.#connectorStore = options.connectorStore;
+    this.#fileConnector = options.fileConnector;
+    this.#githubImporter = options.githubImporter;
+    this.#gitlabImporter = options.gitlabImporter;
+    this.#httpsReader = options.httpsReader;
+    this.#connectorRunner = options.connectorRunner;
+    this.#webhookService = options.webhookService;
+    this.#webhookBodyReader = options.webhookBodyReader ?? new WebhookBodyReader(
+      options.now === undefined ? {} : { now: options.now },
+    );
+    this.#connectorCatalog = options.connectorCatalog
+      ?? (() => catalogue({
+        webhookService: this.#webhookService !== undefined,
+        fileImport: this.#fileConnector !== undefined,
+        githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
+        gitlabImport: this.#gitlabImporter !== undefined && this.#connectorRunner !== undefined,
+        httpsImport: this.#httpsReader !== undefined && this.#connectorRunner !== undefined,
+      }));
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
+    this.#impact = options.impact;
     this.#ingest = options.ingest;
     this.#agent = options.agent;
     this.#agentStore = options.agentStore;
@@ -567,6 +838,7 @@ export class ApiRouter {
     this.#cronWorkspaces = options.cronWorkspaces ?? ['public'];
     this.#voice = options.voice;
     this.#siteOrigin = options.siteOrigin;
+    this.#voiceIntent = options.voiceIntent;
     this.#inventory = options.inventory;
     this.#evaluations = options.evaluations;
     this.#continuity = options.continuity;
@@ -574,6 +846,7 @@ export class ApiRouter {
     this.#relations = options.relations;
     this.#expansion = options.expansion;
     this.#google = options.google;
+    this.#legacyGoogleMigrationEmail = normaliseEmail(options.legacyGoogleMigrationEmail) ?? undefined;
     // A process-local key keeps development and tests safe by default. Hosted
     // deployments inject a stable secret so a cursor survives another
     // serverless instance without ever exposing the secret in the envelope.
@@ -601,8 +874,9 @@ export class ApiRouter {
     const record = typeof token === 'string' && token !== ''
       ? await this.#store.sessionFor(token, this.#now())
       : null;
-    const account = record === null ? null : await this.#store.find(record.email);
-    if (account === null) return emptyWorkspace();
+    if (record === null) return emptyWorkspace();
+    const account = await this.#store.find(record.email);
+    if (account === null || !sessionVersionMatches(account, record)) return emptyWorkspace();
 
     // The sample workspace reads the corpus that ships here. Every other
     // account reads what it ingested, because a screen saying "no claims yet"
@@ -613,13 +887,11 @@ export class ApiRouter {
     }
 
     const openSource = this.#source;
-    if (openSource === undefined) return emptyWorkspace();
+    if (openSource === undefined) throw new ContextUnavailable();
     try {
       return await storeWorkspace(openSource(workspaceCollection(account.email)), ASK_TIMEOUT_MS);
     } catch {
-      // A store that did not answer is not an empty workspace, but the view has
-      // no way to say so, and inventing rows would be worse.
-      return emptyWorkspace();
+      throw new ContextUnavailable();
     }
   }
 
@@ -642,8 +914,12 @@ export class ApiRouter {
     const token = cookies[SESSION_COOKIE];
     if (typeof token !== 'string' || token === '') return null;
     try {
+      const joined = await this.#store.sessionAccountFor?.(token, this.#now());
+      if (joined !== undefined) return joined?.account ?? null;
       const record = await this.#store.sessionFor(token, this.#now());
-      return record === null ? null : await this.#store.find(record.email);
+      if (record === null) return null;
+      const account = await this.#store.find(record.email);
+      return account !== null && sessionVersionMatches(account, record) ? account : null;
     } catch {
       return null;
     }
@@ -668,6 +944,520 @@ export class ApiRouter {
 
     const cookies = parseCookies(request.headers.cookie);
     const method = request.method ?? 'GET';
+
+    if (isPrivateConnectorOperation(path, method) && !voiceBindingOk(request, cookies, true)) {
+      send(response, 401, { error: 'voice_binding' });
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/webhook' && method === 'GET') {
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const service = this.#webhookService;
+      if (service === undefined || this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      try {
+        send(response, 200, await service.state(workspaceCollection(account.email)));
+      } catch {
+        send(response, 503, { error: 'webhook_state_unavailable' });
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/webhook' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const service = this.#webhookService;
+      if (service === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      const length = firstHeader(request.headers['content-length']);
+      if (request.headers['transfer-encoding'] !== undefined
+        || (length !== undefined && length !== '0')) {
+        send(response, 422, { error: 'invalid_webhook_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      try {
+        const issued = await service.issue(workspace);
+        send(response, issued.created ? 201 : 200, {
+          created: issued.created,
+          endpointId: issued.endpointId,
+          endpoint: issued.endpoint,
+          secret: issued.secret,
+          configuredAt: issued.configuredAt,
+        });
+      } catch {
+        send(response, 503, { error: 'webhook_lifecycle_failed' });
+      }
+      return HANDLED;
+    }
+
+    const privateWebhookDelete = /^\/api\/workspace\/connectors\/webhook\/([A-Za-z0-9_-]{22})$/u.exec(path);
+    if (privateWebhookDelete !== null && method === 'DELETE') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const service = this.#webhookService;
+      if (service === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      try {
+        const revoked = await service.revoke(workspace, privateWebhookDelete[1]!);
+        send(response, revoked ? 200 : 404, revoked ? { revoked: true } : { error: 'webhook_not_found' });
+      } catch {
+        send(response, 503, { error: 'webhook_lifecycle_failed' });
+      }
+      return HANDLED;
+    }
+
+    const publicWebhook = /^\/api\/connectors\/webhook\/([^/]{1,128})$/u.exec(path);
+    if (publicWebhook !== null && method === 'POST') {
+      const service = this.#webhookService;
+      if (service === undefined) {
+        send(response, 503, { error: 'signing_not_configured' });
+        return HANDLED;
+      }
+      const startedAtMs = this.#now();
+      const settlementDeadlineMs = startedAtMs + 240_000;
+      const controller = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) controller.abort();
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      const deadline = setTimeout(() => controller.abort(), Math.max(1, settlementDeadlineMs - this.#now()));
+      deadline.unref?.();
+      try {
+        const control = { requestSignal: controller.signal, startedAtMs, settlementDeadlineMs };
+        const rawBody = await this.#webhookBodyReader.read(
+          request,
+          control,
+          () => service.admit(publicWebhook[1]!, request.rawHeaders),
+        );
+        const receipt = await service.accept(publicWebhook[1]!, request.rawHeaders, rawBody, control);
+        if (!response.destroyed && !response.writableEnded) send(response, 200, {
+          state: receipt.state,
+          acceptedDocuments: receipt.acceptedDocuments,
+          searchableDocuments: receipt.searchableDocuments,
+          failedDocuments: receipt.failedDocuments,
+          acceptedRecords: receipt.acceptedRecords,
+          refusedRecords: receipt.refusedRecords,
+          failure: receipt.failure,
+          observationWrite: receipt.observationWrite,
+          indeterminateSubmission: receipt.indeterminateSubmission,
+        });
+      } catch (error) {
+        if (response.destroyed || response.writableEnded) return HANDLED;
+        if (error instanceof WebhookBodyError) send(response, error.status, { error: error.code });
+        else if (error instanceof WebhookRejectedError) send(response, error.status, { error: error.code });
+        else send(response, 502, { error: 'webhook_failed' });
+      } finally {
+        clearTimeout(deadline);
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
+    const fileMode = path === '/api/workspace/connectors/file/preview' ? 'preview'
+      : path === '/api/workspace/connectors/file/import' ? 'import'
+        : null;
+    if (fileMode !== null && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 503, { error: 'file_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const files = this.#fileConnector;
+      if (files === undefined) {
+        send(response, 503, { error: 'file_import_unavailable' });
+        return HANDLED;
+      }
+      const sessionToken = cookies[SESSION_COOKIE];
+      if (typeof sessionToken !== 'string' || sessionToken === '') {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateFileLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_file_budget');
+        return HANDLED;
+      }
+      try {
+        const context = { workspace, sessionBinding: hashToken(sessionToken) };
+        const result = fileMode === 'preview'
+          ? await files.preview(request, context)
+          : await files.importFile(request, context);
+        send(response, 200, result);
+      } catch (error) {
+        if (error instanceof FileConnectorError) {
+          send(response, error.status, { error: error.code });
+        } else if (error instanceof PreviewTokenError) {
+          send(response, 409, { error: error.code });
+        } else {
+          send(response, 502, { error: 'file_import_failed' });
+        }
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/github/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'github_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const importer = this.#githubImporter;
+      const runner = this.#connectorRunner;
+      if (importer === undefined || runner === undefined) {
+        send(response, 501, { error: 'github_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const keys = body === null ? [] : Object.keys(body);
+      const allowedKeys = new Set(['url', 'workspace', 'collection']);
+      if (body === null || typeof body['url'] !== 'string'
+        || keys.some((key) => !allowedKeys.has(key))) {
+        send(response, 422, { error: 'invalid_github_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) control.abort();
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
+        && !response.writableEnded && !response.writableFinished) control.abort();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        const batch = await importer.importPublicRepo(body['url'], control.signal);
+        if (control.signal.aborted) return HANDLED;
+        const result = await runner.run(workspace, {
+          connectorId: 'github',
+          documents: batch.documents.map((document) => ({
+            title: document.title,
+            text: document.text,
+            provenance: document.provenance,
+          })),
+          awaitSearchable: true,
+        }, { signal: control.signal });
+        if (control.signal.aborted) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          snapshotCommit: batch.commitSha,
+          snapshotDigest: batch.snapshotDigest,
+          consideredEntries: batch.consideredEntries,
+          fetchedBlobs: batch.fetchedBlobs,
+          skipped: batch.skipped.map(({ reason, count }) => ({ reason, count })),
+        });
+      } catch (error) {
+        if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
+        if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
+        else send(response, 502, { error: 'github_import_failed' });
+      } finally {
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/gitlab/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'gitlab_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const importer = this.#gitlabImporter;
+      const runner = this.#connectorRunner;
+      if (importer === undefined || runner === undefined) {
+        send(response, 501, { error: 'gitlab_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const keys = body === null ? [] : Object.keys(body);
+      if (body === null || typeof body['url'] !== 'string' || keys.some((key) => key !== 'url')) {
+        send(response, 422, { error: 'invalid_gitlab_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) control.abort();
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
+        && !response.writableEnded && !response.writableFinished) control.abort();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        const batch = await importer.importPublicProject(body['url'], control.signal);
+        if (control.signal.aborted) return HANDLED;
+        const result = await runner.run(workspace, {
+          connectorId: 'gitlab',
+          documents: batch.documents.map((document) => ({
+            title: document.title,
+            text: document.text,
+            provenance: document.provenance,
+          })),
+          awaitSearchable: true,
+        }, { signal: control.signal });
+        if (control.signal.aborted) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          snapshotCommit: batch.commitSha,
+          snapshotDigest: batch.snapshotDigest,
+          consideredEntries: batch.consideredEntries,
+          fetchedBlobs: batch.fetchedBlobs,
+          skipped: batch.skipped.map(({ reason, count }) => ({ reason, count })),
+        });
+      } catch (error) {
+        if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
+        if (error instanceof GitLabImportError) send(response, error.status, { error: error.code });
+        else send(response, 502, { error: 'gitlab_import_failed' });
+      } finally {
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/api/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'https_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const reader = this.#httpsReader;
+      const runner = this.#connectorRunner;
+      if (reader === undefined || runner === undefined) {
+        send(response, 501, { error: 'https_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      if (body === null || Object.keys(body).length !== 1 || typeof body['url'] !== 'string') {
+        send(response, 422, { error: 'invalid_https_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      let disconnected = false;
+      let deadlineExpired = false;
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) {
+          disconnected = true;
+          control.abort();
+        }
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
+        && !response.writableEnded && !response.writableFinished) abortIfPremature();
+      const deadline = setTimeout(() => {
+        deadlineExpired = true;
+        control.abort();
+      }, HTTPS_IMPORT_DEADLINE_MS);
+      deadline.unref?.();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        const prepared = await reader.read(body['url'], control.signal);
+        if (disconnected) return HANDLED;
+        if (deadlineExpired) {
+          send(response, 504, { error: 'https_timeout' });
+          return HANDLED;
+        }
+        const result = await runner.run(workspace, {
+          connectorId: 'https_api',
+          documents: [{
+            title: prepared.title,
+            text: prepared.text,
+            provenance: prepared.provenance,
+          }],
+          awaitSearchable: true,
+        }, { signal: control.signal });
+        if (disconnected) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          sourceDigest: prepared.provenanceKey,
+          contentDigest: prepared.contentDigest,
+        });
+      } catch (error) {
+        if (disconnected) return HANDLED;
+        if (deadlineExpired || error instanceof HttpsReadCancelledError
+          || error instanceof ConnectorRunCancelledError) {
+          send(response, 504, { error: 'https_timeout' });
+        } else if (error instanceof HttpsImportError) {
+          send(response, error.status, { error: error.code });
+        } else {
+          send(response, 502, { error: 'https_import_failed' });
+        }
+      } finally {
+        clearTimeout(deadline);
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors' && method === 'GET') {
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      try {
+        const workspace = workspaceCollection(account.email);
+        const [observed, webhook] = await Promise.all([
+          this.#connectorStore === undefined ? {} : this.#connectorStore.get(workspace),
+          this.#webhookService === undefined ? null : this.#webhookService.state(workspace),
+        ]);
+        send(response, 200, { connectors: mergeConnectorState(this.#connectorCatalog(), observed, {
+          webhookConfiguredAt: webhook?.configured === true ? webhook.configuredAt : null,
+        }) });
+      } catch {
+        send(response, 503, { error: 'connector_state_unavailable' });
+      }
+      return HANDLED;
+    }
 
     if (path === '/api/cron/agents/daily' && method === 'GET') {
       const authorization = firstHeader(request.headers.authorization);
@@ -709,17 +1499,27 @@ export class ApiRouter {
 
     if (path === '/api/session' && method === 'GET') {
       const token = cookies[SESSION_COOKIE];
-      const record = typeof token === 'string' && token !== ''
-        ? await this.#store.sessionFor(token, this.#now())
+      const joined = typeof token === 'string' && token !== ''
+        ? await this.#store.sessionAccountFor?.(token, this.#now())
         : null;
-      const account = record === null ? null : await this.#store.find(record.email);
-      if (account === null) {
+      let record = joined?.record ?? null;
+      let account = joined?.account ?? null;
+      if (joined === undefined && typeof token === 'string' && token !== '') {
+        record = await this.#store.sessionFor(token, this.#now());
+        account = record === null ? null : await this.#store.find(record.email);
+      }
+      if (account === null || record === null || !sessionVersionMatches(account, record)) {
         send(response, 200, { signedIn: false }, this.#csrfCookie(cookies));
         return HANDLED;
       }
       send(response, 200, {
         signedIn: true,
-        session: { email: account.email, workspace: account.workspace, onboarded: account.onboarded },
+        session: {
+          email: account.email,
+          workspace: account.workspace,
+          onboarded: account.onboarded,
+          binding: voiceSessionBinding(record.tokenHash),
+        },
       }, this.#csrfCookie(cookies));
       return HANDLED;
     }
@@ -740,7 +1540,10 @@ export class ApiRouter {
       // this protocol allows. Both are handled before the POST and CSRF checks
       // for that reason.
       if (path === '/api/auth/google/start' && method === 'GET') {
-        return this.#googleStart(response);
+        return this.#googleStart(request, response);
+      }
+      if (path === '/api/auth/google/link/start' && method === 'GET') {
+        return this.#googleLinkStart(request, response, cookies);
       }
       if (path === '/api/auth/google/callback' && method === 'GET') {
         return this.#googleCallback(request, response, cookies);
@@ -748,6 +1551,18 @@ export class ApiRouter {
 
       if (method !== 'POST') {
         send(response, 405, { error: 'method' });
+        return HANDLED;
+      }
+      // Browser auth mutations carry an Origin header. When one is present,
+      // bind it to the canonical deployment origin before accepting even a
+      // valid double-submit token. Non-browser callers may omit Origin for
+      // backwards-compatible CLI/API use; a supplied cross-origin value is
+      // never accepted.
+      const requestOrigin = firstHeader(request.headers.origin);
+      if (this.#siteOrigin !== undefined
+        && requestOrigin !== undefined
+        && !exactVoiceOrigin(requestOrigin, this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
         return HANDLED;
       }
       if (!csrfOk(request, cookies)) {
@@ -830,18 +1645,23 @@ export class ApiRouter {
            * means nobody is left without a way back after using theirs.
            */
           const replacement = newRecoveryCode();
+          const sessionVersion = newSessionVersion();
           await this.#store.update({
             ...account,
             passwordHash: await hashPassword(next),
             recoveryHash: await hashPassword(canonicalRecoveryCode(replacement)),
             // Credential recovery revokes every prior 30-day session. The
             // replacement session minted below carries this fresh epoch.
-            sessionVersion: newSessionVersion(),
+            sessionVersion,
           });
-          const token = await this.#store.startSession(email, this.#now());
+          const token = await this.#store.startSession(email, this.#now(), sessionVersion);
           send(response, 200, { signedIn: true, recoveryCode: replacement }, [this.#sessionCookie(token)]);
         } catch (error) {
-          send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+          if (error instanceof CredentialChanged) {
+            send(response, 409, { error: 'recovery_conflict' });
+          } else {
+            send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+          }
         }
         return HANDLED;
       }
@@ -882,6 +1702,15 @@ export class ApiRouter {
       }
       if (part === 'model') {
         send(response, 200, { label: headerModel(await modelRows(process.env)) });
+        return HANDLED;
+      }
+      if (part === 'connectors') {
+        // Public metadata only: never merge workspace observations, webhook
+        // state, imported counts, or account-derived identifiers here.
+        const connectors = this.#connectorCatalog().map(({ id, label, group, availability, reason }) => ({
+          id, label, group, availability, reason,
+        }));
+        send(response, 200, { connectors });
         return HANDLED;
       }
 
@@ -931,7 +1760,12 @@ export class ApiRouter {
       if (part === 'agents' || part === 'runs' || part === 'tools' || part === 'schedules') {
         const runtime = this.#agentStore;
         const schedules = this.#scheduleStore;
-        if (runtime === undefined || schedules === undefined || this.#agent === undefined) {
+        // Definitions, tools and persisted history remain readable even when
+        // no model provider is configured. Only the run mutation needs
+        // `#agent`; hiding the runtime behind a 503 made the Agents page look
+        // broken instead of showing the governed built-ins and the precise
+        // provider-unavailable state on RUN.
+        if (runtime === undefined || schedules === undefined) {
           send(response, 503, { error: 'runtime_unavailable' });
           return HANDLED;
         }
@@ -1136,8 +1970,13 @@ export class ApiRouter {
           return HANDLED;
         }
         const workspace = workspaceCollection(account.email);
-        const view = await this.#viewFor(cookies);
-        send(response, 200, recommendedAgents(workspace, view.memory));
+        try {
+          const view = await this.#viewFor(cookies);
+          send(response, 200, recommendedAgents(workspace, view.memory));
+        } catch (error) {
+          if (!(error instanceof ContextUnavailable)) throw error;
+          send(response, 503, { error: 'context_unavailable' });
+        }
         return HANDLED;
       }
 
@@ -1182,7 +2021,73 @@ export class ApiRouter {
         return HANDLED;
       }
 
+      /**
+       * Private, source-backed Hydra impact. The account is resolved first and
+       * the collection is derived only from that account; no tenant or
+       * provider selector is accepted from the URL. Public Explore continues
+       * using its legacy fixture endpoint.
+       */
+      if (part === 'impact') {
+        const account = await this.#accountFor(cookies);
+        if (account === null) {
+          send(response, 401, { error: 'session' });
+          return HANDLED;
+        }
+        const query = new URL(request.url ?? path, 'http://lacuna.invalid').searchParams;
+        const keys = [...query.keys()];
+        const subjects = query.getAll('subject');
+        if (keys.some((key) => key !== 'subject') || subjects.length !== 1) {
+          send(response, 422, { error: 'subject' });
+          return HANDLED;
+        }
+        const rawSubject = subjects[0];
+        const subject = rawSubject === undefined ? null : canonicalEntityName(rawSubject);
+        if (subject === null) {
+          send(response, 422, { error: 'subject' });
+          return HANDLED;
+        }
+        const impactFactory = this.#impact;
+        if (impactFactory === undefined) {
+          send(response, 503, { error: 'impact_unavailable' });
+          return HANDLED;
+        }
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const removeRequestAbort = onLifecycleEvent(request, 'aborted', abort);
+        const removeResponseClose = onLifecycleEvent(response, 'close', abort);
+        const started = Date.now();
+        try {
+          const result: WorkspaceImpactResult = await runWorkspaceImpact(
+            subject.display,
+            impactFactory(workspaceCollection(account.email)),
+            {
+              signal: controller.signal,
+              deadlineMs: started + WORKSPACE_IMPACT_LIMITS.routeDeadlineMs,
+            },
+          );
+          const { subject: resultSubject, ...payload } = result;
+          send(response, 200, {
+            available: true,
+            subject: resultSubject.display,
+            ...payload,
+            ms: Math.max(0, Date.now() - started),
+          });
+        } catch {
+          if (!response.destroyed && !response.writableEnded) {
+            send(response, 503, { error: 'impact_unavailable' });
+          }
+        } finally {
+          removeRequestAbort();
+          removeResponseClose();
+        }
+        return HANDLED;
+      }
+
       if (part === 'agents' || part === 'runs' || part === 'tools' || part === 'schedules') {
+        if ((part === 'runs' || part === 'schedules') && !voiceBindingOk(request, cookies, false)) {
+          send(response, 401, { error: 'voice_binding' });
+          return HANDLED;
+        }
         const account = await this.#accountFor(cookies);
         if (account === null) {
           send(response, 401, { error: 'session' });
@@ -1190,7 +2095,7 @@ export class ApiRouter {
         }
         const runtime = this.#agentStore;
         const schedules = this.#scheduleStore;
-        if (runtime === undefined || schedules === undefined || this.#agent === undefined) {
+        if (runtime === undefined || schedules === undefined) {
           send(response, 503, { error: 'runtime_unavailable' });
           return HANDLED;
         }
@@ -1212,8 +2117,6 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      const view = await this.#viewFor(cookies);
-
       // Probed rather than listed: these two ask the endpoints and report what
       // answered, so they run before the static branches below.
       if (part === 'models') {
@@ -1225,9 +2128,29 @@ export class ApiRouter {
         return HANDLED;
       }
 
-      const body = part === 'evaluations'
-        ? this.#evaluations ?? []
-        : workspacePart(view, part);
+      if (part === 'evaluations') {
+        send(response, 200, this.#evaluations ?? []);
+        return HANDLED;
+      }
+
+      const viewPart = part === 'changes' || part === 'conflicts' || part === 'connections'
+        || part === 'health' || part === 'memory' || part === 'categories'
+        || part === 'questions' || part === 'summary';
+      if (!viewPart) {
+        send(response, 404, { error: 'route' });
+        return HANDLED;
+      }
+
+      let view: WorkspaceView;
+      try {
+        view = await this.#viewFor(cookies);
+      } catch (error) {
+        if (!(error instanceof ContextUnavailable)) throw error;
+        send(response, 503, { error: 'context_unavailable' });
+        return HANDLED;
+      }
+
+      const body = workspacePart(view, part);
 
       if (body === null) {
         send(response, 404, { error: 'route' });
@@ -1317,8 +2240,8 @@ export class ApiRouter {
       const workspace = workspaceCollection(account.email);
       const control = new AbortController();
       const abort = () => control.abort();
-      request.once('aborted', abort);
-      response.once('close', abort);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abort);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abort);
       const access = {
         origin: firstHeader(request.headers.origin),
         expectedOrigin,
@@ -1331,8 +2254,57 @@ export class ApiRouter {
         ? await voice.token(access, control.signal)
         : await voice.speech(access, body, control.signal);
       await sendVoiceResult(response, result, control);
-      request.removeListener('aborted', abort);
-      response.removeListener('close', abort);
+      removeRequestAbort();
+      removeResponseClose();
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/voice/intent' && method === 'POST') {
+      const expectedOrigin = this.#siteOrigin;
+      const plan = this.#voiceIntent;
+      if (expectedOrigin === undefined || plan === undefined) {
+        send(response, 503, { error: 'voice_intent_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), expectedOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      let raw: unknown;
+      try {
+        raw = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const body = readVoiceIntentRequest(raw);
+      if (body === null) {
+        send(response, 422, { error: 'voice_intent' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateVoiceIntentLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_voice_intent_budget');
+        return HANDLED;
+      }
+      send(response, 200, {
+        ...plan(body.transcript, body.currentRoute, body.scope),
+        requestId: body.requestId,
+      });
       return HANDLED;
     }
 
@@ -1373,7 +2345,7 @@ export class ApiRouter {
           }
           // Resolve first so one signed-in workspace cannot revoke another's
           // bearer merely by obtaining its value elsewhere.
-          if (await capabilities.resolve(capability) !== workspace) {
+          if (await capabilities.resolve(capability, this.#now()) !== workspace) {
             send(response, 404, { error: 'capability' });
             return HANDLED;
           }
@@ -1396,6 +2368,7 @@ export class ApiRouter {
         send(response, 201, {
           capability: issued.capability,
           createdAt: issued.createdAt,
+          expiresAt: issued.expiresAt,
           endpoint: '/mcp',
         });
       } catch (error) {
@@ -1428,8 +2401,8 @@ export class ApiRouter {
       }
       const control = new AbortController();
       const abort = () => control.abort();
-      request.once('aborted', abort);
-      response.once('close', abort);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abort);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abort);
       const access = {
         origin: firstHeader(request.headers.origin),
         expectedOrigin,
@@ -1442,8 +2415,8 @@ export class ApiRouter {
         ? await voice.token(access, control.signal)
         : await voice.speech(access, body, control.signal);
       await sendVoiceResult(response, result, control);
-      request.removeListener('aborted', abort);
-      response.removeListener('close', abort);
+      removeRequestAbort();
+      removeResponseClose();
       return HANDLED;
     }
 
@@ -1474,13 +2447,17 @@ export class ApiRouter {
         send(response, 422, invalidRequest('question_unreadable'));
         return HANDLED;
       }
-      const source = openSource(workspaceCollection(account.email));
-      send(response, 200, await plannedAskEnvelope(
-        source,
-        text,
-        await knownSubjects(source),
-        ASK_TIMEOUT_MS,
-      ));
+      const source = openSource(workspaceReadCollection(account));
+      try {
+        send(response, 200, await plannedAskEnvelope(
+          source,
+          text,
+          await knownSubjects(source),
+          ASK_TIMEOUT_MS,
+        ));
+      } catch {
+        send(response, 503, { error: 'context_unavailable' });
+      }
       return HANDLED;
     }
 
@@ -1488,6 +2465,10 @@ export class ApiRouter {
     if (recommendedSchedule !== null && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
       const account = await this.#accountFor(cookies);
@@ -1524,7 +2505,14 @@ export class ApiRouter {
         return HANDLED;
       }
       const workspace = workspaceCollection(account.email);
-      const view = await this.#viewFor(cookies);
+      let view: WorkspaceView;
+      try {
+        view = await this.#viewFor(cookies);
+      } catch (error) {
+        if (!(error instanceof ContextUnavailable)) throw error;
+        send(response, 503, { error: 'context_unavailable' });
+        return HANDLED;
+      }
       const choice = recommendedAgents(workspace, view.memory)
         .find((recommendation) => recommendation.id === recommendationId);
       if (choice === undefined) {
@@ -1558,6 +2546,10 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
       const account = await this.#accountFor(cookies);
       if (account === null) {
         send(response, 401, { error: 'session' });
@@ -1575,26 +2567,33 @@ export class ApiRouter {
         send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
         return HANDLED;
       }
-      const task = body?.['task'];
-      if (typeof task !== 'string' || task.trim() === '' || task.length > 600) {
-        send(response, 422, { error: 'task_required' });
+      const runRequest = readAgentRunRequest(body);
+      if (runRequest === null) {
+        send(response, 422, { error: 'agent_run' });
         return HANDLED;
       }
       const workspace = workspaceCollection(account.email);
-      const requestedAgent = body?.['agentId'];
+      const requestedAgent = runRequest.agentId;
       if (requestedAgent !== undefined && requestedAgent !== builtInAgentId(workspace, 'RESEARCHER')) {
         send(response, 403, { error: 'agent_scope' });
         return HANDLED;
       }
-      const runBudget = this.#privateRunLimit.check(workspace, this.#now());
+      const idempotencyKey = runRequest.requestId === undefined
+        ? `web:${randomBytes(16).toString('hex')}`
+        : `voice:${runRequest.requestId}`;
+      const runBudget = this.#privateRunLimit.check(
+        workspace,
+        this.#now(),
+        runRequest.requestId === undefined ? undefined : idempotencyKey,
+      );
       if (!runBudget.allowed) {
         sendRateLimited(response, runBudget.retryAfterSeconds, 'workspace_run_budget');
         return HANDLED;
       }
       try {
         await this.#prepareRuntime(workspace);
-        send(response, 200, await runAgent(workspace, task, {
-          idempotencyKey: `web:${randomBytes(16).toString('hex')}`,
+        send(response, 200, await runAgent(workspace, runRequest.task, {
+          idempotencyKey,
         }));
       } catch (error) {
         if (error instanceof RunBudgetExceeded) {
@@ -1612,6 +2611,10 @@ export class ApiRouter {
     if (runMutation !== null && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
         return HANDLED;
       }
       const account = await this.#accountFor(cookies);
@@ -1682,6 +2685,10 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
+      if (!voiceBindingOk(request, cookies, true)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
       const account = await this.#accountFor(cookies);
       if (account === null) {
         send(response, 401, { error: 'session' });
@@ -1737,60 +2744,33 @@ export class ApiRouter {
     }
 
     /**
-     * The same run, over the corpus anybody can read.
+     * The public workspace is evidence, not a shared scratchpad.
      *
-     * A run writes nothing. Both agents are `NO_WRITE`, the manifest says so
-     * before either model is called, and the only thing it touches is the
-     * public collection every visitor already reads. So requiring an account
-     * for it protected nothing and hid the strongest thing the product does
-     * behind a sign-in wall, which is how a judge concludes it does not exist.
-     *
-     * It costs model calls where a read does not, which is why it has its own
-     * budget rather than sharing the read one.
+     * Agent manifests correctly prohibit authoritative memory writeback, but a
+     * run still persists its task, lifecycle, Context Pack and result in the
+     * runtime store and spends two provider calls. An anonymous endpoint would
+     * therefore let any visitor mutate public run history and make unbounded
+     * spend possible across serverless instances. Judges can inspect the
+     * accepted recorded run; creating new work requires an authenticated,
+     * workspace-scoped route with CSRF and durable per-workspace budgets.
      */
     if ((path === '/api/explore/agent/run' || path === '/api/demo/agent/run') && method === 'POST') {
-      const runAgent = this.#agent;
-      if (runAgent === undefined) {
-        send(response, 501, { error: 'no model provider is configured on this deployment' });
-        return HANDLED;
-      }
-      let body: Record<string, unknown> | null;
-      try {
-        body = await readJsonBody(request);
-      } catch (error) {
-        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
-        return HANDLED;
-      }
-      const task = body?.['task'];
-      if (typeof task !== 'string' || task.trim() === '' || task.length > 600) {
-        send(response, 422, { error: 'task_required' });
-        return HANDLED;
-      }
-      if (!this.#runLimit.check(sourceKey(request), this.#now()).allowed) {
-        send(response, 429, { error: 'too many runs from this address, try again shortly' });
-        return HANDLED;
-      }
-      const requestedAgent = body?.['agentId'];
-      if (requestedAgent !== undefined && requestedAgent !== builtInAgentId('public', 'RESEARCHER')) {
-        send(response, 403, { error: 'agent_scope' });
-        return HANDLED;
-      }
-      try {
-        await this.#prepareRuntime('public');
-        send(response, 200, await runAgent(null, task, {
-          idempotencyKey: `public:${randomBytes(16).toString('hex')}`,
-        }));
-      } catch (error) {
-        send(response, error instanceof AgentInputRejected ? 422 : 502, {
-          error: error instanceof AgentInputRejected ? 'task_rejected' : 'the run did not complete',
-        });
-      }
+      send(response, 403, { error: 'public_preview_read_only' });
       return HANDLED;
     }
 
     if (path === '/api/workspace/ingest' && method === 'POST') {
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      if (!voiceBindingOk(request, cookies, false)) {
+        send(response, 401, { error: 'voice_binding' });
+        return HANDLED;
+      }
+      if (this.#siteOrigin !== undefined
+        && !exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
         return HANDLED;
       }
       const account = await this.#accountFor(cookies);
@@ -1839,7 +2819,7 @@ export class ApiRouter {
           send(response, 200, { ok: false, reason: report });
           return HANDLED;
         }
-        send(response, 200, { ok: true, ...report });
+        send(response, 200, { ok: true, ...serializeIngestReport(report) });
       } catch {
         send(response, 502, { error: 'the context store did not accept the source' });
       }
@@ -1923,12 +2903,16 @@ export class ApiRouter {
         return HANDLED;
       }
       const source = openSource();
-      send(response, 200, await plannedAskEnvelope(
-        source,
-        text,
-        await knownSubjects(source),
-        ASK_TIMEOUT_MS,
-      ));
+      try {
+        send(response, 200, await plannedAskEnvelope(
+          source,
+          text,
+          await knownSubjects(source),
+          ASK_TIMEOUT_MS,
+        ));
+      } catch {
+        send(response, 503, { error: 'context_unavailable' });
+      }
       return HANDLED;
     }
 
@@ -1989,16 +2973,6 @@ export class ApiRouter {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;
       }
-      const token = cookies[SESSION_COOKIE];
-      const record = typeof token === 'string' && token !== ''
-        ? await this.#store.sessionFor(token, this.#now())
-        : null;
-      const account = record === null ? null : await this.#store.find(record.email);
-      if (account === null) {
-        send(response, 401, { error: 'session' });
-        return HANDLED;
-      }
-
       let body: Record<string, unknown> | null;
       try {
         body = await readJsonBody(request);
@@ -2012,8 +2986,16 @@ export class ApiRouter {
         return HANDLED;
       }
 
+      // Authenticate at the write boundary, after the bounded body read. A
+      // credential rotation during request upload must revoke this mutation.
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+
       try {
-        await this.#store.update({ ...account, workspace: name.trim(), onboarded: true });
+        await this.#store.updateWorkspace(account.email, name.trim());
         send(response, 204, null);
       } catch (error) {
         send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
@@ -2074,7 +3056,7 @@ export class ApiRouter {
         send(response, 409, { error: 'exists' });
         return HANDLED;
       }
-      const token = await this.#store.startSession(email, now);
+      const token = await this.#store.startSession(email, now, created.sessionVersion);
       send(response, 201, { signedIn: true, recoveryCode: recovery }, [this.#sessionCookie(token)]);
     } catch (error) {
       send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
@@ -2092,6 +3074,9 @@ export class ApiRouter {
       Location: to,
       'Cache-Control': 'no-store, private',
       Pragma: 'no-cache',
+      // OAuth codes and state arrive in the callback URL. Do not let a browser
+      // carry that URL as a referrer into the post-auth page or provider.
+      'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
     };
     if (cookies.length > 0) headers['Set-Cookie'] = [...cookies];
@@ -2107,24 +3092,57 @@ export class ApiRouter {
    * return. Without it somebody can hand a person a finished callback URL and
    * sign them into an account that is not theirs.
    */
-  #googleStart(response: ServerResponse): Handled {
+  #googleStart(request: IncomingMessage, response: ServerResponse): Handled {
     const google = this.#google;
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured');
+    const verdict = this.#googleStartLimit.check(sourceKey(request), this.#now());
+    if (!verdict.allowed) return this.#redirect(response, '/signin?google=rate');
 
     const state = mintToken();
     const proof = newGoogleAuthorizationProof();
+    const cookie = googleAttemptCookie(state);
     return this.#redirect(response, authorizeUrl(google, state, proof), [
-      serialiseCookie(GOOGLE_STATE_COOKIE, state, {
+      serialiseCookie(cookie, JSON.stringify({ state, codeVerifier: proof.codeVerifier, nonce: proof.nonce }), {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
       }),
-      serialiseCookie(GOOGLE_PKCE_COOKIE, proof.codeVerifier, {
-        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
-        httpOnly: true,
-        secure: this.#secure,
-      }),
-      serialiseCookie(GOOGLE_NONCE_COOKIE, proof.nonce, {
+    ]);
+  }
+
+  /**
+   * Start an explicit provider-link migration from an existing session.
+   *
+   * This is deliberately separate from sign in. A verified email must not
+   * merge into a password account by itself; the person must first prove the
+   * existing session, then prove the matching Google identity in the callback.
+   */
+  async #googleLinkStart(
+    request: IncomingMessage,
+    response: ServerResponse,
+    cookies: Readonly<Record<string, string>>,
+  ): Promise<Handled> {
+    const google = this.#google;
+    if (google === undefined) return this.#redirect(response, '/app/settings?google=unconfigured');
+    const account = await this.#accountFor(cookies);
+    if (account === null) return this.#redirect(response, '/signin?google=link_session');
+    if (account.authProvider === 'google' || account.providerSubject !== undefined && account.providerSubject !== null) {
+      return this.#redirect(response, '/app/settings?google=already_linked');
+    }
+    const verdict = this.#googleStartLimit.check(sourceKey(request), this.#now());
+    if (!verdict.allowed) return this.#redirect(response, '/app/settings?google=rate');
+
+    const state = mintToken();
+    const proof = newGoogleAuthorizationProof();
+    const cookie = googleAttemptCookie(state);
+    return this.#redirect(response, authorizeUrl(google, state, proof), [
+      serialiseCookie(cookie, JSON.stringify({
+        state,
+        codeVerifier: proof.codeVerifier,
+        nonce: proof.nonce,
+        mode: 'link',
+        ...(account.sessionVersion === undefined ? {} : { sessionVersion: account.sessionVersion }),
+      }), {
         maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
         httpOnly: true,
         secure: this.#secure,
@@ -2145,20 +3163,18 @@ export class ApiRouter {
   ): Promise<Handled> {
     const google = this.#google;
     const url = new URL(request.url ?? '/', 'http://placeholder');
-    const clear = [
-      clearCookie(GOOGLE_STATE_COOKIE, this.#secure),
-      clearCookie(GOOGLE_PKCE_COOKIE, this.#secure),
-      clearCookie(GOOGLE_NONCE_COOKIE, this.#secure),
-    ];
+    const state = url.searchParams.get('state');
+    // State is always a 43-character base64url proof minted by Lacuna. Reject
+    // malformed values before hashing attacker-controlled query bytes or
+    // looking up a dynamically named cookie.
+    const cookie = state !== null && GOOGLE_PROOF_SHAPE.test(state)
+      ? googleAttemptCookie(state)
+      : null;
+    const clear = cookie === null ? [] : [clearCookie(cookie, this.#secure)];
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured', clear);
 
-    // The person pressed cancel on Google's screen. Not an error.
-    if (url.searchParams.get('error') !== null) {
-      return this.#redirect(response, '/signin?google=cancelled', clear);
-    }
-
-    const state = url.searchParams.get('state');
-    const expected = cookies[GOOGLE_STATE_COOKIE];
+    const attempt = parseGoogleAttempt(cookie === null ? undefined : cookies[cookie]);
+    const expected = attempt?.state;
     if (
       typeof expected !== 'string' || expected === '' || state === null
       || state.length !== expected.length
@@ -2167,13 +3183,21 @@ export class ApiRouter {
       return this.#redirect(response, '/signin?google=state', clear);
     }
 
+    // Even a cancelled authorization is only meaningful when it belongs to
+    // the browser attempt that started it. Checking state before honoring the
+    // provider's error prevents a forged cancellation callback from consuming
+    // a real in-flight attempt (and keeps every callback outcome CSRF-bound).
+    if (url.searchParams.get('error') !== null) {
+      return this.#redirect(response, '/signin?google=cancelled', clear);
+    }
+
     const code = url.searchParams.get('code');
-    if (code === null || code === '') {
+    if (code === null || code === '' || code.length > GOOGLE_CODE_MAX_CHARS) {
       return this.#redirect(response, '/signin?google=code', clear);
     }
 
-    const codeVerifier = cookies[GOOGLE_PKCE_COOKIE];
-    const expectedNonce = cookies[GOOGLE_NONCE_COOKIE];
+    const codeVerifier = attempt?.codeVerifier;
+    const expectedNonce = attempt?.nonce;
     if (typeof codeVerifier !== 'string' || codeVerifier === ''
       || typeof expectedNonce !== 'string' || expectedNonce === '') {
       return this.#redirect(response, '/signin?google=state', clear);
@@ -2186,8 +3210,54 @@ export class ApiRouter {
     let identity;
     try {
       identity = await identityFromCode(google, code, fetch, { codeVerifier, expectedNonce });
-    } catch {
-      return this.#redirect(response, '/signin?google=identity', clear);
+    } catch (error) {
+      return this.#redirect(
+        response,
+        `/signin?google=${error instanceof GoogleAuthError && error.message === 'the Google provider timed out' ? 'timeout' : 'identity'}`,
+        clear,
+      );
+    }
+
+    const verifiedAttempt = attempt;
+    if (verifiedAttempt === null) return this.#redirect(response, '/signin?google=state', clear);
+    if (verifiedAttempt.mode === 'link') {
+      const sessionToken = cookies[SESSION_COOKIE];
+      const account = typeof sessionToken === 'string' && sessionToken !== ''
+        ? await this.#accountFor(cookies)
+        : null;
+      if (account === null) return this.#redirect(response, '/signin?google=link_session', clear);
+      if (identity.email !== account.email) return this.#redirect(response, '/app/settings?google=link_email', clear);
+      if (account.authProvider === 'google' || (account.providerSubject !== undefined && account.providerSubject !== null)) {
+        return this.#redirect(response, '/app/settings?google=already_linked', clear);
+      }
+      if ((account.sessionVersion ?? '') !== (verifiedAttempt.sessionVersion ?? '')) {
+        return this.#redirect(response, '/app/settings?google=link_expired', clear);
+      }
+
+      try {
+        const current = await this.#store.find(account.email);
+        if (current === null
+          || (current.sessionVersion ?? '') !== (verifiedAttempt.sessionVersion ?? '')
+          || current.authProvider === 'google'
+          || (current.providerSubject !== undefined && current.providerSubject !== null)) {
+          return this.#redirect(response, '/app/settings?google=link_expired', clear);
+        }
+        const linked: Account = {
+          ...current,
+          // Linking is an explicit credential migration. The old password and
+          // recovery code are removed so the record has one unambiguous owner.
+          passwordHash: await decoy(),
+          authProvider: 'google',
+          providerSubject: identity.subject,
+          recoveryHash: null,
+          sessionVersion: newSessionVersion(),
+        };
+        await this.#store.update(linked);
+        const token = await this.#store.startSession(linked.email, this.#now(), linked.sessionVersion);
+        return this.#redirect(response, '/app/settings?google=linked', [...clear, this.#sessionCookie(token)]);
+      } catch {
+        return this.#redirect(response, '/app/settings?google=link_store', clear);
+      }
     }
 
     try {
@@ -2214,14 +3284,56 @@ export class ApiRouter {
         if (account === null) return this.#redirect(response, '/signin?google=store', clear);
       }
 
-      // A verified address is not enough to merge providers. Existing legacy,
-      // password, or differently-bound Google records all fail closed until a
-      // separately verified linking/migration flow exists.
-      if (!googleBinding(account, identity).allowed) {
-        return this.#redirect(response, '/signin?google=identity', clear);
+      // A verified address alone is not enough to merge providers. The only
+      // exception is a one-time operator-approved migration for one exact
+      // legacy address. Google still proves the address and stable subject;
+      // the server-side allowlist supplies the separate administrative proof.
+      const binding = googleBinding(account, identity);
+      if (!binding.allowed) {
+        if (
+          binding.failure !== 'legacy_unbound'
+          || this.#legacyGoogleMigrationEmail !== identity.email
+        ) {
+          return this.#redirect(response, `/signin?google=${binding.failure}`, clear);
+        }
+
+        // Resolve the expensive Argon2 decoy before the eligibility re-read so
+        // no local computation widens the remaining non-atomic write window.
+        const replacementPasswordHash = await decoy();
+        const replacementSessionVersion = newSessionVersion();
+
+        // Re-read at the write boundary. HydraDB does not offer conditional
+        // document updates, so this cannot be a CAS, but it prevents a stale
+        // callback from knowingly replacing a record whose credential epoch or
+        // provider changed after the first read. A partially bound legacy row
+        // is also refused instead of guessed into ownership.
+        const current = await this.#store.find(identity.email);
+        if (
+          current === null
+          || current.authProvider !== undefined
+          || (current.providerSubject !== undefined && current.providerSubject !== null)
+          || (current.sessionVersion ?? '') !== (account.sessionVersion ?? '')
+        ) {
+          return this.#redirect(response, '/signin?google=legacy_unbound', clear);
+        }
+
+        // Migration makes Google the sole credential. Rotating the credential
+        // epoch invalidates every legacy session; replacing both password
+        // recovery paths prevents an old secret from remaining a hidden second
+        // provider after the record says it is Google-owned.
+        const migrated: Account = {
+          ...current,
+          passwordHash: replacementPasswordHash,
+          authProvider: 'google',
+          providerSubject: identity.subject,
+          sessionVersion: replacementSessionVersion,
+          recoveryHash: null,
+        };
+        await this.#store.update(migrated);
+        account = migrated;
       }
 
-      const token = await this.#store.startSession(account.email, this.#now());
+      const token = await this.#store.startSession(account.email, this.#now(), account.sessionVersion);
       return this.#redirect(response, this.#afterSignIn(account), [...clear, this.#sessionCookie(token)]);
     } catch {
       return this.#redirect(response, '/signin?google=store', clear);
@@ -2246,10 +3358,14 @@ export class ApiRouter {
     }
 
     try {
-      const token = await this.#store.startSession(email, this.#now());
+      const token = await this.#store.startSession(email, this.#now(), account.sessionVersion);
       send(response, 200, { signedIn: true }, [this.#sessionCookie(token)]);
     } catch (error) {
-      send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+      if (error instanceof CredentialChanged) {
+        send(response, 401, { error: 'credentials' });
+      } else {
+        send(response, error instanceof StoreUnavailable ? 503 : 500, { error: 'store' });
+      }
     }
     return HANDLED;
   }

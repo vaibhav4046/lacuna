@@ -1,0 +1,131 @@
+{
+  "recorded_at": "2026-08-21T04:11:18Z",
+  "deployment": "https://lacuna-2so4jmeoo-vaibhav4046s-projects.vercel.app",
+  "request": {
+    "text": "Assess the production blast radius of changing package-session. Find every direct and transitive dependent production service, show every dependency path and depth, identify currently valid migration guidance, surface unresolved operational contradictions, identify evidence still missing for a safe rollout, recall verified deployment gotchas, and produce a rollout plan using only supported facts.",
+    "characters": 399
+  },
+  "verdict": "NOT_PROVEN",
+  "exact_request": {
+    "corpus": {
+      "package_session_present": false,
+      "evidence": [
+        "src/corpus/vocab.ts does not list package-session",
+        "public HTTP MCP search for package-session returned zero results"
+      ]
+    },
+    "web_sentence_api": {
+      "request": "POST /api/explore/query",
+      "status": 422,
+      "outcome": "INVALID_REQUEST",
+      "reason": "question_unreadable",
+      "note": "The sentence API caps questions at 300 characters; the exact request is 399."
+    },
+    "public_agent": {
+      "request": "POST /api/explore/agent/run",
+      "run_id": "run-efa1f375d761-92323446-4d73-4f25-890c-6b64603aab21",
+      "status": "FAILED",
+      "error": "no_known_subject",
+      "detail": "the task named nothing this workspace holds",
+      "result": null,
+      "model_calls": 0,
+      "total_ms": 752,
+      "writeback": "NO_WRITE"
+    },
+    "public_http_mcp": {
+      "tools_list_status": 200,
+      "public_tools": 7,
+      "blast_radius_tool_present": false,
+      "search_package_session_results": 0,
+      "raw_read_question_outcome": "no_subject",
+      "raw_read_question_answer": null,
+      "note": "lacuna_read_question advertises maxLength 300. A raw protocol call still reached the implementation and abstained; a schema-validating client may refuse before calling it."
+    },
+    "cli": {
+      "blast_command_present": false,
+      "read_uses_shared_sentence_parser": true,
+      "attempt_outcome": "CONFIGURATION_ERROR",
+      "detail": "HYDRA_HTTP_URL is not set",
+      "note": "This checkout has neither a reachable node profile nor HydraDB Cloud credentials for the CLI."
+    }
+  },
+  "canonical_blast_sentence": {
+    "text": "If pact-check changes, which services are affected?",
+    "web_sentence_api": {
+      "status": 200,
+      "reading": null,
+      "unread": "no_predicate",
+      "answer": null,
+      "ms": 108
+    },
+    "public_http_mcp": {
+      "unread": "no_predicate",
+      "records": [
+        "depends_on"
+      ],
+      "answer": null
+    },
+    "shared_parser_probe": {
+      "subjects": [
+        "pact-check"
+      ],
+      "predicate": null
+    }
+  },
+  "closest_existing_pact_check_proof": {
+    "recorded_artifact": "artifacts/proof/proofs.json",
+    "recorded_on": "2026-08-19",
+    "cloud_and_node_agree": true,
+    "affected_services": 13,
+    "max_depth": 3,
+    "intermediate_packages": 7,
+    "superseded_or_withdrawn_edges_ignored": 0,
+    "limitation": "The proof script calls blastRadius in-process for HydraDB Cloud and node, then separately checks ordinary fact questions over Web, CLI and MCP. It does not run the blast-radius result through Web, CLI or MCP. The persisted summary also drops each service's path and per-hop citations."
+  },
+  "pact_check_agent_probe": {
+    "run_id": "run-efa1f375d761-82322038-3303-49d5-8961-326a584a990c",
+    "status": "COMPLETED",
+    "result": null,
+    "context_claims": 2,
+    "context_calls": 13,
+    "context_ms": 389,
+    "researcher_ms": 2159,
+    "reviewer_ms": 3454,
+    "total_ms": 7527,
+    "reviewer_approved": false,
+    "reviewer_unsupported": [
+      "Designation of depth 1 for byte-sieve.",
+      "Designation of depth 1 for moss-index."
+    ],
+    "semantic_limitation": "The agent context pack retrieved pact-check's outbound dependencies, byte-sieve and moss-index. It did not invoke blastRadius, find reverse dependents, walk transitive service paths, or retrieve rollout evidence."
+  },
+  "production_graph_impact_endpoint": {
+    "request": "GET /api/explore/impact",
+    "available": true,
+    "subject": "tenant-router",
+    "reached": 21,
+    "accepted": 2,
+    "rejected": 10,
+    "duplicates": 9,
+    "affected": [
+      "hash-fence",
+      "token-forge"
+    ],
+    "depth": 1,
+    "ms": 2506,
+    "limitation": "This is a different, automatically selected HydraDB relation walk. It cannot be asked for package-session or pact-check."
+  },
+  "cross_channel_gate": {
+    "status": "FAIL",
+    "blockers": [
+      "package-session has no node, claims, operational guidance, contradictions, gotchas or service topology in the shipped corpus",
+      "the exact 399-character request exceeds the 300-character Web sentence limit and the MCP tool's advertised schema limit",
+      "production Web has no dynamic blast-radius API or routed React blast page",
+      "MCP exposes no blast-radius tool",
+      "CLI exposes no blast-radius command",
+      "the agent context compiler performs bounded subject/predicate reads but does not call the blast traversal",
+      "the canonical natural-language blast sentence is unreadable by the shared Web/MCP/CLI sentence parser",
+      "existing cross-client parity checks ordinary question envelopes; full blast semantics are compared only between HydraDB node and Cloud"
+    ]
+  }
+}

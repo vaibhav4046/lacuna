@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-landing-close",
+  "capturedAt": "2026-08-21T03:35:22.569Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "#hydra",
+        "state": "attached",
+        "timeoutMs": 25000,
+        "textPredicate": "none",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "[data-scene=\"final\"]",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "12-landing-close.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 7.067,
+    "bytes": 2919912,
+    "sha256": "7bc021ded242e055ff8c63dbb0363f3b2dec89c895ae4cd7c78784e89f8e32ea",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 212,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 242,
+    "savedFrames": 149,
+    "acknowledgedFrames": 242,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 93,
+    "targetFrames": 212,
+    "uniqueSourceFramesUsed": 149,
+    "duplicatedTargetFrames": 63,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 24,
+    "longestSourceGapMs": 165,
+    "uniqueSourcePayloads": 149,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 1,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 1,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 1,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 600
+      },
+      "startedAtMs": 280,
+      "durationMs": 600,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "scroll",
+        "durationMs": 1600,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "#evals",
+        "align": "center"
+      },
+      "startedAtMs": 880,
+      "durationMs": 1630,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "wait",
+        "durationMs": 600
+      },
+      "startedAtMs": 2510,
+      "durationMs": 612,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "scroll",
+        "durationMs": 2100,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "[data-scene=\"final\"]",
+        "align": "center"
+      },
+      "startedAtMs": 3122,
+      "durationMs": 2147,
+      "ok": true
+    },
+    {
+      "index": 4,
+      "action": {
+        "type": "wait",
+        "durationMs": 900
+      },
+      "startedAtMs": 5269,
+      "durationMs": 900,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

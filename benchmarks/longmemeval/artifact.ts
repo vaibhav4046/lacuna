@@ -59,16 +59,19 @@ export interface RunArtifact {
  * docs/BENCHMARK_LONGMEMEVAL.md for the long form.
  */
 export const KNOWN_LIMITATIONS: readonly string[] = [
-  'Lacuna has no claim extractor for raw prose, so the adapted sessions carry no claims and no '
-  + 'entities, and the resulting graph has nothing for the resolver to resolve.',
-  'Lacuna retrieval takes a structured {subject, predicate, via} question, not a sentence. '
-  + 'Nothing in this repository parses a LongMemEval question into one.',
+  'The shipped extractor reads a narrow infrastructure vocabulary. LongMemEval is a personal '
+  + 'assistant benchmark, so the adapted sessions carry sparse and potentially low-precision '
+  + 'claims; the published oracle run measured 128 claims across 84 of 500 instances (16.8% ingest coverage).',
+  'The deterministic answerer sends sentences through Lacuna\'s bounded planner and resolver. '
+  + 'Questions outside that planner\'s known subjects or predicate vocabulary abstain rather than '
+  + 'inventing a structured question.',
   'Session ids are preserved verbatim, and an official evidence session id contains the substring '
   + '"answer". Lacuna never reads a session key to decide anything, but the signal is in the store.',
   'Session timestamps are stored verbatim in the dataset format ("2023/05/30 (Tue) 23:40"), which '
   + 'is not ISO 8601 and is not parsed.',
-  'One question per graph. Haystack session ids are drawn from a shared pool and repeat across '
-  + 'questions, so a second haystack in the same graph collides on keys.',
+  'The runner refuses multi-question runs without a per-question source factory. Haystack session '
+  + 'ids are drawn from a shared pool and repeat across questions, so a second haystack in the same '
+  + 'graph would collide on keys; a factory must provide isolated writable node graphs.',
   'longmemeval_m_cleaned.json cannot be loaded. At 2.74 GB it is past what JSON.parse can hold.',
   'The official evaluation is a paid LLM judge and has not been run by this repository.',
 ];

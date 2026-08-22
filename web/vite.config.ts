@@ -24,6 +24,10 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: 'http://127.0.0.1:3014', changeOrigin: false },
+      // The Tools route performs a real MCP `tools/list` probe. Keep local
+      // development on the same protocol surface as production instead of
+      // letting the SPA fallback turn `/mcp` into an HTML-shaped 404.
+      '/mcp': { target: 'http://127.0.0.1:3014', changeOrigin: false },
     },
   },
   // An inline PostCSS config, deliberately empty. Without it Vite walks up the

@@ -57,12 +57,16 @@ export function Try() {
   const [reply, setReply] = useState<Reply | null>(null);
 
   async function ask(question: string) {
+    if (busy) return;
     setText(question);
     setBusy(true);
     setReply(null);
-    const got = await postFor<Reply>('/api/explore/query', { question });
-    setReply(got ?? { reading: null, unread: 'unreachable', knownSubjects: [], ms: 0, answer: null });
-    setBusy(false);
+    try {
+      const got = await postFor<Reply>('/api/explore/query', { question });
+      setReply(got ?? { reading: null, unread: 'unreachable', knownSubjects: [], ms: 0, answer: null });
+    } finally {
+      setBusy(false);
+    }
   }
 
   const answer = reply?.answer ?? null;

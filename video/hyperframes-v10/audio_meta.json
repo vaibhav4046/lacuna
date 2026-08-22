@@ -1,0 +1,18 @@
+{
+  "bgm": null,
+  "bgm_pending": false,
+  "voices": [
+    { "frame": 1, "path": "assets/private-voice/01-vaibhav.wav", "duration_s": 9.2, "words": [] },
+    { "frame": 2, "path": "assets/private-voice/02-vaibhav.wav", "duration_s": 16.2, "words": [] },
+    { "frame": 3, "path": "assets/private-voice/03-vaibhav.wav", "duration_s": 13.0, "words": [] },
+    { "frame": 4, "path": "assets/private-voice/04-vaibhav.wav", "duration_s": 20.8, "words": [] },
+    { "frame": 5, "path": "assets/private-voice/05-vaibhav.wav", "duration_s": 15.8, "words": [] },
+    { "frame": 6, "path": "assets/private-voice/06-vaibhav.wav", "duration_s": 16.8, "words": [] },
+    { "frame": 7, "path": "assets/private-voice/07-vaibhav.wav", "duration_s": 24.0, "words": [] },
+    { "frame": 8, "path": "assets/private-voice/08-vaibhav.wav", "duration_s": 16.0, "words": [] },
+    { "frame": 9, "path": "assets/private-voice/09-vaibhav.wav", "duration_s": 20.2, "words": [] },
+    { "frame": 10, "path": "assets/private-voice/10-vaibhav.wav", "duration_s": 15.0, "words": [] },
+    { "frame": 11, "path": "assets/private-voice/11-vaibhav.wav", "duration_s": 10.3975, "words": [] }
+  ],
+  "sfx": []
+}

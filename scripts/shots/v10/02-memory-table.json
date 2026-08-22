@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "v10-memory-table",
+  "url": "http://127.0.0.1:4174/explore/memory",
+  "output": "video/hyperframes-v10/assets/captures/02-memory-table.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "40 SHOWN · 40 LOADED · 174 IN THIS WORKSPACE" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 450 },
+    { "type": "type", "selector": "main input[placeholder=\"Search claims\"]", "text": "Rasmus", "clear": true, "delayMs": 55, "settleMs": 700 },
+    { "type": "wait", "durationMs": 800 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "1 SHOWN · 40 LOADED" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "Rasmus Berg" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

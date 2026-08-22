@@ -1,12 +1,13 @@
 # LongMemEval integration
 
 **No LongMemEval number has been produced by this repository.** Nothing in this
-document reports a score, and nothing in `benchmarks/longmemeval/` can produce
-one yet. What exists is the integration: the official format read correctly, an
-adapter that cannot carry an answer into ingestion, claim extraction from the
-raw haystack prose, a runner that refuses rather than invents, and this record
-of what a real run would still need. One component is still missing and it is
-named in [What a real run still needs](#what-a-real-run-still-needs).
+document reports a score. What exists is the integration: the official format
+read correctly, an adapter that cannot carry an answer into ingestion, claim
+extraction from the raw haystack prose, a deterministic hypothesis runner that
+refuses to invent, and an official-compatible paid-judge client. The repository
+can now produce hypotheses and, when an owner supplies a judge key and budget,
+an auditable evaluation log; it does not claim a score until that run actually
+completes.
 
 ## The benchmark
 
@@ -138,8 +139,34 @@ selected by `'_abs' in entry['question_id']`.
 
 **The official evaluation is an LLM judge and it costs money.** Running it means
 500 calls to `gpt-4o` (or a hosted Llama 3.1 70B), so it needs an API key and a
-budget. No such key is configured in this repository and no such call has been
-made.
+budget. The repository includes the same prompt branches and model mappings in
+`benchmarks/longmemeval/judge.ts`, exposed as:
+
+```bash
+npm run bench:longmemeval:judge -- \
+  --dataset data/longmemeval_oracle.json \
+  --hypotheses artifacts/longmemeval/run/hypotheses.jsonl \
+  --out artifacts/longmemeval/run/judge.jsonl \
+  --model gpt-4o-mini
+```
+
+The command fails closed when `OPENAI_API_KEY` is absent, rejects duplicate or
+partial hypothesis files on the default path, and enforces a 500-call default
+budget. A partial diagnostic run must opt into `--max-calls` explicitly. No such
+key is configured in this repository and no such call has been made, so there
+is still no official score.
+
+Before treating a downloaded file as the official oracle tier, run the identity
+gate:
+
+```bash
+npm run bench:longmemeval:verify -- data/longmemeval_oracle.json
+```
+
+It requires the pinned filename, 15,388,478 bytes, the recorded SHA-256, exactly
+500 unique question ids, and the recorded SHA-256 of the lexically sorted id
+stream. The command only verifies acquisition identity; it never calls a judge
+and never emits a score.
 
 ## The ability taxonomy
 
@@ -177,9 +204,14 @@ benchmarks/longmemeval/
   schema.ts     official record types, the ability map, the abstention test
   load.ts       reads and validates a dataset file, and strips ground truth
   adapt.ts      one question's haystack into raw sessions for ingestion
+  personal.ts   scoped, exact-span first-person fact extraction for this domain
+  coverage.ts   official question-type coverage summary for the published run
   artifact.ts   what a run must record about itself
-  run.ts        the runner, and the two places it refuses
+  run.ts        the deterministic hypothesis runner
+  answerer.ts   the bounded planner-backed answerer
+  judge.ts      the official prompt-compatible, fail-closed judge client
 tests/unit/longmemeval-adapter.test.ts
+tests/unit/longmemeval-judge.test.ts
 ```
 
 ```bash
@@ -210,10 +242,11 @@ every message carries exactly those eight keys.
 The adapter's return type declares `questions: readonly never[]`, so the value
 it hands ingestion cannot be given a question with an expected answer either.
 
-The runner fails loudly in two places and neither has a fallback: an absent or
-malformed dataset file throws with the download command in the message, and a
-run with no answerer wired throws naming the two components below. It never
-writes a hypothesis it did not get from a system.
+The runner fails loudly when the dataset is absent or malformed. Its default
+answerer is `lacuna-deterministic-planner-v1`: it uses the same sentence planner
+and evidence resolver as the product and writes an abstention when the bounded
+planner cannot read a question. It never writes a hypothesis from the gold
+answer, and it never pretends that writing hypotheses is an official score.
 
 ## Claims out of the haystack
 
@@ -256,7 +289,22 @@ Written to [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/in
 | sessions | 948 |
 | messages | 10,960 |
 | estimated tokens | 3,303,216 |
-| read in | 0.6s |
+| read in | 1.5s |
+
+The same artifact also records coverage by the official question type, so the
+16.8% aggregate cannot hide a type-specific gap:
+
+| question type | instances | with a claim | claims | abstentions |
+| --- | ---: | ---: | ---: | ---: |
+| single-session-user | 70 | 8 | 9 | 6 |
+| single-session-assistant | 56 | 6 | 7 | 0 |
+| single-session-preference | 30 | 2 | 3 | 0 |
+| multi-session | 133 | 25 | 37 | 12 |
+| temporal-reasoning | 133 | 25 | 42 | 6 |
+| knowledge-update | 78 | 18 | 30 | 6 |
+
+These are extraction/ingestion counts only. They are not per-type accuracy,
+retrieval recall or an official LongMemEval score.
 
 The first three rows are the ones worth having. The format reader and the
 leakage guarantee were previously tested only against fixtures handwritten from
@@ -265,11 +313,15 @@ nothing about the shape that is published. They now hold against the published
 file: every record parses, and no serialised haystack contains `has_answer` or
 `answer_session_ids`.
 
-## The extractor does not read this domain, and the measurement says so
+## The extractor boundary and the measurement
 
-**116 claims came out of 3.3 million tokens, and a manual sample of them is
-mostly wrong.** This is the most important honest result in this document and it
-is not a good one.
+The production frame table still targets infrastructure prose. The benchmark
+adapter now adds a separate, high-precision personal bridge for explicit
+first-person degree, occupation, commute-duration and a few other facts; it does
+not widen the production extractor or pretend to read arbitrary English.
+Across the published oracle tier, **128 claims came out of 3.3 million tokens
+and 84/500 instances (16.8%) carried at least one**. This is ingest coverage,
+not answer accuracy or an official benchmark score.
 
 The frame table was written for infrastructure conversations: where a service
 stores its data, who owns it, what it depends on, what region it runs in.
@@ -298,20 +350,20 @@ survivors still shows `[storage] aims = protect the state's coral reefs` and
 Tightening further would be fitting the frames to this dataset, which is a
 different thing from reading it, so it was not done.
 
-**No LongMemEval score is claimed, and none would be meaningful until an
-extractor exists that reads this domain.** That is a larger gap than the
-question parser named below, and it is named first because it is the one that
-decides whether a number would mean anything.
+**No LongMemEval score is claimed.** The deterministic runner is useful for
+measuring pipeline behavior and producing inspectable hypotheses, but this
+scoped parser remains intentionally sparse and is not an accepted benchmark
+result.
 
 ## What a real run still needs
 
-One component, which does not exist in this repository.
+Two components remain before an accepted official result.
 
-**A question parser and a verbaliser.** `ask` takes
-`{subject, predicate, via}`, not a sentence. LongMemEval asks "What degree did I
-graduate with?". Something has to turn that sentence into a structured question,
-and turn the resulting `Outcome` back into the free text string the official
-hypothesis file wants.
+**Broader domain extraction and question/verbalisation.** The current bridge
+handles a small, explicit personal vocabulary and the planner maps those
+predicates into questions such as "What degree did I graduate with?". A broader
+parser and answer verbaliser are still required before a score would mean what
+the benchmark says it means.
 
 Then, to score it: an API key for the judge model, and the budget for 500 calls
 per run.
@@ -322,8 +374,8 @@ per run.
 |---|---|
 | download | 15.4 MB (oracle), 277 MB (s), 2.74 GB (m). Public, no credential |
 | store | a HydraDB node. The runner is pinned to the node profile, as the other benchmarks are |
-| isolation | one question's haystack per graph. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph collide on keys |
-| missing code | a natural language question parser and verbaliser |
+| isolation | enforced by the runner: a multi-question run refuses unless a per-question source factory supplies isolated writable node graphs. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph would collide on keys |
+| missing code | broader personal-domain extraction and question/verbalisation |
 | judge | `gpt-4o`, `gpt-4o-mini` or `llama-3.1-70b-instruct`, 500 calls, paid, not configured here |
 
 ## Honest status
@@ -334,9 +386,9 @@ per run.
 | loader and adapter | written, and run over all 500 published instances with 0 failures |
 | ground truth isolation | structural, and verified against the published file rather than fixtures |
 | dataset downloaded | yes, the oracle tier |
-| claim extraction from haystack prose | wired in, and **it does not read this domain**: 116 claims from 3.3M tokens, mostly wrong on inspection |
+| claim extraction from haystack prose | scoped personal bridge plus core frames: 128 claims from 3.3M tokens (84/500 instances, 16.8% ingest coverage); no official score inferred |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | ingestion of a real haystack | adapted, not written to a store |
-| hypotheses produced | none |
+| hypotheses produced | deterministic runner implemented; multi-question runs fail closed without explicit per-question graph isolation; no full store-backed run accepted |
 | official evaluation run | no |
 | score | **none. No LongMemEval number exists for Lacuna** |

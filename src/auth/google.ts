@@ -54,10 +54,27 @@ const JWKS = 'https://www.googleapis.com/oauth2/v3/certs';
 
 const SCOPES = 'openid email profile';
 
+/** A provider outage must return to sign-in, never leave the callback hanging. */
+export const GOOGLE_PROVIDER_TIMEOUT_MS = 10_000;
+
+/** Provider JSON is small identity metadata, never an unbounded document. */
+const GOOGLE_JSON_MAX_BYTES = 1_048_576;
+
 /** The issuer Google uses. Both spellings are current and both are accepted. */
 const ISSUERS = new Set(['https://accounts.google.com', 'accounts.google.com']);
 
 export class GoogleAuthError extends Error {}
+
+/**
+ * Fetch aborts can cross a realm boundary (or come from a polyfill), so an
+ * `instanceof DOMException` check is not a reliable way to recognise the
+ * provider deadline. The stable contract is the error name.
+ */
+function hasErrorName(error: unknown, names: readonly string[]): boolean {
+  return typeof error === 'object' && error !== null
+    && typeof (error as { readonly name?: unknown }).name === 'string'
+    && names.includes((error as { readonly name: string }).name);
+}
 
 export interface GoogleAuthorizationProof {
   /** OAuth PKCE verifier, kept server side for the callback. */
@@ -131,6 +148,66 @@ interface TokenResponse {
   readonly id_token?: unknown;
 }
 
+/** Read provider JSON with the same bounded timeout as the network request. */
+async function readGoogleJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let rejectAbort!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { rejectAbort = reject; });
+  const onAbort = () => {
+    rejectAbort(new GoogleAuthError('the Google provider timed out'));
+    if (reader !== null) void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    if (signal.aborted) onAbort();
+    if (response.body === null || typeof response.body.getReader !== 'function') {
+      try {
+        return await Promise.race([response.json() as Promise<unknown>, aborted]);
+      } catch (error) {
+        if (error instanceof GoogleAuthError) throw error;
+        throw new GoogleAuthError('the provider response could not be read');
+      }
+    }
+
+    reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      let next: ReadableStreamReadResult<Uint8Array>;
+      try {
+        // Node's fetch reader and the DOM lib describe the optional `value`
+        // on a completed read differently. The runtime contract is the same;
+        // normalize it at this boundary before racing the provider deadline.
+        const read = reader.read() as Promise<ReadableStreamReadResult<Uint8Array>>;
+        next = await Promise.race([read, aborted]);
+      } catch (error) {
+        if (error instanceof GoogleAuthError) throw error;
+        if (signal.aborted) throw new GoogleAuthError('the Google provider timed out');
+        throw new GoogleAuthError('the provider response could not be read');
+      }
+      if (next.done) break;
+      if (next.value === undefined) continue;
+      total += next.value.byteLength;
+      if (total > GOOGLE_JSON_MAX_BYTES) throw new GoogleAuthError('the provider response was too large');
+      chunks.push(next.value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    try {
+      return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+    } catch {
+      throw new GoogleAuthError('the provider response could not be read');
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    reader?.releaseLock();
+  }
+}
+
 interface GoogleJwk {
   readonly kid?: unknown;
   readonly kty?: unknown;
@@ -197,15 +274,24 @@ function keyTtl(response: Response, now: number): number {
   return now + bounded * 1_000;
 }
 
-async function googleKey(kid: string, fetchImpl: typeof fetch, now: number): Promise<KeyObject> {
+async function googleKey(
+  kid: string,
+  fetchImpl: typeof fetch,
+  now: number,
+  signal?: AbortSignal,
+): Promise<KeyObject> {
   const cached = keyCache.get(kid);
   if (cached !== undefined && cached.expiresAt > now) return cached.key;
 
-  const response = await fetchImpl(JWKS, { method: 'GET', headers: { Accept: 'application/json' } });
+  const response = await fetchImpl(JWKS, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    ...(signal === undefined ? {} : { signal }),
+  });
   if (!response.ok) throw new GoogleAuthError(`the key endpoint answered ${response.status}`);
   let body: GoogleJwks;
   try {
-    body = await response.json() as GoogleJwks;
+    body = await readGoogleJson(response, signal ?? new AbortController().signal) as GoogleJwks;
   } catch {
     throw new GoogleAuthError('the key endpoint response could not be read');
   }
@@ -242,6 +328,7 @@ export interface GoogleIdTokenOptions {
   readonly expectedNonce?: string;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
+  readonly signal?: AbortSignal;
 }
 
 /** Verify Google's RS256 signature and every claim Lacuna relies on. */
@@ -257,7 +344,7 @@ export async function verifyGoogleIdToken(
     throw new GoogleAuthError('the identity token named no supported signing key');
   }
   const now = (options.now ?? Date.now)();
-  const key = await googleKey(kid, options.fetch ?? fetch, now);
+  const key = await googleKey(kid, options.fetch ?? fetch, now, options.signal);
   if (!verifySignature('RSA-SHA256', parts.signingInput, key, parts.signature)) {
     throw new GoogleAuthError('the identity token signature was invalid');
   }
@@ -289,6 +376,8 @@ export async function verifyGoogleIdToken(
 export interface GoogleCodeOptions {
   readonly codeVerifier?: string;
   readonly expectedNonce?: string;
+  /** Test seam for exercising the same bounded timeout with a short clock. */
+  readonly timeoutMs?: number;
   /** Test seam. Production uses verifyGoogleIdToken above. */
   readonly verifyIdToken?: (idToken: string, clientId: string, expectedNonce?: string) => Promise<Record<string, unknown>>;
 }
@@ -312,22 +401,32 @@ export async function identityFromCode(
   )) {
     throw new GoogleAuthError('the PKCE verifier is malformed');
   }
-  const response = await fetchImpl(TOKEN, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
-      grant_type: 'authorization_code',
-      ...(options.codeVerifier === undefined ? {} : { code_verifier: options.codeVerifier }),
-    }).toString(),
-  });
+  const signal = AbortSignal.timeout(options.timeoutMs ?? GOOGLE_PROVIDER_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetchImpl(TOKEN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        redirect_uri: config.redirectUri,
+        grant_type: 'authorization_code',
+        ...(options.codeVerifier === undefined ? {} : { code_verifier: options.codeVerifier }),
+      }).toString(),
+      signal,
+    });
+  } catch (error) {
+    if (hasErrorName(error, ['TimeoutError', 'AbortError'])) {
+      throw new GoogleAuthError('the Google provider timed out');
+    }
+    throw error;
+  }
 
   if (!response.ok) throw new GoogleAuthError(`the token endpoint answered ${response.status}`);
 
-  const body = await response.json() as TokenResponse;
+  const body = await readGoogleJson(response, signal) as TokenResponse;
   if (typeof body.id_token !== 'string') {
     throw new GoogleAuthError('the token response carried no identity token');
   }
@@ -336,6 +435,7 @@ export async function identityFromCode(
     ? await verifyGoogleIdToken(body.id_token, config.clientId, {
       ...(options.expectedNonce === undefined ? {} : { expectedNonce: options.expectedNonce }),
       fetch: fetchImpl,
+      signal,
     })
     : await options.verifyIdToken(body.id_token, config.clientId, options.expectedNonce);
 

@@ -1,9 +1,18 @@
+/// <reference lib="dom" />
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { readScribeEvent } from '../../web/src/voice/scribe-events.js';
 import { hasMp3Prefix } from '../../web/src/voice/audio.js';
+import { voiceOrbFrame } from '../../web/src/voice/orb.js';
+import { BrowserVoiceRuntime } from '../../web/src/voice/browser.js';
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('Scribe realtime event guard', () => {
   it('accepts official session, partial and committed event shapes', () => {
@@ -32,11 +41,24 @@ describe('Scribe realtime event guard', () => {
 });
 
 describe('honest analyser rendering guard', () => {
+  it('moves only for a matching live analyser state and obeys reduced motion', () => {
+    expect(voiceOrbFrame('READY', 'microphone', 0.5, false))
+      .toEqual({ active: false, measured: 0 });
+    expect(voiceOrbFrame('LISTENING', 'microphone', 0.05, false))
+      .toEqual({ active: true, measured: 0.6000000000000001 });
+    expect(voiceOrbFrame('SPEAKING', 'playback', 4, false))
+      .toEqual({ active: true, measured: 1 });
+    expect(voiceOrbFrame('SPEAKING', 'playback', 0.5, true))
+      .toEqual({ active: false, measured: 0 });
+  });
+
   it('contains no timer or random source in the orb component', () => {
     const source = readFileSync(join(process.cwd(), 'web/src/canvas/VoiceOrb.tsx'), 'utf8');
     expect(source).not.toContain('Math.random');
     expect(source).not.toContain('setInterval');
     expect(source).not.toContain('requestAnimationFrame');
+    expect(source).not.toContain('#8052FF');
+    expect(source).toContain('#FFB829');
     expect(source).toContain("prefers-reduced-motion: reduce");
     expect(source).toContain("signal === 'microphone'");
     expect(source).toContain("signal === 'playback'");
@@ -48,5 +70,758 @@ describe('playback audio guard', () => {
     expect(hasMp3Prefix(new Uint8Array([0x49, 0x44, 0x33, 4]))).toBe(true);
     expect(hasMp3Prefix(new Uint8Array([0xff, 0xfb, 0x90]))).toBe(true);
     expect(hasMp3Prefix(new TextEncoder().encode('{"error":"not audio"}'))).toBe(false);
+  });
+
+  it('plays through native audio when Web Audio is unavailable', async () => {
+    class NativeAudio {
+      static instance: NativeAudio | null = null;
+      paused = true;
+      ended = false;
+      playsInline = false;
+      preload = '';
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+
+      constructor(_url: string) { NativeAudio.instance = this; }
+
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+
+      play(): Promise<void> {
+        this.paused = false;
+        queueMicrotask(() => {
+          for (const type of ['playing', 'ended']) {
+            if (type === 'ended') this.ended = true;
+            for (const listener of this.#listeners.get(type) ?? []) {
+              if (typeof listener === 'function') listener(new Event(type));
+              else listener.handleEvent(new Event(type));
+            }
+          }
+        });
+        return Promise.resolve();
+      }
+
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', NativeAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:native-only',
+      revokeObjectURL: () => undefined,
+    });
+
+    const started: string[] = [];
+    const frames: unknown[] = [];
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const handlers = {
+      started: (analysis: string) => started.push(analysis),
+      signal: (frame: unknown) => frames.push(frame),
+    };
+    const signal = new AbortController().signal;
+
+    await expect(runtime.speak('Supported answer.', handlers, signal)).resolves.toBeUndefined();
+    expect(started).toEqual(['unavailable']);
+    expect(frames).toEqual([]);
+    expect(NativeAudio.instance?.playsInline).toBe(true);
+    expect(NativeAudio.instance?.preload).toBe('auto');
+  });
+
+  it('uses a fulfilled play promise when WebKit omits the playing event', async () => {
+    class PromiseOnlyAudio {
+      static instance: PromiseOnlyAudio | null = null;
+      paused = true;
+      ended = false;
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+
+      constructor(_url: string) { PromiseOnlyAudio.instance = this; }
+
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+
+      play(): Promise<void> {
+        this.paused = false;
+        // Deliberately do not emit `playing`: this is the WebKit/WebView
+        // lifecycle variant the runtime must still handle.
+        return Promise.resolve();
+      }
+
+      emitEnded(): void {
+        this.ended = true;
+        for (const listener of this.#listeners.get('ended') ?? []) {
+          if (typeof listener === 'function') listener(new Event('ended'));
+          else listener.handleEvent(new Event('ended'));
+        }
+      }
+
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', PromiseOnlyAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:promise-only',
+      revokeObjectURL: () => undefined,
+    });
+
+    const started: string[] = [];
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const pending = runtime.speak('Supported answer.', {
+      started: (analysis) => started.push(analysis),
+      signal: () => undefined,
+    }, new AbortController().signal);
+
+    await vi.waitFor(() => expect(started).toEqual(['unavailable']));
+    PromiseOnlyAudio.instance?.emitEnded();
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  it('finishes native playback when the optional analyser cannot attach', async () => {
+    class NativeAudio {
+      paused = true;
+      ended = false;
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+      constructor(_url: string) {}
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+      play(): Promise<void> {
+        this.paused = false;
+        queueMicrotask(() => {
+          for (const type of ['playing', 'ended']) {
+            if (type === 'ended') this.ended = true;
+            for (const listener of this.#listeners.get(type) ?? []) {
+              if (typeof listener === 'function') listener(new Event(type));
+              else listener.handleEvent(new Event(type));
+            }
+          }
+        });
+        return Promise.resolve();
+      }
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    class BrokenMeterContext {
+      readonly destination = {} as AudioDestinationNode;
+      readonly state = 'running';
+      createMediaElementSource(_audio: HTMLMediaElement): MediaElementAudioSourceNode {
+        throw new Error('meter unavailable');
+      }
+      resume(): Promise<void> { return Promise.resolve(); }
+      close(): Promise<void> { return Promise.resolve(); }
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', NativeAudio);
+    vi.stubGlobal('AudioContext', BrokenMeterContext);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:broken-meter',
+      revokeObjectURL: () => undefined,
+    });
+
+    const started: string[] = [];
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    runtime.preparePlayback();
+    await expect(runtime.speak('Supported answer.', {
+      started: (analysis) => started.push(analysis),
+      signal: () => undefined,
+    }, new AbortController().signal)).resolves.toBeUndefined();
+    expect(started).toEqual(['unavailable']);
+  });
+
+  it('reports autoplay rejection as playback_blocked', async () => {
+    class BlockedAudio {
+      paused = true;
+      ended = false;
+      constructor(_url: string) {}
+      addEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+      removeEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+      play(): Promise<void> { return Promise.reject(new DOMException('gesture required', 'NotAllowedError')); }
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', BlockedAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:blocked',
+      revokeObjectURL: () => undefined,
+    });
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.speak('Supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal)).rejects.toMatchObject({ failure: 'playback_blocked' });
+  });
+
+  it('maps cross-realm autoplay errors by name, not DOMException identity', async () => {
+    class CrossRealmBlockedAudio {
+      paused = true;
+      ended = false;
+      constructor(_url: string) {}
+      addEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+      removeEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+      play(): Promise<void> { return Promise.reject({ name: 'NotAllowedError', message: 'gesture required' }); }
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', CrossRealmBlockedAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:cross-realm-blocked',
+      revokeObjectURL: () => undefined,
+    });
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.speak('Supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal)).rejects.toMatchObject({ failure: 'playback_blocked' });
+  });
+
+  it('cleans an aborted native element and ignores a late playing event', async () => {
+    let releasePlay!: () => void;
+    const playGate = new Promise<void>((resolve) => { releasePlay = resolve; });
+
+    class DeferredAudio {
+      static instance: DeferredAudio | null = null;
+      paused = true;
+      ended = false;
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+      constructor(_url: string) { DeferredAudio.instance = this; }
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+      play(): Promise<void> { this.paused = false; return playGate; }
+      emitPlaying(): void {
+        for (const listener of this.#listeners.get('playing') ?? []) {
+          if (typeof listener === 'function') listener(new Event('playing'));
+          else listener.handleEvent(new Event('playing'));
+        }
+      }
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    const revoke = vi.fn();
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', DeferredAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:abort-race',
+      revokeObjectURL: revoke,
+    });
+
+    const caller = new AbortController();
+    const started: string[] = [];
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const pending = runtime.speak('Supported answer.', {
+      started: (analysis) => started.push(analysis),
+      signal: () => undefined,
+    }, caller.signal);
+    await vi.waitFor(() => expect(DeferredAudio.instance).not.toBeNull());
+    caller.abort();
+    releasePlay();
+
+    await expect(pending).rejects.toMatchObject({ failure: 'interrupted' });
+    expect(DeferredAudio.instance?.paused).toBe(true);
+    expect(revoke).toHaveBeenCalledTimes(1);
+    DeferredAudio.instance?.emitPlaying();
+    expect(started).toEqual([]);
+  });
+
+  it('closes a prepared meter once when the runtime is disposed', async () => {
+    class PreparedContext {
+      static readonly instances: PreparedContext[] = [];
+      readonly destination = {} as AudioDestinationNode;
+      closeCalls = 0;
+      constructor() { PreparedContext.instances.push(this); }
+      resume(): Promise<void> { return Promise.resolve(); }
+      close(): Promise<void> { this.closeCalls += 1; return Promise.resolve(); }
+    }
+
+    vi.stubGlobal('AudioContext', PreparedContext);
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    runtime.preparePlayback();
+    runtime.dispose();
+    runtime.dispose();
+
+    expect(PreparedContext.instances).toHaveLength(1);
+    expect(PreparedContext.instances[0]?.closeCalls).toBe(1);
+  });
+
+  it('reports a local audio element failure as a local error after a valid speech response', async () => {
+    class FailingAudio {
+      static readonly instances: FailingAudio[] = [];
+      paused = true;
+      ended = false;
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+
+      constructor(_url: string) {
+        FailingAudio.instances.push(this);
+      }
+
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+
+      play(): Promise<void> {
+        this.paused = false;
+        queueMicrotask(() => {
+          for (const listener of this.#listeners.get('error') ?? []) {
+            if (typeof listener === 'function') listener(new Event('error'));
+            else listener.handleEvent(new Event('error'));
+          }
+        });
+        return Promise.resolve();
+      }
+
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    class PlaybackAudioContext {
+      readonly destination = {} as AudioDestinationNode;
+
+      createMediaElementSource(_audio: HTMLMediaElement): MediaElementAudioSourceNode {
+        return { connect: () => undefined, disconnect: () => undefined } as unknown as MediaElementAudioSourceNode;
+      }
+
+      createAnalyser(): AnalyserNode {
+        return {
+          fftSize: 0,
+          connect: () => undefined,
+          disconnect: () => undefined,
+          getFloatTimeDomainData: () => undefined,
+        } as unknown as AnalyserNode;
+      }
+
+      resume(): Promise<void> { return Promise.resolve(); }
+      close(): Promise<void> { return Promise.resolve(); }
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', FailingAudio);
+    vi.stubGlobal('AudioContext', PlaybackAudioContext);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:voice-test',
+      revokeObjectURL: () => undefined,
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.speak('A supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal)).rejects.toMatchObject({ failure: 'error' });
+    expect(FailingAudio.instances).toHaveLength(1);
+  });
+
+  it('bounds a stalled JSON request instead of leaving the voice controller busy indefinitely', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn((_path: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('request aborted', 'AbortError'));
+      }, { once: true });
+    })));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    let failure: unknown = null;
+    const pending = runtime.query('Where does session state live?', new AbortController().signal)
+      .catch((error: unknown) => { failure = error; });
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await Promise.resolve();
+
+    expect(failure).toMatchObject({ failure: 'error' });
+    await pending;
+  });
+
+  it('cancels a JSON body reader when headers arrive but the voice response stalls', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { cookie: '' });
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+        releaseRead = resolve;
+      })),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+    };
+    const body = { getReader: () => reader } as unknown as ReadableStream<Uint8Array>;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      body,
+    } as unknown as Response));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    let failure: unknown = null;
+    const pending = runtime.query('Where does session state live?', new AbortController().signal)
+      .catch((error: unknown) => { failure = error; });
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    if (reader.cancel.mock.calls.length === 0) releaseRead?.({ done: true });
+    await pending;
+
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(failure).toMatchObject({ failure: 'error' });
+  });
+
+  it('preserves caller cancellation through the bounded request signal', async () => {
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn((_path: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('request aborted', 'AbortError'));
+      }, { once: true });
+    })));
+
+    const caller = new AbortController();
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const pending = runtime.query('Where does session state live?', caller.signal);
+    caller.abort();
+
+    await expect(pending).rejects.toMatchObject({ failure: 'interrupted' });
+  });
+
+  it('keeps query and speech 503 failures in their truthful boundaries', async () => {
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.query('Where does session state live?', new AbortController().signal))
+      .rejects.toMatchObject({ failure: 'error' });
+    await expect(runtime.speak('A supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal)).rejects.toMatchObject({ failure: 'provider_unavailable' });
+  });
+
+  it('does not label application auth or origin denials as speech-provider failures', async () => {
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 403 })));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    for (const spokenAnswer of ['A supported answer.', 'Another supported answer.']) {
+      await expect(runtime.speak(spokenAnswer, {
+        started: () => undefined,
+        signal: () => undefined,
+      }, new AbortController().signal)).rejects.toMatchObject({ failure: 'error' });
+    }
+  });
+
+  it('bounds stalled speech-body acquisition before playback without timing the audio element', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { cookie: '' });
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) { streamController = controller; },
+    });
+    vi.stubGlobal('fetch', vi.fn((_path: string, init?: RequestInit) => {
+      init?.signal?.addEventListener('abort', () => {
+        streamController?.error(new DOMException('request aborted', 'AbortError'));
+      }, { once: true });
+      return Promise.resolve(new Response(body, { headers: { 'content-type': 'audio/mpeg' } }));
+    }));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    let failure: unknown = null;
+    const pending = runtime.speak('A supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal).catch((error: unknown) => { failure = error; });
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await Promise.resolve();
+
+    expect(failure).toMatchObject({ failure: 'provider_unavailable' });
+    await pending;
+  });
+
+  it('cancels a speech body reader when headers arrived but the stream stalls', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { cookie: '' });
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+        releaseRead = resolve;
+      })),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+    };
+    const body = { getReader: () => reader } as unknown as ReadableStream<Uint8Array>;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'audio/mpeg' }),
+      body,
+    } as unknown as Response));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    let failure: unknown = null;
+    const pending = runtime.speak('A supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal).catch((error: unknown) => { failure = error; });
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    if (reader.cancel.mock.calls.length === 0) releaseRead({ done: true });
+    await pending;
+
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(failure).toMatchObject({ failure: 'provider_unavailable' });
+  });
+});
+
+describe('realtime socket lifecycle', () => {
+  it('maps cross-realm microphone permission errors to permission_denied', async () => {
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockRejectedValue({ name: 'NotAllowedError', message: 'permission required' }),
+      },
+    });
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    await expect(runtime.openMicrophone(new AbortController().signal, () => undefined))
+      .rejects.toMatchObject({ failure: 'permission_denied' });
+  });
+
+  it('uses the WebKit AudioContext fallback for microphone capture', async () => {
+    class FakeContext {
+      static readonly instances: FakeContext[] = [];
+      readonly destination = {} as AudioDestinationNode;
+      readonly sampleRate = 48_000;
+      constructor() { FakeContext.instances.push(this); }
+      createMediaStreamSource(_stream: MediaStream): MediaStreamAudioSourceNode {
+        return { connect: () => undefined, disconnect: () => undefined } as unknown as MediaStreamAudioSourceNode;
+      }
+      createAnalyser(): AnalyserNode {
+        return {
+          fftSize: 0,
+          smoothingTimeConstant: 0,
+          connect: () => undefined,
+          disconnect: () => undefined,
+          getFloatTimeDomainData: () => undefined,
+        } as unknown as AnalyserNode;
+      }
+      createScriptProcessor(): ScriptProcessorNode {
+        return {
+          onaudioprocess: null,
+          connect: () => undefined,
+          disconnect: () => undefined,
+        } as unknown as ScriptProcessorNode;
+      }
+      createGain(): GainNode {
+        return {
+          gain: { value: 0 },
+          connect: () => undefined,
+          disconnect: () => undefined,
+        } as unknown as GainNode;
+      }
+      resume(): Promise<void> { return Promise.resolve(); }
+      close(): Promise<void> { return Promise.resolve(); }
+    }
+
+    const track = { readyState: 'live', stop: vi.fn() } as unknown as MediaStreamTrack;
+    const stream = {
+      getAudioTracks: () => [track],
+      getTracks: () => [track],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn().mockResolvedValue(stream);
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('webkitAudioContext', FakeContext);
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const microphone = await runtime.openMicrophone(new AbortController().signal, () => undefined);
+
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(FakeContext.instances).toHaveLength(1);
+    expect(microphone.live).toBe(true);
+    microphone.stop();
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it('closes a connecting Scribe socket when capture is interrupted', async () => {
+    class PendingSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly instances: PendingSocket[] = [];
+      readonly readyState = PendingSocket.CONNECTING;
+      readonly closeCalls: Array<{ code?: number; reason?: string }> = [];
+
+      constructor(_url: string | URL) {
+        PendingSocket.instances.push(this);
+      }
+
+      addEventListener(_type: string, _listener: (event: never) => void): void {}
+
+      close(code?: number, reason?: string): void {
+        const call: { code?: number; reason?: string } = {};
+        if (code !== undefined) call.code = code;
+        if (reason !== undefined) call.reason = reason;
+        this.closeCalls.push(call);
+      }
+    }
+
+    vi.stubGlobal('WebSocket', PendingSocket);
+    vi.stubGlobal('window', {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+    });
+
+    const controller = new AbortController();
+    const microphone = {
+      live: true,
+      stop: () => undefined,
+      onPcm: (_listener: (chunk: string) => void) => () => undefined,
+    };
+    const runtime = new BrowserVoiceRuntime('/api/explore');
+    const pending = runtime.openTranscript('sutkn_test_token', microphone, {
+      partial: () => undefined,
+      committed: () => undefined,
+      failure: () => undefined,
+    }, controller.signal);
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ failure: 'interrupted' });
+    expect(PendingSocket.instances).toHaveLength(1);
+    expect(PendingSocket.instances[0]?.closeCalls).toEqual([
+      { code: 1000, reason: 'client cancelled' },
+    ]);
+  });
+
+  it('reports a provider-initiated normal close after the session started', async () => {
+    type SocketListener = (event: { readonly data?: string; readonly code?: number }) => void;
+
+    class ClosingSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+      static readonly instances: ClosingSocket[] = [];
+      readyState = ClosingSocket.OPEN;
+      readonly #listeners = new Map<string, Set<SocketListener>>();
+
+      constructor(_url: string | URL) { ClosingSocket.instances.push(this); }
+
+      addEventListener(type: string, listener: SocketListener): void {
+        const listeners = this.#listeners.get(type) ?? new Set<SocketListener>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+
+      send(_body: string): void {}
+
+      close(_code?: number, _reason?: string): void { this.readyState = ClosingSocket.CLOSED; }
+
+      emit(type: string, event: { readonly data?: string; readonly code?: number }): void {
+        if (type === 'close') this.readyState = ClosingSocket.CLOSED;
+        for (const listener of this.#listeners.get(type) ?? []) listener(event);
+      }
+    }
+
+    vi.stubGlobal('WebSocket', ClosingSocket);
+    vi.stubGlobal('window', {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+    });
+
+    const failures: string[] = [];
+    const microphone = {
+      live: true,
+      stop: () => undefined,
+      onPcm: (_listener: (chunk: string) => void) => () => undefined,
+    };
+    const runtime = new BrowserVoiceRuntime('/api/explore');
+    const pending = runtime.openTranscript('sutkn_test_token', microphone, {
+      partial: () => undefined,
+      committed: () => undefined,
+      failure: (failure) => failures.push(failure),
+    }, new AbortController().signal);
+    const socket = ClosingSocket.instances[0];
+    expect(socket).toBeDefined();
+    socket?.emit('message', { data: JSON.stringify({ message_type: 'session_started', session_id: 'sess_1' }) });
+    await pending;
+
+    socket?.emit('close', { code: 1000 });
+
+    expect(failures).toEqual(['provider_unavailable']);
   });
 });

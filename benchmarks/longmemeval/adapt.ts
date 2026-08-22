@@ -4,6 +4,7 @@ import { extractTurns } from '../../src/extract/extract.js';
 import type { TurnInput } from '../../src/extract/extract.js';
 
 import type { IngestibleQuestion } from './schema.js';
+import { extractPersonalClaims } from './personal.js';
 
 /**
  * One question's haystack, turned into the raw timestamped sessions ingestion
@@ -102,7 +103,14 @@ export function adaptHaystack(question: IngestibleQuestion): AdaptedHaystack {
     title: question.question_id,
     startedAt: first,
   });
-  const byTurn = annotationsByTurn(extraction);
+  // LongMemEval is predominantly first-person life history, while Lacuna's
+  // production extractor is intentionally precision-first for infrastructure
+  // prose. Keep the benchmark bridge scoped: infrastructure claims still come
+  // from the core extractor, and the personal parser only adds exact-span,
+  // explicit first-person facts.
+  const personal = extractPersonalClaims(flat, question.question_id);
+  const allClaims = [...extraction.claims, ...personal];
+  const byTurn = annotationsByTurn({ ...extraction, claims: allClaims });
 
   const sessions: Session[] = [];
   let characters = 0;
@@ -143,7 +151,7 @@ export function adaptHaystack(question: IngestibleQuestion): AdaptedHaystack {
     });
   }
 
-  const extracted = extraction.claims;
+  const extracted = allClaims;
 
   const stats: CorpusStats = {
     sessions: sessions.length,

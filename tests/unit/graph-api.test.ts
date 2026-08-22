@@ -13,7 +13,7 @@ import {
 } from '../../src/api/graph.js';
 import type { Inventory } from '../../src/report/inventory.js';
 import type { HydraSource } from '../../src/hydra/source.js';
-import { overviewLayout, proofLayout } from '../../web/src/graph/layout.js';
+import { overviewLayout, projectOverview3D, proofLayout } from '../../web/src/graph/layout.js';
 
 const KEY = 'unit-test-only-graph-cursor-key';
 const WORKSPACE = 'workspace-a';
@@ -355,6 +355,17 @@ describe('deterministic graph layouts', () => {
   it('places the overview identically regardless of response order', () => {
     const nodes = [node(3), node(1), { ...node(2), state: 'historical' as const }];
     expect(overviewLayout(nodes)).toEqual(overviewLayout([...nodes].reverse()));
+  });
+
+  it('projects a stable, rotatable third dimension without losing any node', () => {
+    const nodes = overviewLayout([node(3), node(1), { ...node(2), state: 'historical' as const }]);
+    const first = projectOverview3D(nodes, { yaw: -0.28, pitch: 0.18 });
+    const again = projectOverview3D(nodes, { yaw: -0.28, pitch: 0.18 });
+    const rotated = projectOverview3D(nodes, { yaw: 0.44, pitch: -0.21 });
+    expect(first).toEqual(again);
+    expect(first.map((row) => row.id)).toEqual(nodes.map((row) => row.id));
+    expect(first.every((row) => row.scale >= 0.62 && row.scale <= 1.42)).toBe(true);
+    expect(rotated.map((row) => [row.screenX, row.screenY])).not.toEqual(first.map((row) => [row.screenX, row.screenY]));
   });
 
   it('keeps proof layers deterministic for cycles, duplicate edges and orphan references', () => {

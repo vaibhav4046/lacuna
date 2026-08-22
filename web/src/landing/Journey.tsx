@@ -22,7 +22,7 @@ const STAGES: readonly JourneyStage[] = [
     scene: 'temporal',
     eyebrow: '01 · CURRENT',
     title: 'Find what is true now.',
-    body: 'Lacuna resolves the standing claim and keeps the quote, source and observation time attached. The model receives an answer it can inspect, not a detached summary.',
+    body: 'Lacuna finds the fact that is still current and keeps its quote, source, and time attached.',
     artifactLabel: 'FOXGLOVE · BETA PARTNER',
     artifactValue: 'Stonecrop',
     rows: [
@@ -38,7 +38,7 @@ const STAGES: readonly JourneyStage[] = [
     scene: 'temporal',
     eyebrow: '02 · HISTORY',
     title: 'Keep the old fact without letting it win.',
-    body: 'Supersession is explicit. A correction changes the current answer while the earlier claim stays available for audits, timelines and handoffs.',
+    body: 'A correction updates the answer without deleting the old value. You can still see both in history.',
     artifactLabel: 'FOXGLOVE · TIMELINE',
     artifactValue: 'Millbrace  →  Stonecrop',
     rows: [
@@ -102,7 +102,7 @@ const STAGES: readonly JourneyStage[] = [
     scene: 'any',
     eyebrow: '06 · AGENTS',
     title: 'Turn memory into governed work.',
-    body: 'Researcher and Reviewer presets start with a bounded Context Pack. Runs retain their lifecycle, tools, artifacts and final state; schedules retain their next eligible time.',
+    body: 'Researcher and Reviewer start with only the facts they need. Each run keeps its steps, tools, files, result, and schedule.',
     artifactLabel: 'GOVERNED RUN',
     artifactValue: 'Researcher  →  Reviewer',
     rows: [

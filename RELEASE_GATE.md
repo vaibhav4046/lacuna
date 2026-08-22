@@ -1,5 +1,10 @@
 # Release gate
 
+> **Superseded as the current handoff.** This file preserves V8 and earlier
+> acceptance evidence. Use `docs/V10_RELEASE_STATUS.md` for the 2026-08-21
+> production/candidate boundary. In particular, the 179-second V8 film named
+> below was rejected by the owner and is not the submission master.
+
 > **V8 candidate gate, 2026-08-20.** The material below this block is the dated
 > V7 evidence record and remains only for audit history. It does not describe
 > the current product boundary. The table separates local candidate proof from
@@ -27,12 +32,10 @@ The V8 acceptance details and limitation language are in
 `docs/FINAL_CAPABILITY_MATRIX.md`. A pending video or human-only cross-client
 send is never silently converted into a pass.
 
-The final-candidate narration uses the verified ElevenLabs **Vaibhav Lalwani
-Professional** clone, voice id `GAeq3X4y41cIseBkBfsS`, with Eleven Multilingual
-v2. The rendered 179-second MP4 is one second under the three-minute limit and
-passed HyperFrames artifact validation. This is film narration, not a
-production STT/TTS/interruption proof. Owner approval, Supademo and YouTube
-remain open.
+The rejected V8 candidate used the verified ElevenLabs **Vaibhav Lalwani
+Professional** clone and passed metadata-level HyperFrames validation. That is
+historical film evidence, not an accepted V10 master and not a production
+STT/TTS/interruption proof. Supademo and YouTube remain open.
 
 Every gate below was run in this session, in this order, and the output pasted
 is the output it produced. A gate with no evidence line is not a gate.

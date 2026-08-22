@@ -14,6 +14,7 @@ import { FileScheduleStore } from '../../src/scheduler/store.js';
 import type { AgentRecommendation, AgentRun } from '../../src/agent/types.js';
 
 const PASSWORD = 'correct horse battery';
+const SITE_ORIGIN = 'https://lacuna.example';
 let clock = Date.UTC(2026, 7, 20, 12);
 
 function source(): HydraSource {
@@ -38,6 +39,7 @@ function source(): HydraSource {
 
 class Jar {
   readonly #values = new Map<string, string>();
+  binding: string | null = null;
 
   absorb(response: Response): void {
     for (const line of response.headers.getSetCookie()) {
@@ -61,10 +63,20 @@ let schedules: FileScheduleStore;
 let agentCalls = 0;
 let ingestCalls = 0;
 
-async function request(jar: Jar, path: string, method = 'GET', body?: unknown, csrf = true): Promise<Response> {
+async function request(
+  jar: Jar,
+  path: string,
+  method = 'GET',
+  body?: unknown,
+  csrf = true,
+  origin: string | null = SITE_ORIGIN,
+  includeBinding = true,
+): Promise<Response> {
   const headers: Record<string, string> = { cookie: jar.header(), accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (csrf) headers['x-csrf-token'] = jar.csrf();
+  if (includeBinding && jar.binding !== null) headers['x-lacuna-voice-binding'] = jar.binding;
+  if (origin !== null) headers.origin = origin;
   const response = await fetch(`${base}${path}`, {
     method,
     headers,
@@ -80,6 +92,10 @@ async function account(email: string): Promise<Jar> {
   await request(jar, '/api/session');
   const response = await request(jar, '/api/auth/signup', 'POST', { email, password: PASSWORD });
   if (response.status !== 201) throw new Error(`signup failed: ${response.status}`);
+  const session = await request(jar, '/api/session');
+  const state = await session.json() as { readonly session?: { readonly binding?: unknown } };
+  if (typeof state.session?.binding !== 'string') throw new Error('signup did not establish a binding');
+  jar.binding = state.session.binding;
   return jar;
 }
 
@@ -96,10 +112,25 @@ beforeAll(async () => {
       agentCalls += 1;
       return { id: `run-${agentCalls}`, workspace: workspace ?? 'public', task, status: 'COMPLETED' } as AgentRun;
     },
-    ingest: async () => {
+    ingest: async (workspace) => {
       ingestCalls += 1;
-      return 'nothing_extracted';
+      return {
+        sourceKey: 'src-safe',
+        collection: workspace,
+        turns: 1,
+        claims: 1,
+        entities: 1,
+        accepted: 4,
+        refused: [],
+        ms: 1,
+        truncated: false,
+        rawSource: 'private source body',
+        providerBody: 'provider secret response',
+        email: 'bounded-ingest@example.com',
+        secret: 'secret token',
+      };
     },
+    siteOrigin: SITE_ORIGIN,
     cronSecret: 'cron-secret',
     now: () => clock,
   });
@@ -142,6 +173,7 @@ describe('agent recommendation API', () => {
     const valid = { cadence: 'DAILY', localTime: '09:30', timezone: 'Europe/London' };
 
     expect((await request(alice, path, 'POST', valid, false)).status).toBe(403);
+    expect((await request(alice, path, 'POST', valid, true, SITE_ORIGIN, false)).status).toBe(401);
     expect((await request(alice, path, 'POST', { ...valid, cadence: 'HOURLY' })).status).toBe(422);
     expect((await request(alice, path, 'POST', { ...valid, localTime: '25:00' })).status).toBe(422);
     expect((await request(alice, path, 'POST', { ...valid, timezone: 'UTC', task: 'replace the bounded task' })).status).toBe(422);
@@ -249,6 +281,35 @@ describe('agent recommendation API', () => {
     });
     expect(limited.status).toBe(429);
     expect(limited.headers.get('retry-after')).toBe('300');
+    expect(ingestCalls - before).toBe(4);
+  });
+
+  it('requires exact configured same-origin before ingest spend or writes and returns only safe report fields', async () => {
+    const jar = await account('origin-ingest@example.com');
+    const body = { title: 'Source', text: 'Billing Gate is owned by Priya Raman.' };
+    const before = ingestCalls;
+
+    for (const origin of [null, 'https://foreign.example', 'https://lacuna.example/path', 'not an origin']) {
+      const rejected = await request(jar, '/api/workspace/ingest', 'POST', body, true, origin);
+      expect(rejected.status).toBe(403);
+      expect(await rejected.json()).toEqual({ error: 'permission' });
+    }
+    expect(ingestCalls).toBe(before);
+
+    const accepted = await request(jar, '/api/workspace/ingest', 'POST', body);
+    expect(accepted.status).toBe(200);
+    const serialized = JSON.stringify(await accepted.json());
+    expect(serialized).toContain('"ok":true');
+    expect(serialized).not.toContain('lacuna-ws-');
+    expect(serialized).not.toContain('private source body');
+    expect(serialized).not.toContain('provider secret response');
+    expect(serialized).not.toContain('origin-ingest@example.com');
+    expect(serialized).not.toContain('collection');
+
+    for (let index = 0; index < 3; index += 1) {
+      expect((await request(jar, '/api/workspace/ingest', 'POST', body)).status).toBe(200);
+    }
+    expect((await request(jar, '/api/workspace/ingest', 'POST', body)).status).toBe(429);
     expect(ingestCalls - before).toBe(4);
   });
 });

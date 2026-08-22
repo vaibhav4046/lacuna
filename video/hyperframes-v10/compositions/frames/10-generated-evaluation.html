@@ -1,0 +1,513 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Space Grotesk";
+      src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 900;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+    }
+
+    #root {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      container-type: size;
+      isolation: isolate;
+      color: #ffffff;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    #f10-ground {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+    }
+
+    #f10-evaluation-capture {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(1.28) contrast(1.08);
+    }
+
+    #f10-proof-rail {
+      position: absolute;
+      right: 2.25cqw;
+      top: 5.55cqw;
+      width: 13.65cqw;
+      height: 38.2cqw;
+      box-sizing: border-box;
+      overflow: hidden;
+      border-left: 1px solid #282726;
+      border-right: 1px solid #282726;
+      background: rgba(0, 0, 0, 0.96);
+      padding: 1.15cqw 1.05cqw;
+      display: flex;
+      flex-direction: column;
+      z-index: 6;
+    }
+
+    #f10-rail-rule {
+      position: absolute;
+      left: 1.05cqw;
+      top: 0;
+      width: 36px;
+      height: 2px;
+      background: #ffb829;
+      transform-origin: 0 50%;
+    }
+
+    #f10-rail-index,
+    #f10-method-label,
+    #f10-method-boundary,
+    [data-f10-role="metric-label"],
+    [data-f10-role="metric-proof"],
+    [data-f10-role="focus-label"] {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #f10-rail-index {
+      position: absolute;
+      right: 1.05cqw;
+      top: 0.88cqw;
+      color: #504d48;
+      font-size: 0.58cqw;
+      line-height: 1.35;
+    }
+
+    #f10-method {
+      margin-top: 1.1cqw;
+      padding-bottom: 0.88cqw;
+      border-bottom: 1px solid #282726;
+    }
+
+    #f10-method-label {
+      display: block;
+      color: #ffb829;
+      font-size: 0.84cqw;
+      line-height: 1.45;
+    }
+
+    #f10-method-name {
+      margin-top: 0.52cqw;
+      color: #ffffff;
+      font-size: 1.38cqw;
+      font-weight: 700;
+      line-height: 1.06;
+      letter-spacing: -0.02em;
+    }
+
+    #f10-method-boundary {
+      display: block;
+      margin-top: 0.58cqw;
+      color: #9a9a9a;
+      font-size: 0.62cqw;
+      line-height: 1.45;
+    }
+
+    #f10-primary {
+      margin-top: 1.02cqw;
+      padding-top: 1.05cqw;
+      padding-bottom: 0.86cqw;
+      border-bottom: 1px solid #282726;
+    }
+
+    #f10-primary-value {
+      color: #ffb829;
+      font-size: 4.28cqw;
+      font-weight: 900;
+      line-height: 0.8;
+      letter-spacing: -0.055em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #f10-primary-label {
+      display: block;
+      margin-top: 0.54cqw;
+      color: #ffffff;
+      font-size: 0.72cqw;
+      line-height: 1.4;
+    }
+
+    #f10-primary-proofs {
+      margin-top: 0.86cqw;
+      display: grid;
+      gap: 0.5cqw;
+    }
+
+    [data-f10-role="metric-proof"] {
+      display: block;
+      color: #9a9a9a;
+      font-size: 0.62cqw;
+      line-height: 1.45;
+    }
+
+    #f10-primary-proofs [data-f10-proof="unsupported"] {
+      color: #ffffff;
+    }
+
+    #f10-baseline {
+      margin-top: 0.94cqw;
+      padding-top: 0.72cqw;
+      border-top: 1px solid #282726;
+    }
+
+    #f10-baseline-label,
+    #f10-parity-label {
+      display: block;
+      color: #9a9a9a;
+      font-size: 0.6cqw;
+      line-height: 1.45;
+    }
+
+    #f10-baseline-value {
+      margin-top: 0.34cqw;
+      color: #ffffff;
+      font-size: 1.8cqw;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.035em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #f10-baseline-tokens {
+      margin-left: 0.44cqw;
+      color: #9a9a9a;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.62cqw;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    #f10-parity {
+      margin-top: 0.86cqw;
+      padding-top: 0.72cqw;
+      border-top: 1px solid #282726;
+    }
+
+    #f10-parity-value {
+      margin-top: 0.32cqw;
+      color: #ffffff;
+      font-size: 1.02cqw;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    #f10-disclosure {
+      margin-top: auto;
+      padding-top: 0.72cqw;
+      border-top: 1px solid #282726;
+      display: grid;
+      gap: 0.48cqw;
+    }
+
+    #f10-not-longmemeval,
+    #f10-no-score {
+      color: #ffb829;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.63cqw;
+      font-weight: 700;
+      line-height: 1.45;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    #f10-no-score {
+      color: #ffffff;
+    }
+
+    #f10-focus-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    [data-f10-role="focus"] {
+      position: absolute;
+      box-sizing: border-box;
+    }
+
+    #f10-focus-lacuna {
+      left: 28.75cqw;
+      top: 45.35cqh;
+      width: 53.1cqw;
+      height: 5.95cqh;
+    }
+
+    #f10-focus-baseline {
+      left: 28.75cqw;
+      top: 38.25cqh;
+      width: 53.1cqw;
+      height: 6cqh;
+    }
+
+    #f10-focus-disclosure {
+      left: 28.75cqw;
+      top: 53.45cqh;
+      width: 53.1cqw;
+      height: 5.9cqh;
+    }
+
+    #f10-primary-underline {
+      position: absolute;
+      left: 66.85cqw;
+      top: 49.65cqh;
+      width: 14.7cqw;
+      height: 2px;
+      background: #ffb829;
+      transform-origin: 0 50%;
+    }
+
+    [data-f10-role="focus-label"] {
+      position: absolute;
+      left: 0;
+      top: -1.58cqw;
+      color: #ffb829;
+      font-size: 0.58cqw;
+      line-height: 1.35;
+    }
+
+    [data-f10-role="corner"] {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border-color: #ffb829;
+      border-style: solid;
+    }
+
+    [data-f10-corner="tl"] {
+      top: 0;
+      left: 0;
+      border-width: 1px 0 0 1px;
+    }
+
+    [data-f10-corner="tr"] {
+      top: 0;
+      right: 0;
+      border-width: 1px 1px 0 0;
+    }
+
+    [data-f10-corner="bl"] {
+      bottom: 0;
+      left: 0;
+      border-width: 0 0 1px 1px;
+    }
+
+    [data-f10-corner="br"] {
+      right: 0;
+      bottom: 0;
+      border-width: 0 1px 1px 0;
+    }
+  </style>
+
+  <div id="root" data-composition-id="10-generated-evaluation" data-width="1920" data-height="1080" data-start="0" data-duration="15.6">
+    <div
+      id="f10-ground"
+      class="clip"
+      data-start="0"
+      data-duration="15.6"
+      data-track-index="0"
+    ></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div
+      id="f10-focus-layer"
+      class="clip"
+      data-start="0"
+      data-duration="15.6"
+      data-track-index="2"
+      data-layout-allow-overflow
+      aria-hidden="true"
+    >
+      <div id="f10-focus-lacuna" data-f10-role="focus">
+        <span data-f10-role="focus-label">Generated result</span>
+        <span data-f10-role="corner" data-f10-corner="tl"></span>
+        <span data-f10-role="corner" data-f10-corner="tr"></span>
+        <span data-f10-role="corner" data-f10-corner="bl"></span>
+        <span data-f10-role="corner" data-f10-corner="br"></span>
+      </div>
+
+      <div id="f10-focus-baseline" data-f10-role="focus">
+        <span data-f10-role="focus-label">Tuned baseline</span>
+        <span data-f10-role="corner" data-f10-corner="tl"></span>
+        <span data-f10-role="corner" data-f10-corner="tr"></span>
+        <span data-f10-role="corner" data-f10-corner="bl"></span>
+        <span data-f10-role="corner" data-f10-corner="br"></span>
+      </div>
+
+      <div id="f10-focus-disclosure" data-f10-role="focus">
+        <span data-f10-role="focus-label">No-score disclosure</span>
+        <span data-f10-role="corner" data-f10-corner="tl"></span>
+        <span data-f10-role="corner" data-f10-corner="tr"></span>
+        <span data-f10-role="corner" data-f10-corner="bl"></span>
+        <span data-f10-role="corner" data-f10-corner="br"></span>
+      </div>
+
+      <span id="f10-primary-underline"></span>
+    </div>
+
+    <aside
+      id="f10-proof-rail"
+      class="clip"
+      data-start="0"
+      data-duration="15.6"
+      data-track-index="3"
+      aria-label="Generated evaluation proof"
+    >
+      <span id="f10-rail-rule"></span>
+      <span id="f10-rail-index">10 / evaluation</span>
+
+      <div id="f10-method">
+        <span id="f10-method-label">Generated</span>
+        <div id="f10-method-name">64-question evaluation</div>
+        <span id="f10-method-boundary">Not LongMemEval</span>
+      </div>
+
+      <div id="f10-primary">
+        <div id="f10-primary-value">64/64</div>
+        <span id="f10-primary-label" data-f10-role="metric-label">Answered</span>
+        <div id="f10-primary-proofs">
+          <span data-f10-role="metric-proof" data-f10-proof="unsupported">0 unsupported</span>
+          <span data-f10-role="metric-proof" data-f10-proof="context">18 context tokens</span>
+        </div>
+      </div>
+
+      <div id="f10-baseline">
+        <span id="f10-baseline-label" data-f10-role="metric-label">Tuned baseline</span>
+        <div id="f10-baseline-value">
+          63/64<span id="f10-baseline-tokens">· 1843</span>
+        </div>
+      </div>
+
+      <div id="f10-parity">
+        <span id="f10-parity-label" data-f10-role="metric-label">Field-by-field parity</span>
+        <div id="f10-parity-value">Self-hosted · HydraDB Cloud</div>
+      </div>
+
+      <div id="f10-disclosure">
+        <span id="f10-not-longmemeval">Not LongMemEval</span>
+        <span id="f10-no-score">LongMemEval · No score</span>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    (() => {
+      const root = document.querySelector('[data-composition-id="10-generated-evaluation"]');
+      const nodesById = new Map([...root.querySelectorAll("[id]")].map((node) => [node.id, node]));
+      const byId = (id) => nodesById.get(`f10-${id}`);
+      const proofRows = [...root.querySelectorAll("[data-f10-proof]")];
+      const timeline = gsap.timeline({ paused: true });
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["10-generated-evaluation"] = timeline;
+
+      timeline.set(
+        [byId("focus-lacuna"), byId("focus-baseline"), byId("primary-underline")],
+        { opacity: 0 },
+        0,
+      );
+
+      timeline.fromTo(
+        byId("proof-rail"),
+        { x: 34 },
+        { x: 0, duration: 0.42, ease: "power4.out" },
+        0.02,
+      );
+      timeline.fromTo(
+        byId("rail-rule"),
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.36, ease: "power3.out" },
+        0.08,
+      );
+      timeline.fromTo(
+        byId("method"),
+        { y: 16 },
+        { y: 0, duration: 0.38, ease: "power3.out" },
+        0.08,
+      );
+      timeline.fromTo(
+        byId("disclosure"),
+        { y: 12 },
+        { y: 0, duration: 0.34, ease: "power3.out" },
+        0.14,
+      );
+      timeline.fromTo(
+        byId("focus-disclosure"),
+        { opacity: 0, scale: 1.025, transformOrigin: "50% 50%" },
+        { opacity: 0.7, scale: 1, duration: 0.5, ease: "power3.out" },
+        0.72,
+      );
+
+      timeline.fromTo(
+        byId("primary"),
+        { opacity: 0, y: 22 },
+        { opacity: 1, y: 0, duration: 0.56, ease: "power4.out" },
+        5,
+      );
+      timeline.fromTo(
+        byId("focus-lacuna"),
+        { opacity: 0, scale: 1.025, transformOrigin: "50% 50%" },
+        { opacity: 0.8, scale: 1, duration: 0.5, ease: "power3.out", immediateRender: false },
+        5.08,
+      );
+      timeline.fromTo(
+        proofRows[0],
+        { opacity: 0, x: 14 },
+        { opacity: 1, x: 0, duration: 0.46, ease: "power3.out" },
+        6.02,
+      );
+      timeline.fromTo(
+        byId("primary-underline"),
+        { opacity: 1, scaleX: 0 },
+        { opacity: 1, scaleX: 1, duration: 0.58, ease: "power3.out", immediateRender: false },
+        6.58,
+      );
+      timeline.fromTo(
+        proofRows[1],
+        { opacity: 0, x: 14 },
+        { opacity: 1, x: 0, duration: 0.46, ease: "power3.out" },
+        7.62,
+      );
+
+      timeline.fromTo(
+        byId("baseline"),
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.54, ease: "power4.out" },
+        10.2,
+      );
+      timeline.fromTo(
+        byId("focus-baseline"),
+        { opacity: 0, scale: 1.025, transformOrigin: "50% 50%" },
+        { opacity: 0.78, scale: 1, duration: 0.5, ease: "power3.out", immediateRender: false },
+        10.28,
+      );
+      timeline.fromTo(
+        byId("parity"),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.56, ease: "power3.out" },
+        12.08,
+      );
+    })();
+  </script>
+</template>

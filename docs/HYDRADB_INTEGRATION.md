@@ -1,13 +1,49 @@
 # How Lacuna uses HydraDB
 
+## Production path: HydraDB Cloud
+
+Production reads HydraDB Cloud. A live `GET /api/health` on 2026-08-21 returned
+four passing checks and named database `lacuna`, collection `backend`. A graph
+page read in the same pass returned 453 total Lacuna projection nodes and 682
+edges with zero orphan edges.
+
+The cloud adapter in [`src/hydra/cloud.ts`](../src/hydra/cloud.ts) uses HydraDB
+as an active context store:
+
+1. `/context/ingest` receives collection-scoped documents or `app_knowledge`
+   records. App records use stable ids, upsert semantics and explicit relation
+   ids when the graph already knows the edge.
+2. `/context/status` is polled with both database and collection until each
+   ingest reaches a terminal indexing state.
+3. `/context/inspect` reads a deterministic record id for the answer path. This
+   avoids turning temporal truth into a different top-k result on each call.
+4. `/query` requests `graph_context: true` when semantic retrieval and the
+   store's graph/temporal context are the intended product surface.
+5. `/context/relations` supplies HydraDB's own extracted relation graph for the
+   HydraDB comparison screen.
+
+[`src/hydra/cloud-source.ts`](../src/hydra/cloud-source.ts) projects those cloud
+records through the same `HydraSource` interface as the node adapter. Above
+that seam, Lacuna applies its temporal policy: current versus superseded,
+contradicted, retracted, never stated and out of scope. HydraDB stores and
+retrieves the evidence and relation context; Lacuna decides whether that
+evidence is allowed to answer.
+
+The public graph API is not an image baked into the site. It pages the current
+projection, signs the cursor server-side and offers separate `overview` and
+`proof` modes.
+
+## Self-hosted proof path
+
 This is the document for the question "did the graph database actually do
 anything, or is it a place where results were put." Every query shape below is
 in the shipped answer path, every restriction quoted is one the engine handed
 back, and every number is from a run committed under [artifacts/](../artifacts).
 
-Lacuna talks to HydraDB as a separate service over its HTTP query API. No
-HydraDB source is vendored or linked. Version pin, build path and provenance are
-in [SOURCE_LOG.md](SOURCE_LOG.md); the node used for every number here is
+Lacuna also talks to a self-hosted HydraDB node as a separate service over its
+HTTP query API. No HydraDB source is vendored or linked. Version pin, build path
+and provenance are in [SOURCE_LOG.md](SOURCE_LOG.md); the node used for every
+number in the self-hosted sections below is
 `v0.1.1` at commit `02a40025d2d57e97ab2754c8256219cdbfeab379`, built from source
 under WSL2 Ubuntu 24.04, HTTP on loopback `:18443`.
 

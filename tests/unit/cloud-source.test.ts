@@ -11,6 +11,7 @@ import {
   unwrapEnvelope,
 } from '../../src/hydra/cloud-graph.js';
 import { CloudSource } from '../../src/hydra/cloud-source.js';
+import { HydraDecodeError } from '../../src/hydra/errors.js';
 import { ask, blastRadius, buildQuestion } from '../../src/retrieval/index.js';
 import { RetrievalDecodeError } from '../../src/retrieval/errors.js';
 
@@ -160,6 +161,90 @@ describe('reading one entity', () => {
     await expect(new CloudSource(cloud).subject(withClaims.name, 5_000))
       .rejects.toBeInstanceOf(RetrievalDecodeError);
   });
+
+  it('fails closed on unknown connector evidence without rejecting legacy evidence that omits it', async () => {
+    const id = entityRecordId(withClaims.name);
+    const held = records.get(id);
+    if (held === undefined) throw new Error('missing entity fixture');
+    const parsed = JSON.parse(held.text) as {
+      evidence: Record<string, { connector?: unknown }[]>;
+    };
+    const first = Object.values(parsed.evidence).find((entries) => entries.length > 0)?.[0];
+    if (first === undefined) throw new Error('missing evidence fixture');
+    first.connector = {
+      schemaVersion: 2,
+      connectorId: 'github',
+      providerHeaders: { authorization: 'provider-secret' },
+    };
+    const broken = new Map(records);
+    broken.set(id, { ...held, text: JSON.stringify(parsed) });
+
+    await expect(new CloudSource(serving(broken).cloud).subject(withClaims.name, 5_000))
+      .rejects.toBeInstanceOf(RetrievalDecodeError);
+
+    const legacy = new CloudSource(serving().cloud);
+    const subject = await legacy.subject(withClaims.name, 5_000);
+    const claim = subject.value.claims[0];
+    if (claim === undefined) throw new Error('missing legacy claim');
+    await expect(legacy.evidence(claim.id, 5_000)).resolves.toMatchObject({
+      value: expect.arrayContaining([expect.not.objectContaining({ connector: expect.anything() })]),
+    });
+  });
+
+  it('fails closed on stored GitHub evidence with a noncanonical repository root', async () => {
+    const id = entityRecordId(withClaims.name);
+    const held = records.get(id);
+    if (held === undefined) throw new Error('missing entity fixture');
+    const parsed = JSON.parse(held.text) as {
+      evidence: Record<string, { connector?: unknown }[]>;
+    };
+    const first = Object.values(parsed.evidence).find((entries) => entries.length > 0)?.[0];
+    if (first === undefined) throw new Error('missing evidence fixture');
+    first.connector = {
+      schemaVersion: 1,
+      connectorId: 'github',
+      repositoryUrl: `https://github.com/${'a'.repeat(40)}/atlas`,
+      commitSha: 'a'.repeat(40),
+      path: 'README.md',
+      blobSha: 'b'.repeat(40),
+      retrievedAt: '2026-08-21T10:00:00.000Z',
+      rawDigest: 'c'.repeat(64),
+      contentDigest: 'd'.repeat(64),
+      parserVersion: 'github-v1',
+    };
+    const broken = new Map(records);
+    broken.set(id, { ...held, text: JSON.stringify(parsed) });
+
+    await expect(new CloudSource(serving(broken).cloud).subject(withClaims.name, 5_000))
+      .rejects.toBeInstanceOf(RetrievalDecodeError);
+  });
+
+  it('fails closed on malformed or query-bearing stored HTTPS evidence', async () => {
+    const id = entityRecordId(withClaims.name);
+    const held = records.get(id);
+    if (held === undefined) throw new Error('missing entity fixture');
+    const parsed = JSON.parse(held.text) as {
+      evidence: Record<string, { connector?: unknown }[]>;
+    };
+    const first = Object.values(parsed.evidence).find((entries) => entries.length > 0)?.[0];
+    if (first === undefined) throw new Error('missing evidence fixture');
+    first.connector = {
+      schemaVersion: 1,
+      connectorId: 'https_api',
+      sourceUrl: 'https://api.example.com/private?token=secret',
+      mediaType: 'application/json',
+      pathDigest: 'a'.repeat(64),
+      retrievedAt: '2026-08-21T10:00:00.000Z',
+      rawDigest: 'b'.repeat(64),
+      contentDigest: 'c'.repeat(64),
+      parserVersion: 'https-v1',
+    };
+    const broken = new Map(records);
+    broken.set(id, { ...held, text: JSON.stringify(parsed) });
+
+    await expect(new CloudSource(serving(broken).cloud).subject(withClaims.name, 5_000))
+      .rejects.toBeInstanceOf(RetrievalDecodeError);
+  });
 });
 
 describe('citations', () => {
@@ -195,6 +280,34 @@ describe('citations', () => {
     const { cloud } = serving();
     const evidence = await new CloudSource(cloud).evidence(999_999_999, 5_000);
     expect(evidence.value).toEqual([]);
+  });
+});
+
+describe('index failure semantics', () => {
+  function cloudReturning(content: string): HydraCloud {
+    return new HydraCloud(CONFIG, {
+      fetch: async () => Response.json({ success: true, data: { content } }),
+    });
+  }
+
+  it('does not report an unreadable stored index envelope as an empty subject list', async () => {
+    const source = new CloudSource(cloudReturning('not a stored envelope'));
+
+    await expect(source.subjects(5_000)).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('does not report a malformed index payload as an empty subject list', async () => {
+    const envelope = JSON.stringify({ content: { text: 'not index json' } });
+    const source = new CloudSource(cloudReturning(envelope));
+
+    await expect(source.subjects(5_000)).rejects.toBeInstanceOf(HydraDecodeError);
+  });
+
+  it('does not report an index missing its entity map as an empty subject list', async () => {
+    const envelope = JSON.stringify({ content: { text: JSON.stringify({ claims: { '1': 'Sessions' } }) } });
+    const source = new CloudSource(cloudReturning(envelope));
+
+    await expect(source.subjects(5_000)).rejects.toBeInstanceOf(HydraDecodeError);
   });
 });
 

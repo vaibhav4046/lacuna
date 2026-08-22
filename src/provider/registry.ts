@@ -39,6 +39,13 @@ export function configured(env: Record<string, string | undefined>): readonly Pr
     out.push({ name: 'groq', baseUrl: 'https://api.groq.com/openai/v1', apiKey: groq, where: 'cloud' });
   }
 
+  const perplexity = env['PERPLEXITY_API_KEY'];
+  if (perplexity !== undefined && perplexity !== '') {
+    // Perplexity exposes the same bounded chat-completions wire shape. It is
+    // optional: deployments without a key remain explicitly unconfigured.
+    out.push({ name: 'perplexity', baseUrl: 'https://api.perplexity.ai', apiKey: perplexity, where: 'cloud' });
+  }
+
   const anthropic = env['ANTHROPIC_API_KEY'];
   if (anthropic !== undefined && anthropic !== '') {
     // Anthropic is not OpenAI-compatible on /models, so it is declared rather

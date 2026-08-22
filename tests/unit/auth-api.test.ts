@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
-import { AccountStore } from '../../src/auth/store.js';
-import { FileAccounts } from '../../src/auth/accounts.js';
+import { DEMO_WORKSPACE } from '../../src/api/workspace.js';
+import { AccountStore, hashToken, newSessionVersion, type Account, type SessionRecord } from '../../src/auth/store.js';
+import { FileAccounts, type Accounts } from '../../src/auth/accounts.js';
+import { buildDemo } from '../../src/server/examples.js';
 
 /**
  * The auth surface, driven over a real socket.
@@ -23,6 +25,7 @@ const PASSWORD = 'correct horse battery';
 let server: Server;
 let base: string;
 let dir: string;
+let accounts: RotatingAccounts;
 /**
  * The router's clock. Sign up is limited to three a minute per address and
  * every test here comes from 127.0.0.1, so a suite that did not move the clock
@@ -30,6 +33,60 @@ let dir: string;
  * bugs in whatever test happened to be sixth.
  */
 let clock = Date.UTC(2026, 0, 1);
+
+/** Deterministically rotates credentials inside the verify-to-issue gap. */
+class RotatingAccounts implements Accounts {
+  readonly #delegate: Accounts;
+  #rotateBeforeStart = false;
+  #rotateAfterSessionValidation = false;
+
+  constructor(delegate: Accounts) {
+    this.#delegate = delegate;
+  }
+
+  rotateBeforeNextSession(): void {
+    this.#rotateBeforeStart = true;
+  }
+
+  rotateAfterNextSessionValidation(): void {
+    this.#rotateAfterSessionValidation = true;
+  }
+
+  available(): Promise<boolean> { return this.#delegate.available(); }
+  find(email: string): Promise<Account | null> { return this.#delegate.find(email); }
+  create(account: Account): Promise<Account | null> { return this.#delegate.create(account); }
+  update(account: Account): Promise<void> { return this.#delegate.update(account); }
+  updateWorkspace(email: string, workspace: string): Promise<void> {
+    return this.#delegate.updateWorkspace(email, workspace);
+  }
+  async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
+    const record = await this.#delegate.sessionFor(token, now);
+    if (this.#rotateAfterSessionValidation && record !== null) {
+      this.#rotateAfterSessionValidation = false;
+      const account = await this.#delegate.find(record.email);
+      if (account !== null) {
+        await this.#delegate.update({ ...account, sessionVersion: newSessionVersion() });
+      }
+    }
+    return record;
+  }
+  endSession(token: string): Promise<void> { return this.#delegate.endSession(token); }
+
+  async startSession(
+    email: string,
+    now: number,
+    expectedSessionVersion: string | undefined,
+  ): Promise<string> {
+    if (this.#rotateBeforeStart) {
+      this.#rotateBeforeStart = false;
+      const account = await this.#delegate.find(email);
+      if (account !== null) {
+        await this.#delegate.update({ ...account, sessionVersion: newSessionVersion() });
+      }
+    }
+    return this.#delegate.startSession(email, now, expectedSessionVersion);
+  }
+}
 
 /** Past the rate limit window, so the next request starts a fresh bucket. */
 function nextMinute(): void {
@@ -72,10 +129,11 @@ async function session(jar: Jar): Promise<Response> {
   return response;
 }
 
-async function post(jar: Jar, path: string, body: unknown, options: { csrf?: string } = {}): Promise<Response> {
+async function post(jar: Jar, path: string, body: unknown, options: { csrf?: string; origin?: string } = {}): Promise<Response> {
   const token = options.csrf ?? jar.get('lacuna_csrf') ?? '';
   const headers: Record<string, string> = { 'content-type': 'application/json', cookie: jar.header() };
   if (token !== '') headers['x-csrf-token'] = decodeURIComponent(token);
+  if (options.origin !== undefined) headers.origin = options.origin;
   const response = await fetch(url(path), { method: 'POST', headers, body: JSON.stringify(body) });
   jar.absorb(response);
   return response;
@@ -90,10 +148,13 @@ async function primed(): Promise<Jar> {
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'lacuna-auth-'));
+  accounts = new RotatingAccounts(new FileAccounts(new AccountStore(dir)));
   const router = new ApiRouter({
-    store: new FileAccounts(new AccountStore(dir)),
+    store: accounts,
     secure: false,
+    siteOrigin: 'http://test.invalid',
     health: async () => ({ command: 'doctor', ok: true, warnings: 0, exitCode: 0, checks: [] }),
+    inventory: buildDemo().inventory,
     now: () => clock,
   });
   server = createServer((request, response) => {
@@ -132,6 +193,68 @@ describe('the session endpoint', () => {
 
     expect(response.headers.getSetCookie()).toEqual([]);
     expect(jar.get('lacuna_csrf')).toBe(first);
+  });
+
+  it('rejects a session whose credential epoch changes before the account is returned', async () => {
+    nextMinute();
+    const jar = await primed();
+    expect((await post(jar, '/api/auth/signup', {
+      email: 'session-epoch@example.com', password: PASSWORD,
+    })).status).toBe(201);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await session(jar);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ signedIn: false });
+  });
+});
+
+describe('credential epoch authorization', () => {
+  it('does not authorize a private route from an account read after session rotation', async () => {
+    nextMinute();
+    const jar = await primed();
+    expect((await post(jar, '/api/auth/signup', {
+      email: 'private-epoch@example.com', password: PASSWORD,
+    })).status).toBe(201);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await fetch(url('/api/workspace/graph'), {
+      headers: { cookie: jar.header() },
+    });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'session' });
+  });
+
+  it('does not build a workspace view from an account read after session rotation', async () => {
+    nextMinute();
+    const jar = await primed();
+    const email = 'view-epoch@example.com';
+    expect((await post(jar, '/api/auth/signup', { email, password: PASSWORD })).status).toBe(201);
+    await accounts.updateWorkspace(email, DEMO_WORKSPACE);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await fetch(url('/api/workspace/memory'), {
+      headers: { cookie: jar.header() },
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ rows: [], total: 0, loaded: 0, demo: false });
+  });
+
+  it('does not let a stale credential epoch mutate workspace metadata', async () => {
+    nextMinute();
+    const jar = await primed();
+    const email = 'workspace-mutation-epoch@example.com';
+    expect((await post(jar, '/api/auth/signup', { email, password: PASSWORD })).status).toBe(201);
+    accounts.rotateAfterNextSessionValidation();
+
+    const response = await post(jar, '/api/workspace', { workspace: 'Must not be written' });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'session' });
+    await expect(accounts.find(email)).resolves.toMatchObject({ workspace: null, onboarded: false });
   });
 });
 
@@ -177,10 +300,27 @@ describe('sign up', () => {
     // stronger one.
     expect(cookie).not.toContain('Secure');
 
-    await expect((await session(jar)).json()).resolves.toEqual({
+    const rawSession = decodeURIComponent(jar.get('lacuna_session') ?? '');
+    const state = await (await session(jar)).json() as {
+      signedIn: boolean;
+      session?: Record<string, unknown>;
+    };
+    expect(state).toEqual({
       signedIn: true,
-      session: { email: 'new@example.com', workspace: null, onboarded: false },
+      session: {
+        email: 'new@example.com', workspace: null, onboarded: false,
+        binding: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      },
     });
+    expect(state.session?.['binding']).not.toBe(rawSession);
+    expect(state.session?.['binding']).not.toBe(hashToken(rawSession));
+    expect(JSON.stringify(state)).not.toContain(rawSession);
+
+    const another = await primed();
+    expect((await post(another, '/api/auth/signin', { email: 'new@example.com', password: PASSWORD })).status).toBe(200);
+    const anotherState = await (await session(another)).json() as { session?: Record<string, unknown> };
+    expect(anotherState.session?.['binding']).toMatch(/^[0-9a-f]{64}$/u);
+    expect(anotherState.session?.['binding']).not.toBe(state.session?.['binding']);
   });
 
   it('reports a taken address as a conflict', async () => {
@@ -194,6 +334,18 @@ describe('sign up', () => {
 });
 
 describe('sign in', () => {
+  it('refuses a browser auth mutation from a different origin', async () => {
+    nextMinute();
+    const jar = await primed();
+
+    const response = await post(jar, '/api/auth/signin', {
+      email: 'new@example.com', password: PASSWORD,
+    }, { origin: 'https://evil.example' });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.getSetCookie().some((line) => line.startsWith('lacuna_session='))).toBe(false);
+  });
+
   it('rejects the wrong password', async () => {
     const jar = await primed();
 
@@ -218,6 +370,18 @@ describe('sign in', () => {
 
     expect(response.status).toBe(200);
     await expect((await session(jar)).json()).resolves.toMatchObject({ signedIn: true });
+  });
+
+  it('fails closed when recovery rotates credentials after verification but before session issue', async () => {
+    nextMinute();
+    const jar = await primed();
+    accounts.rotateBeforeNextSession();
+
+    const response = await post(jar, '/api/auth/signin', { email: 'new@example.com', password: PASSWORD });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'credentials' });
+    expect(response.headers.getSetCookie().some((line) => line.startsWith('lacuna_session='))).toBe(false);
   });
 
   it('stops answering after six attempts in a window', async () => {
@@ -272,7 +436,11 @@ describe('the account store', () => {
 
   it('never stores the password or the session token', async () => {
     const store = new AccountStore(dir);
-    const token = store.startSession('persist@example.com', Date.now());
+    const token = store.startSession(
+      'persist@example.com',
+      Date.now(),
+      store.find('persist@example.com')?.sessionVersion,
+    );
 
     const reopened = new AccountStore(dir);
 

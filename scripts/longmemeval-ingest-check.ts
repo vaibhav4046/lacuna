@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 import { adaptHaystack } from '../benchmarks/longmemeval/adapt.js';
+import { coverageByQuestionType } from '../benchmarks/longmemeval/coverage.js';
 import { loadDataset, stripGroundTruth } from '../benchmarks/longmemeval/load.js';
 
 /**
@@ -39,6 +40,7 @@ let claims = 0;
 let withAnyClaim = 0;
 let leaks = 0;
 const perProperty = new Map<string, number>();
+const coverageInputs: { readonly question: ReturnType<typeof stripGroundTruth>; readonly claims: number }[] = [];
 const failures: string[] = [];
 
 const started = Date.now();
@@ -57,6 +59,7 @@ for (const question of questions) {
   estimatedTokens += adapted.stats.estimatedTokens;
   claims += adapted.stats.claims;
   if (adapted.stats.claims > 0) withAnyClaim += 1;
+  coverageInputs.push({ question: stripGroundTruth(question), claims: adapted.stats.claims });
 
   for (const session of adapted.sessions) {
     for (const message of session.messages) {
@@ -95,6 +98,7 @@ const report = {
   instancesWithAtLeastOneClaim: withAnyClaim,
   coverage: Number(((withAnyClaim / questions.length) * 100).toFixed(1)),
   bySlot: Object.fromEntries([...perProperty.entries()].sort(([, a], [, b]) => b - a)),
+  byQuestionType: coverageByQuestionType(coverageInputs),
   ms,
 };
 
@@ -117,5 +121,11 @@ if (Object.keys(report.bySlot).length > 0) {
   for (const [slot, count] of Object.entries(report.bySlot)) {
     process.stdout.write(`  ${slot.padEnd(22)}${String(count).padStart(6)}\n`);
   }
+}
+process.stdout.write('\ncoverage by official question type\n');
+for (const row of report.byQuestionType) {
+  process.stdout.write(`  ${row.questionType.padEnd(25)}${String(row.instances).padStart(4)} instances, `
+    + `${String(row.instancesWithClaim).padStart(4)} with claims, `
+    + `${String(row.claims).padStart(4)} claims, ${String(row.abstentions).padStart(4)} abstentions\n`);
 }
 process.stdout.write(`\n${OUT_DIR}/ingest-check.json written.\n`);

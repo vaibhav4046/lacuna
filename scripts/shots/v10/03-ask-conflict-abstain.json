@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "v10-ask-conflict-abstain",
+  "url": "http://127.0.0.1:4174/explore/ask",
+  "output": "video/hyperframes-v10/assets/captures/03-ask-conflict-abstain.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "billing-gate · runbook owner — has sources that disagree" }
+  ],
+  "actions": [
+    { "type": "type", "selector": "main input[aria-label=\"Ask a question\"]", "text": "Who is the runbook owner for billing-gate?", "clear": true, "delayMs": 24, "settleMs": 120 },
+    { "type": "click", "selector": "main input[aria-label=\"Ask a question\"] + button", "settleMs": 1200 },
+    { "type": "wait", "durationMs": 650 },
+    { "type": "type", "selector": "main input[aria-label=\"Ask a question\"]", "text": "What is Foxglove's connection pool size?", "clear": true, "delayMs": 24, "settleMs": 120 },
+    { "type": "click", "selector": "main input[aria-label=\"Ask a question\"] + button", "settleMs": 1200 },
+    { "type": "wait", "durationMs": 750 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "NEVER_STATED" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "No supporting evidence." }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 200
+}

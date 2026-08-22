@@ -23,6 +23,20 @@ export const REQUEST_TIMED_OUT = 'Request timed out.';
 export const PERMISSION_REQUIRED = 'Permission required.';
 
 const REASONS: ReadonlySet<string> = new Set([CONNECTION_FAILED, REQUEST_TIMED_OUT, PERMISSION_REQUIRED]);
+const REQUEST_TIMEOUT_MS = 15_000;
+const SESSION_BINDING = /^[0-9a-f]{64}$/u;
+const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Fetch errors can cross a browser realm (or come from a polyfill), so an
+ * `instanceof Error` check is not a reliable way to recognise an abort. The
+ * stable boundary is the standard error name.
+ */
+function hasErrorName(error: unknown, names: readonly string[]): boolean {
+  return typeof error === 'object' && error !== null
+    && typeof (error as { readonly name?: unknown }).name === 'string'
+    && names.includes((error as { readonly name: string }).name);
+}
 
 function reasonForStatus(status: number): string {
   if (status === 401 || status === 403) return PERMISSION_REQUIRED;
@@ -31,17 +45,82 @@ function reasonForStatus(status: number): string {
 }
 
 function reasonFor(error: unknown): string {
-  return error instanceof Error && REASONS.has(error.message) ? error.message : CONNECTION_FAILED;
+  const message = typeof error === 'object' && error !== null
+    && typeof (error as { readonly message?: unknown }).message === 'string'
+    ? (error as { readonly message: string }).message
+    : null;
+  return message !== null && REASONS.has(message) ? message : CONNECTION_FAILED;
 }
 
-export async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(path, {
-    signal,
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
-  });
-  if (!response.ok) throw new Error(reasonForStatus(response.status));
-  return (await response.json()) as T;
+/**
+ * Consume JSON through the response stream so a caller/deadline abort also
+ * cancels a body that delivered headers but never completes. Small embedded
+ * adapters that expose only `json()` retain the compatibility fallback.
+ */
+async function readJsonBody(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (response.body === null || typeof response.body?.getReader !== 'function') {
+    return response.json() as Promise<unknown>;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let abortReject!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { abortReject = reject; });
+  const onAbort = () => {
+    abortReject(new Error('response body read cancelled'));
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    if (signal.aborted) onAbort();
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > MAX_JSON_RESPONSE_BYTES) throw new Error('response body too large');
+      chunks.push(value);
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+}
+
+export async function getJson<T>(path: string, signal: AbortSignal, sessionBinding?: string): Promise<T> {
+  const control = new AbortController();
+  const relayAbort = () => control.abort();
+  let timedOut = false;
+  if (signal.aborted) control.abort();
+  else signal.addEventListener('abort', relayAbort, { once: true });
+  const timeout = globalThis.setTimeout(() => {
+    timedOut = true;
+    control.abort();
+  }, REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(path, {
+      signal: control.signal,
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', ...sessionBindingHeader(sessionBinding) },
+    });
+    if (!response.ok) throw new Error(reasonForStatus(response.status));
+    return (await readJsonBody(response, control.signal)) as T;
+  } catch (error) {
+    if (timedOut && hasErrorName(error, ['AbortError', 'TimeoutError'])) {
+      throw new Error(REQUEST_TIMED_OUT);
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
+    signal.removeEventListener('abort', relayAbort);
+  }
 }
 
 /**
@@ -51,13 +130,16 @@ export async function getJson<T>(path: string, signal: AbortSignal): Promise<T> 
  * mount: the first effect's response is thrown away instead of racing the
  * second one into state.
  */
-export function useLoaded<T>(path: string): Loaded<T> {
+export function useLoaded<T>(path: string, sessionBinding?: string): Loaded<T> {
   const [result, setResult] = useState<Loaded<T>>({ state: 'loading' });
 
   useEffect(() => {
     const control = new AbortController();
     setResult({ state: 'loading' });
-    getJson<T>(path, control.signal).then(
+    if (path.startsWith('/api/workspace/') && sessionBinding === undefined) {
+      return () => control.abort();
+    }
+    getJson<T>(path, control.signal, sessionBinding).then(
       (value) => {
         if (!control.signal.aborted) setResult({ state: 'ready', value });
       },
@@ -66,7 +148,7 @@ export function useLoaded<T>(path: string): Loaded<T> {
       },
     );
     return () => control.abort();
-  }, [path]);
+  }, [path, sessionBinding]);
 
   return result;
 }
@@ -80,11 +162,31 @@ export function csrfHeaders(): Readonly<Record<string, string>> {
 }
 
 function csrfToken(): string {
+  if (typeof document === 'undefined') return '';
   for (const part of document.cookie.split(';')) {
     const [name, ...rest] = part.trim().split('=');
     if (name === CSRF_COOKIE) return decodeURIComponent(rest.join('='));
   }
   return '';
+}
+
+function needsCsrfPreflight(path: string): boolean {
+  return path.startsWith('/api/auth/') || path.startsWith('/api/workspace/');
+}
+
+/** Establishes the browser half of the double-submit proof without mutating state. */
+async function primeCsrf(control: AbortController): Promise<void> {
+  if (csrfToken() !== '') return;
+  try {
+    await fetch('/api/session', {
+      signal: control.signal,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+  } catch {
+    // The mutation below still fails closed if the token could not be issued.
+  }
 }
 
 export interface PostResult {
@@ -108,16 +210,50 @@ export interface PostResult {
  * than a message: nothing the server writes reaches the page as text, so a
  * response body can never become copy.
  */
-export async function postJson(path: string, body: unknown): Promise<PostResult> {
-  const send = async (): Promise<Response> => fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
-    body: JSON.stringify(body),
-  });
+export async function postJson(
+  path: string,
+  body: unknown,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+  sessionBinding?: string,
+): Promise<PostResult> {
+  const send = async (): Promise<{
+    readonly response: Response;
+    readonly signal: AbortSignal;
+    readonly clear: () => void;
+    readonly timedOut: () => boolean;
+  }> => {
+    const control = new AbortController();
+    let timedOut = false;
+    const timeout = globalThis.setTimeout(() => {
+      timedOut = true;
+      control.abort();
+    }, timeoutMs);
+    try {
+      // A person can press a private action before the session provider's first
+      // read has returned. Prime the double-submit cookie in that narrow
+      // window. This request carries no mutation and is bounded by the same
+      // abort signal; the actual mutation still fails closed at the server if
+      // a token cannot be established.
+      if (needsCsrfPreflight(path)) await primeCsrf(control);
+      const response = await fetch(path, {
+        method: 'POST',
+        signal: control.signal,
+        credentials: 'same-origin',
+        headers: mutationHeaders(sessionBinding),
+        body: JSON.stringify(body),
+      });
+      // `fetch` resolves after headers. Keep its abort timer alive while the
+      // response body is parsed, otherwise a stalled JSON body leaves a form
+      // disabled forever even though the request appeared to finish.
+      return { response, signal: control.signal, clear: () => globalThis.clearTimeout(timeout), timedOut: () => timedOut };
+    } catch (error) {
+      globalThis.clearTimeout(timeout);
+      throw error;
+    }
+  };
 
   try {
-    let response = await send();
+    let sent = await send();
 
     /**
      * One retry, and only for the first request a visitor ever makes.
@@ -132,21 +268,25 @@ export async function postJson(path: string, body: unknown): Promise<PostResult>
      * the first attempt, fixes that without turning a real refusal into a loop:
      * if the token is still missing the second attempt is not made.
      */
-    if (response.status === 403 && csrfToken() !== '') {
-      response = await send();
+    if (sent.response.status === 403 && csrfToken() !== '') {
+      sent.clear();
+      sent = await send();
     }
 
     // A 204 has no body and neither does a failure worth reading. Parsing is
     // best effort because the status is what decides everything a user sees.
     let parsed: unknown = null;
     try {
-      parsed = response.status === 204 ? null : await response.json();
-    } catch {
+      parsed = sent.response.status === 204 ? null : await readJsonBody(sent.response, sent.signal);
+    } catch (error) {
+      if (sent.timedOut()) throw error;
       parsed = null;
+    } finally {
+      sent.clear();
     }
-    return { ok: response.ok, status: response.status, body: parsed };
-  } catch {
-    return { ok: false, status: 0, body: null };
+    return { ok: sent.response.ok, status: sent.response.status, body: parsed };
+  } catch (error) {
+    return { ok: false, status: hasErrorName(error, ['AbortError', 'TimeoutError']) ? 408 : 0, body: null };
   }
 }
 
@@ -155,17 +295,66 @@ export async function postJson(path: string, body: unknown): Promise<PostResult>
  * difference is that the caller needs the body, so a parse failure is a null
  * rather than a thrown error in a click handler.
  */
-export async function postFor<T>(path: string, body: unknown): Promise<T | null> {
+export async function postFor<T>(
+  path: string,
+  body: unknown,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+  sessionBinding?: string,
+): Promise<T | null> {
+  const send = async (): Promise<{
+    readonly response: Response;
+    readonly signal: AbortSignal;
+    readonly clear: () => void;
+  }> => {
+    const control = new AbortController();
+    const timeout = globalThis.setTimeout(() => control.abort(), timeoutMs);
+    try {
+      if (needsCsrfPreflight(path)) await primeCsrf(control);
+      const response = await fetch(path, {
+        method: 'POST',
+        signal: control.signal,
+        credentials: 'same-origin',
+        headers: mutationHeaders(sessionBinding),
+        body: JSON.stringify(body),
+      });
+      return { response, signal: control.signal, clear: () => globalThis.clearTimeout(timeout) };
+    } catch (error) {
+      globalThis.clearTimeout(timeout);
+      throw error;
+    }
+  };
+
   try {
-    const response = await fetch(path, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) return null;
-    return (await response.json()) as T;
+    let sent = await send();
+    // The session endpoint may have issued a token between a concurrent read
+    // and this mutation. Retry once only when the server refused the missing
+    // proof and a token is now present; never turn another refusal into a loop.
+    if (sent.response.status === 403 && csrfToken() !== '') {
+      sent.clear();
+      sent = await send();
+    }
+    if (!sent.response.ok) { sent.clear(); return null; }
+    try {
+      return (await readJsonBody(sent.response, sent.signal)) as T;
+    } finally {
+      sent.clear();
+    }
   } catch {
     return null;
   }
+}
+
+function mutationHeaders(sessionBinding?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-CSRF-Token': csrfToken(),
+  };
+  return { ...headers, ...sessionBindingHeader(sessionBinding) };
+}
+
+function sessionBindingHeader(sessionBinding?: string): Readonly<Record<string, string>> {
+  return sessionBinding !== undefined && SESSION_BINDING.test(sessionBinding)
+    ? { 'x-lacuna-voice-binding': sessionBinding }
+    : {};
 }

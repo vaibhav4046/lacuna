@@ -3,7 +3,8 @@ import type { CapabilityState } from '../model/capability.js';
 /**
  * The complete voice lifecycle. These are product states, not animation cues.
  * LISTENING is valid only while a microphone track is live. SPEAKING is valid
- * only between the media element's playing and pause/end events.
+ * only between the media element's playing and pause/end events. Operation
+ * interpretation and confirmation are tracked by an orthogonal controller.
  */
 export const VOICE_STATES = [
   'READY',
@@ -71,15 +72,15 @@ const TRANSITIONS: Readonly<Record<VoiceState, Edges>> = Object.freeze({
   },
   ANSWERED: {
     playback_started: 'SPEAKING', throttle: 'RATE_LIMITED',
-    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', fail: 'ERROR', retry: 'READY', reset: 'READY',
   },
   ABSTAINED: {
     playback_started: 'SPEAKING', throttle: 'RATE_LIMITED',
-    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', fail: 'ERROR', retry: 'READY', reset: 'READY',
   },
   CONTRADICTED: {
     playback_started: 'SPEAKING', throttle: 'RATE_LIMITED',
-    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', retry: 'READY', reset: 'READY',
+    provider_fail: 'PROVIDER_UNAVAILABLE', interrupt: 'INTERRUPTED', fail: 'ERROR', retry: 'READY', reset: 'READY',
   },
   SPEAKING: {
     playback_finished: 'READY', interrupt: 'INTERRUPTED', throttle: 'RATE_LIMITED',
@@ -146,10 +147,10 @@ const AT_STAGE: Readonly<Record<VoiceState, PipelineStage | null>> = Object.free
   LISTENING: 'STT',
   PARTIAL_TRANSCRIPT: 'STT',
   COMMITTED: null,
-  CHECKING_CONTEXT: 'HydraDB',
-  ANSWERED: 'Resolver',
-  ABSTAINED: 'Resolver',
-  CONTRADICTED: 'Resolver',
+  CHECKING_CONTEXT: null,
+  ANSWERED: null,
+  ABSTAINED: null,
+  CONTRADICTED: null,
   SPEAKING: 'TTS',
   INTERRUPTED: null,
   RATE_LIMITED: null,
@@ -184,9 +185,9 @@ export const STATE_FACTS: Readonly<Record<VoiceState, StateFacts>> = Object.free
     detail: 'No microphone track, provider session, query or audio playback is active.',
   },
   REQUESTING_PERMISSION: {
-    label: 'Permission', status: 'Requesting microphone permission', failed: false,
+    label: 'Permission', status: 'Preparing secure voice', failed: false,
     weight: 'outline', provisional: true, transcript: 'Unavailable', signal: null,
-    detail: 'The browser permission prompt is open. Listening has not started.',
+    detail: 'The server is checking speech access before the browser requests microphone permission. Listening has not started.',
   },
   LISTENING: {
     label: 'Listening', status: 'Listening', failed: false, weight: 'full', provisional: false,
@@ -206,22 +207,22 @@ export const STATE_FACTS: Readonly<Record<VoiceState, StateFacts>> = Object.free
   CHECKING_CONTEXT: {
     label: 'Checking', status: 'Checking context', failed: false, weight: 'full',
     provisional: false, transcript: 'Committed', signal: null,
-    detail: 'The committed words are going through the same planner and context kernel as typed input.',
+    detail: 'The selected committed-text handler is processing the same bounded words used by typed input.',
   },
   ANSWERED: {
-    label: 'Answered', status: 'Answered', failed: false, weight: 'full', provisional: false,
+    label: 'Answered', status: 'Response ready', failed: false, weight: 'full', provisional: false,
     transcript: 'Committed', signal: null,
-    detail: 'The context kernel returned a supported answer and its evidence. Playback has not started.',
+    detail: 'The selected committed-text handler returned a supported response. Playback has not started.',
   },
   ABSTAINED: {
-    label: 'Abstained', status: 'No evidence', failed: false, weight: 'outline', provisional: false,
+    label: 'Abstained', status: 'Response unavailable', failed: false, weight: 'outline', provisional: false,
     transcript: 'Committed', signal: null,
-    detail: 'The context kernel refused to answer because the workspace did not support one.',
+    detail: 'The selected committed-text handler refused the request without performing unsupported work.',
   },
   CONTRADICTED: {
     label: 'Contradicted', status: 'Contradicted', failed: false, weight: 'faded', provisional: false,
     transcript: 'Committed', signal: null,
-    detail: 'The context kernel found live claims that disagree and preserved their evidence.',
+    detail: 'The selected committed-text handler found claims that disagree and preserved their evidence.',
   },
   SPEAKING: {
     label: 'Speaking', status: 'Speaking', failed: false, weight: 'full', provisional: false,

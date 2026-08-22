@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { MONO } from '../../design/mark';
-import { csrfHeaders } from '../../api/client';
+import { postJson } from '../../api/client';
 
 /**
  * Putting something in, which is the half the product was missing.
@@ -21,23 +22,19 @@ const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', col
 
 /** Matches the cap the endpoint enforces, so the counter is not a decoration. */
 const MAX_SOURCE = 20_000;
+/** HydraDB accepts an ingest for up to two minutes; the UI waits beyond that boundary. */
+const INGEST_REQUEST_TIMEOUT_MS = 130_000;
 
 interface IngestReport {
   readonly ok: true;
   readonly sourceKey: string;
-  readonly collection: string;
   readonly turns: number;
   readonly claims: number;
   readonly entities: number;
   readonly accepted: number;
-  readonly refused: readonly { readonly id: string; readonly error: string }[];
+  readonly refused: number;
   readonly ms: number;
   readonly truncated: boolean;
-}
-
-interface IngestRefusal {
-  readonly ok: false;
-  readonly reason: string;
 }
 
 const REASON: Readonly<Record<string, string>> = {
@@ -49,6 +46,7 @@ const REASON: Readonly<Record<string, string>> = {
 };
 
 export function AddSource({ onIngested }: { onIngested?: () => void }) {
+  const go = useNavigate();
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [state, setState] = useState<'idle' | 'working'>('idle');
@@ -60,11 +58,7 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
     setProblem(null);
     setReport(null);
     try {
-      const response = await fetch('/api/workspace/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ title, text }),
-      });
+      const response = await postJson('/api/workspace/ingest', { title, text }, INGEST_REQUEST_TIMEOUT_MS);
       if (response.status === 401) {
         setProblem('Sign in first. A source is written into your workspace, not a shared one.');
         return;
@@ -73,14 +67,22 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
         setProblem('This deployment has no writable context store.');
         return;
       }
-      const body = await response.json() as IngestReport | IngestRefusal | { error?: string };
+      const body = response.body;
+      if (typeof body !== 'object' || body === null) {
+        setProblem(response.status === 408
+          ? 'Saving is taking longer than expected. The server may still finish. Check Memory before trying again.'
+          : 'The request did not complete.');
+        return;
+      }
       if ('ok' in body && body.ok) {
-        setReport(body);
+        setReport(body as IngestReport);
         setText('');
         onIngested?.();
         return;
       }
-      const reason = 'reason' in body ? body.reason : (body as { error?: string }).error ?? 'unknown';
+      const reason = 'reason' in body && typeof body.reason === 'string'
+        ? body.reason
+        : (body as { error?: string }).error ?? 'unknown';
       setProblem(REASON[reason] ?? `That source was refused: ${reason}.`);
     } catch {
       setProblem('The request did not complete.');
@@ -94,9 +96,8 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
       <div>
         <div style={{ ...head, paddingBottom: '6px' }}>ADD A SOURCE</div>
         <p style={{ fontSize: '13.5px', color: '#BDBDBD', margin: 0, maxWidth: '76ch', lineHeight: 1.55 }}>
-          Paste a transcript. The extractor decides what may become a claim before anything is
-          written, so a suggestion, a question and an instruction are stored where no answer
-          reads them. What it cannot read produces nothing rather than a guess.
+          Paste a transcript or note. Lacuna saves only clear factual statements and shows what
+          it kept. Questions and suggestions are not treated as facts.
         </p>
       </div>
 
@@ -161,19 +162,18 @@ export function AddSource({ onIngested }: { onIngested?: () => void }) {
           </span>
           <span style={{ ...note }}>
             {report.accepted} RECORDS ACCEPTED · {report.ms}MS
-            {report.refused.length > 0 ? ` · ${report.refused.length} REFUSED` : ''}
+            {report.refused > 0 ? ` · ${report.refused} REFUSED` : ''}
             {report.truncated ? ' · TEXT WAS CUT AT THE LIMIT' : ''}
           </span>
           <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '70ch', lineHeight: 1.55 }}>
-            Indexing is asynchronous, so a question about this may abstain for a moment before
-            the store has it. That is the store catching up, not the answer changing.
+            Your memory may take a few seconds to become searchable.
           </span>
-          <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '70ch', lineHeight: 1.55 }}>
-            Any MCP agent can read this workspace too: add the header{' '}
-            <span style={{ fontFamily: MONO, color: '#B79BFF' }}>x-lacuna-workspace: {report.collection}</span>{' '}
-            to calls against <span style={{ fontFamily: MONO, color: '#B79BFF' }}>/mcp</span>. The
-            handle is unguessable and read only; treat it like an unlisted link.
-          </span>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '3px' }}>
+            <span style={{ fontSize: '13px', color: '#9A9A9A', maxWidth: '62ch', lineHeight: 1.55 }}>
+              Want to use this memory from another app? Open MCP setup to create a private access key.
+            </span>
+            <button type="button" onClick={() => go('/app/tools')} style={{ background: 'none', border: '1px solid rgba(128,82,255,0.55)', borderRadius: '6px', color: '#FFFFFF', cursor: 'pointer', padding: '7px 10px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.12em' }}>OPEN MCP SETUP</button>
+          </div>
         </div>
       )}
     </div>

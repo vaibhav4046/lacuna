@@ -100,6 +100,31 @@ describe('the demo workspace without a session', () => {
     }
   });
 
+  it('labels the bundled demo corpus without claiming a live HydraDB connection', async () => {
+    const response = await fetch(`${base}/api/explore/connections`);
+    const body = await response.json() as readonly { readonly n: string; readonly st: string }[];
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual([{ n: 'HydraDB', st: 'STATIC CORPUS' }]);
+    expect(body.some((connection) => connection.st === 'CONNECTED')).toBe(false);
+  });
+
+  it('publishes only the redacted connector catalogue to signed-out users', async () => {
+    const response = await fetch(`${base}/api/explore/connectors`);
+    const body = await response.json() as {
+      readonly connectors: readonly Record<string, unknown>[];
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.connectors).toHaveLength(8);
+    for (const connector of body.connectors) {
+      expect(Object.keys(connector).sort()).toEqual(['availability', 'group', 'id', 'label', 'reason']);
+      expect(connector['id']).not.toBe('');
+      expect(connector['label']).not.toBe('');
+      expect(JSON.stringify(connector)).not.toMatch(/email|workspace|configuredAt|importedDocuments/iu);
+    }
+  });
+
   it('holds the corpus, where the signed-out workspace route holds nothing', async () => {
     const demo = (await (await fetch(`${base}/api/demo/memory`)).json()) as { total: number };
     const signedOut = (await (await fetch(`${base}/api/workspace/memory`)).json()) as { total: number };
@@ -530,16 +555,8 @@ describe('the public board asks the corpus that ships here', () => {
   });
 });
 
-/**
- * The public run, which is public because it writes nothing.
- *
- * The router here is built without an `agent`, so these check the shape of the
- * route rather than a model: that it exists, that it says so plainly when the
- * deployment has no provider, that it judges the request before spending
- * anything, and that it needs no CSRF token, because a route that required one
- * would be unusable from the page it exists for.
- */
-describe('a run over the public corpus', () => {
+/** The public proof corpus exposes accepted runs but never creates new ones. */
+describe('the read-only public agent preview', () => {
   async function post(path: string, body: unknown): Promise<Response> {
     return fetch(`${base}${path}`, {
       method: 'POST',
@@ -548,17 +565,14 @@ describe('a run over the public corpus', () => {
     });
   }
 
-  it('is reachable without a session or a CSRF token', async () => {
+  it('refuses an anonymous run before provider or body processing', async () => {
     const response = await post('/api/explore/agent/run', { task: 'What is the storage?' });
-    // 501 is this deployment having no model provider, which is the honest
-    // answer. What matters is that it is not 401 and not 403: no session was
-    // sent and no token was, and neither was the reason.
-    expect(response.status).toBe(501);
-    expect(await response.json()).toEqual({ error: 'no model provider is configured on this deployment' });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'public_preview_read_only' });
   });
 
-  it('answers on the old name too', async () => {
-    expect((await post('/api/demo/agent/run', { task: 'anything' })).status).toBe(501);
+  it('keeps the old public name read only too', async () => {
+    expect((await post('/api/demo/agent/run', { task: 'anything' })).status).toBe(403);
   });
 
   it('is not a GET', async () => {

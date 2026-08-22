@@ -1,8 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { getJson, postFor } from '../../api/client';
+import { createClientRequestId } from '../../api/request-id';
 import { useScope, useScoped } from '../../api/scope';
+import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
+import { guardedAction } from '../agent-actions';
 import type { AgentRecord, AgentRunRecord, DailyScheduleRecord, RunStatus } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
 
@@ -11,6 +14,7 @@ export { Tools } from './tools';
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.13em', color: '#7A7A7A' } as const;
 const ACTIVE: ReadonlySet<RunStatus> = new Set(['CREATED', 'QUEUED', 'RUNNING', 'WAITING_TOOL', 'HANDOFF']);
+const AGENT_REQUEST_TIMEOUT_MS = 65_000;
 
 function at(value: string | null): string {
   if (value === null) return 'NEVER';
@@ -24,6 +28,29 @@ function tone(status: RunStatus): string {
   return '#FFFFFF';
 }
 
+/** Historical scheduled health runs can predate the empty-workspace fix. */
+function isEmptyHealth(run: AgentRunRecord): boolean {
+  return run.kind === 'CONTEXT_HEALTH' && run.error === 'no_known_subject';
+}
+
+function effectiveStatus(run: AgentRunRecord): RunStatus {
+  return isEmptyHealth(run) ? 'COMPLETED' : run.status;
+}
+
+/**
+ * Historical empty-workspace health records were persisted with a terminal
+ * FAILED event before the no-evidence result became a first-class success.
+ * Keep that evidence truthful without making the current UI contradict the
+ * effective COMPLETED/NO EVIDENCE status shown for the record.
+ */
+function eventStage(run: AgentRunRecord, stage: string, index: number): string {
+  return isEmptyHealth(run)
+    && index === run.events.length - 1
+    && stage === 'FAILED'
+    ? 'COMPLETED'
+    : stage;
+}
+
 type Filter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 function includes(filter: Filter, status: RunStatus): boolean {
@@ -32,22 +59,37 @@ function includes(filter: Filter, status: RunStatus): boolean {
     || filter === status;
 }
 
-function RunDetail({ run, agentName, demo, onChange }: {
+function RunDetail({ run, agentName, demo, binding, onChange }: {
   readonly run: AgentRunRecord;
   readonly agentName: string;
   readonly demo: boolean;
+  readonly binding?: string | undefined;
   readonly onChange: (run: AgentRunRecord) => void;
 }) {
   const [mutating, setMutating] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const emptyHealth = isEmptyHealth(run);
+  const displayedStatus = effectiveStatus(run);
 
   async function action(kind: 'cancel' | 'retry'): Promise<void> {
+    if (mutating) return;
     setMutating(true);
     setProblem(null);
-    const updated = await postFor<AgentRunRecord>(`/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`, {});
-    if (updated === null) setProblem(`${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`);
-    else onChange(updated);
-    setMutating(false);
+    try {
+      const result = await guardedAction(
+        () => postFor<AgentRunRecord>(
+          `/api/workspace/agent/runs/${encodeURIComponent(run.id)}/${kind}`,
+          {},
+          kind === 'retry' ? AGENT_REQUEST_TIMEOUT_MS : 15_000,
+          binding,
+        ),
+        `${kind === 'cancel' ? 'Cancellation' : 'Retry'} did not complete.`,
+      );
+      if (result.value === null) setProblem(result.message);
+      else onChange(result.value);
+    } finally {
+      setMutating(false);
+    }
   }
 
   return (
@@ -57,20 +99,21 @@ function RunDetail({ run, agentName, demo, onChange }: {
           <div style={{ fontSize: '16px', color: '#FFFFFF', lineHeight: 1.55 }}>{run.task}</div>
           <div style={{ ...note, marginTop: '6px' }}>{agentName} · {run.provider.name} / {run.provider.model} · ATTEMPT {run.attempt}</div>
         </div>
-        <div style={{ ...note, color: tone(run.status), border: '1px solid rgba(255,255,255,0.14)', padding: '7px 9px' }}>{run.status}</div>
+        <div style={{ ...note, color: tone(displayedStatus), border: '1px solid rgba(255,255,255,0.14)', padding: '7px 9px' }}>{emptyHealth ? 'NO EVIDENCE' : displayedStatus}</div>
       </div>
 
       <div aria-label="Observed run lifecycle" style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
         {run.events.map((event, index) => (
           <span key={`${event.at}-${index}`} style={{ display: 'contents' }}>
-            <span title={`${at(event.at)} · ${event.detail}`} style={{ ...note, color: event.stage === 'HANDOFF' ? '#B79BFF' : '#9A9A9A' }}>{event.stage}</span>
+            <span title={`${at(event.at)} · ${event.detail}`} style={{ ...note, color: eventStage(run, event.stage, index) === 'HANDOFF' ? '#B79BFF' : '#9A9A9A' }}>{eventStage(run, event.stage, index)}</span>
             {index === run.events.length - 1 ? null : <span style={{ width: '18px', height: '1px', background: 'rgba(255,255,255,0.16)' }} />}
           </span>
         ))}
       </div>
 
-      {run.result === null ? null : <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>{run.result}</p>}
-      {run.error === null ? null : <p style={{ fontSize: '13px', color: '#FFB829', margin: 0 }}>Run error: {run.error}</p>}
+      {run.result === null && emptyHealth ? <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>This workspace had no stored subjects when this scheduled review ran. Add a source before the next review.</p> : null}
+      {run.result === null || emptyHealth ? null : <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>{run.result}</p>}
+      {run.error === null || emptyHealth ? null : <p style={{ fontSize: '13px', color: '#FFB829', margin: 0 }}>Run error: {run.error}</p>}
       {run.verdict !== null && run.verdict.unsupported.length > 0 ? (
         <div style={{ borderLeft: '2px solid #FFB829', paddingLeft: '12px' }}>
           <div style={{ ...head, color: '#FFB829' }}>UNSUPPORTED IN REVIEW</div>
@@ -104,10 +147,10 @@ function RunDetail({ run, agentName, demo, onChange }: {
 
       {demo ? null : (
         <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {ACTIVE.has(run.status) ? (
+          {ACTIVE.has(displayedStatus) ? (
             <button disabled={mutating} onClick={() => void action('cancel')} style={{ ...note, background: 'none', border: '1px solid rgba(255,184,41,0.45)', color: '#FFB829', padding: '7px 10px', cursor: 'pointer' }}>CANCEL</button>
           ) : null}
-          {run.status === 'FAILED' || run.status === 'CANCELLED' ? (
+          {displayedStatus === 'FAILED' || displayedStatus === 'CANCELLED' ? (
             <button disabled={mutating} onClick={() => void action('retry')} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '7px 10px', cursor: 'pointer' }}>RETRY</button>
           ) : null}
           {problem === null ? null : <span style={{ color: '#FFB829', fontSize: '12px' }}>{problem}</span>}
@@ -117,7 +160,7 @@ function RunDetail({ run, agentName, demo, onChange }: {
   );
 }
 
-function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (run: AgentRunRecord) => void }) {
+function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly binding?: string | undefined; readonly onRun: (run: AgentRunRecord) => void }) {
   const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
   const rows = schedules.state === 'ready' ? schedules.value : [];
   const [working, setWorking] = useState<string | null>(null);
@@ -125,27 +168,37 @@ function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (r
   const pendingRequests = useRef(new Map<string, string>());
 
   async function runNow(schedule: DailyScheduleRecord): Promise<void> {
+    if (working !== null) return;
     setWorking(schedule.id);
     setMessage(null);
-    const requestId = pendingRequests.current.get(schedule.id) ?? `ui-${crypto.randomUUID()}`;
+    const requestId = pendingRequests.current.get(schedule.id) ?? createClientRequestId('ui');
     pendingRequests.current.set(schedule.id, requestId);
-    const result = await postFor<{ readonly outcome: string; readonly runId: string | null }>(
-      `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
-      { requestId },
-    );
-    if (result !== null) pendingRequests.current.delete(schedule.id);
-    if (result?.runId !== null && result?.runId !== undefined) {
-      try {
-        const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal);
-        const completed = current.find((run) => run.id === result.runId);
-        if (completed !== undefined) onRun(completed);
-      } catch {
-        // The run id remains in the success message. A failed refresh does not
-        // turn a completed dispatch into a reported failure.
+    try {
+      const dispatch = await guardedAction(
+        () => postFor<{ readonly outcome: string; readonly runId: string | null }>(
+          `/api/workspace/schedules/${encodeURIComponent(schedule.id)}/run`,
+          { requestId },
+          AGENT_REQUEST_TIMEOUT_MS,
+          binding,
+        ),
+        'Run now did not complete.',
+      );
+      if (dispatch.value !== null) pendingRequests.current.delete(schedule.id);
+      const result = dispatch.value;
+      if (result?.runId !== null && result?.runId !== undefined) {
+        try {
+          const current = await getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding);
+          const completed = current.find((run) => run.id === result.runId);
+          if (completed !== undefined) onRun(completed);
+        } catch {
+          // The run id remains in the success message. A failed refresh does not
+          // turn a completed dispatch into a reported failure.
+        }
       }
+      setMessage(dispatch.message ?? (result === null ? 'Run now did not complete.' : `${result.outcome}${result.runId === null ? '' : ` · ${result.runId}`}`));
+    } finally {
+      setWorking(null);
     }
-    setMessage(result === null ? 'Run now did not complete.' : `${result.outcome}${result.runId === null ? '' : ` · ${result.runId}`}`);
-    setWorking(null);
   }
 
   return (
@@ -175,6 +228,8 @@ function Schedules({ demo, onRun }: { readonly demo: boolean; readonly onRun: (r
 
 export function Work() {
   const scope = useScope();
+  const { loaded: session } = useSession();
+  const binding = session.state === 'ready' && session.value.signedIn ? session.value.session.binding : undefined;
   const loadedRuns = useScoped<readonly AgentRunRecord[]>('runs');
   const loadedAgents = useScoped<readonly AgentRecord[]>('agents');
   const [changedRuns, setChangedRuns] = useState<readonly AgentRunRecord[]>([]);
@@ -185,7 +240,7 @@ export function Work() {
   const persistedRuns = loadedRuns.state === 'ready' ? loadedRuns.value : [];
   const changedIds = new Set(changedRuns.map((run) => run.id));
   const runs = [...changedRuns, ...persistedRuns.filter((run) => !changedIds.has(run.id))];
-  const visible = runs.filter((run) => includes(filter, run.status));
+  const visible = runs.filter((run) => includes(filter, effectiveStatus(run)));
   const filters: readonly Filter[] = ['ALL', 'ACTIVE', 'COMPLETED', 'FAILED', 'CANCELLED'];
 
   function replace(updated: AgentRunRecord): void {
@@ -194,12 +249,12 @@ export function Work() {
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      <Schedules demo={scope.demo} onRun={replace} />
+      <Schedules demo={scope.demo} binding={binding} onRun={replace} />
       <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={head}>AGENT RUNS · OBSERVED EVENTS ONLY</div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {filters.map((value) => {
-            const count = runs.filter((run) => includes(value, run.status)).length;
+            const count = runs.filter((run) => includes(value, effectiveStatus(run))).length;
             return <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} style={{ ...note, background: 'none', border: `1px solid ${filter === value ? 'rgba(128,82,255,0.65)' : 'rgba(255,255,255,0.12)'}`, color: filter === value ? '#FFFFFF' : '#7A7A7A', padding: '7px 10px', cursor: 'pointer' }}>{value} · {count}</button>;
           })}
         </div>
@@ -211,7 +266,7 @@ export function Work() {
         {loadedRuns.state === 'ready' && runs.length > 0 && visible.length === 0 ? (
           <Empty headline={`No ${filter.toLowerCase()} runs.`} detail="Choose another status to inspect the runs this workspace has recorded." />
         ) : null}
-        {visible.map((run) => <RunDetail key={run.id} run={run} agentName={names.get(run.agentId) ?? run.agentId} demo={scope.demo} onChange={replace} />)}
+        {visible.map((run) => <RunDetail key={run.id} run={run} agentName={names.get(run.agentId) ?? run.agentId} demo={scope.demo} binding={binding} onChange={replace} />)}
       </section>
     </div>
   );

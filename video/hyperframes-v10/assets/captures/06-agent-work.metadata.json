@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-agent-work",
+  "capturedAt": "2026-08-21T03:22:16.295Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/explore/work",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "06-agent-work.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 3.267,
+    "bytes": 133047,
+    "sha256": "f45bb484722da00a50498b1fc4682685bd4c7aafe164d01e7fc73a973f16b17e",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 98,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 110,
+    "savedFrames": 67,
+    "acknowledgedFrames": 110,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 43,
+    "targetFrames": 98,
+    "uniqueSourceFramesUsed": 67,
+    "duplicatedTargetFrames": 31,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 9,
+    "longestSourceGapMs": 103,
+    "uniqueSourcePayloads": 2,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 6,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/agents",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/schedules",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/runs",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 6,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/runs",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/agents",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/schedules",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 6,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/runs",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/agents",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/schedules",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 500
+      },
+      "startedAtMs": 130,
+      "durationMs": 500,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "scroll",
+        "durationMs": 1200,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "[aria-label=\"Observed run lifecycle\"]",
+        "align": "center"
+      },
+      "startedAtMs": 630,
+      "durationMs": 1227,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "wait",
+        "durationMs": 1000
+      },
+      "startedAtMs": 1857,
+      "durationMs": 1000,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

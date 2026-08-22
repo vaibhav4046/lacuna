@@ -2,7 +2,7 @@
 
 Film runtime: 179.00 seconds. The narration source is 177.3975 seconds, so the final frame holds briefly and the film remains below the three-minute judging limit without speeding up or clipping the voice.
 
-Narration is generated with the verified ElevenLabs professional voice clone `Vaibhav Lalwani`, voice ID `GAeq3X4y41cIseBkBfsS`, using Eleven Multilingual v2. The generated MP3 is wired at `assets/narration-vaibhav/lacuna-v8-vaibhav.mp3`.
+Narration is generated with the verified ElevenLabs professional voice clone `Vaibhav Lalwani`, voice ID `GAeq3X4y41cIseBkBfsS`, using Eleven Multilingual v2. The generated MP3 is wired locally at `assets/narration-vaibhav/lacuna-v8-vaibhav.mp3` and intentionally gitignored; its exact hash and reproducibility metadata remain in `narration.json`.
 
 ## Final narration
 

@@ -28,7 +28,7 @@ const MIN_PASSWORD = 12;
 
 export default function Forgot() {
   const go = useNavigate();
-  const { refresh } = useSession();
+  const { refreshAfterMutation } = useSession();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -41,6 +41,7 @@ export default function Forgot() {
     && password.length >= MIN_PASSWORD && confirm === password;
 
   async function submit() {
+    if (busy) return;
     if (password.length < MIN_PASSWORD) {
       setProblem(`Password must be at least ${MIN_PASSWORD} characters.`);
       return;
@@ -51,11 +52,18 @@ export default function Forgot() {
     }
     setBusy(true);
     setProblem(null);
-    const result = await recover(email, code, password);
-    setBusy(false);
-    if ('problem' in result) { setProblem(result.problem); return; }
-    await refresh();
-    setIssued(result.recoveryCode);
+    try {
+      const result = await recover(email, code, password);
+      if ('problem' in result) { setProblem(result.problem); return; }
+      const session = await refreshAfterMutation();
+      if (session === null || !session.signedIn) {
+        setProblem('Your password changed, but the session could not be confirmed. Try again.');
+        return;
+      }
+      setIssued(result.recoveryCode);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (issued !== null) {

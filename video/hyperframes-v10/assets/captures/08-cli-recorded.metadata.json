@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-cli-recorded",
+  "capturedAt": "2026-08-21T03:24:20.490Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "#cli",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "#cli",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "#hydra",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "08-cli-recorded.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 5.967,
+    "bytes": 1764990,
+    "sha256": "341866cd3ab4b453c1ff93472407f93a852e426d307930e10980a50bf7557309",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 179,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 216,
+    "savedFrames": 125,
+    "acknowledgedFrames": 216,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 91,
+    "targetFrames": 179,
+    "uniqueSourceFramesUsed": 125,
+    "duplicatedTargetFrames": 54,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 23,
+    "longestSourceGapMs": 400,
+    "uniqueSourcePayloads": 125,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 1,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 1,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 1,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 700
+      },
+      "startedAtMs": 120,
+      "durationMs": 705,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "scroll",
+        "durationMs": 800,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "#cli",
+        "align": "end"
+      },
+      "startedAtMs": 825,
+      "durationMs": 866,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "wait",
+        "durationMs": 700
+      },
+      "startedAtMs": 1691,
+      "durationMs": 706,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "scroll",
+        "durationMs": 2200,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "#hydra",
+        "align": "start"
+      },
+      "startedAtMs": 2397,
+      "durationMs": 2220,
+      "ok": true
+    },
+    {
+      "index": 4,
+      "action": {
+        "type": "wait",
+        "durationMs": 650
+      },
+      "startedAtMs": 4617,
+      "durationMs": 658,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

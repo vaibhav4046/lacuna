@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "v10-agent-recommendations",
+  "url": "http://127.0.0.1:4174/explore/agents",
+  "output": "video/hyperframes-v10/assets/captures/05-agent-recommendations.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "SUGGESTED FROM THIS MEMORY" },
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "RESEARCHER → REVIEWER · 60s" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 650 },
+    { "type": "scroll", "selector": "textarea[aria-label=\"Agent task\"]", "align": "center", "offsetPx": 0, "durationMs": 1500, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 850 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "LAST RUN" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "NO_WRITE" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

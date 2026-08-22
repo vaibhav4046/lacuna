@@ -455,12 +455,9 @@ export function Judge() {
           <a href="https://github.com/vaibhav4046/lacuna" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
             SOURCE
           </a>
-          <Link to="/explore/memory" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>
-            PASTE YOUR OWN TRANSCRIPT
-          </Link>
+          <Link to="/signin" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>SIGN IN TO PASTE A TRANSCRIPT</Link>
           <Link to="/explore/hydra" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>WHAT HYDRADB FOUND</Link>
           <Link to="/explore/dash" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>OPEN THE WHOLE PRODUCT</Link>
-          <Link to="/signin" style={{ ...label, color: '#9A9A9A', textDecoration: 'none' }}>SIGN IN</Link>
           <span style={label}>NOTHING ON THIS PAGE IS RECORDED</span>
         </footer>
       </div>
@@ -487,12 +484,15 @@ function AskYourOwn() {
   const [reply, setReply] = useState<PlannedReply | null>(null);
 
   async function go() {
-    if (text.trim() === '') return;
+    if (busy || text.trim() === '') return;
     setBusy(true);
     setReply(null);
-    const planned = await postFor<PlannedReply>('/api/explore/query', { question: text.trim() });
-    setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null, ms: 0 });
-    setBusy(false);
+    try {
+      const planned = await postFor<PlannedReply>('/api/explore/query', { question: text.trim() });
+      setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null, ms: 0 });
+    } finally {
+      setBusy(false);
+    }
   }
 
   const answer = reply?.answer ?? null;

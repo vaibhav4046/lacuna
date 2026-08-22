@@ -1,5 +1,9 @@
 # V8 final capability matrix
 
+> Historical V8 matrix. See [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md) for
+> the current production/candidate boundary. A V8 `VERIFIED` row does not pass a
+> changed V10 implementation without a rerun.
+
 This matrix separates the last accepted production build from the current
 working-tree candidate.
 
@@ -33,12 +37,12 @@ working-tree candidate.
 | realtime speech-to-text | CANDIDATE | raw PCM Scribe route and single-use token boundary covered by fixtures; no provider-enabled production session |
 | streamed text-to-speech | CANDIDATE | server-side stream, backpressure and cancellation covered by fixtures; no provider-enabled production session |
 | production voice provider | UNAVAILABLE | ElevenLabs server credentials intentionally absent |
-| CLI | VERIFIED | read and ingest commands; no agent lifecycle commands |
+| CLI | VERIFIED | nine read, diagnostic, interactive and benchmark commands; ingestion is an npm script, not a CLI command; no agent lifecycle commands |
 | packaged Lacuna SDK | UNAVAILABLE | the repository uses the official MCP SDK internally but publishes no `@lacuna/sdk` package |
 | MCP stdio | VERIFIED | stdout-safe JSON-RPC transport and parity sweep |
-| MCP public HTTP | VERIFIED | public seeded workspace over Streamable HTTP |
-| MCP private HTTP | CANDIDATE | authenticated issue/revoke, random digest-only bearer, cross-workspace refusal and bounded HTTP pass locally; deployment/client proof pending |
-| ChatGPT custom app | PROTOCOL ONLY | Pro supports read/fetch by provider contract; Lacuna has not completed a ChatGPT proof |
+| MCP public HTTP | VERIFIED | public seeded workspace over Streamable HTTP; live 2026-08-21 catalog returned seven read-only tools |
+| MCP private HTTP | CANDIDATE | authenticated issue/revoke, random digest-only 30-day bearer, exact-expiry refusal, legacy-v1 fail-closed/remint, cross-workspace refusal and bounded HTTP pass locally; deployment/client proof pending |
+| ChatGPT custom app | VERIFIED READ ONLY | the ChatGPT Lacuna app called all seven production public tools against HydraDB Cloud; no private write was accepted |
 | Claude MCP | PROTOCOL ONLY | provider documents MCP and may permit writes; Lacuna has not completed a Claude proof |
 | generic app memory sync | PROTOCOL ONLY | HTTP/MCP contract exists; this does not prove every client can connect |
 | Spotify / Slack / Notion / Gmail / Linear | EXAMPLE | no native OAuth or ingestion connector claimed |

@@ -19,20 +19,11 @@ export function Mark({ size, className }: { size: number; className?: string }) 
         <path
           d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8"
           fill="none"
-          stroke="#8052FF"
-          strokeOpacity="0.42"
-          strokeWidth="3.8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M12 2.6A8.4 8.4 0 0 1 12 19.4A6 6 0 0 1 12 7.4A3.7 3.7 0 0 1 12 14.8"
-          fill="none"
           stroke="#FFFFFF"
-          strokeWidth="1.65"
+          strokeWidth="1.9"
           strokeLinecap="round"
         />
-        <circle cx="12" cy="2.6" r="2.25" fill="#080808" stroke="#FFB829" strokeWidth="1.25" />
-        <circle cx="12" cy="2.6" r="0.85" fill="#FFB829" />
+        <circle cx="12" cy="2.6" r="1.9" fill="#FFB829" />
       </g>
     </svg>
   );

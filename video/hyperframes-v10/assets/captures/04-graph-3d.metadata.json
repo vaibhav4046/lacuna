@@ -1,0 +1,268 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-graph-3d",
+  "capturedAt": "2026-08-21T03:19:56.752Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/explore/graph",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "svg[aria-label=\"Interactive 3D memory graph grouped by state\"]",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "none",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "04-graph-3d.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 7,
+    "bytes": 387810,
+    "sha256": "7391f4eb6db98b34b5655ab9b733c40b5d7fb3810643f9d9d5fad065ce28a348",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 210,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 254,
+    "savedFrames": 136,
+    "acknowledgedFrames": 254,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 118,
+    "targetFrames": 210,
+    "uniqueSourceFramesUsed": 136,
+    "duplicatedTargetFrames": 74,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 40,
+    "longestSourceGapMs": 694,
+    "uniqueSourcePayloads": 42,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 4,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/graph",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 4,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/graph",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 4,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/graph",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 450
+      },
+      "startedAtMs": 101,
+      "durationMs": 452,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "click",
+        "selector": "button[aria-label=\"Rotate right\"]",
+        "settleMs": 250
+      },
+      "startedAtMs": 553,
+      "durationMs": 421,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "click",
+        "selector": "button[aria-label=\"Rotate right\"]",
+        "settleMs": 250
+      },
+      "startedAtMs": 974,
+      "durationMs": 399,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "click",
+        "selector": "button[aria-label=\"Rotate up\"]",
+        "settleMs": 250
+      },
+      "startedAtMs": 1373,
+      "durationMs": 394,
+      "ok": true
+    },
+    {
+      "index": 4,
+      "action": {
+        "type": "click",
+        "selector": "button[aria-label=\"Zoom in\"]",
+        "settleMs": 300
+      },
+      "startedAtMs": 1767,
+      "durationMs": 476,
+      "ok": true
+    },
+    {
+      "index": 5,
+      "action": {
+        "type": "type",
+        "selector": "input[placeholder=\"Search entities, claims or sources\"]",
+        "value": "[REDACTED]",
+        "source": "literal",
+        "clear": true,
+        "delayMs": 45,
+        "settleMs": 550
+      },
+      "startedAtMs": 2243,
+      "durationMs": 2358,
+      "ok": true
+    },
+    {
+      "index": 6,
+      "action": {
+        "type": "click",
+        "selector": "svg[aria-label=\"Interactive 3D memory graph grouped by state\"] g[role=\"button\"]",
+        "settleMs": 650
+      },
+      "startedAtMs": 4602,
+      "durationMs": 754,
+      "ok": true
+    },
+    {
+      "index": 7,
+      "action": {
+        "type": "wait",
+        "durationMs": 750
+      },
+      "startedAtMs": 5356,
+      "durationMs": 753,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

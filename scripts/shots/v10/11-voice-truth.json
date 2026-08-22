@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "name": "v10-voice-truth",
+  "url": "http://127.0.0.1:4174/explore/voice",
+  "output": "video/hyperframes-v10/assets/captures/11-voice-truth.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "VOICE · READY" },
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "No microphone track, provider session, query or audio playback is active." }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 450 },
+    { "type": "type", "selector": "input[aria-label=\"Typed question fallback\"]", "text": "What is Foxglove's connection pool size?", "clear": true, "delayMs": 30, "settleMs": 150 },
+    { "type": "click", "selector": "input[aria-label=\"Typed question fallback\"] + button", "settleMs": 1800 },
+    { "type": "wait", "durationMs": 900 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "VOICE · PROVIDER UNAVAILABLE" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "No supporting evidence." }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [
+    { "path": "/api/explore/voice/speech", "status": 403 }
+  ],
+  "settleMs": 200
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useScope, useScoped } from '../../api/scope';
 import { MemoryFieldOverview } from '../../canvas/MemoryField';
@@ -62,7 +63,8 @@ function StateMark({ st }: { st: MemoryRow['st'] }) {
 
 export function Memory() {
   const page = useScoped<MemoryPage>('memory');
-  const { demo } = useScope();
+  const { demo, prefix } = useScope();
+  const go = useNavigate();
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -80,7 +82,12 @@ export function Memory() {
         read only, and offering to add to it would be offering something the
         endpoint refuses.
       */}
-      {demo ? null : <AddSource onIngested={() => window.location.reload()} />}
+      {demo ? null : (
+        <div style={{ display: 'grid', gap: '10px' }}>
+          <AddSource onIngested={() => window.location.reload()} />
+          <button type="button" className="hv-text" onClick={() => go(`${prefix}/conn#file`)} style={{ justifySelf: 'start', minHeight: '44px', padding: '9px 14px', background: 'none', border: '1px solid rgba(128,82,255,0.5)', borderRadius: '7px', color: '#BDBDBD', cursor: 'pointer', fontFamily: MONO, letterSpacing: '0.12em' }}>REVIEW FILE, GITHUB, HTTPS, OR WEBHOOK</button>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input className="fv-violet" type="text" placeholder="Search claims" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: '200px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontFamily: MONO, fontSize: '12px', outline: 'none' }} />
         {FILTERS.map((l) => (

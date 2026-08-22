@@ -50,13 +50,12 @@ export const MCP_WRITE_LIMIT = Object.freeze({ limit: 6, windowMs: 60_000, maxKe
 /**
  * Is this request allowed to come from a page.
  *
- * An absent Origin is allowed: command-line MCP clients do not send one, and
- * the header exists to stop a page in a browser from reaching a loopback
- * server, not to authenticate anything. When it is present it must be a real
- * http or https URL pointing at loopback. The literal `null` origin, which is
+ * An absent Origin is allowed: command-line MCP clients do not send one. When
+ * it is present it must be a real http or https URL pointing at loopback or at
+ * an explicitly configured hosted origin. The literal `null` origin, which is
  * what a sandboxed frame or a `file:` page sends, fails both checks.
  */
-export function isLoopbackOrigin(value: string | undefined): boolean {
+export function isAllowedOrigin(value: string | undefined, allowedOrigins: readonly string[] = []): boolean {
   if (value === undefined) {
     return true;
   }
@@ -71,7 +70,20 @@ export function isLoopbackOrigin(value: string | undefined): boolean {
   if (origin.protocol !== 'http:' && origin.protocol !== 'https:') {
     return false;
   }
-  return LOOPBACK_HOSTS.has(origin.hostname);
+  if (LOOPBACK_HOSTS.has(origin.hostname)) return true;
+
+  return allowedOrigins.some((candidate) => {
+    try {
+      return new URL(candidate).origin === origin.origin;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** Compatibility export for callers that only need the local-development rule. */
+export function isLoopbackOrigin(value: string | undefined): boolean {
+  return isAllowedOrigin(value);
 }
 
 function refuse(res: ServerResponse, status: number, message: string, retryAfterSeconds?: number): void {
@@ -113,18 +125,11 @@ export interface HttpOptions {
   /** Called once per rejected request. Never called with a header value. */
   readonly log?: (line: string) => void;
   /**
-   * Serve requests from any origin, for a deployment rather than a laptop.
-   *
-   * The Origin check exists to stop a page in a browser reaching a server bound
-   * to loopback, which is a real attack against a local process and not a
-   * meaningful one against a public HTTPS endpoint that any client may call
-   * directly. A hosted server that refuses every remote origin is a server no
-   * hosted client can use.
-   *
-   * Turning it on does not widen what the public tools can read. Private tools
-   * are reachable only after `authorizeWorkspace` returns a scoped context.
+   * Browser origins permitted to call a hosted endpoint. Each value is matched
+   * as an exact URL origin, never as a prefix or a wildcard. Loopback browser
+   * origins are always permitted for local development.
    */
-  readonly allowAnyOrigin?: boolean;
+  readonly allowedOrigins?: readonly string[];
   /** Test/configuration seams. Hosted limits still need a durable gateway. */
   readonly requestLimit?: RateLimitOptions;
   readonly toolLimit?: RateLimitOptions;
@@ -140,18 +145,23 @@ export interface HttpOptions {
  * attempted: the endpoint looks broken while working perfectly for curl. That
  * was the state this was in.
  *
- * Any origin, and deliberately no cookies. The default context is the corpus
- * anybody can fetch without an account. A workspace call needs an independent
- * random capability in an Authorization/header field or, for clients that
- * cannot set headers, in the path. CORS is not treated as authorization.
+ * An allowed Origin, and deliberately no cookies. The default context is the
+ * corpus anybody can fetch without an account. A workspace call needs an
+ * independent random capability in an Authorization/header field or, for
+ * clients that cannot set headers, in the path. CORS is not treated as
+ * authorization.
  */
 const CORS: Readonly<Record<string, string>> = {
-  'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
   'access-control-allow-headers': 'content-type, accept, authorization, mcp-protocol-version, mcp-session-id, last-event-id, x-lacuna-capability',
   'access-control-expose-headers': 'mcp-session-id, mcp-protocol-version',
   'access-control-max-age': '86400',
 };
+
+function cors(origin: string | undefined): Readonly<Record<string, string>> {
+  if (origin === undefined) return {};
+  return { ...CORS, 'access-control-allow-origin': origin, vary: 'Origin' };
+}
 
 /**
  * A request listener for the MCP endpoint.
@@ -172,7 +182,7 @@ export function createMcpListener(
   const now = options.now ?? Date.now;
 
   return (req, res) => {
-    void handle(req, res, options, log, options.allowAnyOrigin === true, requests, tools, writes, now);
+    void handle(req, res, options, log, options.allowedOrigins ?? [], requests, tools, writes, now);
   };
 }
 
@@ -254,7 +264,7 @@ async function handle(
   res: ServerResponse,
   options: HttpOptions,
   log: (line: string) => void,
-  allowAnyOrigin: boolean,
+  allowedOrigins: readonly string[],
   requests: FixedWindow,
   tools: FixedWindow,
   writes: FixedWindow,
@@ -270,11 +280,16 @@ async function handle(
     return;
   }
 
-  // Answered before the origin check, because a preflight is the request that
-  // asks whether the origin is acceptable. Refusing it with a 403 tells the
-  // browser nothing except that the endpoint is broken.
+  const origin = header(req, 'origin');
+  if (!isAllowedOrigin(origin, allowedOrigins)) {
+    log('rejected a request with a disallowed Origin');
+    refuse(res, 403, 'this endpoint does not serve this Origin');
+    return;
+  }
+  const corsHeaders = cors(origin);
+
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, allowAnyOrigin ? { ...CORS, 'content-length': '0' } : { allow: 'POST', 'content-length': '0' });
+    res.writeHead(204, { ...corsHeaders, 'content-length': '0' });
     res.end();
     return;
   }
@@ -285,21 +300,13 @@ async function handle(
       'cache-control': 'no-store, private',
       'x-content-type-options': 'nosniff',
       allow: 'POST, OPTIONS',
-      ...(allowAnyOrigin ? CORS : {}),
+      ...corsHeaders,
     });
     res.end(JSON.stringify({ error: 'the MCP endpoint accepts POST' }));
     return;
   }
 
-  if (allowAnyOrigin) {
-    for (const [name, value] of Object.entries(CORS)) res.setHeader(name, value);
-  }
-
-  if (!allowAnyOrigin && !isLoopbackOrigin(header(req, 'origin'))) {
-    log('rejected a request with a non-loopback Origin');
-    refuse(res, 403, 'this endpoint serves loopback origins only');
-    return;
-  }
+  for (const [name, value] of Object.entries(corsHeaders)) res.setHeader(name, value);
 
   const requested = requestedCapability(req, url);
   const requestKey = sourceKey(req, null);

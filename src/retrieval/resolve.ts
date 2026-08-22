@@ -33,11 +33,126 @@ function byPredicate(claims: readonly ClaimRecord[], predicate: string): readonl
   return claims.filter((claim) => claim.predicate === predicate);
 }
 
+const MAX_ENTITY_SCALARS = 160;
+const MAX_ENTITY_UTF8_BYTES = 512;
+const FORBIDDEN_ENTITY_SCALAR = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
+const UNICODE_WHITESPACE_RUN = /\p{White_Space}+/gu;
+
+export interface CanonicalEntityName {
+  readonly display: string;
+  readonly key: string;
+}
+
+function boundedEntityText(value: string): boolean {
+  let scalars = 0;
+  for (const scalar of value) {
+    const point = scalar.codePointAt(0);
+    if (point === undefined || (point >= 0xd800 && point <= 0xdfff)) return false;
+    scalars += 1;
+    if (scalars > MAX_ENTITY_SCALARS) return false;
+  }
+  return scalars > 0 && new TextEncoder().encode(value).byteLength <= MAX_ENTITY_UTF8_BYTES;
+}
+
+/** One locale-independent display/key pair for a bounded graph entity name. */
+export function canonicalEntityName(raw: string): CanonicalEntityName | null {
+  if (FORBIDDEN_ENTITY_SCALAR.test(raw)) return null;
+  for (const scalar of raw) {
+    const point = scalar.codePointAt(0);
+    if (point === undefined || (point >= 0xd800 && point <= 0xdfff)) return null;
+  }
+
+  const display = raw.normalize('NFC')
+    .replace(UNICODE_WHITESPACE_RUN, ' ')
+    .replace(/^ +| +$/gu, '');
+  if (!boundedEntityText(display)) return null;
+
+  const key = display.toLowerCase();
+  return boundedEntityText(key) ? { display, key } : null;
+}
+
+export type TargetStanding =
+  | { readonly state: 'current'; readonly claim: ClaimRecord; readonly mention: Mention }
+  | {
+    readonly state:
+      | 'missing_mention'
+      | 'retracted'
+      | 'historical'
+      | 'contradicted'
+      | 'unstated';
+  };
+
+function orderedClaims(subject: SubjectView, predicate: string): readonly ClaimRecord[] {
+  return [...byPredicate(subject.claims, predicate)].sort(compareClaims);
+}
+
+function claimTarget(claim: ClaimRecord): CanonicalEntityName | null {
+  return canonicalEntityName(claim.objectText);
+}
+
+function exactTargetMentions(
+  subject: SubjectView,
+  claim: ClaimRecord,
+  predicate: string,
+  targetKey: string,
+): readonly Mention[] {
+  return subject.mentions
+    .filter((mention) => mention.claimId === claim.id
+      && mention.predicate === predicate
+      && canonicalEntityName(mention.entityName)?.key === targetKey)
+    .sort((a, b) => a.entityId - b.entityId
+      || (a.entityName < b.entityName ? -1 : a.entityName > b.entityName ? 1 : 0));
+}
+
+/** Decide one directed target from authentic claims and their exact Mention edge. */
+export function evaluateTargetStanding(
+  subject: SubjectView,
+  internalPredicate: string,
+  targetKey: string,
+): TargetStanding {
+  const canonicalTarget = canonicalEntityName(targetKey);
+  if (canonicalTarget === null || canonicalTarget.key !== targetKey) return { state: 'unstated' };
+
+  const claims = orderedClaims(subject, internalPredicate);
+  const livePositives = claims
+    .filter((claim) => isLive(claim) && claim.polarity === 'positive')
+    .map((claim) => ({ claim, target: claimTarget(claim) }))
+    .filter((entry): entry is { claim: ClaimRecord; target: CanonicalEntityName } => entry.target !== null);
+  const liveTargetKeys = new Set(livePositives.map((entry) => entry.target.key));
+
+  if (!MULTI_VALUED_PREDICATES.has(internalPredicate) && liveTargetKeys.size > 1) {
+    return { state: 'contradicted' };
+  }
+
+  const matchingLive = livePositives.filter((entry) => entry.target.key === targetKey);
+  const supported = matchingLive.flatMap(({ claim }) => {
+    const mention = exactTargetMentions(subject, claim, internalPredicate, targetKey)[0];
+    return mention === undefined ? [] : [{ claim, mention }];
+  });
+  const newest = supported.at(-1);
+  if (newest !== undefined) return { state: 'current', ...newest };
+  if (matchingLive.length > 0) return { state: 'missing_mention' };
+
+  const applicableNegative = claims.some((claim) => {
+    if (!isLive(claim) || claim.polarity !== 'negative') return false;
+    if (claim.objectText.length === 0) return true;
+    return claimTarget(claim)?.key === targetKey;
+  });
+  if (applicableNegative) return { state: 'retracted' };
+
+  const wasPositive = claims.some((claim) => claim.polarity === 'positive'
+    && !isLive(claim) && claimTarget(claim)?.key === targetKey);
+  if (wasPositive && liveTargetKeys.size > 0) return { state: 'historical' };
+  return { state: 'unstated' };
+}
+
 export type HopSelection =
   /** Nothing was ever said about this relation. */
   | { readonly type: 'none' }
   /** It was said and withdrawn, so there is no current target. */
   | { readonly type: 'retracted'; readonly claims: readonly ClaimRecord[] }
+  /** A live relation claim exists but has no exact claim/predicate/target Mention. */
+  | { readonly type: 'missing_mention'; readonly claims: readonly ClaimRecord[] }
   /** Several live claims point at different entities. */
   | { readonly type: 'ambiguous'; readonly mentions: readonly Mention[] }
   | { readonly type: 'one'; readonly mention: Mention; readonly claim: ClaimRecord };
@@ -51,33 +166,60 @@ export type HopSelection =
  * cited from the wrong node, which is the worst failure this product has.
  */
 export function selectHopTarget(subject: SubjectView, via: string): HopSelection {
-  const claimsById = new Map(subject.claims.map((claim) => [claim.id, claim]));
-  const viaClaims = byPredicate(subject.claims, via);
+  const viaClaims = orderedClaims(subject, via);
   if (viaClaims.length === 0) {
     return { type: 'none' };
   }
 
-  const usable: { mention: Mention; claim: ClaimRecord }[] = [];
-  for (const mention of subject.mentions) {
-    if (mention.predicate !== via) continue;
-    const claim = claimsById.get(mention.claimId);
-    if (claim === undefined || !isLive(claim) || claim.polarity !== 'positive') continue;
-    usable.push({ mention, claim });
+  const liveTargets = new Map<string, CanonicalEntityName>();
+  for (const claim of viaClaims) {
+    if (!isLive(claim) || claim.polarity !== 'positive') continue;
+    const target = claimTarget(claim);
+    if (target !== null) liveTargets.set(target.key, target);
   }
 
-  if (usable.length === 0) {
+  if (liveTargets.size === 0) {
     return { type: 'retracted', claims: viaClaims };
   }
 
-  const distinct = new Set(usable.map((u) => u.mention.entityId));
-  if (distinct.size > 1) {
-    return { type: 'ambiguous', mentions: usable.map((u) => u.mention) };
+  const standings = [...liveTargets.keys()].sort().map((targetKey) =>
+    evaluateTargetStanding(subject, via, targetKey));
+  if (standings.some((standing) => standing.state === 'contradicted')) {
+    const mentions = viaClaims.flatMap((claim) => {
+      if (!isLive(claim) || claim.polarity !== 'positive') return [];
+      const target = claimTarget(claim);
+      return target === null ? [] : exactTargetMentions(subject, claim, via, target.key);
+    });
+    return { type: 'ambiguous', mentions };
   }
 
-  // Same target stated more than once is agreement, not ambiguity. The most
-  // recent statement is cited, because that is the one a reader would check.
-  const newest = usable.reduce((a, b) => (compareClaims(a.claim, b.claim) >= 0 ? a : b));
-  return { type: 'one', mention: newest.mention, claim: newest.claim };
+  const current = standings.filter((standing): standing is Extract<TargetStanding, { state: 'current' }> =>
+    standing.state === 'current');
+  const currentTargetKeys = new Set(current.flatMap((entry) => {
+    const target = claimTarget(entry.claim);
+    return target === null ? [] : [target.key];
+  }));
+  const currentMentions = viaClaims.flatMap((claim) => {
+    if (!isLive(claim) || claim.polarity !== 'positive') return [];
+    const target = claimTarget(claim);
+    return target === null || !currentTargetKeys.has(target.key)
+      ? []
+      : exactTargetMentions(subject, claim, via, target.key);
+  });
+  if (current.length > 1 || new Set(currentMentions.map((mention) => mention.entityId)).size > 1) {
+    return { type: 'ambiguous', mentions: currentMentions };
+  }
+  if (liveTargets.size > 1 && standings.some((standing) => standing.state === 'missing_mention')) {
+    return { type: 'missing_mention', claims: viaClaims };
+  }
+  const selected = current[0];
+  if (selected !== undefined) {
+    return { type: 'one', mention: selected.mention, claim: selected.claim };
+  }
+  if (standings.some((standing) => standing.state === 'missing_mention')) {
+    return { type: 'missing_mention', claims: viaClaims };
+  }
+  return { type: 'retracted', claims: viaClaims };
 }
 
 function compareClaims(a: ClaimRecord, b: ClaimRecord): number {
@@ -127,6 +269,11 @@ export function resolve(view: SubgraphView): Resolution {
           `The "${question.via}" of "${subject.name}" was stated and then withdrawn.`,
         );
         return abstain('retracted', selection.claims, null, trace);
+      case 'missing_mention':
+        trace.push(
+          `The "${question.via}" of "${subject.name}" has no exact entity Mention to follow.`,
+        );
+        return abstain('unconnected', selection.claims, null, trace);
       case 'ambiguous': {
         const names = selection.mentions.map((m) => `"${m.entityName}"`).join(' and ');
         trace.push(`The "${question.via}" of "${subject.name}" is given as ${names}.`);

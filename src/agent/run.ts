@@ -347,14 +347,31 @@ export async function runAgents(options: RunOptions): Promise<AgentRun> {
     if (options.source.subjects !== undefined && deadline - now() > 0) {
       try {
         const listed = await options.source.subjects(Math.max(1, Math.min(RESOLVER_TIMEOUT_MS, deadline - now())));
-        if (listed.value.length > 0) known = listed.value;
+        known = listed.value;
       } catch {
-        // A supplied bounded fallback is preferable to inventing a subject.
+        await transition('FAILED', 'the workspace subject index did not answer', { error: 'context_unavailable' });
+        return run;
       }
     }
 
     const subjects = run.kind === 'CONTEXT_HEALTH' ? known.slice(0, 8) : subjectsIn(options.task, known);
     if (subjects.length === 0) {
+      if (run.kind === 'CONTEXT_HEALTH') {
+        const result = 'This workspace has no stored subjects yet. Add a source before the next context health review.';
+        const verdict: ReviewVerdict = {
+          approved: true,
+          supported: [],
+          unsupported: [],
+          note: 'The workspace subject index is empty. No model call was needed, and the absence was reported explicitly.',
+        };
+        await transition('COMPLETED', 'the workspace has no stored subjects yet', {
+          result,
+          draft: result,
+          verdict,
+          openQuestions: ['Add a source before the next context health review.'],
+        });
+        return run;
+      }
       await transition('FAILED', 'the task named nothing this workspace holds', { error: 'no_known_subject' });
       return run;
     }

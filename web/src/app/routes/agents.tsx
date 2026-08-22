@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
-import { csrfHeaders, postFor } from '../../api/client';
+import { postFor, postJson } from '../../api/client';
+import { createClientUuid } from '../../api/request-id';
 import { useScope, useScoped } from '../../api/scope';
+import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
+import { guardedAction } from '../agent-actions';
 import type { AgentRecommendationRecord, AgentRecord, AgentRunRecord, DailyScheduleRecord } from '../agents/contracts';
 import { Empty, Failed, Stage } from '../state';
 
 const head = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.2em', color: '#7A7A7A' } as const;
 const note = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#7A7A7A' } as const;
+const AGENT_REQUEST_TIMEOUT_MS = 65_000;
 
 const ERROR_COPY: Readonly<Record<string, string>> = {
   no_known_subject: 'That task did not name anything this workspace holds.',
@@ -32,6 +36,8 @@ function permission(agent: AgentRecord): string {
 
 export function Agents() {
   const scope = useScope();
+  const { loaded: session } = useSession();
+  const binding = session.state === 'ready' && session.value.signedIn ? session.value.session.binding : undefined;
   const agents = useScoped<readonly AgentRecord[]>('agents');
   const recommendations = useScoped<readonly AgentRecommendationRecord[]>('recommendations');
   const rows = agents.state === 'ready' ? agents.value : [];
@@ -43,8 +49,14 @@ export function Agents() {
   const [problem, setProblem] = useState<string | null>(null);
   const [recommendationMessage, setRecommendationMessage] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState<string | null>(null);
+  // Preserve the id after a client timeout. The server may have finished the
+  // run even when the response was lost, so retrying with the same id lets the
+  // durable runtime return that exact run instead of starting another one.
+  const pendingRequestId = useRef<string | null>(null);
 
   function useRecommendation(recommendation: AgentRecommendationRecord): void {
+    if (busy) return;
+    pendingRequestId.current = null;
     setTask(recommendation.task);
     setRun(null);
     setProblem(null);
@@ -54,36 +66,51 @@ export function Agents() {
   async function scheduleRecommendation(recommendation: AgentRecommendationRecord): Promise<void> {
     setScheduling(recommendation.id);
     setRecommendationMessage(null);
-    const schedule = await postFor<DailyScheduleRecord>(
-      `/api/workspace/agent/recommendations/${encodeURIComponent(recommendation.id)}/schedule`,
-      {
-        cadence: recommendation.suggestedSchedule.cadence,
-        localTime: recommendation.suggestedSchedule.localTime,
-        timezone: recommendation.suggestedSchedule.timezone,
-      },
-    );
-    setRecommendationMessage(schedule === null
-      ? 'The schedule was not created. Check the session and schedule controls.'
-      : `${schedule.name} will run daily at ${schedule.localTime} ${schedule.timezone}. Nothing ran now.`);
-    setScheduling(null);
+    try {
+      const result = await guardedAction(
+        () => postFor<DailyScheduleRecord>(
+          `/api/workspace/agent/recommendations/${encodeURIComponent(recommendation.id)}/schedule`,
+          {
+            cadence: recommendation.suggestedSchedule.cadence,
+            localTime: recommendation.suggestedSchedule.localTime,
+            timezone: recommendation.suggestedSchedule.timezone,
+          },
+          15_000,
+          binding,
+        ),
+        'The schedule was not created. Check the session and schedule controls.',
+      );
+      setRecommendationMessage(result.message ?? (result.value === null
+        ? 'The schedule was not created.'
+        : `${result.value.name} will run daily at ${result.value.localTime} ${result.value.timezone}. Nothing ran now.`));
+    } finally {
+      setScheduling(null);
+    }
   }
 
   async function launch(): Promise<void> {
     if (researcher === null || task.trim() === '') return;
+    const requestId = pendingRequestId.current ?? createClientUuid();
+    pendingRequestId.current = requestId;
     setBusy(true);
     setProblem(null);
     try {
-      const response = await fetch(`${scope.base}/agent/run`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...(scope.demo ? {} : csrfHeaders()) },
-        body: JSON.stringify({ task, agentId: researcher.id }),
-      });
+      const response = await postJson(
+        `${scope.base}/agent/run`,
+        { task, agentId: researcher.id, requestId },
+        AGENT_REQUEST_TIMEOUT_MS,
+        binding,
+      );
+      // A timeout or transport failure is ambiguous: retain the key so the
+      // next click can safely replay it. All ordinary HTTP responses are
+      // authoritative and start a fresh request on the next launch.
+      if (response.status !== 408 && response.status !== 0) pendingRequestId.current = null;
       if (response.status === 429) setProblem('The run budget is busy. Try again after the current rate window.');
       else if (response.status === 401 || response.status === 403) setProblem('Permission required.');
       else if (response.status === 501) setProblem('No model provider is configured on this deployment.');
-      else if (!response.ok) setProblem('The run did not complete.');
-      else setRun(await response.json() as AgentRunRecord);
+      else if (!response.ok || typeof response.body !== 'object' || response.body === null) {
+        setProblem(response.status === 408 ? 'The run timed out before a reviewed result was available.' : 'The run did not complete.');
+      } else setRun(response.body as AgentRunRecord);
     } catch {
       setProblem('Connection failed.');
     } finally {
@@ -146,7 +173,7 @@ export function Agents() {
               </details>
             )}
             <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className="hv-text" onClick={() => useRecommendation(recommendation)} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '8px 11px', cursor: 'pointer' }}>USE THIS TASK</button>
+              <button className="hv-text" disabled={busy} onClick={() => useRecommendation(recommendation)} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: busy ? '#7A7A7A' : '#FFFFFF', padding: '8px 11px', cursor: busy ? 'default' : 'pointer' }}>USE THIS TASK</button>
               {scope.demo ? (
                 <span style={{ ...note, letterSpacing: '0.08em' }}>SIGN IN TO SCHEDULE · PREVIEW STAYS READ ONLY</span>
               ) : (
@@ -189,16 +216,30 @@ export function Agents() {
         </article>
       ))}
 
-      {researcher === null ? null : (
+      {scope.demo && researcher !== null ? (
+        <section style={{ borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '22px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
+          <div style={head}>ACCEPTED RUN · READ ONLY</div>
+          <p style={{ margin: 0, color: '#BDBDBD', fontSize: '13.5px', lineHeight: 1.65, maxWidth: '72ch' }}>
+            This public proof workspace preserves the accepted Researcher → Reviewer run below.
+            Sign in to create work inside an isolated workspace with CSRF protection and a durable run budget.
+          </p>
+        </section>
+      ) : null}
+
+      {researcher === null || scope.demo ? null : (
         <section style={{ borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={head}>RUN RESEARCHER → REVIEWER</div>
           <textarea
             aria-label="Agent task"
             value={task}
-            onChange={(event) => setTask(event.target.value)}
+            onChange={(event) => {
+              setTask(event.target.value);
+              if (!busy) pendingRequestId.current = null;
+            }}
             placeholder="Ask a task about a named subject in this workspace."
             rows={3}
             maxLength={600}
+            disabled={busy}
             style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.16)', padding: '12px 13px', color: '#FFFFFF', fontFamily: MONO, fontSize: '12px', outline: 'none', resize: 'vertical', lineHeight: 1.6 }}
           />
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>

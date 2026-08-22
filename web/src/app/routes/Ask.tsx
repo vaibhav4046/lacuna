@@ -4,6 +4,8 @@ import { postFor } from '../../api/client';
 import { useScope, useScoped } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { STANDING_COLOUR, STANDING_LABEL } from '../../design/standing';
+import { useVoiceAssistant } from '../../voice/assistant-context';
+import { askEndpoint } from '../product-contracts';
 
 /**
  * Ask, wired to the real answer path.
@@ -92,9 +94,17 @@ const key = { fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color
 const value = { color: '#BDBDBD' } as const;
 const tag = { fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', flexShrink: 0 } as const;
 
+function noAnswerReason(reason: string | null, fallback: 'conflict' | 'missing'): string {
+  if (reason === 'contradicted' || reason === 'conflict') return 'Saved sources disagree.';
+  if (reason === 'no_evidence' || reason === 'missing') return 'No saved source states this.';
+  if (reason === 'unavailable' || reason === 'system_error') return 'Memory search is temporarily unavailable.';
+  return fallback === 'conflict' ? 'Saved sources disagree.' : 'Lacuna could not verify an answer.';
+}
+
 export function Ask() {
   const go = useNavigate();
-  const { prefix, base } = useScope();
+  const { prefix, base, demo } = useScope();
+  const { openDock } = useVoiceAssistant();
   const suggested = useScoped<readonly Suggestion[]>('questions');
   const [asked, setAsked] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
@@ -168,7 +178,7 @@ export function Ask() {
     setPredicate(question.predicate);
     setResult(null);
     setStage('CHECKING CURRENT STATE');
-    const envelope = await postFor<Envelope>('/api/ask', { subject: question.subject, predicate: question.predicate });
+    const envelope = await postFor<Envelope>(askEndpoint(demo), { subject: question.subject, predicate: question.predicate });
     setStage(null);
     setResult(envelope ?? {
       status: 'SYSTEM_ERROR', answer: null, evidence: [], revisions: [], conflicts: [],
@@ -207,9 +217,8 @@ export function Ask() {
           place that is catchable, so it is never collapsed or hidden.
         */
         <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#7A7A7A' }}>
-          <span>READ AS</span>
+          <span>I UNDERSTOOD</span>
           <span style={{ color: '#FFFFFF' }}>{reading.subject} · {reading.predicate}{reading.via === null ? '' : ` · via ${reading.via}`}</span>
-          <span>FROM YOUR WORDS “{reading.matched.predicate}”</span>
         </div>
       )}
 
@@ -217,11 +226,11 @@ export function Ask() {
         <div style={{ border: '1px solid rgba(255,184,41,0.35)', borderRadius: '10px', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <span style={{ fontSize: '14px', color: '#FFB829', maxWidth: '70ch', lineHeight: 1.6 }}>
             {unread.failure === 'no_subject'
-              ? 'Nothing in that question names something this workspace holds. The subject is unknown, not the answer.'
+              ? 'I could not find that topic in this workspace.'
               : unread.failure === 'no_predicate'
-                ? `That names something this workspace holds, but asks for a property it does not record${unread.available.length === 0 ? '.' : `. About ${unread.knownSubjects[0] ?? 'it'} it records ${unread.available.map((p) => p.replace(/_/g, ' ')).join(', ')}.`}`
+                ? `I found that topic, but not the detail you asked for${unread.available.length === 0 ? '.' : `. Available details: ${unread.available.map((p) => p.replace(/_/g, ' ')).join(', ')}.`}`
                 : unread.failure === 'unreachable'
-                  ? 'The question did not reach the context store.'
+                  ? 'Memory search is temporarily unavailable. Try again.'
                   : 'Type a question first.'}
           </span>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '2px' }}>
@@ -247,14 +256,14 @@ export function Ask() {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '14px 18px', flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#7A7A7A' }}>EXACT</span>
+        <span style={{ fontFamily: MONO, fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em', color: '#7A7A7A' }}>ADVANCED LOOKUP</span>
         <input
           className="fv-violet"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void runTyped(); }}
-          placeholder="subject"
-          aria-label="Subject"
+          placeholder="topic, e.g. token-forge"
+          aria-label="Topic"
           style={{ flex: 1, minWidth: '120px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
         />
         <input
@@ -262,13 +271,12 @@ export function Ask() {
           value={predicate}
           onChange={(e) => setPredicate(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void runTyped(); }}
-          placeholder="predicate"
-          aria-label="Predicate"
+          placeholder="detail, e.g. owner"
+          aria-label="Detail"
           style={{ flex: 1, minWidth: '120px', background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', fontFamily: MONO, fontSize: '13px', outline: 'none' }}
         />
         <button className="hv-violet" onClick={() => void runTyped()} style={{ background: '#8052FF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#FFFFFF', padding: '7px 12px' }}>ASK</button>
-        <button className="hv-edge35" onClick={() => go(`${prefix}/voice`)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
-        <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: '#7A7A7A' }}>MODE · FAST</span>
+        <button className="hv-edge35" onClick={openDock} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '6px', cursor: 'pointer', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '6px 10px' }}>VOICE</button>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -290,7 +298,7 @@ export function Ask() {
         stage === null ? (
           <div style={{ padding: '22px 4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '15px', color: '#FFFFFF' }}>Nothing asked yet.</span>
-            <span style={{ fontSize: '13.5px', color: '#9A9A9A' }}>Type a subject and a predicate, or pick one of the questions this workspace can answer.</span>
+            <span style={{ fontSize: '13.5px', color: '#9A9A9A' }}>Ask a full question above, or use the advanced topic and detail fields.</span>
           </div>
         ) : null
       ) : (
@@ -339,7 +347,7 @@ export function Ask() {
                 <span style={key}>STANDING</span><span style={value}>Both claims stay visible with equal weight</span>
                 <span style={key}>RESOLVES</span><span style={value}>Evidence, or an explicit policy. Recency alone never wins.</span>
               </div>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>ABSTAIN_REASON · {(result.abstain_reason ?? 'contradicted').toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', color: '#7A7A7A', marginTop: '8px' }}>WHY NO ANSWER · {noAnswerReason(result.abstain_reason, 'conflict')} · TRACE {result.trace_id.toUpperCase()}</span>
             </>
           ) : null}
 
@@ -352,15 +360,15 @@ export function Ask() {
                 <span style={key}>MISSING</span><span style={value}>A source that commits to a value</span>
                 <span style={key}>RESOLVES</span><span style={value}>Ingest the source, or record the decision</span>
               </div>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>ABSTAIN_REASON · {(result.abstain_reason ?? 'no_evidence').toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.1em', color: '#7A7A7A', marginTop: '8px' }}>WHY NO ANSWER · {noAnswerReason(result.abstain_reason, 'missing')} · TRACE {result.trace_id.toUpperCase()}</span>
             </>
           ) : null}
 
           {result.status === 'SYSTEM_ERROR' ? (
             <>
-              <div style={{ fontSize: 'clamp(30px, 3.2vw, 46px)', fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#FFFFFF' }}>HydraDB unavailable.</div>
-              <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#9A9A9A', margin: 0, maxWidth: '52ch' }}>This is a dependency failure, not an answer. Nothing about the memory changed and no claim was made.</p>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>SOURCE_STATE · {result.source_state.toUpperCase()} · TRACE {result.trace_id.toUpperCase()}</span>
+              <div style={{ fontSize: 'clamp(30px, 3.2vw, 46px)', fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#FFFFFF' }}>Memory search is temporarily unavailable.</div>
+              <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#9A9A9A', margin: 0, maxWidth: '52ch' }}>Your saved memory was not changed. Try again.</p>
+              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em', color: '#7A7A7A', marginTop: '8px' }}>TRACE {result.trace_id.toUpperCase()}</span>
             </>
           ) : null}
         </div>

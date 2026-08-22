@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { HydraCloud } from '../hydra/cloud.js';
 import {
   AccountStore,
+  CredentialChanged,
   StoreUnavailable,
   hashToken,
   isAccount,
@@ -35,12 +36,33 @@ export interface Accounts {
   find(email: string): Promise<Account | null>;
   /** Null when the email is taken. The caller reports that as a conflict. */
   create(account: Account): Promise<Account | null>;
+  /** Update display/onboarding metadata without rewriting credential state. */
+  updateWorkspace(email: string, workspace: string): Promise<void>;
   update(account: Account): Promise<void>;
   /** Returns the raw token. Only its hash is stored. */
-  startSession(email: string, now: number): Promise<string>;
+  /** Mint only if the account still has the credential epoch the caller authenticated. */
+  startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string>;
   sessionFor(token: string, now: number): Promise<SessionRecord | null>;
+  /**
+   * Validate a session and return the already-read account in one durable
+   * operation. Cloud-backed auth must not read the same account twice merely
+   * to render /api/session; implementations without this optimisation keep
+   * using sessionFor + find through the router fallback.
+   */
+  sessionAccountFor?(token: string, now: number): Promise<{ readonly record: SessionRecord; readonly account: Account } | null>;
   endSession(token: string): Promise<void>;
 }
+
+/** Upper bound for the pre-auth hosted readiness check. */
+export const ACCOUNT_READY_TIMEOUT_MS = 8_000;
+
+/**
+ * A session check is on the critical path of every signed-in page. The cloud
+ * client has a deliberately generous transport deadline for ingestion, but
+ * auth must not inherit it: a session read that stalls must become a bounded
+ * signed-out response instead of leaving the browser on a spinner.
+ */
+export const ACCOUNT_READ_TIMEOUT_MS = 3_000;
 
 /** The local answer: the existing directory-backed store, behind the seam. */
 export class FileAccounts implements Accounts {
@@ -66,12 +88,23 @@ export class FileAccounts implements Accounts {
     this.#store.update(account);
   }
 
-  async startSession(email: string, now: number): Promise<string> {
-    return this.#store.startSession(email, now);
+  async updateWorkspace(email: string, workspace: string): Promise<void> {
+    this.#store.updateWorkspace(email, workspace);
+  }
+
+  async startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string> {
+    return this.#store.startSession(email, now, expectedSessionVersion);
   }
 
   async sessionFor(token: string, now: number): Promise<SessionRecord | null> {
     return this.#store.sessionFor(token, now);
+  }
+
+  async sessionAccountFor(token: string, now: number): Promise<{ readonly record: SessionRecord; readonly account: Account } | null> {
+    const record = this.#store.sessionFor(token, now);
+    if (record === null) return null;
+    const account = this.#store.find(record.email);
+    return account !== null && sessionVersionMatches(account, record) ? { record, account } : null;
   }
 
   async endSession(token: string): Promise<void> {
@@ -119,18 +152,59 @@ export class CloudAccounts implements Accounts {
     return `lacuna:session:${tokenHash.slice(0, 32)}`;
   }
 
+  #profileId(email: string): string {
+    return `lacuna:profile:${createHash('sha256').update(email.toLowerCase(), 'utf8').digest('hex').slice(0, 32)}`;
+  }
+
+  /**
+   * Hydra accepts app-ingest before the record is readable from another
+   * invocation. Auth cannot return a session on that acknowledgement alone:
+   * the next request would look signed out. Keep the write boundary bounded,
+   * then read the exact id until the service exposes it.
+   */
+  async #waitForWrite(id: string): Promise<void> {
+    let delayMs = 25;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      try {
+        if (await this.#cloud.inspect(id, 1_000, this.#collection) !== null) return;
+      } catch {
+        // A transient inspect failure is indistinguishable from an index that
+        // has not caught up. The bounded loop below still fails closed.
+      }
+      if (attempt === 5) break;
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      delayMs = Math.min(delayMs * 2, 400);
+    }
+    throw new StoreUnavailable('the account write was not readable yet');
+  }
+
   async #read<T>(id: string): Promise<T | null> {
-    const source = await this.#cloud.inspect(id, 10_000, this.#collection);
-    if (source === null) return null;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
-      const text = envelope.content?.text;
-      if (typeof text !== 'string' || text === '') return null;
-      return JSON.parse(text) as T;
+      const source = await Promise.race([
+        this.#cloud.inspect(id, ACCOUNT_READ_TIMEOUT_MS, this.#collection),
+        new Promise<null>((resolve) => {
+          deadline = setTimeout(() => resolve(null), ACCOUNT_READ_TIMEOUT_MS);
+        }),
+      ]);
+      if (source === null) return null;
+      try {
+        const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
+        const text = envelope.content?.text;
+        if (typeof text !== 'string' || text === '') return null;
+        return JSON.parse(text) as T;
+      } catch {
+        // A record that does not parse is not a record. Treating it as absent
+        // is the safe reading: it can fail a sign in, never grant one.
+        return null;
+      }
     } catch {
-      // A record that does not parse is not a record. Treating it as absent is
-      // the safe reading: it can fail a sign in, never grant one.
+      // A transport failure is indistinguishable from an unavailable account
+      // store at this boundary. Fail closed rather than surfacing a platform
+      // 500 or leaving /api/session hanging.
       return null;
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
     }
   }
 
@@ -147,19 +221,36 @@ export class CloudAccounts implements Accounts {
     if (refused !== undefined) {
       throw new StoreUnavailable('the account store refused the write');
     }
+    await this.#waitForWrite(id);
   }
 
   async available(): Promise<boolean> {
+    // Auth must not inherit the cloud client's 30-second transport deadline.
+    // A readiness probe is a guard, not the operation itself; if it stalls,
+    // fail closed quickly so sign-in can return a bounded, actionable error.
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await this.#cloud.readyForIngestion();
+      return await Promise.race([
+        this.#cloud.readyForIngestion(),
+        new Promise<false>((resolve) => {
+          deadline = setTimeout(() => resolve(false), ACCOUNT_READY_TIMEOUT_MS);
+        }),
+      ]);
     } catch {
       return false;
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
     }
   }
 
   async find(email: string): Promise<Account | null> {
     const value = await this.#read<unknown>(this.#accountId(email));
-    return isAccount(value) ? value : null;
+    if (!isAccount(value)) return null;
+    const profile = await this.#read<unknown>(this.#profileId(email));
+    if (typeof profile !== 'object' || profile === null) return value;
+    const fields = profile as Record<string, unknown>;
+    if (typeof fields['workspace'] !== 'string' || fields['workspace'] === '' || fields['onboarded'] !== true) return value;
+    return { ...value, workspace: fields['workspace'], onboarded: true };
   }
 
   async create(account: Account): Promise<Account | null> {
@@ -177,9 +268,19 @@ export class CloudAccounts implements Accounts {
     await this.#write(this.#accountId(account.email), account.email, account);
   }
 
-  async startSession(email: string, now: number): Promise<string> {
+  async updateWorkspace(email: string, workspace: string): Promise<void> {
+    // Workspace labels are deliberately isolated from credentials. A request
+    // authenticated just before password recovery may finish afterwards, but
+    // this record can no longer overwrite the rotated hashes/session epoch.
+    await this.#write(this.#profileId(email), 'workspace profile', { workspace, onboarded: true });
+  }
+
+  async startSession(email: string, now: number, expectedSessionVersion: string | undefined): Promise<string> {
     const account = await this.find(email);
     if (account === null) throw new StoreUnavailable('cannot start a session for a missing account');
+    if ((account.sessionVersion ?? '') !== (expectedSessionVersion ?? '')) {
+      throw new CredentialChanged('credentials changed before the session was created');
+    }
     const token = mintToken();
     const record: SessionRecord = {
       tokenHash: hashToken(token),
@@ -202,6 +303,17 @@ export class CloudAccounts implements Accounts {
     const account = await this.find(record.email);
     if (account === null || !sessionVersionMatches(account, record)) return null;
     return record;
+  }
+
+  /** Validate the token and retain the account read used for epoch checking. */
+  async sessionAccountFor(token: string, now: number): Promise<{ readonly record: SessionRecord; readonly account: Account } | null> {
+    const tokenHash = hashToken(token);
+    const value = await this.#read<unknown>(this.#sessionId(tokenHash));
+    if (!isSession(value) || value.tokenHash !== tokenHash || value.expiresAt <= now) return null;
+    const account = await this.find(value.email);
+    return account !== null && sessionVersionMatches(account, value)
+      ? { record: value, account }
+      : null;
   }
 
   async endSession(token: string): Promise<void> {

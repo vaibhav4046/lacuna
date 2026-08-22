@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "v10-landing-truth",
+  "url": "http://127.0.0.1:4174/",
+  "output": "video/hyperframes-v10/assets/captures/01-landing-truth.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "#top", "state": "visible", "timeoutMs": 20000 },
+    { "selector": "canvas", "state": "visible", "timeoutMs": 20000 }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 500 },
+    { "type": "scroll", "selector": "#product", "align": "center", "offsetPx": 0, "durationMs": 1800, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 550 },
+    { "type": "scroll", "selector": "[data-scene=\"gap\"]", "align": "center", "offsetPx": 0, "durationMs": 1400, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 550 }
+  ],
+  "success": [
+    { "selector": "[data-scene=\"gap\"]", "state": "visible", "timeoutMs": 5000 }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

@@ -1,0 +1,69 @@
+{
+  "capturedAt": "2026-08-21",
+  "client": "ChatGPT Lacuna app",
+  "endpoint": "https://lacuna-five.vercel.app/mcp",
+  "authentication": "none; public read-only corpus",
+  "deploymentId": "dpl_5kpU5GECQDi6UK71JjZp4Kj1q1in",
+  "hydra": {
+    "store": "cloud",
+    "namespace": "lacuna",
+    "graph": "backend",
+    "cell": "cloud",
+    "reachable": true
+  },
+  "checks": [
+    {
+      "tool": "lacuna_health",
+      "accepted": true,
+      "timingMs": 503.6
+    },
+    {
+      "tool": "lacuna_ask",
+      "input": "Bellwether / beta_partner",
+      "status": "answered",
+      "answer": "Halverd",
+      "supersededClaims": 2,
+      "evidenceTotal": 1,
+      "timingMs": 123.3
+    },
+    {
+      "tool": "lacuna_timeline",
+      "input": "Everstone / migration_window",
+      "status": "answered",
+      "current": "the weekend of 3 January 2026",
+      "superseded": "the weekend of 16 August 2025",
+      "timingMs": 106.6
+    },
+    {
+      "tool": "lacuna_explain",
+      "input": "billing-gate / runbook_owner",
+      "status": "abstained",
+      "reasonCode": "contradicted",
+      "evidenceTotal": 2,
+      "timingMs": 0.2
+    },
+    {
+      "tool": "lacuna_read_question",
+      "input": "Who owns the billing-gate runbook?",
+      "readAs": "billing-gate / runbook_owner",
+      "status": "abstained",
+      "reasonCode": "contradicted",
+      "evidenceTotal": 2
+    },
+    {
+      "tool": "search",
+      "input": "Bellwether",
+      "results": 1
+    },
+    {
+      "tool": "fetch",
+      "input": "Bellwether",
+      "accepted": true,
+      "currentFacts": 2
+    }
+  ],
+  "writeToolsAdvertised": 0,
+  "privateConnectorAccepted": false,
+  "privateConnectorBoundary": "legacy version-1 capability rejected; remint required",
+  "containsSecrets": false
+}

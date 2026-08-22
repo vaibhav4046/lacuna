@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "v10-evaluation-truth",
+  "url": "http://127.0.0.1:4174/explore/evals",
+  "output": "video/hyperframes-v10/assets/captures/10-evaluation-truth.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "64 correct · 18 context tokens" },
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "hybrid+2hop@50 +conflict" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 650 },
+    { "type": "scroll", "selector": "main", "align": "end", "offsetPx": 0, "durationMs": 1700, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 1000 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "LONGMEMEVAL · NO SCORE, AND WHY" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "COVERAGE 16%" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

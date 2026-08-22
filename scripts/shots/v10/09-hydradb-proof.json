@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "v10-hydradb-proof",
+  "url": "http://127.0.0.1:4174/explore/hydra",
+  "output": "video/hyperframes-v10/assets/captures/09-hydradb-proof.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 30000, "textIncludes": "160 NODES · 182 EDGES VISIBLE" },
+    { "selector": "main", "state": "visible", "timeoutMs": 30000, "textIncludes": "GET /context/relations · 47 RETURNED" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 450 },
+    { "type": "type", "selector": "input[placeholder=\"Search proof, source or date\"]", "text": "billing-gate", "clear": true, "delayMs": 45, "settleMs": 550 },
+    { "type": "click", "selector": "svg[aria-label=\"Layered evidence provenance graph\"] g[role=\"button\"]:has(circle)[aria-label*=\"runbook\"]", "settleMs": 700 },
+    { "type": "click", "selector": "button[aria-label=\"Zoom proof graph in\"]", "settleMs": 350 },
+    { "type": "wait", "durationMs": 850 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "EVIDENCE · CONFLICTED" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "contradicts billing-gate · runbook owner" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 200
+}

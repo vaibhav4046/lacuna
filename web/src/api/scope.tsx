@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useLoaded, type Loaded } from './client';
+import { useSession } from './session';
 
 /**
  * Which workspace the screens are reading, and where its links go.
@@ -47,5 +48,9 @@ export function useScope(): Scope {
 /** One named part of whichever workspace this subtree is reading. */
 export function useScoped<T>(part: string): Loaded<T> {
   const scope = useScope();
-  return useLoaded<T>(`${scope.base}/${part}`);
+  const { loaded: session } = useSession();
+  const sessionBinding = session.state === 'ready' && session.value.signedIn
+    ? session.value.session.binding
+    : undefined;
+  return useLoaded<T>(`${scope.base}/${part}`, sessionBinding);
 }

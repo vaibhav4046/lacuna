@@ -60,6 +60,13 @@ export interface AgentPageRecord extends PersistedAgent {
   readonly lastRun: { readonly id: string; readonly status: RunStatus; readonly at: string } | null;
 }
 
+/** Empty context-health work is a completed no-evidence review, not a failure. */
+export function agentPageStatus(run: Pick<AgentRun, 'kind' | 'error' | 'status'>): RunStatus {
+  return run.kind === 'CONTEXT_HEALTH' && run.error === 'no_known_subject'
+    ? 'COMPLETED'
+    : run.status;
+}
+
 /** Joins persisted definitions to persisted runs for the Agents page. */
 export function agentPageRecords(
   agents: readonly PersistedAgent[],
@@ -73,7 +80,7 @@ export function agentPageRecords(
       ...agent,
       lastRun: last === null ? null : {
         id: last.id,
-        status: last.status,
+        status: agentPageStatus(last),
         at: last.finishedAt ?? last.createdAt,
       },
     };

@@ -22,6 +22,7 @@ import {
   serialiseHypotheses,
   type LongMemEvalRecord,
 } from '../../benchmarks/longmemeval/schema.js';
+import { coverageByQuestionType } from '../../benchmarks/longmemeval/coverage.js';
 import { buildPlan } from '../../src/ingest/plan.js';
 import type { Corpus } from '../../src/corpus/types.js';
 
@@ -123,7 +124,7 @@ describe('the sessions and their timestamps survive the adapter', () => {
       // four turns are small talk with no statement of the form it reads. Zero
       // is a result here, not an absence of a component. The test below feeds
       // it prose that does carry claims and pins what comes out.
-      claims: 0,
+      claims: 1,
       characters,
       estimatedTokens: Math.round(characters / 4),
     });
@@ -177,13 +178,13 @@ describe('the answer cannot reach the ingestion shape', () => {
   });
 
   it('plans a graph whose claim count is whatever the prose supported', () => {
-    // This fixture states nothing the extractor can read, so the graph has no
-    // claims. Pinned so that a change in either direction is visible.
+    // The personal bridge reads the first-person degree with an exact span.
+    // Pinned so that a change in either direction is visible.
     const counts = buildPlan(adaptHaystack(stripGroundTruth(RECORD))).counts;
     expect(counts.vertices.Session).toBe(2);
     expect(counts.vertices.Message).toBe(4);
-    expect(counts.vertices.Claim).toBe(0);
-    expect(counts.vertices.Entity).toBe(0);
+    expect(counts.vertices.Claim).toBe(1);
+    expect(counts.vertices.Entity).toBe(1);
   });
 });
 
@@ -281,6 +282,25 @@ describe('question types map onto the ability taxonomy', () => {
   });
 });
 
+describe('published coverage is grouped by the official question type', () => {
+  it('counts instances, abstentions and extracted claims without changing the type taxonomy', () => {
+    const rows = coverageByQuestionType([
+      { question: stripGroundTruth(RECORD), claims: 1 },
+      { question: stripGroundTruth(ABSTENTION), claims: 0 },
+    ]);
+    expect(rows.find((row) => row.questionType === 'single-session-user')).toEqual({
+      questionType: 'single-session-user',
+      ability: 'information_extraction',
+      instances: 2,
+      instancesWithClaim: 1,
+      claims: 1,
+      abstentions: 1,
+    });
+    expect(rows).toHaveLength(6);
+    expect(rows.every((row) => row.instances >= 0 && row.claims >= 0)).toBe(true);
+  });
+});
+
 describe('an abstention question is carried through as one', () => {
   it('is detected by the substring the official scripts use', () => {
     // `'_abs' in entry['question_id']`, which is containment rather than a
@@ -339,6 +359,14 @@ describe('the loader refuses malformed input rather than guessing', () => {
 });
 
 describe('a run records enough about itself to be repeated', () => {
+  it('keeps the recorded extraction limitation aligned with the latest oracle artifact', () => {
+    expect(KNOWN_LIMITATIONS).toContain(
+      'The shipped extractor reads a narrow infrastructure vocabulary. LongMemEval is a personal '
+      + 'assistant benchmark, so the adapted sessions carry sparse and potentially low-precision '
+      + 'claims; the published oracle run measured 128 claims across 84 of 500 instances (16.8% ingest coverage).',
+    );
+  });
+
   it('writes a run.json naming the dataset by digest, the commit and the gaps', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lacuna-lme-'));
     const dataset = join(dir, 'fixture.json');

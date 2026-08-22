@@ -29,6 +29,7 @@ import { voicePage } from '../view/voice.js';
 import { readState, RUNNING_STATE, VOICE_STATES, type VoiceState } from '../voice/states.js';
 import type { ApiRouter } from '../api/router.js';
 import { FixedWindow } from './ratelimit.js';
+import { redactWebhookPath } from '../connectors/webhook.js';
 
 /**
  * The whole product surface: nine pages, one stylesheet, one icon.
@@ -493,7 +494,8 @@ export function createHandler(options: ServerOptions): Handler {
 function safePath(target: string): string {
   const cut = target.indexOf('?');
   const path = (cut === -1 ? target : target.slice(0, cut)).replace(/[^\x20-\x7e]/g, '?');
-  return path.length > 120 ? `${path.slice(0, 119)}…` : path;
+  const redacted = redactWebhookPath(path);
+  return redacted.length > 120 ? `${redacted.slice(0, 119)}…` : redacted;
 }
 
 function describe(error: unknown): string {

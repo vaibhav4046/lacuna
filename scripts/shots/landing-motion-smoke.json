@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "name": "landing-motion-smoke",
+  "url": "http://127.0.0.1:4174/",
+  "output": "artifacts/video/v10-captures/landing-motion-smoke.mp4",
+  "viewport": {
+    "width": 1920,
+    "height": 1080,
+    "deviceScaleFactor": 1
+  },
+  "fps": 30,
+  "ready": [
+    {
+      "selector": "#top",
+      "state": "visible",
+      "timeoutMs": 20000
+    },
+    {
+      "selector": "canvas",
+      "state": "visible",
+      "timeoutMs": 20000
+    }
+  ],
+  "actions": [
+    {
+      "type": "wait",
+      "durationMs": 250
+    },
+    {
+      "type": "scroll",
+      "selector": "[data-scene=\"real\"]",
+      "align": "center",
+      "offsetPx": 0,
+      "durationMs": 900,
+      "easing": "smoothstep"
+    },
+    {
+      "type": "wait",
+      "durationMs": 250
+    }
+  ],
+  "success": [
+    {
+      "selector": "[data-scene=\"real\"]",
+      "state": "visible",
+      "timeoutMs": 5000
+    }
+  ],
+  "maskSelectors": [],
+  "settleMs": 100
+}

@@ -1,0 +1,562 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Space Grotesk";
+      src: url("assets/fonts/space-grotesk-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 900;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+    }
+
+    #root {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      container-type: size;
+      isolation: isolate;
+      color: #ffffff;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    #f06-ground {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+    }
+
+    #f06-agents-capture,
+    #f06-work-capture {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(1.24) contrast(1.08);
+    }
+
+    #f06-proof-rail {
+      position: absolute;
+      left: 12.65cqw;
+      top: 5.55cqw;
+      width: 14.15cqw;
+      height: 38.2cqw;
+      box-sizing: border-box;
+      overflow: hidden;
+      border-left: 1px solid #282726;
+      border-right: 1px solid #282726;
+      background: rgba(0, 0, 0, 0.96);
+      padding: 1.15cqw 1.05cqw;
+      z-index: 6;
+    }
+
+    #f06-rail-rule {
+      position: absolute;
+      top: 0;
+      left: 1.05cqw;
+      width: 36px;
+      height: 2px;
+      background: #ffb829;
+      transform-origin: 0 50%;
+    }
+
+    #f06-rail-index {
+      position: absolute;
+      right: 1.05cqw;
+      top: 0.88cqw;
+      color: #767470;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.58cqw;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    [data-f06-role="rail-state"] {
+      position: absolute;
+      inset: 2.15cqw 1.05cqw 1.05cqw;
+      display: flex;
+      flex-direction: column;
+      transform-origin: 50% 50%;
+    }
+
+    [data-f06-role="kicker"],
+    [data-f06-role="meta"],
+    [data-f06-role="proof"],
+    [data-f06-role="receipt-row"],
+    [data-f06-role="focus-label"] {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    [data-f06-role="kicker"] {
+      color: #ffb829;
+      font-size: 0.68cqw;
+      line-height: 1.45;
+    }
+
+    #f06-pair {
+      margin-top: 1.08cqw;
+      display: grid;
+      gap: 0.48cqw;
+      color: #ffffff;
+      font-size: 1.42cqw;
+      font-weight: 700;
+      line-height: 1.02;
+      letter-spacing: -0.025em;
+    }
+
+    #f06-pair span:last-child {
+      color: #9a9a9a;
+    }
+
+    #f06-runtime {
+      margin-top: 1.25cqw;
+      padding-top: 0.78cqw;
+      border-top: 1px solid #282726;
+      color: #ffffff;
+      font-size: 2.55cqw;
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #f06-runtime-unit {
+      margin-left: 0.24cqw;
+      color: #9a9a9a;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.68cqw;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #f06-no-write {
+      margin-top: auto;
+      border-top: 1px solid #282726;
+      padding-top: 0.82cqw;
+      color: #ffb829;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 1.08cqw;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    #f06-no-write-note {
+      display: block;
+      margin-top: 0.5cqw;
+      color: #9a9a9a;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.56cqw;
+      font-weight: 500;
+      line-height: 1.55;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #f06-event-lockup {
+      margin-top: 1.4cqw;
+      display: flex;
+      align-items: flex-end;
+      gap: 0.6cqw;
+      padding-bottom: 0.92cqw;
+      border-bottom: 1px solid #282726;
+    }
+
+    #f06-event-count {
+      color: #ffb829;
+      font-size: 5.25cqw;
+      font-weight: 900;
+      line-height: 0.78;
+      letter-spacing: -0.055em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #f06-event-word {
+      color: #ffffff;
+      font-size: 1.42cqw;
+      font-weight: 700;
+      line-height: 0.92;
+      letter-spacing: -0.025em;
+      text-transform: lowercase;
+    }
+
+    #f06-receipt {
+      margin-top: 0.74cqw;
+      display: grid;
+    }
+
+    [data-f06-role="receipt-row"] {
+      min-height: 2.25cqw;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #282726;
+      color: #9a9a9a;
+      font-size: 0.61cqw;
+      line-height: 1.35;
+    }
+
+    #f06-schedule-word {
+      margin-top: 1.08cqw;
+      color: #ffffff;
+      font-size: 2.65cqw;
+      font-weight: 900;
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      text-transform: lowercase;
+    }
+
+    #f06-last-never {
+      margin-top: 1.35cqw;
+      padding: 0.76cqw 0;
+      border-top: 1px solid #282726;
+      border-bottom: 1px solid #282726;
+      color: #ffffff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 1.12cqw;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #f06-boundary-proof {
+      margin-top: auto;
+      color: #ffb829;
+      font-size: 0.76cqw;
+      line-height: 1.7;
+    }
+
+    #f06-boundary-proof span {
+      display: block;
+    }
+
+    #f06-focus-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    [data-f06-role="focus"] {
+      position: absolute;
+      box-sizing: border-box;
+    }
+
+    #f06-focus-pair {
+      left: 45.6cqw;
+      top: 36.2cqh;
+      width: 35.8cqw;
+      height: 9.5cqh;
+    }
+
+    #f06-focus-run {
+      left: 28.2cqw;
+      top: 36.5cqh;
+      width: 54.7cqw;
+      height: 13.1cqh;
+    }
+
+    #f06-focus-schedule {
+      left: 28.2cqw;
+      top: 7.7cqh;
+      width: 54.7cqw;
+      height: 19.4cqh;
+    }
+
+    [data-f06-role="focus-label"] {
+      position: absolute;
+      left: 0;
+      top: -1.58cqw;
+      color: #ffb829;
+      font-size: 0.58cqw;
+      line-height: 1.35;
+    }
+
+    [data-f06-role="corner"] {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border-color: #ffb829;
+      border-style: solid;
+    }
+
+    [data-f06-corner="tl"] {
+      top: 0;
+      left: 0;
+      border-width: 1px 0 0 1px;
+    }
+
+    [data-f06-corner="tr"] {
+      top: 0;
+      right: 0;
+      border-width: 1px 1px 0 0;
+    }
+
+    [data-f06-corner="bl"] {
+      bottom: 0;
+      left: 0;
+      border-width: 0 0 1px 1px;
+    }
+
+    [data-f06-corner="br"] {
+      right: 0;
+      bottom: 0;
+      border-width: 0 1px 1px 0;
+    }
+  </style>
+
+  <div id="root" data-composition-id="06-bounded-work" data-width="1920" data-height="1080" data-start="0" data-duration="17.2">
+    <div
+      id="f06-ground"
+      class="clip"
+      data-start="0"
+      data-duration="17.2"
+      data-track-index="0"
+    ></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div
+      id="f06-focus-layer"
+      class="clip"
+      data-start="0"
+      data-duration="17.2"
+      data-track-index="3"
+      data-layout-allow-overflow
+      aria-hidden="true"
+    >
+      <div id="f06-focus-pair" data-f06-role="focus">
+        <span data-f06-role="focus-label">Governed pair</span>
+        <span data-f06-role="corner" data-f06-corner="tl"></span>
+        <span data-f06-role="corner" data-f06-corner="tr"></span>
+        <span data-f06-role="corner" data-f06-corner="bl"></span>
+        <span data-f06-role="corner" data-f06-corner="br"></span>
+      </div>
+
+      <div id="f06-focus-run" data-f06-role="focus">
+        <span data-f06-role="focus-label">Eight-event receipt</span>
+        <span data-f06-role="corner" data-f06-corner="tl"></span>
+        <span data-f06-role="corner" data-f06-corner="tr"></span>
+        <span data-f06-role="corner" data-f06-corner="bl"></span>
+        <span data-f06-role="corner" data-f06-corner="br"></span>
+      </div>
+
+      <div id="f06-focus-schedule" data-f06-role="focus">
+        <span data-f06-role="focus-label">Persisted schedule</span>
+        <span data-f06-role="corner" data-f06-corner="tl"></span>
+        <span data-f06-role="corner" data-f06-corner="tr"></span>
+        <span data-f06-role="corner" data-f06-corner="bl"></span>
+        <span data-f06-role="corner" data-f06-corner="br"></span>
+      </div>
+    </div>
+
+    <aside
+      id="f06-proof-rail"
+      class="clip"
+      data-start="0"
+      data-duration="17.2"
+      data-track-index="4"
+      aria-label="Governed agent work proof"
+    >
+      <span id="f06-rail-rule"></span>
+      <span id="f06-rail-index">06 / bounded work</span>
+
+      <section id="f06-state-pair" data-f06-role="rail-state">
+        <span data-f06-role="kicker">Memory-derived</span>
+        <div id="f06-pair">
+          <span>Researcher</span>
+          <span>→ Reviewer</span>
+        </div>
+        <div id="f06-runtime">
+          60<span id="f06-runtime-unit">s · governed</span>
+        </div>
+        <div id="f06-no-write">
+          NO_WRITE
+          <span id="f06-no-write-note">0 write grants</span>
+        </div>
+      </section>
+
+      <section id="f06-state-run" data-f06-role="rail-state">
+        <span data-f06-role="kicker">Persisted run</span>
+        <div id="f06-event-lockup">
+          <span id="f06-event-count">8</span>
+          <span id="f06-event-word">events</span>
+        </div>
+        <div id="f06-receipt">
+          <span data-f06-role="receipt-row">Tool calls</span>
+          <span data-f06-role="receipt-row">Handoff</span>
+          <span data-f06-role="receipt-row">Artifacts</span>
+          <span data-f06-role="receipt-row">Final verdict</span>
+        </div>
+      </section>
+
+      <section id="f06-state-schedule" data-f06-role="rail-state">
+        <span data-f06-role="kicker">Daily schedule</span>
+        <div id="f06-schedule-word">persists</div>
+        <div id="f06-last-never">LAST: NEVER</div>
+        <div id="f06-boundary-proof" data-f06-role="proof">
+          <span>PERSISTS ·</span>
+          <span>EXACTLY-ONCE</span>
+          <span>NOT CLAIMED</span>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    (() => {
+      const root = document.querySelector('[data-composition-id="06-bounded-work"]');
+      const nodesById = new Map([...root.querySelectorAll("[id]")].map((node) => [node.id, node]));
+      const byId = (id) => nodesById.get(`f06-${id}`);
+      const receiptRows = [...root.querySelectorAll('[data-f06-role="receipt-row"]')];
+      const timeline = gsap.timeline({ paused: true });
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["06-bounded-work"] = timeline;
+
+      timeline.set([byId("state-run"), byId("state-schedule"), byId("focus-run"), byId("focus-schedule")], {
+        opacity: 0,
+      }, 0);
+
+      timeline.fromTo(
+        byId("proof-rail"),
+        { opacity: 0, x: -34 },
+        { opacity: 1, x: 0, duration: 0.62, ease: "power4.out" },
+        0.04,
+      );
+      timeline.fromTo(
+        byId("rail-rule"),
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.42, ease: "power3.out" },
+        0.18,
+      );
+      timeline.fromTo(
+        byId("state-pair"),
+        { opacity: 0, y: 26 },
+        { opacity: 1, y: 0, duration: 0.58, ease: "power4.out" },
+        0.12,
+      );
+      timeline.fromTo(
+        byId("focus-pair"),
+        { opacity: 0, scale: 1.035, transformOrigin: "50% 50%" },
+        { opacity: 0.78, scale: 1, duration: 0.5, ease: "power3.out" },
+        0.76,
+      );
+      timeline.fromTo(
+        byId("runtime"),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.52, ease: "power3.out" },
+        1.42,
+      );
+      timeline.fromTo(
+        byId("no-write"),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.58, ease: "power3.out" },
+        3.08,
+      );
+
+      timeline.to(
+        byId("state-pair"),
+        { y: -230, duration: 0.3, ease: "power4.in" },
+        4.7,
+      );
+      timeline.to(
+        byId("state-pair"),
+        { opacity: 0, duration: 0.22, ease: "power1.in" },
+        4.76,
+      );
+      timeline.to(
+        byId("focus-pair"),
+        { y: -230, opacity: 0, duration: 0.3, ease: "power4.in" },
+        4.7,
+      );
+      timeline.fromTo(
+        byId("state-run"),
+        { opacity: 0.35, y: 230 },
+        { opacity: 1, y: 0, duration: 0.3, ease: "power4.out", immediateRender: false },
+        5,
+      );
+      timeline.fromTo(
+        byId("focus-run"),
+        { opacity: 0.18, y: 230 },
+        { opacity: 0.78, y: 0, duration: 0.3, ease: "power4.out", immediateRender: false },
+        5,
+      );
+      timeline.fromTo(
+        byId("event-lockup"),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.52, ease: "power3.out" },
+        5.52,
+      );
+
+      const receiptTimes = [6.42, 7.3, 8.18, 9.06];
+      receiptRows.forEach((row, index) => {
+        timeline.fromTo(
+          row,
+          { opacity: 0, x: 16 },
+          { opacity: 1, x: 0, duration: 0.46, ease: "power3.out" },
+          receiptTimes[index],
+        );
+      });
+
+      timeline.to(
+        byId("state-run"),
+        { scale: 0.8, filter: "blur(10px)", duration: 0.2, ease: "power3.in" },
+        11.56,
+      );
+      timeline.to(
+        byId("state-run"),
+        { opacity: 0.15, duration: 0.2, ease: "none" },
+        11.56,
+      );
+      timeline.to(
+        byId("focus-run"),
+        { opacity: 0, duration: 0.2, ease: "power2.in" },
+        11.6,
+      );
+      timeline.set(byId("state-run"), { opacity: 0 }, 11.76);
+      timeline.fromTo(
+        byId("state-schedule"),
+        { opacity: 0.15, scale: 1.25, filter: "blur(10px)", transformOrigin: "50% 50%" },
+        { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", immediateRender: false },
+        11.76,
+      );
+      timeline.fromTo(
+        byId("focus-schedule"),
+        { opacity: 0, scale: 1.035, transformOrigin: "50% 50%" },
+        { opacity: 0.78, scale: 1, duration: 0.5, ease: "power3.out", immediateRender: false },
+        11.92,
+      );
+      timeline.fromTo(
+        byId("last-never"),
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.52, ease: "power3.out" },
+        12.58,
+      );
+      timeline.fromTo(
+        byId("boundary-proof"),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.62, ease: "power3.out" },
+        13.62,
+      );
+    })();
+  </script>
+</template>

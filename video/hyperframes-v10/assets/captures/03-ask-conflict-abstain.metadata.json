@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-ask-conflict-abstain",
+  "capturedAt": "2026-08-21T03:14:02.234Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/explore/ask",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 25000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "main",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "includes:[REDACTED]",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "03-ask-conflict-abstain.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 12.967,
+    "bytes": 379870,
+    "sha256": "54c528a3808c01da0ae60969f43f21a2ffeb718baaf860d4286b75fd2a1e95ea",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 389,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 343,
+    "savedFrames": 243,
+    "acknowledgedFrames": 343,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 100,
+    "targetFrames": 389,
+    "uniqueSourceFramesUsed": 243,
+    "duplicatedTargetFrames": 146,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 64,
+    "longestSourceGapMs": 159,
+    "uniqueSourcePayloads": 77,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 6,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/questions",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/api/explore/query",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/api/explore/query",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 4,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/questions",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 4,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/model",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/explore/questions",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "type",
+        "selector": "main input[aria-label=\"Ask a question\"]",
+        "value": "[REDACTED]",
+        "source": "literal",
+        "clear": true,
+        "delayMs": 24,
+        "settleMs": 120
+      },
+      "startedAtMs": 219,
+      "durationMs": 3694,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "click",
+        "selector": "main input[aria-label=\"Ask a question\"] + button",
+        "settleMs": 1200
+      },
+      "startedAtMs": 3913,
+      "durationMs": 1390,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "wait",
+        "durationMs": 650
+      },
+      "startedAtMs": 5303,
+      "durationMs": 652,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "type",
+        "selector": "main input[aria-label=\"Ask a question\"]",
+        "value": "[REDACTED]",
+        "source": "literal",
+        "clear": true,
+        "delayMs": 24,
+        "settleMs": 120
+      },
+      "startedAtMs": 5955,
+      "durationMs": 3128,
+      "ok": true
+    },
+    {
+      "index": 4,
+      "action": {
+        "type": "click",
+        "selector": "main input[aria-label=\"Ask a question\"] + button",
+        "settleMs": 1200
+      },
+      "startedAtMs": 9083,
+      "durationMs": 1337,
+      "ok": true
+    },
+    {
+      "index": 5,
+      "action": {
+        "type": "wait",
+        "durationMs": 750
+      },
+      "startedAtMs": 10420,
+      "durationMs": 751,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

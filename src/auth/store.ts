@@ -91,6 +91,9 @@ const SESSIONS_FILE = 'sessions.jsonl';
 
 export class StoreUnavailable extends Error {}
 
+/** The credentials changed after a caller authenticated them. Fail closed. */
+export class CredentialChanged extends Error {}
+
 export function hashToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
@@ -234,6 +237,15 @@ export class AccountStore {
     this.#accounts.set(account.email, account);
   }
 
+  updateWorkspace(email: string, workspace: string): void {
+    const account = this.#accounts.get(email);
+    if (account === undefined) throw new StoreUnavailable('cannot update a missing account');
+    // Read the current record at the instant of the synchronous write instead
+    // of accepting the request's earlier snapshot. Credential rotation that
+    // completed while the request was in flight therefore stays rotated.
+    this.update({ ...account, workspace, onboarded: true });
+  }
+
   /**
    * Rewrites the account log with one line per current account. Only called
    * when the log has grown past the point where replaying it is free.
@@ -245,9 +257,12 @@ export class AccountStore {
   }
 
   /** Returns the raw token. Only the hash is stored. */
-  startSession(email: string, now: number): string {
+  startSession(email: string, now: number, expectedSessionVersion: string | undefined): string {
     const account = this.#accounts.get(email);
     if (account === undefined) throw new StoreUnavailable('cannot start a session for a missing account');
+    if ((account.sessionVersion ?? '') !== (expectedSessionVersion ?? '')) {
+      throw new CredentialChanged('credentials changed before the session was created');
+    }
     const token = mintToken();
     const record: SessionRecord = {
       tokenHash: hashToken(token),

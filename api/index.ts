@@ -28,12 +28,13 @@ import { CloudAccounts, FileAccounts } from '../src/auth/accounts.js';
 import { CloudMcpCapabilities } from '../src/auth/mcp-capability-store.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
+import { createCloudImpactReadPort } from '../src/hydra/impact-read.js';
 import { normaliseGraphContext, normaliseRelations, type ServiceRelation } from '../src/hydra/relations.js';
 import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
 import { loadArtifacts } from '../src/report/load.js';
 import { createSnapshotHandler } from '../src/snapshot/serve.js';
-import { ingestSource } from '../src/api/ingest.js';
+import { ingestPreparedSource, ingestSource } from '../src/api/ingest.js';
 import { runAgents } from '../src/agent/run.js';
 import { builtInAgents } from '../src/agent/registry.js';
 import { CloudAgentRuntimeStore, FileAgentRuntimeStore } from '../src/agent/store.js';
@@ -42,6 +43,26 @@ import { dailyContextHealthSchedule } from '../src/scheduler/dispatcher.js';
 import { ElevenLabsVoiceProvider, VoiceBoundary, elevenLabsVoiceConfig } from '../src/api/voice.js';
 import { configured } from '../src/provider/registry.js';
 import { MCP_PATH, createMcpListener } from '../src/mcp/http.js';
+import { PREDICATE_NAMES } from '../src/corpus/types.js';
+import { READABLE_PROPERTIES } from '../src/extract/extract.js';
+import { planVoiceIntent } from '../src/voice/intent.js';
+import { catalogue } from '../src/connectors/catalog.js';
+import { CloudConnectorStore } from '../src/connectors/store.js';
+import { ConnectorRunner } from '../src/connectors/run.js';
+import { FileConnectorService } from '../src/connectors/files.js';
+import { GitHubImporter } from '../src/connectors/github.js';
+import { GitLabImporter } from '../src/connectors/gitlab.js';
+import { PinnedHttpsReader } from '../src/connectors/https.js';
+import { FilePreviewTokenService, previewSigningKey } from '../src/connectors/preview-token.js';
+import { CloudWebhookRecordStore } from '../src/connectors/webhook-store.js';
+import {
+  WebhookService,
+  parseWebhookMasterKey,
+  redactWebhookPath,
+} from '../src/connectors/webhook.js';
+
+/** 240s internal settlement plus a 30s platform cleanup margin. */
+export const maxDuration = 270;
 
 const snapshot = createSnapshotHandler(process.cwd());
 
@@ -56,15 +77,17 @@ const snapshot = createSnapshotHandler(process.cwd());
  * two runs of the same task are comparable. Absent when nothing is configured,
  * which makes the route answer 501 instead of pretending to have run.
  */
-const groq = configured(process.env).find((provider) => provider.name === 'groq' && provider.apiKey !== undefined);
+const agentProvider = configured(process.env).find((provider) => (
+  (provider.name === 'groq' || provider.name === 'perplexity') && provider.apiKey !== undefined
+));
 // Pinned to a model this account actually serves, confirmed against the
 // provider's own model list rather than assumed. A name that is not there
 // answers 404 and the run fails at the model call, which is how the first
 // attempt failed.
-const AGENT_MODEL = 'groq/compound-mini';
-
-/** The predicates a run resolves for each subject the task names. */
-const AGENT_PREDICATES = ['depends_on', 'owner', 'storage', 'region', 'ttl', 'pool_size', 'policy'] as const;
+const AGENT_MODEL = process.env['LACUNA_AGENT_MODEL']
+  ?? (agentProvider?.name === 'perplexity' ? 'sonar' : 'groq/compound-mini');
+const AGENT_DISPLAY_PROVIDER = agentProvider?.name ?? 'unconfigured';
+const AGENT_DISPLAY_MODEL = agentProvider === undefined ? 'unconfigured' : AGENT_MODEL;
 
 /** Names the public corpus holds, used to find what a task is about. */
 const SUBJECT_NAMES: readonly string[] = [
@@ -120,6 +143,22 @@ const store = cloud === null
   ? new FileAccounts(new AccountStore(process.env['LACUNA_ACCOUNTS_DIR'] ?? '/tmp/lacuna-store'))
   : new CloudAccounts(cloud);
 const mcpCapabilities = cloud === null ? null : new CloudMcpCapabilities(cloud);
+const connectorStore = cloud === null ? null : new CloudConnectorStore(cloud);
+const filePreviewKey = previewSigningKey(process.env['LACUNA_FILE_PREVIEW_KEY']);
+const connectorRunner = cloud === null || connectorStore === null ? null : new ConnectorRunner({
+  store: connectorStore,
+  ingest: (workspace, prepared, options) => ingestPreparedSource(cloud, workspace, prepared, options),
+});
+const githubImporter = connectorRunner === null ? null : new GitHubImporter();
+const gitlabImporter = connectorRunner === null ? null : new GitLabImporter();
+const httpsReader = connectorRunner === null ? null : new PinnedHttpsReader();
+const fileConnector = connectorRunner === null || filePreviewKey === null ? null : new FileConnectorService({
+  runner: connectorRunner,
+  tokens: new FilePreviewTokenService({ key: filePreviewKey }),
+  // Kept beside this function entry and included explicitly by vercel.json,
+  // so import.meta.url resolves the same way in source and native output.
+  parserIsolation: { workerUrl: new URL('./file-parser-worker.mjs', import.meta.url) },
+});
 
 async function cloudHealth(): Promise<unknown> {
   if (cloud === null) {
@@ -161,6 +200,20 @@ async function cloudHealth(): Promise<unknown> {
  * a trailing slash or a preview URL is a mismatch and a refused sign in.
  */
 const SITE_ORIGIN = process.env['LACUNA_SITE_ORIGIN'] ?? 'https://lacuna-five.vercel.app';
+const webhookMasterKey = parseWebhookMasterKey(process.env['LACUNA_WEBHOOK_KEY']);
+const webhookService = (() => {
+  if (cloud === null || connectorRunner === null || webhookMasterKey === null) return null;
+  try {
+    return new WebhookService({
+      masterKey: webhookMasterKey,
+      store: new CloudWebhookRecordStore(cloud),
+      runner: connectorRunner,
+      siteOrigin: SITE_ORIGIN,
+    });
+  } catch {
+    return null;
+  }
+})();
 const googleClientId = process.env['GOOGLE_CLIENT_ID'];
 const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
 const graphCursorKey = process.env['LACUNA_GRAPH_CURSOR_KEY'] ?? process.env['HYDRA_TOKEN'];
@@ -181,10 +234,24 @@ const api = new ApiRouter({
   // moves behind a unique transactional constraint.
   allowPasswordSignup: false,
   ...(mcpCapabilities === null ? {} : { mcpCapabilities }),
+  ...(connectorStore === null ? {} : { connectorStore }),
+  ...(fileConnector === null ? {} : { fileConnector }),
+  ...(githubImporter === null || gitlabImporter === null || httpsReader === null || connectorRunner === null
+    ? {}
+    : { githubImporter, gitlabImporter, httpsReader, connectorRunner }),
+  ...(webhookService === null ? {} : { webhookService }),
+  connectorCatalog: () => catalogue({
+    webhookService: webhookService !== null,
+    fileImport: fileConnector !== null,
+    githubImport: githubImporter !== null && connectorRunner !== null,
+    gitlabImport: gitlabImporter !== null && connectorRunner !== null,
+    httpsImport: httpsReader !== null && connectorRunner !== null,
+  }),
   secure: true,
   health: cloudHealth,
   voice,
   siteOrigin: SITE_ORIGIN,
+  voiceIntent: planVoiceIntent,
   // Stable across serverless instances. The value never enters a graph
   // response; it only authenticates opaque pagination cursors.
   ...(graphCursorKey === undefined ? {} : { graphCursorKey }),
@@ -202,45 +269,57 @@ const api = new ApiRouter({
   ...(cloud === null ? {} : {
     source: (collection?: string): CloudSource =>
       new CloudSource(collection === undefined ? cloud : cloud.withCollection(collection)),
+    impact: (collection?: string) => createCloudImpactReadPort(
+      collection === undefined ? cloud : cloud.withCollection(collection),
+    ),
     // Prose into this account's own collection. The public demo collection is
     // never written to, so ingesting a transcript cannot publish it.
     ingest: (collection: string, title: string, text: string) =>
       ingestSource(cloud, collection, title, text),
     // One agent run over that workspace, when a real model provider answers.
     // Absent otherwise, so the route says 501 rather than inventing a run.
-    ...(groq === undefined ? {} : {
-      // `null` is the public corpus: the same run, over the collection every
-      // visitor already reads. It writes nothing either way.
+  ...(agentProvider === undefined ? {} : {
+      // The router admits only an authenticated workspace here. The nullable
+      // type remains at the injected boundary for compatibility, but anonymous
+      // public run creation is refused before this function can be called.
       agent: (collection: string | null, task: string, run = {}) => runAgents({
         source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),
-        provider: groq,
+        provider: agentProvider,
         model: AGENT_MODEL,
         workspace: collection ?? 'public',
         collection: collection ?? 'public',
         task,
         knownSubjects: SUBJECT_NAMES,
-        predicates: [...AGENT_PREDICATES],
+        // Keep the runtime on both vocabularies ingestion writes: the synthetic
+        // corpus predicates and the bounded extractor properties used by
+        // private notes/connectors. Recommendations can originate from either
+        // path; querying only the corpus set made a valid private suggestion
+        // complete with an empty Context Pack.
+        predicates: [...new Set([...PREDICATE_NAMES, ...READABLE_PROPERTIES])],
         store: agentRuntime,
         ...(run.idempotencyKey === undefined ? {} : { idempotencyKey: run.idempotencyKey }),
         ...(run.kind === undefined ? {} : { kind: run.kind }),
         ...(run.attempt === undefined ? {} : { attempt: run.attempt }),
         ...(run.retryOf === undefined ? {} : { retryOf: run.retryOf }),
       }),
-      agentStore: agentRuntime,
-      scheduleStore: scheduleRuntime,
-      prepareAgents: async (workspace: string): Promise<void> => {
-        await agentRuntime.putAgents(
-          workspace,
-          builtInAgents(workspace, groq.name, AGENT_MODEL, new Date().toISOString()),
-        );
-      },
-      prepareSchedule: async (workspace: string): Promise<void> => {
-        await scheduleRuntime.putSchedule(dailyContextHealthSchedule(workspace, '06:00', 'UTC', Date.now()));
-      },
-      ...(process.env['CRON_SECRET'] === undefined ? {} : { cronSecret: process.env['CRON_SECRET'] }),
-      cronWorkspaces: ['public'],
     }),
   }),
+  // Persisted definitions and schedules are useful even when a model provider
+  // is absent: the Agents page can explain the missing run capability instead
+  // of disappearing behind a generic runtime-unavailable response.
+  agentStore: agentRuntime,
+  scheduleStore: scheduleRuntime,
+  prepareAgents: async (workspace: string): Promise<void> => {
+    await agentRuntime.putAgents(
+      workspace,
+      builtInAgents(workspace, AGENT_DISPLAY_PROVIDER, AGENT_DISPLAY_MODEL, new Date().toISOString()),
+    );
+  },
+  prepareSchedule: async (workspace: string): Promise<void> => {
+    await scheduleRuntime.putSchedule(dailyContextHealthSchedule(workspace, '06:00', 'UTC', Date.now()));
+  },
+  ...(process.env['CRON_SECRET'] === undefined ? {} : { cronSecret: process.env['CRON_SECRET'] }),
+  cronWorkspaces: ['public'],
   // The store's own relation graph, read from the service. Kept small: this is
   // a proof that HydraDB extracted relations from the transcripts, not a
   // browsable index of them.
@@ -265,6 +344,9 @@ const api = new ApiRouter({
       redirectUri: `${SITE_ORIGIN}/api/auth/google/callback`,
     },
   }),
+  ...(process.env['LACUNA_LEGACY_GOOGLE_MIGRATION_EMAIL'] === undefined ? {} : {
+    legacyGoogleMigrationEmail: process.env['LACUNA_LEGACY_GOOGLE_MIGRATION_EMAIL'],
+  }),
 });
 
 /**
@@ -277,13 +359,12 @@ const api = new ApiRouter({
  * who can ask and not what can be read. The public endpoint is read-only. A
  * private capability can additionally call the governed `remember` ingest.
  *
- * `allowAnyOrigin` is on because the Origin check in the transport exists to
- * stop a browser page reaching a server bound to loopback. That is a real
- * attack against a local process and not one against a public HTTPS endpoint
- * that clients are meant to call directly.
+ * The deployed web origin is allowed explicitly. MCP clients such as a CLI do
+ * not send Origin and remain supported, but another web page cannot reach the
+ * public corpus or present a workspace capability from an arbitrary origin.
  */
 const mcp = cloud === null || mcpCapabilities === null ? null : createMcpListener({
-  allowAnyOrigin: true,
+  allowedOrigins: [SITE_ORIGIN],
   context: {
     source: new CloudSource(cloud),
     node: { namespace: cloud.database, graph: cloud.collection, cell: 'cloud' },
@@ -333,7 +414,7 @@ const mcp = cloud === null || mcpCapabilities === null ? null : createMcpListene
 function guard(response: ServerResponse, where: string, error: unknown): void {
   const id = randomUUID();
   // Server side only, and only the shape of the failure.
-  console.error(`[${id}] ${where}: ${error instanceof Error ? error.name : 'unknown'}`);
+  console.error(`[${id}] ${redactWebhookPath(where)}: ${error instanceof Error ? error.name : 'unknown'}`);
   if (response.headersSent) {
     response.end();
     return;

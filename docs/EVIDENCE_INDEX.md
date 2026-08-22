@@ -1,19 +1,40 @@
 # Evidence index
 
-## Last accepted production evidence: 2026-08-20
+## Current V10 evidence boundary: 2026-08-22
 
-These rows describe the current release candidate. Every acceptance result
-listed here was rerun against this candidate; historical results remain in the
-legacy ledger below and do not transfer without a named rerun.
+These rows separate accepted V10 production evidence and dated V8 history. The
+authoritative boundary is [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md); a
+later local patch does not inherit a deployment pass, and historical results do
+not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, current candidate | 79 files, 1,345 tests passed | terminal run in the V8 execution session |
-| root and web typecheck | both exit 0 | terminal run in the V8 execution session |
+| latest production deployment | `dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L` is READY and aliased to `https://lacuna-five.vercel.app`; post-deploy HydraDB health, auth, Google OAuth, demo/connectors and voice smoke gates passed | Vercel deployment inspection and live probes on 2026-08-22 |
+| exact candidate preview | latest branch-head preview `dpl_3JMPkrTwWtkPRJPxn5hzL9XViJBi` from `7ff2fcb` at `https://lacuna-4c7pfx2ub-vaibhav4046s-projects.vercel.app`; auth smoke 3/3, Google smoke 5/16, demo smoke 22/31 and voice smoke 3/7 because preview has no production secrets, so it was not promoted | Vercel deployment inspection and `npm run smoke:auth`, `npm run smoke:google`, `npm run smoke:demo`, `npm run smoke:voice` on 2026-08-22 |
+| candidate session-aware landing route | commit `641d039` sends a verified member's home-hero action to `/app/dash` while keeping signed-out and unresolved session reads on the public `/explore/dash`; 6/6 landing-session tests, typecheck and web build pass; not yet promoted | `web/src/landing/Hero.tsx`, `web/src/landing/account-actions.ts`, `tests/unit/landing-session.test.ts`, commit `641d039` |
+| latest production smoke | demo surface 32/32, Google auth boundary 16/16, and provider voice boundary 7/7 pass against the stable alias; demo smoke now checks the complete redacted connector catalogue and both bounded agent roles | `npm run smoke:demo -- https://lacuna-five.vercel.app`, `npm run smoke:google -- https://lacuna-five.vercel.app`, `npm run smoke:voice -- https://lacuna-five.vercel.app` |
+| owner legacy Google migration gate | A single exact-owner `LACUNA_LEGACY_GOOGLE_MIGRATION_EMAIL` is configured in Vercel Production and consumed by `dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L`; the live owner link start returns `google=already_linked`, Settings confirms the Google binding, and the authenticated session persisted after revisiting `/signin`. | Vercel Production environment listing, deployment inspection, owner browser DOM, and `src/api/router.ts` allowlisted migration path |
+| candidate auth origin binding | Commit `aea3ee0` rejects auth POSTs carrying a cross-origin `Origin` before CSRF/session work, while preserving non-browser callers that omit `Origin`; the regression and full auth API file pass 32/32 focused gates including the new refusal. It is pushed but not yet promoted because Vercel's free daily deployment quota is exhausted. | `src/api/router.ts`, `tests/unit/auth-api.test.ts`, commit `aea3ee0`, Vercel quota response |
+| candidate auth/session latency fix | commits `b11b471` and `c48d58d` reduce duplicate HydraDB account reads for `/api/session` and route a confirmed password session to onboarding when its workspace is still unset; typecheck, build and focused auth/session/browser tests pass; production promotion was rejected by the Vercel free daily deployment quota | `src/auth/accounts.ts`, `src/api/router.ts`, `web/src/api/session-state.ts`, `web/src/api/session.tsx`, `web/src/auth/SignIn.tsx`, commits `b11b471`, `c48d58d` |
+| candidate auth readiness timeout | a hosted HydraDB readiness probe that hangs now fails closed after 8 seconds instead of inheriting the 30-second transport deadline; regression covers an unresolved provider promise, while Google state/PKCE/nonce/provider binding remains unchanged | `src/auth/accounts.ts`, `tests/unit/auth-session-revocation.test.ts` |
+| candidate auth session read timeout | a hosted session/account read now fails closed after 3 seconds instead of inheriting the cloud client's 10-second inspect deadline; an unresolved inspect promise cannot leave `/api/session` hanging or grant access | `src/auth/accounts.ts`, `tests/unit/auth-session-revocation.test.ts` |
+| candidate LongMemEval graph isolation guard | multi-question store-backed runs now refuse before opening a graph unless a per-question writable node source factory is supplied; this prevents repeated official haystack session ids from colliding or cross-contaminating evidence | `benchmarks/longmemeval/run.ts`, `benchmarks/longmemeval/artifact.ts`, `tests/unit/longmemeval-runner.test.ts` |
+| candidate agent catalogue availability | Agents, tools and persisted schedules remain readable and seedable when no model provider is configured; only the run mutation returns the explicit provider-unavailable response instead of hiding the whole runtime behind 503 | `src/api/router.ts`, `api/index.ts`, `tests/unit/agent-runtime-api.test.ts` |
+| candidate connector UI/runtime lockstep | Implemented UI connector entries now have a contract test requiring exact coverage and matching labels/groups for every server catalogue descriptor; planned entries remain explicitly control-free | `web/src/design/connectors.ts`, `src/connectors/catalog.ts`, `tests/unit/connectors-catalog.test.ts` |
+| post-deploy error scan | no production error-level Vercel logs found for the hour after promotion | `npx vercel logs --environment production --level error --since 1h --limit 100 --no-branch` |
+| focused connector, auth, voice, agent and onboarding gates | focused connector/auth/voice/agent regressions plus onboarding readiness coverage passed; the current candidate does not claim a full-unit pass because Vitest's isolated worker exits around the Node worker-thread file-parser tests; 2,294/2,294 remains historical evidence | serial terminal runs on 2026-08-22 with one worker |
+| root and web typecheck/build | both typecheck and the 136-module web build exit 0 | terminal run on 2026-08-22 |
+| production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
+| native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
-| real public agent run | completed, 8 lifecycle events | production Work and Agents screens |
-| landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
-| landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
+| accepted public agent record | completed, 8 lifecycle events; readable evidence with no authoritative memory writeback | production Work and Agents screens |
+| anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
+| agent predicate coverage fix | agent runtime now includes extracted `storage`/`policy` properties alongside the corpus vocabulary; code is deployed, while a fresh signed-in production run remains the evidence needed for a live claim-count assertion | `api/index.ts`, `src/extract/extract.ts`, commit `f052213`, deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
+| connector truth table | Public redacted catalogue exposes eight descriptors; current production marks all eight implemented workflows `available` (GitHub, GitLab, file, HTTPS and signed webhook paths); remaining providers stay planned | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `src/connectors/catalog.ts`, `src/connectors/files.ts`, `tests/unit/connectors-files.test.ts`, production deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| historical V8 landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
+| historical V8 landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
 | graph overview | 140 loaded of 453 | `artifacts/screens/v8/memory-field.png` |
 | persisted agent definitions | 2 roles with last run | `artifacts/screens/v8/agents-live.png` |
 | persisted Work record | Context Pack summary and full lifecycle | `artifacts/screens/v8/work-live.png` |
@@ -25,22 +46,62 @@ legacy ledger below and do not transfer without a named rerun.
 | exact proof DAG | production capture, visually inspected | `artifacts/screens/v8/proof-dag-final.png` |
 | older video proof-beat preview | graph, agents and voice frames; not final | `video/hyperframes/snapshots-v8/contact-sheet.jpg` |
 | superseded HyperFrames composition | 18-scene visual direction rejected by the owner; retained only in git history | historical commits, not current release evidence |
-| final-candidate visual audit | 3 contact sheets and 8 key frames, inspected after the judges-master render | `artifacts/video/judges-master/` |
-| current production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
+| rejected V8-film visual audit | 3 contact sheets and 8 key frames, retained as historical inspection evidence only | `artifacts/video/judges-master/` |
+| historical V8 production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
+| accepted V10 production baseline | exact accepted probes and deployment id | `docs/V10_RELEASE_STATUS.md` |
+| public connector catalogue, production | 32/32 demo smoke gates; eight redacted entries, all eight `available`, both bounded agent roles present, no private observations | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `scripts/smoke-demo.ts` |
+| provider-backed voice boundary, production | 7/7 voice smoke gates; real ElevenLabs single-use token and `audio/mpeg` response (26,794 bytes in this run), bounded without printing provider secrets | `scripts/smoke-voice.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| private agent mutation binding, production code path | browser Agents/Work mutations send the validated current-session binding; server rejects missing, stale or malformed bindings on launch, scheduling, cancel, retry and schedule dispatch | `web/src/api/client.ts`, `web/src/app/routes/agents.tsx`, `web/src/app/routes/work.tsx`, `src/api/router.ts`, `tests/unit/agent-runtime-api.test.ts`, `tests/unit/agent-recommendations-api.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| private Work read binding, production code path | route hydration and post-dispatch run refresh send the exact current-session binding; unbound private `/runs` and `/schedules` reads are held until the session is ready | `web/src/api/client.ts`, `web/src/api/scope.tsx`, `web/src/app/routes/work.tsx`, `tests/unit/web-auth-client.test.ts`, `tests/unit/web-product-contracts.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| Google callback cancellation state binding, production code path | OAuth callback validates the browser-bound state before accepting provider cancellation; forged cancellation with wrong state returns `google=state` and never reaches token exchange | `src/api/router.ts`, `tests/unit/google-auth-api.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| Google callback stall/parameter guard, production | promoted release rejects malformed or oversized state/code before provider contact; token/JWKS exchange reads bounded JSON and cancels a headers-only body at the ten-second deadline instead of freezing sign-in | `src/api/router.ts`, `src/auth/google.ts`, `web/src/auth/google-problem.ts`, `tests/unit/google-auth.test.ts`, `tests/unit/google-auth-api.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| OAuth referrer suppression, production | auth redirects now send `Referrer-Policy: no-referrer`, preventing callback code/state URLs from becoming browser referrers; production post-deploy check passed alongside the Google PKCE/state/nonce boundary | `src/api/router.ts`, `tests/unit/google-auth-api.test.ts`, commit `7fa2000`, deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| first-run private memory readiness, production | onboarding retries only while its accepted memory receipt reports indexing pending, avoiding a false no-answer immediately after a successful write; regression 3/3 and production deployment now includes the fix | `web/src/onboarding/Onboarding.tsx`, `web/src/onboarding/readiness.ts`, `tests/unit/onboarding-readiness.test.ts`, commit `8618a45`, deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| cross-runtime auth/voice failure mapping, production | commits `502393b` and `eaba72c` map provider, microphone, autoplay and browser-fetch timeout failures by stable error name across runtime realms; the verified code is now included in the stable production deployment | `src/auth/google.ts`, `web/src/api/client.ts`, `web/src/voice/browser.ts`, `web/src/voice/playback.ts`, `tests/unit/google-auth.test.ts`, `tests/unit/web-auth-client.test.ts`, `tests/unit/voice-browser.test.ts`, deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| read-only voice binding-race fallback, production code path | commit `4cee9b1` allows typed/read-only questions to use the authenticated direct-read path when the optional planner loses a session-binding race; writes and navigation remain fail-closed | `web/src/voice/assistant-controller.ts`, `tests/unit/voice-assistant-controller.test.ts`, deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| accepted connector documents with pending indexing, production | commit `6756da4` keeps exact receipt counts while distinguishing stored accepted documents from unconfirmed search indexing | `web/src/app/routes/connectors.tsx`, `tests/unit/web-connectors.test.ts`, deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` |
+| connector pending-index regression, candidate | commit `fc11c10` keeps accepted connector receipts successful while HydraDB indexing is queued; terminal provider failures remain failures | `src/api/ingest.ts`, `tests/unit/ingest-source.test.ts`, focused 72/72 suite; preview promotion pending deployment quota |
+| connector readiness transport regression, candidate | commit `09fde47` keeps exact accepted receipts successful when readiness polling hits a transport/deadline; focused ingestion/connector suite 73/73; the stable production alias still runs the prior deployment because the follow-up promotion hit the daily quota | `src/api/ingest.ts`, `tests/unit/ingest-source.test.ts`, `tests/unit/connectors-run.test.ts`, Vercel quota response |
+| candidate connector observation clarity | commit `abdc5fb` presents durable accepted documents with readiness-only failures as `SYNCING` instead of `FAILED`, while retaining the historical failure detail and an explicit indexing caveat; web connector suite passes 29/29 and web build passes. Promotion is pending the Vercel quota window. | `web/src/app/routes/connectors.tsx`, `tests/unit/web-connectors.test.ts`, commit `abdc5fb` |
+| candidate authenticated demo Ask/Voice scope alignment | commit `b8a17a5` makes the signed-in sample workspace read the same default HydraDB corpus used by its dashboard memory instead of the per-email empty collection; the regression failed with `no_subject` before the patch and passes after it. Auth/voice/query focused matrix: 126/126; root typecheck and web builds pass. | `src/api/router.ts`, `tests/unit/workspace-query-api.test.ts`, commit `b8a17a5`; [artifact](../artifacts/verification/2026-08-22-v10/demo-query-scope-candidate.txt) |
+| latest branch-head candidate preview | commit `b8a17a5` auto-built as preview `dpl_7726UYAzmVwm39udLJSmQKm5q5vf` at `https://lacuna-3c8pk64ld-vaibhav4046s-projects.vercel.app`; auth smoke 3/3, Google smoke 5/16 and voice smoke 3/7 because preview has no production secrets. It was not promoted. | Vercel inspection and smoke commands on 2026-08-22; [artifact](../artifacts/verification/2026-08-22-v10/demo-query-scope-candidate.txt) |
+| landing particle/text collision guard, production code path | architecture, model-routing and voice overlays are marked as canvas shields, preventing bright particle dots from rendering over live labels; static contract regression passes in the 2,261-test suite | `web/src/landing/Arch.tsx`, `web/src/landing/Route.tsx`, `web/src/landing/Voice.tsx`, `web/src/canvas/engine.ts`, `tests/unit/web-product-contracts.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| private session guard recovery, production code path | the private guard renders a bounded checking state and visible retry action when `/api/session` fails, so a transient auth/network error cannot leave a blank frozen private route; static contract regression passes in the 2,261-test suite | `web/src/app/RequireSession.tsx`, `web/src/api/session.tsx`, `tests/unit/web-product-contracts.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| failed panel recovery, production code path | failed Agents, Work, Context and connector reads expose a keyboard-sized `Try again` action instead of a dead-end error message; static contract regression passes in the 2,261-test suite | `web/src/app/state.tsx`, `tests/unit/web-product-contracts.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| cross-browser inline voice playback, candidate code path | blob-backed playback sets inline/preload hints, retries suspended Web Audio before optional analyser attachment, and treats a fulfilled `play()` promise as the start boundary when WebKit omits `playing`; native audio remains the contract when metering is unavailable | `web/src/voice/playback.ts`, `tests/unit/voice-browser.test.ts`, candidate commit pending promotion |
+| clean-browser private mutation guard, production code path | auth, workspace and voice mutations prime a CSRF cookie with a bounded read-only session preflight before the first submit; private actions retry once only when a token appears, while the server still refuses missing or invalid proofs | `web/src/api/client.ts`, `web/src/api/voice-operations.ts`, `tests/unit/web-auth-client.test.ts`, `tests/unit/voice-http.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| empty-workspace Context Health run | scheduled health runs complete with an explicit no-evidence report when the workspace has no subjects; no model call is spent and user tasks naming unknown subjects still fail closed; historical records render as `NO EVIDENCE` instead of a failure | `src/agent/run.ts`, `web/src/app/routes/work.tsx`, `tests/unit/agent-run.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| cross-browser voice capture guard | microphone capture uses the standard AudioContext or WebKit fallback, reports unsupported media devices as a bounded browser error, and retains native playback fallback | `web/src/voice/browser.ts`, `web/src/voice/playback.ts`, `tests/unit/voice-browser.test.ts` |
+| latest owner-session production pass | Google chooser/callback/session persistence, authenticated microphone start, empty-workspace read-only voice fallback, audio-unconfirmed answer retention, and safe typed navigation fallback observed on the stable alias | `artifacts/verification/2026-08-22-v10/production-smoke-latest.txt`, deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| latest live auth boundary pass | Stable production fails closed on missing CSRF (403) and invalid credentials (401); Google start returns PKCE S256, nonce, hardened OAuth cookie and no-store/CSP headers; malformed callback state redirects safely without exchange | `artifacts/verification/2026-08-22-v10/auth-boundary-latest.txt` |
+| dependency security audit | Production and development dependency trees report 0 high-severity vulnerabilities | `npm audit --audit-level=high`, `npm audit --omit=dev --audit-level=high` on 2026-08-22 |
+| historical empty-health status normalization | Work and Agents now agree that `CONTEXT_HEALTH` with `no_known_subject` is completed no-evidence work, including the persisted last-run card and lifecycle labels | `src/agent/registry.ts`, `web/src/app/routes/work.tsx`, `tests/unit/agent-persistence.test.ts`, `tests/unit/web-product-contracts.test.ts`, deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| embedded-browser voice planner fallback | On the signed-in owner browser, typed `open dashboard` reached `/app/dash` after the optional planner request was unavailable; safe navigation/read-only intents use the deterministic local grammar while writes remain fail-closed | `web/src/voice/operations.ts`, `tests/unit/voice-operation-executor.test.ts`, deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| embedded-browser Work dispatch guard | Work schedule dispatch no longer depends on `crypto.randomUUID`; the browser mutation request id falls back to Web Crypto bytes when embedded browsers omit the convenience method, with 2 regression cases | `web/src/api/request-id.ts`, `web/src/app/routes/work.tsx`, `tests/unit/request-id.test.ts`, `tests/unit/web-product-contracts.test.ts` |
+| serverless connector socket guard | Private webhook, file, GitHub, and HTTPS request lifecycle cleanup tolerates missing or partial Node sockets; connector API and adapter tests pass, and the live HTTPS 500 was traced to this boundary | `src/api/request-lifecycle.ts`, `src/api/router.ts`, `tests/unit/request-lifecycle.test.ts`, `tests/unit/connectors-api.test.ts` |
+| serverless connector event-method guard, production code path | request/response lifecycle hooks treat `.once`, `.off`, and `.removeListener` as optional adapter methods, preventing a valid HTTPS import from becoming a TypeError/500; focused connector and lifecycle regressions pass | `src/api/request-lifecycle.ts`, `src/api/router.ts`, `tests/unit/request-lifecycle.test.ts`, `tests/unit/connectors-api.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| stalled speech-body cancellation, production code path | the response body reader is cancelled when speech headers arrive but the provider stream stalls, returning a bounded provider failure instead of leaving voice busy; regression passes in the 2,261-test suite | `web/src/voice/browser.ts`, `tests/unit/voice-browser.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| stalled voice JSON-body cancellation, production code path | the JSON response reader is cancelled when voice query headers arrive but the provider body stalls, returning a bounded provider failure instead of leaving voice busy; regression passes in the 2,261-test suite | `web/src/voice/browser.ts`, `tests/unit/voice-browser.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| GitHub body cancellation, production code path | the default fetch transport's response body reader is cancelled when its bounded importer signal fires after headers arrive, returning `github_timeout` instead of hanging; regression passes in the 2,261-test suite | `src/connectors/github.ts`, `tests/unit/connectors-github.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| HydraDB body cancellation, production code path | the HydraDB response body reader is cancelled when a caller aborts after headers arrive, returning a bounded transport failure instead of hanging; regression passes in the 2,261-test suite | `src/hydra/client.ts`, `tests/unit/client.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| browser connector response-body cancellation, production code path | connector JSON is read through a bounded stream and cancelled/released when caller abort or deadline fires; regression passes in the 2,261-test suite | `web/src/api/connectors.ts`, `tests/unit/web-connectors-client.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| Agents/Work action recovery, production code path | schedule, run-now, cancel and retry controls clear busy state and show bounded failure copy when requests throw; helper regressions pass in the 2,261-test suite | `web/src/app/agent-actions.ts`, `web/src/app/routes/agents.tsx`, `web/src/app/routes/work.tsx`, `tests/unit/agent-actions.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| shared browser API response-body cancellation, production code path | session, workspace and agent reads/mutations cancel/release stalled JSON readers on caller abort or deadline; regression passes in the 2,261-test suite | `web/src/api/client.ts`, `tests/unit/web-auth-client.test.ts`, production deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz` |
+| LongMemEval deterministic hypothesis pipeline | a model-free answerer now routes stripped questions through Lacuna's bounded sentence planner/resolver and emits inspectable hypotheses; the official-compatible judge client is fail-closed and no score is claimed | `benchmarks/longmemeval/answerer.ts`, `benchmarks/longmemeval/run.ts`, `benchmarks/longmemeval/judge.ts`, `tests/unit/longmemeval-runner.test.ts`, `tests/unit/longmemeval-judge.test.ts`, `docs/BENCHMARK_LONGMEMEVAL.md` |
 
 ## Candidate acceptance gaps
 
 | Claim | Current evidence | Required before it becomes public proof |
 | --- | --- | --- |
-| Google sign-in is secure | provider/subject binding, JWKS/RS256, PKCE, nonce, `no-store` redirects and negative HTTP account-merge tests | production deployment and fresh-identity browser pass |
+| Google sign-in completes for a human identity | accepted 16/16 security boundary plus an authorized browser chooser → callback → dashboard round trip with session persistence | `artifacts/verification/2026-08-22-v10/google-auth-browser.txt` |
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
-| voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |
-| memory recommends agents | deterministic read-only integration, reasons/evidence/budgets and passing full unit gate | production API/UI capture and schedule-creation proof |
-| ChatGPT / Claude continuity | none; existing continuity is Lacuna web + CLI + MCP | named-client connection and same-workspace evidence capture |
+| voice works end to end | state machine, fixture-tested provider routes, and a live provider token/audio smoke | owner browser session proving microphone/STT, autoplay playback and interruption |
+| Claude continuity | no accepted Claude-to-Lacuna session | named-client connection and same-workspace evidence capture |
 | Supademo | no published walkthrough | assemble from final production captures and verify the public link |
-| final video | metadata-verified 179-second candidate, exact narration source, burned-in sentence captions and matching SRT; see `artifacts/video/final-metadata.json` | owner full-length approval, YouTube upload and signed-out playback check |
+| final video | V10 master machine-accepted: 178.500 seconds, 1920×1080/30 fps, H.264 + AAC, full decode pass; no renderer remains | owner uninterrupted watch, upload and signed-out playback checks |
 | YouTube | no URL | owner upload and signed-out playback check |
+| exact public repository parity | working-tree candidate is not itself reproducible public source | commit and push the exact accepted source before submission |
 
 The screenshot inventory and exact recapture requirements are in
 [SCREENSHOT_EVIDENCE_PLAN.md](SCREENSHOT_EVIDENCE_PLAN.md). Rows for cross-client
@@ -49,11 +110,12 @@ the evidence exists.
 
 ## Legacy evidence ledger
 
-The remainder of this document is the dated pre-V8 ledger retained without
+The remainder of this document is the dated pre-V8/V8 ledger retained without
 rewriting its transcripts. Statements such as "the deployment is a replay" or
 "voice and authentication are unavailable" describe the run named by that row,
-not the current product. The sections above and `FINAL_EXECUTION_STATE.md`
-supersede them for release decisions.
+not the current product. The sections above and `V10_RELEASE_STATUS.md`
+supersede them for release decisions; `FINAL_EXECUTION_STATE.md` is itself a
+historical V8 handoff.
 
 Every number this project states in public, and the file it came out of.
 
@@ -257,9 +319,9 @@ because shortest path needs two known endpoints and a question arrives with one.
 | Prose becomes claims, with the reading each was taken under | README, STATE, `/demo/memory` | none, it is a pure endpoint | `curl -s https://lacuna-five.vercel.app/api/demo/extract` | `LIVE` |
 | A forged `SYSTEM:` line files onto a slot no answer reads | `/demo/memory`, tests | [tests/unit/demo-api.test.ts](../tests/unit/demo-api.test.ts) | `npx vitest run tests/unit/demo-api.test.ts` | `LIVE` |
 | The frame table reads seven properties, not English | every extract response, README | the `readableProperties` field on every response | same curl | `LIVE` |
-| 500 published LongMemEval instances: 0 parse failures, 0 adapter failures, 0 ground truth leaks | BENCHMARK_LONGMEMEVAL | [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json) | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
-| **The extractor does not read the LongMemEval domain**: 116 claims from 3.3M tokens, mostly wrong on inspection | BENCHMARK_LONGMEMEVAL | same | same | `RECORDED` |
-| No LongMemEval score exists | BENCHMARK_LONGMEMEVAL | nothing, because nothing was run | there is no command | `UNAVAILABLE` |
+| 500 published LongMemEval instances: 0 parse failures, 0 adapter failures, 0 ground truth leaks; coverage is also grouped by all six official question types | BENCHMARK_LONGMEMEVAL | [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json) | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
+| Scoped LongMemEval personal bridge: 128 claims from 3.3M tokens (84/500 instances, 16.8% ingest coverage); no official score inferred | BENCHMARK_LONGMEMEVAL | same | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
+| No LongMemEval score exists; the deterministic hypothesis runner and official-compatible judge are implemented but no paid judge call has been made | BENCHMARK_LONGMEMEVAL | [docs/BENCHMARK_LONGMEMEVAL.md](BENCHMARK_LONGMEMEVAL.md), `benchmarks/longmemeval/judge.ts` | `npm run bench:longmemeval:judge -- --dataset ... --hypotheses ... --out ...` | `UNAVAILABLE` |
 
 The last three rows are the ones a sceptical reader should start with. The first
 two of them are the honest result of pointing this project's extractor at
@@ -290,7 +352,7 @@ That last check is not decorative. It is what caught a proof panel printing
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
 | The MCP server answers over stdio | CLAIMS, MCP | [artifacts/verification/2026-08-14b/mcp-stdio.txt](../artifacts/verification/2026-08-14b/mcp-stdio.txt) | a throwaway JSON-RPC driver, described in that directory's README | `LIVE` |
-| Five tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `lacuna_health` | MCP | same, the `tools/list` response | `tools/list` against the deployed `/mcp` on 20 Aug returned all five in order; `lacuna_read_question` was added after the 14 Aug stdio capture, so that transcript still shows four | `LIVE` |
+| Seven public tools advertised: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health` | MCP | the deployed `/mcp` `tools/list` response and [src/mcp/tools.ts](../src/mcp/tools.ts) | A live `tools/list` against deployed `/mcp` on 21 Aug returned all seven in order. `search` and `fetch` are the connector-compatible reads. The 14 Aug stdio transcript remains a historical four-tool capture | `LIVE` |
 | The command line answers and abstains with the same typed result | CLAIMS, CLI | [cli-ask.json](../artifacts/verification/2026-08-14b/cli-ask.json), [cli-abstain.json](../artifacts/verification/2026-08-14b/cli-abstain.json) | `node bin/lacuna.js ask Bellwether beta_partner --json` | `LIVE` |
 | Both exited 0 and wrote nothing to stderr | CLAIMS | [cli-exit.txt](../artifacts/verification/2026-08-14b/cli-exit.txt) and the two empty `.stderr` files | same | `LIVE` |
 | MCP over stdio, MCP over HTTP, and the command line return the same value, on the sixty-four eval questions and two deep cases | CLAIMS, MCP, CLI | [artifacts/verification/2026-08-18/parity.txt](../artifacts/verification/2026-08-18/parity.txt) | `npm run parity` | `LIVE` |
@@ -322,8 +384,9 @@ command on the same surface. `parity.txt` prints both orders next to the verdict
 so the exclusion is visible rather than buried in the comparison that excludes
 it.
 
-The only clients that have connected to the MCP server were run from this
-repository: the stdio driver behind the row above, and the SDK's own `Client`
+At the time of this legacy run, the only clients that had connected to the MCP
+server were run from this repository: the stdio driver behind the row above,
+and the SDK's own `Client`
 over the HTTP transport in the parity run. No editor or agent runtime has been
 pointed at it yet, so nothing in this repository calls the server universal or
 claims compatibility with a named host. That row arrives when three materially
@@ -356,7 +419,7 @@ pretending the walk was clean on the first pass.
 The 42 in the history row is the commit count at the time of the email rewrite,
 not the count now, which is 84. Both are true and they are not the same fact.
 
-## Deployment
+## Legacy snapshot deployment
 
 | Number or claim | Said in | Artifact | Command | State |
 |---|---|---|---|---|
@@ -365,8 +428,8 @@ not the count now, which is 84. Both are true and they are not the same fact.
 | The deployment and the local HTML server send **different** policies, both strict | CLAIMS | `curl -sD- -o /dev/null https://lacuna-five.vercel.app/` and [src/view/layout.ts](../src/view/layout.ts) | `LIVE` |
 | The snapshot replays all sixty-four gold questions with zero mismatches | README, CLAIMS | [artifacts/verification/2026-08-18/snapshot-verify.txt](../artifacts/verification/2026-08-18/snapshot-verify.txt) | `npm run snapshot:verify` | `RECORDED` |
 
-The deployment is a replay, not a hosted node. Every reply it serves was
-produced by the live node at export time and stored byte for byte in
+The deployment measured in this legacy section was a replay, not a hosted node.
+Every reply it served was produced by the live node at export time and stored byte for byte in
 [artifacts/snapshot/graph-snapshot.json](../artifacts/snapshot/graph-snapshot.json);
 production decodes them through the same client code the live server uses, and
 each answer page marks its reads as replayed. `npm run serve:snapshot` runs the
@@ -374,11 +437,13 @@ identical thing locally with no database and no token.
 
 ## What this index does not cover
 
-Nothing here supports voice, an LLM router, or authentication, because none of
-those has produced an artifact. Their rows in [docs/CLAIMS.json](CLAIMS.json)
-carry `UNAVAILABLE` and that is the whole of what is claimed about them. A
-capability with no line in this file is a capability with no evidence, which is
-the state this file exists to make visible rather than to hide.
+The current release has production evidence for the Google authentication
+boundary, the provider-backed voice boundary, and the governed agent runtime.
+What remains deliberately outside the accepted proof is a paid official
+LongMemEval judge score, a human microphone/STT/playback acceptance session,
+and the OAuth-backed providers still listed as planned in the connector
+catalogue. A capability with no line in this file is a capability with no
+evidence, which is the state this file exists to make visible rather than hide.
 
 ## What moves
 
@@ -411,9 +476,9 @@ not a host, and the row for a host is the one this file does not yet have.
 **The deployed URL arrived on the sixth run.** It sat in the not-covered list
 until [artifacts/verification/2026-08-14f/](../artifacts/verification/2026-08-14f/README.md)
 measured it from outside; its rows are in [Deployment](#deployment) above.
-What remains not covered is voice, an LLM router, and authentication. Those
-remain `UNAVAILABLE` in the ledger and absent from this index, which is the
-same statement made twice on purpose.
+The later V10 release added live Google and provider-voice boundary evidence;
+the remaining gaps are the paid benchmark judge and human browser STT/playback
+acceptance, not the existence of those product surfaces.
 
 **The second store arrived on the seventh run.** Until it did, every claim in
 this file rested on one store: a self-hosted node on loopback, which the

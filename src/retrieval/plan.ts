@@ -59,6 +59,11 @@ const SYNONYMS: readonly (readonly [string, readonly string[]])[] = [
   ['on_call_length', ['on call length', 'on call rotation', 'rotation length', 'on call', 'oncall', 'shift length']],
   ['contact', ['contact', 'point of contact', 'reach out to', 'escalation contact']],
   ['status', ['status', 'state of', 'progress']],
+  ['degree', ['degree', 'graduated with', 'education']],
+  ['occupation', ['occupation', 'job', 'work as', 'worked as', 'profession']],
+  ['commute_duration', ['commute', 'daily commute', 'how long is my commute', 'travel time']],
+  ['bedroom_color', ['bedroom color', 'bedroom colour', 'bedroom walls']],
+  ['yoga_location', ['yoga location', 'yoga classes', 'where do I take yoga']],
 ];
 
 /**
@@ -139,6 +144,19 @@ export function predicateIn(
     .filter((cue) => cue.at >= 0)
     // Earliest wins; length only breaks a tie at the same position.
     .sort((a, b) => (a.at === b.at ? b.word.length - a.word.length : a.at - b.at));
+
+  // A concrete object noun must beat a generic ownership verb. In questions
+  // such as "Who owns the billing-gate runbook?", `owns` appears first but the
+  // thing being owned is explicitly the runbook. Reading that as the generic
+  // `owner` predicate produces a truthful-looking answer to the wrong
+  // property. Keep the general earliest-cue rule for multi-hop questions, but
+  // let this unambiguous domain noun select the more specific predicate.
+  if (haystack.includes(' runbook ')) {
+    const runbookOwner = hits.find((hit) => hit.predicate === 'runbook_owner');
+    if (runbookOwner !== undefined) {
+      return { predicate: runbookOwner.predicate, matched: runbookOwner.word };
+    }
+  }
 
   const best = hits[0];
   return best === undefined ? null : { predicate: best.predicate, matched: best.word };

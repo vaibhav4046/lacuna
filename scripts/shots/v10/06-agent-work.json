@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "v10-agent-work",
+  "url": "http://127.0.0.1:4174/explore/work",
+  "output": "video/hyperframes-v10/assets/captures/06-agent-work.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "COMPLETED · 2" },
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "DAILY · 06:00 UTC" }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 500 },
+    { "type": "scroll", "selector": "[aria-label=\"Observed run lifecycle\"]", "align": "center", "offsetPx": 0, "durationMs": 1200, "easing": "smoothstep" },
+    { "type": "wait", "durationMs": 1000 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "Reviewer approved every material claim" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "WAITING_TOOL" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 150
+}

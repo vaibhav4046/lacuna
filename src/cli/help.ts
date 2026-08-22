@@ -18,6 +18,7 @@ usage
 commands
   doctor                              check the node, the config and this machine
   status                              show what this CLI is pointed at and what is in it
+  profile                             show which context store this machine reads
   shell                               an interactive prompt, with the mark
   read "<question>"                   ask in a sentence, with the evidence
   ask <subject> <predicate>           answer the question, with the evidence

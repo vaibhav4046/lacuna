@@ -1,5 +1,10 @@
 # Recording checklist
 
+> Historical pre-V10 capture checklist. Use
+> [V10_VIDEO_PITCH.md](V10_VIDEO_PITCH.md) for the current cut, capture order
+> and final media gates. Do not mark the rejected V8 film complete from the
+> boxes below.
+
 Print this, or keep it on a second screen. Every line is checkable in seconds,
 and every on-screen string below was verified against the running server on
 2026-08-15. The narration and shot directions live in

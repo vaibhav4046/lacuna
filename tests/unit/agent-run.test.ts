@@ -115,6 +115,83 @@ describe('a task naming nothing the workspace holds', () => {
   });
 });
 
+describe('a workspace whose subject index is unavailable', () => {
+  it('fails as context unavailable before matching the task or calling a model', async () => {
+    let modelCalls = 0;
+    const source = sourceWith([{ predicate: 'storage', value: 'Redis', superseded: false }]);
+    const unavailable = {
+      ...source,
+      subjects: async () => {
+        throw new Error('subject index unavailable');
+      },
+    } as HydraSource;
+
+    const run = await runAgents({
+      ...BASE,
+      source: unavailable,
+      task: 'What is the storage for private-service?',
+      fetchImpl: (async () => {
+        modelCalls += 1;
+        throw new Error('the model must not be called');
+      }) as typeof fetch,
+    });
+
+    expect(run.status).toBe('FAILED');
+    expect(run.error).toBe('context_unavailable');
+    expect(modelCalls).toBe(0);
+  });
+});
+
+describe('a workspace with no subjects', () => {
+  it('completes an empty Context Health run with an explicit no-evidence report', async () => {
+    let modelCalls = 0;
+    const empty = {
+      ...sourceWith([]),
+      subjects: async () => ({ value: [], traces: [] }),
+    } as HydraSource;
+
+    const run = await runAgents({
+      ...BASE,
+      source: empty,
+      kind: 'CONTEXT_HEALTH',
+      task: 'Review the current context health for this workspace.',
+      fetchImpl: (async () => {
+        modelCalls += 1;
+        throw new Error('the model must not be called');
+      }) as typeof fetch,
+    });
+
+    expect(run.status).toBe('COMPLETED');
+    expect(run.error).toBeNull();
+    expect(run.result).toContain('no stored subjects');
+    expect(run.openQuestions).toEqual(['Add a source before the next context health review.']);
+    expect(modelCalls).toBe(0);
+  });
+
+  it('refuses a fallback subject without calling a model', async () => {
+    let modelCalls = 0;
+    const source = sourceWith([{ predicate: 'storage', value: 'Redis', superseded: false }]);
+    const empty = {
+      ...source,
+      subjects: async () => ({ value: [], traces: [] }),
+    } as HydraSource;
+
+    const run = await runAgents({
+      ...BASE,
+      source: empty,
+      task: 'What is the storage for Sessions?',
+      fetchImpl: (async () => {
+        modelCalls += 1;
+        throw new Error('the model must not be called');
+      }) as typeof fetch,
+    });
+
+    expect(run.status).toBe('FAILED');
+    expect(run.error).toBe('no_known_subject');
+    expect(modelCalls).toBe(0);
+  });
+});
+
 describe('the reviewer', () => {
   const source = sourceWith([
     { predicate: 'storage', value: 'Postgres', superseded: true },

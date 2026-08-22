@@ -9,8 +9,8 @@ implemented edit, not a wishlist for a later production.
 - Host duration: 179 seconds.
 - Narration: verified ElevenLabs `Vaibhav Lalwani Professional` clone, voice id
   `GAeq3X4y41cIseBkBfsS`, Eleven Multilingual v2.
-- Narration source: `assets/narration-vaibhav/lacuna-v8-vaibhav.mp3`,
-  177.3975 seconds, SHA-256
+- Narration source: local, intentionally gitignored biometric audio at
+  `assets/narration-vaibhav/lacuna-v8-vaibhav.mp3`, 177.3975 seconds, SHA-256
   `FF7472F1C136C7C4FAE8C72F09F90D6D74EA503366D6CDD3F2F398F6604A263A`.
 - Spoken copy: [SCRIPT.md](SCRIPT.md), without substitutions or retiming.
 - Captions: deterministic sentence timing from `compositions/captions.html`,
@@ -219,7 +219,7 @@ video/hyperframes/
 |   |-- continuity.txt
 |   |-- favicon.svg
 |   |-- fonts/
-|   |-- narration-vaibhav/lacuna-v8-vaibhav.mp3
+|   |-- narration-vaibhav/lacuna-v8-vaibhav.mp3 (local, gitignored)
 |   `-- screens/
 |-- capture-final/screenshots/
 |-- compositions/

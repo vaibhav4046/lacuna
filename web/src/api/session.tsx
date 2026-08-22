@@ -1,67 +1,106 @@
-/**
- * Who is signed in, asked once for the whole app.
- *
- * Both the route guard and the sidebar footer need this, and asking twice
- * would mean two answers to one question, so the check lives in one provider
- * above the router. Signed out is a normal answer with a 200 behind it, not an
- * error: a visitor arriving at /app has not done anything wrong, they are
- * simply not signed in yet.
- */
-
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { getJson } from './client';
-import type { Loaded } from './client';
+import { flushSync } from 'react-dom';
 
-export interface Session {
-  readonly email: string;
-  /** Null until a workspace exists. Never a placeholder name. */
-  readonly workspace: string | null;
-  readonly onboarded: boolean;
-}
+import { getJson, type Loaded } from './client';
+import {
+  SessionEpochBus,
+  SessionReadCoordinator,
+  decodeSessionState,
+  sessionIdentity,
+  synchronousSessionTeardown,
+  type SessionState,
+} from './session-state';
 
-export type SessionState = { readonly signedIn: false } | { readonly signedIn: true; readonly session: Session };
+export type { Session, SessionState } from './session-state';
 
 interface SessionContextValue {
   readonly loaded: Loaded<SessionState>;
-  /**
-   * Re-ask after sign in, sign up, sign out, or finishing onboarding.
-   *
-   * Awaitable, and that is the whole point. It used to bump a counter and let
-   * an effect re-fetch, so a caller that navigated on the next line arrived at
-   * a guarded route while the answer in hand still said signed out, and the
-   * guard correctly bounced a person who had just signed up. Resolving when
-   * the new answer is in state removes the race rather than papering over it
-   * with a timeout.
-   */
-  readonly refresh: () => Promise<void>;
+  readonly epoch: number;
+  readonly identity: string | null;
+  /** Resolves only after the newest read, including a superseding tab/focus read, settles. */
+  readonly refresh: () => Promise<SessionState | null>;
+  /** After a successful cookie/session mutation: teardown and publish before validating once. */
+  readonly refreshAfterMutation: () => Promise<SessionState | null>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+async function readSession(signal: AbortSignal): Promise<SessionState> {
+  const decoded = decodeSessionState(await getJson<unknown>('/api/session', signal));
+  if (decoded === null) throw new Error('invalid session response');
+  return decoded;
+}
+
+function browserEpochBus(onRemote: () => void): SessionEpochBus {
+  const channel = typeof BroadcastChannel === 'undefined' ? {
+    postMessage: (_value: unknown) => undefined,
+    addEventListener: (_type: 'message', _listener: (event: { readonly data?: unknown }) => void) => undefined,
+    removeEventListener: (_type: 'message', _listener: (event: { readonly data?: unknown }) => void) => undefined,
+    close: () => undefined,
+  } : new BroadcastChannel('lacuna-session-epoch-v1');
+  return new SessionEpochBus({
+    channel,
+    storage: { setItem: (key, value) => { try { localStorage.setItem(key, value); } catch { /* unavailable storage leaves BroadcastChannel active */ } } },
+    addStorageListener: (listener) => window.addEventListener('storage', listener),
+    removeStorageListener: (listener) => window.removeEventListener('storage', listener),
+  }, onRemote);
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<Loaded<SessionState>>({ state: 'loading' });
-
-  const read = useCallback(async (signal?: AbortSignal): Promise<void> => {
-    try {
-      const value = await getJson<SessionState>('/api/session', signal ?? new AbortController().signal);
-      if (signal?.aborted !== true) setLoaded({ state: 'ready', value });
-    } catch {
-      // The server did not answer. That is not proof of being signed out, so
-      // the guard holds rather than bouncing someone who has a valid cookie.
-      if (signal?.aborted !== true) setLoaded({ state: 'failed', reason: 'Connection failed.' });
-    }
-  }, []);
+  const [epoch, setEpoch] = useState(0);
+  const coordinatorRef = useRef<SessionReadCoordinator | null>(null);
+  const busRef = useRef<SessionEpochBus | null>(null);
 
   useEffect(() => {
-    const control = new AbortController();
-    void read(control.signal);
-    return () => control.abort();
-  }, [read]);
+    let bus: SessionEpochBus | null = null;
+    const coordinator = new SessionReadCoordinator({
+      read: readSession,
+      onLoading: (cause) => {
+        const commit = () => {
+          setEpoch((held) => held + 1);
+          setLoaded({ state: 'loading' });
+        };
+        if (cause === 'initial') commit();
+        else synchronousSessionTeardown(commit, flushSync);
+      },
+      onReady: (value) => setLoaded({ state: 'ready', value }),
+      onFailed: () => setLoaded({ state: 'failed', reason: 'Connection failed.' }),
+      onValidatedTransition: () => { try { bus?.publish(); } catch { /* local invalidation remains complete */ } },
+    });
+    bus = browserEpochBus(() => { void coordinator.refresh('remote'); });
+    busRef.current = bus;
+    coordinatorRef.current = coordinator;
 
-  const refresh = useCallback(() => read(), [read]);
+    const onFocus = () => { void coordinator.refresh('focus'); };
+    const onPageShow = () => { void coordinator.refresh('pageshow'); };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow);
+    void coordinator.refresh('initial');
+    return () => {
+      coordinatorRef.current = null;
+      busRef.current = null;
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('pageshow', onPageShow);
+      bus?.dispose();
+      coordinator.dispose();
+    };
+  }, []);
 
-  return <SessionContext.Provider value={{ loaded, refresh }}>{children}</SessionContext.Provider>;
+  const refresh = useCallback(async (): Promise<SessionState | null> => {
+    return await coordinatorRef.current?.refresh('refresh') ?? null;
+  }, []);
+  const refreshAfterMutation = useCallback(async (): Promise<SessionState | null> => {
+    const coordinator = coordinatorRef.current;
+    if (coordinator === null) return null;
+    return await coordinator.refreshAfterMutation(() => {
+      try { busRef.current?.publish(); } catch { /* local teardown and validation still complete */ }
+    });
+  }, []);
+  const identity = loaded.state === 'ready' ? sessionIdentity(loaded.value) : null;
+
+  return <SessionContext.Provider value={{ loaded, epoch, identity, refresh, refreshAfterMutation }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): SessionContextValue {

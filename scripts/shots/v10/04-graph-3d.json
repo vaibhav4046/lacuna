@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "v10-graph-3d",
+  "url": "http://127.0.0.1:4174/explore/graph",
+  "output": "video/hyperframes-v10/assets/captures/04-graph-3d.mp4",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 1 },
+  "fps": 30,
+  "ready": [
+    { "selector": "main", "state": "visible", "timeoutMs": 25000, "textIncludes": "140 VISIBLE · 140 LOADED · 453 TOTAL" },
+    { "selector": "svg[aria-label=\"Interactive 3D memory graph grouped by state\"]", "state": "visible", "timeoutMs": 25000 }
+  ],
+  "actions": [
+    { "type": "wait", "durationMs": 450 },
+    { "type": "click", "selector": "button[aria-label=\"Rotate right\"]", "settleMs": 250 },
+    { "type": "click", "selector": "button[aria-label=\"Rotate right\"]", "settleMs": 250 },
+    { "type": "click", "selector": "button[aria-label=\"Rotate up\"]", "settleMs": 250 },
+    { "type": "click", "selector": "button[aria-label=\"Zoom in\"]", "settleMs": 300 },
+    { "type": "type", "selector": "input[placeholder=\"Search entities, claims or sources\"]", "text": "tenant-router", "clear": true, "delayMs": 45, "settleMs": 550 },
+    { "type": "click", "selector": "svg[aria-label=\"Interactive 3D memory graph grouped by state\"] g[role=\"button\"]", "settleMs": 650 },
+    { "type": "wait", "durationMs": 750 }
+  ],
+  "success": [
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "2 LOADED RELATIONSHIPS" },
+    { "selector": "main", "state": "visible", "timeoutMs": 5000, "textIncludes": "Correction on tenant-router" }
+  ],
+  "maskSelectors": [],
+  "expectedApiStatuses": [],
+  "settleMs": 200
+}

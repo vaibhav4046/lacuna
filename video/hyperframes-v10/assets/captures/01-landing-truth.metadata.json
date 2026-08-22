@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "name": "v10-landing-truth",
+  "capturedAt": "2026-08-21T03:12:41.397Z",
+  "source": {
+    "url": "http://127.0.0.1:4174/",
+    "queryAndFragmentPersisted": false,
+    "ready": [
+      {
+        "selector": "#top",
+        "state": "visible",
+        "timeoutMs": 20000,
+        "textPredicate": "none",
+        "attributePredicate": "none"
+      },
+      {
+        "selector": "canvas",
+        "state": "visible",
+        "timeoutMs": 20000,
+        "textPredicate": "none",
+        "attributePredicate": "none"
+      }
+    ],
+    "success": [
+      {
+        "selector": "[data-scene=\"gap\"]",
+        "state": "visible",
+        "timeoutMs": 5000,
+        "textPredicate": "none",
+        "attributePredicate": "none"
+      }
+    ]
+  },
+  "video": {
+    "file": "01-landing-truth.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "durationSeconds": 5.833,
+    "bytes": 2496560,
+    "sha256": "a5fa3a7fe39ff5434c31825cb6b65c43c7abd82ccacdc4a1016e7755f3e6626b",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "frameRate": "30/1",
+    "frameCount": 175,
+    "audio": false
+  },
+  "capture": {
+    "method": "Chrome DevTools Protocol Page.startScreencast",
+    "frameFormat": "jpeg",
+    "acknowledgementRequired": true,
+    "receivedFrames": 242,
+    "savedFrames": 136,
+    "acknowledgedFrames": 242,
+    "acknowledgementFailures": 0,
+    "protocolSequenceGaps": 0,
+    "discardedAboveTargetRate": 106,
+    "targetFrames": 175,
+    "uniqueSourceFramesUsed": 136,
+    "duplicatedTargetFrames": 39,
+    "discardedSourceFramesDuringEncode": 0,
+    "estimatedMissingFramesAt30Fps": 8,
+    "longestSourceGapMs": 76,
+    "uniqueSourcePayloads": 136,
+    "sourceDimensions": [
+      "1920x1080"
+    ],
+    "browser": "Chrome/140.0.7339.208",
+    "browserRevision": "@c759967f1b8ca5857065acaa4f7b5cdb3a12df7b"
+  },
+  "network": {
+    "policy": "same-origin /api/* and /mcp responses must remain below HTTP 400 unless an exact path/status pair is declared; loading failures are rejected",
+    "expectedApiStatuses": [],
+    "apiResponseCount": 1,
+    "apiResponses": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "status": 200
+      }
+    ],
+    "apiFailureCount": 1,
+    "apiFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "toleratedCanceledFailureCount": 1,
+    "toleratedCanceledFailures": [
+      {
+        "method": "GET",
+        "path": "/api/session",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ]
+  },
+  "actions": [
+    {
+      "index": 0,
+      "action": {
+        "type": "wait",
+        "durationMs": 500
+      },
+      "startedAtMs": 98,
+      "durationMs": 501,
+      "ok": true
+    },
+    {
+      "index": 1,
+      "action": {
+        "type": "scroll",
+        "durationMs": 1800,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "#product",
+        "align": "center"
+      },
+      "startedAtMs": 599,
+      "durationMs": 1820,
+      "ok": true
+    },
+    {
+      "index": 2,
+      "action": {
+        "type": "wait",
+        "durationMs": 550
+      },
+      "startedAtMs": 2419,
+      "durationMs": 557,
+      "ok": true
+    },
+    {
+      "index": 3,
+      "action": {
+        "type": "scroll",
+        "durationMs": 1400,
+        "easing": "smoothstep",
+        "offsetPx": 0,
+        "selector": "[data-scene=\"gap\"]",
+        "align": "center"
+      },
+      "startedAtMs": 2976,
+      "durationMs": 1429,
+      "ok": true
+    },
+    {
+      "index": 4,
+      "action": {
+        "type": "wait",
+        "durationMs": 550
+      },
+      "startedAtMs": 4405,
+      "durationMs": 552,
+      "ok": true
+    }
+  ],
+  "privacy": {
+    "typedValuesPersistedInMetadata": false,
+    "exactMarkerValuesPersistedInMetadata": false,
+    "urlQueryPersistedInMetadata": false,
+    "passwordInputAllowed": false,
+    "automaticMaskSelectors": [
+      "input[type=\"password\"]",
+      "[autocomplete=\"current-password\"]",
+      "[autocomplete=\"new-password\"]",
+      "[data-secret]",
+      "[data-private]",
+      "[name*=\"token\" i]",
+      "[name*=\"secret\" i]",
+      "[name*=\"password\" i]"
+    ],
+    "customMaskSelectorCount": 0
+  }
+}

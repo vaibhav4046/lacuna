@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import { useSession } from '../api/session';
 import { MONO, Mark } from '../design/mark';
+import { landingAccountActions } from './account-actions';
 
 /**
  * The footer, and two things it was getting wrong.
@@ -27,6 +29,8 @@ const link = {
 
 export function Footer() {
   const go = useNavigate();
+  const { loaded } = useSession();
+  const account = landingAccountActions(loaded);
 
   const to = (path: string, label: string) => (
     <button key={label} className="hv-text" type="button" onClick={() => go(path)} style={link}>{label}</button>
@@ -81,9 +85,9 @@ export function Footer() {
             </div>
             <div data-shield style={col}>
               <span style={head}>ACCOUNT</span>
-              {to('/signin', 'Sign in')}
-              {to('/signup', 'Create account')}
-              {to('/forgot', 'Recover access')}
+              {account.state === 'pending'
+                ? <span role="status" style={{ color: '#7A7A7A', fontSize: '12px' }}>Checking session</span>
+                : account.links.map((item) => to(item.path, item.label))}
             </div>
           </div>
         </div>

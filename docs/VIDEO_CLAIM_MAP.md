@@ -1,8 +1,9 @@
-# Claims the final V8 film may make, and where to check them
+# Claims the V10 submission film may make, and where to check them
 
-A rendered final candidate exists, but owner approval remains open. This table
-is the editorial gate: a claim may be spoken only when the evidence in its row
-exists for the final deployment.
+The earlier rendered V8 candidate was rejected and is not the submission
+master. This table is the V10 editorial gate: a claim may be spoken only when
+the evidence in its row exists for the final deployed build and appears in the
+live capture or a clearly labelled artifact.
 
 | Film claim | Checkable evidence |
 | --- | --- |
@@ -16,7 +17,7 @@ exists for the final deployment.
 | The seeded public graph measured 453 nodes and 682 edges | `GET /api/explore/graph`; `artifacts/video/judges-master/03-graph-overview.png`; label the deployment/build |
 | Two built-in governed roles persisted one eight-event completed run | `GET /api/explore/agents`, `GET /api/explore/runs`; `artifacts/video/judges-master/04-agents.png`; do not imply arbitrary agents |
 | The voice UI has explicit states and an honest fallback | `src/api/voice.ts`, `web/src/voice`; `artifacts/video/judges-master/05-voice.png`; do not imply provider audio |
-| The film uses the Vaibhav Lalwani Professional narration | `video/hyperframes/narration.json`; exact source MP3; `artifacts/video/final-metadata.json`; this is not product voice proof |
+| The accepted V10 film uses the Vaibhav Lalwani Professional narration | regenerate and verify `video/hyperframes/narration.json` plus `artifacts/video/final-metadata.json`; the exact raw MP3 remains local and gitignored; V8 metadata does not pass the V10 master; this is not product voice proof |
 | HydraDB Cloud stores conversations as evidence and entities as claims | `artifacts/hydra/cloud-ingest.json`; `src/hydra/cloud-graph.ts`; `artifacts/video/judges-master/06-hydradb.png` |
 | Lacuna filters statements that do not assert a fact | `video/hyperframes/assets/screens/live-hydradb-1920x1080.png`; extraction tests |
 | Lacuna answers 64/64 at 18 context tokens on the generated 64-question evaluation | `artifacts/bench/results.json`; `artifacts/video/judges-master/07-evaluation.png`; explicitly say generated, not public benchmark |

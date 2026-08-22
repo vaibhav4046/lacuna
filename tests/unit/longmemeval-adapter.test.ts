@@ -339,6 +339,14 @@ describe('the loader refuses malformed input rather than guessing', () => {
 });
 
 describe('a run records enough about itself to be repeated', () => {
+  it('keeps the recorded extraction limitation aligned with the latest oracle artifact', () => {
+    expect(KNOWN_LIMITATIONS).toContain(
+      'The shipped extractor reads a narrow infrastructure vocabulary. LongMemEval is a personal '
+      + 'assistant benchmark, so the adapted sessions carry sparse and potentially low-precision '
+      + 'claims; the published oracle run measured 128 claims across 84 of 500 instances (16.8% ingest coverage).',
+    );
+  });
+
   it('writes a run.json naming the dataset by digest, the commit and the gaps', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lacuna-lme-'));
     const dataset = join(dir, 'fixture.json');

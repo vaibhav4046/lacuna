@@ -61,7 +61,7 @@ export interface RunArtifact {
 export const KNOWN_LIMITATIONS: readonly string[] = [
   'The shipped extractor reads a narrow infrastructure vocabulary. LongMemEval is a personal '
   + 'assistant benchmark, so the adapted sessions carry sparse and potentially low-precision '
-  + 'claims; the published oracle run measured 117 claims across 78 of 500 instances.',
+  + 'claims; the published oracle run measured 128 claims across 84 of 500 instances (16.8% ingest coverage).',
   'The deterministic answerer sends sentences through Lacuna\'s bounded planner and resolver. '
   + 'Questions outside that planner\'s known subjects or predicate vocabulary abstain rather than '
   + 'inventing a structured question.',

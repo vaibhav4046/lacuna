@@ -39,6 +39,7 @@
     "continuity": "tsx scripts/continuity.ts",
     "smoke:auth": "tsx scripts/smoke-auth.ts",
     "smoke:google": "tsx scripts/smoke-google-auth.ts",
+    "smoke:voice": "tsx scripts/smoke-voice.ts",
     "proof": "tsx scripts/proof.ts",
     "capture:cli": "tsx scripts/capture-cli.ts",
     "capture:motion": "tsx scripts/capture-browser-motion.ts",

@@ -346,12 +346,15 @@
     },
     {
       "id": "voice-surface",
-      "claim": "The voice interface and provider routes exist, with explicit listening, thinking, speaking, interrupted, error and typed-fallback states. Current production has server-side ElevenLabs configuration, but no accepted end-to-end audio session.",
+      "claim": "The voice interface and provider routes exist, with explicit listening, thinking, speaking, interrupted, error and typed-fallback states. Current production has server-side ElevenLabs configuration and a live provider-backed token/audio boundary; microphone/STT and browser playback acceptance remain separate gates.",
       "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "measured": {
         "provider_enabled_in_production": true,
-        "end_to_end_audio_proof": false
+        "provider_token_status": 200,
+        "provider_audio_content_type": "audio/mpeg",
+        "provider_audio_bytes": 26794,
+        "browser_microphone_playback_proof": false
       },
       "evidence": [
         "src/api/voice.ts",
@@ -360,7 +363,7 @@
         "tests/unit/voice-browser.test.ts"
       ],
       "reproduce": "npm test && npm run serve  # then open /voice",
-      "caveat": "Fixture coverage proves route and state-machine behaviour, not microphone capture, provider transcription, the selected voice clone, streamed playback or interruption in production. Server-side configuration is present, but a real authenticated browser session is still required for acceptance."
+      "caveat": "The production smoke proves a real server-issued provider token and bounded MPEG audio response without printing secrets. It does not prove microphone capture, provider transcription, browser autoplay acceptance or interruption in a human browser session."
     },
     {
       "id": "speech-to-text",
@@ -378,21 +381,22 @@
     },
     {
       "id": "text-to-speech",
-      "claim": "Text-to-speech code streams ElevenLabs audio through the server with cancellation and backpressure; it is fixture-tested and configured for production, but lacks an accepted live playback session.",
+      "claim": "Text-to-speech code streams ElevenLabs audio through the server with cancellation and backpressure, and the deployed provider boundary returns real bounded MPEG audio; browser playback remains an owner-session gate.",
       "capability": "PARTIAL",
-      "data": "UNAVAILABLE",
+      "data": "LIVE",
       "evidence": [
         "src/api/voice.ts",
         "web/src/voice",
         "tests/unit/voice-api.test.ts",
-        "tests/unit/voice-browser.test.ts"
+        "tests/unit/voice-browser.test.ts",
+        "scripts/smoke-voice.ts"
       ],
-      "reproduce": "npm test",
-      "caveat": "The verified Vaibhav Lalwani Professional clone, voice id GAeq3X4y41cIseBkBfsS, was used for the separate film narration. That recorded audio is not a product TTS session and does not change this production capability state."
+      "reproduce": "npm run smoke:voice -- https://lacuna-five.vercel.app",
+      "caveat": "The smoke proves provider audio at the HTTP boundary, not that a specific browser accepted autoplay or that a person heard the clip. The film narration remains a separate artifact."
     },
     {
       "id": "metered-voice-fallback",
-      "claim": "Production voice keeps provider credentials server-side and retains typed Ask as a fallback; native-first playback and provider routes are implemented, but end-to-end browser acceptance is still pending.",
+      "claim": "Production voice keeps provider credentials server-side and retains typed Ask as a fallback; native-first playback and provider routes are implemented, with the live TTS boundary verified and browser/STT acceptance still pending.",
       "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "evidence": [
@@ -400,7 +404,7 @@
         "docs/FINAL_EXECUTION_STATE.md"
       ],
       "reproduce": "open /voice on production and request provider speech",
-      "caveat": "A configured server secret proves neither provider readiness nor browser playback. A real production STT/TTS/interruption session is still required."
+      "caveat": "The live smoke proves provider readiness and server audio, but a real production STT/TTS/interruption session in the owner's browser is still required."
     },
     {
       "id": "llm-router",

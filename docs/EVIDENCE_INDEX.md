@@ -36,6 +36,7 @@ not transfer without a named rerun.
 | historical V8 production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
 | accepted V10 production baseline | exact accepted probes and deployment id | `docs/V10_RELEASE_STATUS.md` |
 | public connector catalogue, production | 31/31 demo smoke gates; seven redacted entries, all seven `available`, no private observations | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `scripts/smoke-demo.ts` |
+| provider-backed voice boundary, production | 7/7 voice smoke gates; real ElevenLabs single-use token and `audio/mpeg` response (26,794 bytes in this run), bounded without printing provider secrets | `scripts/smoke-voice.ts`, production deployment `dpl_93UMoChPtTTSYXJXT8nTtpu98Em3` |
 
 ## Candidate acceptance gaps
 
@@ -44,7 +45,7 @@ not transfer without a named rerun.
 | Google sign-in completes for a human identity | accepted 16/16 pre-chooser boundary | human identity selection and accepted fresh callback |
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
-| voice works end to end | state machine and fixture-tested provider routes | server-side ElevenLabs credentials, configured product voice id, microphone/STT/TTS/interruption production session |
+| voice works end to end | state machine, fixture-tested provider routes, and a live provider token/audio smoke | owner browser session proving microphone/STT, autoplay playback and interruption |
 | Claude continuity | no accepted Claude-to-Lacuna session | named-client connection and same-workspace evidence capture |
 | Supademo | no published walkthrough | assemble from final production captures and verify the public link |
 | final video | V10 master machine-accepted: 178.500 seconds, 1920×1080/30 fps, H.264 + AAC, full decode pass; no renderer remains | owner uninterrupted watch, upload and signed-out playback checks |

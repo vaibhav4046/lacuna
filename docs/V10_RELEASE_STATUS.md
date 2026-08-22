@@ -47,7 +47,7 @@ Production: <https://lacuna-five.vercel.app>
 | Web | The current alias passed demo smoke 31/31 (including the public redacted connector catalogue), Google boundary smoke 16/16, and auth boundary smoke 3/3 after the first-run onboarding release. |
 | Route/browser matrix | Production passed 198/198 normal-motion and 198/198 reduced-motion checks: 22 routes at nine viewports, zero console errors, exceptions, failed requests or horizontal overflow. |
 | Landing motion | The exact release passed eight local viewports, 20/20 distinct desktop stages, 7/7 priority mobile scenes, a 29/29 manifest and reduced motion 6/6. The promoted production landing was then recaptured at desktop and mobile widths. |
-| Google auth boundary | The deployed pre-chooser security sweep passed 16/16: Google origin, exact callback, identity-only scopes, request-bound PKCE S256 and state, nonce binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. Overlapping attempts retain separate proof cookies and repeated starts are bounded. |
+| Google auth boundary | The deployed pre-chooser security sweep passed 16/16: Google origin, exact callback, identity-only scopes, request-bound PKCE S256 and state, nonce binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. Overlapping attempts retain separate proof cookies and repeated starts are bounded. Account and session writes now wait for HydraDB read-after-write visibility before a session is issued, so a queued cloud write cannot bounce a legitimate callback back to signed out. |
 | Password account | Hosted password creation is deliberately disabled because the HydraDB document boundary cannot atomically enforce a unique email. A historical 12/12 run exists for an existing password identity; it is not the current signup path. |
 | Surface continuity | The deployed web endpoint, cloud-pointed Lacuna CLI and a Lacuna MCP process returned identical results for six outcome classes in `artifacts/continuity/one-context.json`. This is the same temporal read contract across those three surfaces, not a ChatGPT or Claude proof. |
 | ChatGPT public MCP | The ChatGPT Lacuna app called health, ask, timeline, explain, sentence read, search and fetch on the production endpoint. It resolved a temporal correction, exposed a two-source conflict, abstained on it, and returned a connector artifact. |
@@ -65,13 +65,12 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is the release of product commit `d4d1878`
-(`fix(landing): reflect connector availability`). Root
-typecheck and the 135-module production build pass; the focused demo/API
-contract suite is 31/31, the full unit baseline is 108 files / 2,197 tests,
-and the stable alias passed demo smoke 31/31, Google auth
-smoke 16/16, and auth boundary smoke 3/3. The stable alias points to the
-immutable deployment `https://lacuna-gcob2872t-vaibhav4046s-projects.vercel.app`.
+The current production deployment is the release of product commit `665858d`
+(`fix(auth): wait for durable cloud account writes`). Root typecheck and the
+135-module production build pass; the focused auth suite is 62/62, and the
+stable alias passed demo smoke 31/31, Google auth smoke 16/16, and auth
+boundary smoke 3/3. The stable alias points to the immutable deployment
+`https://lacuna-p5dsa8qhh-vaibhav4046s-projects.vercel.app`.
 
 The first-run flow now creates a workspace, stores a real private memory through
 `POST /api/workspace/ingest`, proves a private answer through

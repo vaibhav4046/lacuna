@@ -59,6 +59,7 @@ describe('web product contracts', () => {
     expect(landing).toContain("fetch('/api/explore/connectors'");
     expect(landing).toContain("status = item.implementation === 'planned' ? 'PLANNED'");
     expect(landing).toContain("runtime.availability === 'available' ? 'AVAILABLE' : 'UNAVAILABLE'");
+    expect(landing).toContain("runtime === undefined ? 'UNKNOWN'");
     expect(landing).toContain('whiteSpace: \'nowrap\'');
   });
 

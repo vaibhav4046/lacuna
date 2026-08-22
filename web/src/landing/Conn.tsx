@@ -12,26 +12,34 @@ interface PublicConnectorState {
   readonly availability: 'available' | 'unavailable';
 }
 
-function usePublicConnectorState(): Readonly<Record<string, PublicConnectorState>> {
-  const [state, setState] = useState<Readonly<Record<string, PublicConnectorState>>>({});
+interface PublicConnectorSnapshot {
+  readonly phase: 'checking' | 'ready' | 'unknown';
+  readonly byId: Readonly<Record<string, PublicConnectorState>>;
+}
+
+function usePublicConnectorState(): PublicConnectorSnapshot {
+  const [snapshot, setSnapshot] = useState<PublicConnectorSnapshot>({ phase: 'checking', byId: {} });
   useEffect(() => {
     let active = true;
     void fetch('/api/explore/connectors', { headers: { Accept: 'application/json' } })
       .then((response) => response.ok ? response.json() as Promise<{ connectors?: readonly PublicConnectorState[] }> : null)
       .then((body) => {
-        if (!active || body === null || !Array.isArray(body.connectors)) return;
+        if (!active || body === null || !Array.isArray(body.connectors)) {
+          if (active) setSnapshot({ phase: 'unknown', byId: {} });
+          return;
+        }
         const next: Record<string, PublicConnectorState> = {};
         for (const connector of body.connectors) {
           if (typeof connector?.id !== 'string'
             || (connector.availability !== 'available' && connector.availability !== 'unavailable')) continue;
           next[connector.id] = connector;
         }
-        setState(next);
+        setSnapshot({ phase: 'ready', byId: next });
       })
-      .catch(() => undefined);
+      .catch(() => { if (active) setSnapshot({ phase: 'unknown', byId: {} }); });
     return () => { active = false; };
   }, []);
-  return state;
+  return snapshot;
 }
 
 export function Conn() {
@@ -48,12 +56,13 @@ export function Conn() {
           return <div key={group} data-mhide="1" data-shield style={{ position: 'absolute', left, top, transform: 'translate(-50%,-50%)', width: '190px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontFamily: MONO, fontSize: '9.5px', fontWeight: 500, letterSpacing: '0.24em', color: '#7A7A84' }}>{group}</span>
             {CONNECTOR_PRESENTATION.filter((item) => item.group === group).slice(0, 4).map((item) => {
-              const runtime = item.serverIds.map((id) => publicState[id]).find((entry) => entry !== undefined);
+              const runtime = item.serverIds.map((id) => publicState.byId[id]).find((entry) => entry !== undefined);
               const status = item.implementation === 'planned' ? 'PLANNED'
-                : runtime === undefined ? 'CHECKING'
+                : runtime === undefined && publicState.phase === 'checking' ? 'CHECKING'
+                  : runtime === undefined ? 'UNKNOWN'
                   : runtime.availability === 'available' ? 'AVAILABLE' : 'UNAVAILABLE';
               const dot = item.implementation === 'planned' ? 'planned'
-                : runtime === undefined ? 'planned' : runtime.availability;
+                : runtime === undefined ? publicState.phase === 'unknown' ? 'unavailable' : 'planned' : runtime.availability;
               return <span key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={icStyle(item.name, 13)} />
                 <span style={{ fontSize: '13.5px', color: '#BDBDBD' }}>{item.name}</span>

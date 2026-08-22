@@ -77,6 +77,20 @@ export async function postVoiceOperationJson(
   sessionBinding?: string,
 ): Promise<unknown> {
   try {
+    // Voice actions are private mutations too. A clean tab can reach the
+    // voice dock before the session read has issued the double-submit cookie;
+    // prime it with the same read-only boundary used by the main client.
+    if (options.csrfToken() === '') {
+      try {
+        await options.fetchImpl('/api/session', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
+      } catch {
+        // The private mutation below remains fail-closed if no token appears.
+      }
+    }
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',

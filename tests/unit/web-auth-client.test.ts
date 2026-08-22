@@ -340,6 +340,25 @@ describe('the browser auth client', () => {
     expect(new Headers(calls[1]?.init?.headers).get('x-csrf-token')).toBe('primed-token');
   });
 
+  it('primes the CSRF cookie before the first private document mutation on a clean browser', async () => {
+    const browserDocument = { cookie: '' };
+    vi.stubGlobal('document', browserDocument);
+    const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push(init === undefined ? { input } : { input, init });
+      if (String(input) === '/api/session') {
+        browserDocument.cookie = 'lacuna_csrf=workspace-token';
+        return { ok: true, status: 200, json: async () => ({ signedIn: true }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }));
+
+    await expect(postFor<{ readonly ok: boolean }>('/api/workspace/query', { question: 'Who owns Atlas?' }))
+      .resolves.toEqual({ ok: true });
+    expect(calls.map((call) => String(call.input))).toEqual(['/api/session', '/api/workspace/query']);
+    expect(new Headers(calls[1]?.init?.headers).get('x-csrf-token')).toBe('workspace-token');
+  });
+
   it('settles an auth mutation when headers arrive but its response body stalls', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('document', { cookie: 'lacuna_csrf=csrf-under-test' });

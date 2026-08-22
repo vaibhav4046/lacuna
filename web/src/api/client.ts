@@ -102,11 +102,31 @@ export function csrfHeaders(): Readonly<Record<string, string>> {
 }
 
 function csrfToken(): string {
+  if (typeof document === 'undefined') return '';
   for (const part of document.cookie.split(';')) {
     const [name, ...rest] = part.trim().split('=');
     if (name === CSRF_COOKIE) return decodeURIComponent(rest.join('='));
   }
   return '';
+}
+
+function needsCsrfPreflight(path: string): boolean {
+  return path.startsWith('/api/auth/') || path.startsWith('/api/workspace/');
+}
+
+/** Establishes the browser half of the double-submit proof without mutating state. */
+async function primeCsrf(control: AbortController): Promise<void> {
+  if (csrfToken() !== '') return;
+  try {
+    await fetch('/api/session', {
+      signal: control.signal,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+  } catch {
+    // The mutation below still fails closed if the token could not be issued.
+  }
 }
 
 export interface PostResult {
@@ -148,24 +168,12 @@ export async function postJson(
       control.abort();
     }, timeoutMs);
     try {
-      // A person can press submit before the session provider's first read has
-      // returned. Prime the double-submit cookie in that narrow window so the
-      // first sign-in/signup action is not rejected as a mysterious 403. This
-      // request carries no mutation and is bounded by the same abort signal;
-      // if it cannot establish a token, the actual mutation still fails closed
-      // at the server rather than bypassing CSRF.
-      if (csrfToken() === '') {
-        try {
-          await fetch('/api/session', {
-            signal: control.signal,
-            credentials: 'same-origin',
-            cache: 'no-store',
-            headers: { Accept: 'application/json' },
-          });
-        } catch {
-          // The mutation below produces the canonical connection/CSRF result.
-        }
-      }
+      // A person can press a private action before the session provider's first
+      // read has returned. Prime the double-submit cookie in that narrow
+      // window. This request carries no mutation and is bounded by the same
+      // abort signal; the actual mutation still fails closed at the server if
+      // a token cannot be established.
+      if (needsCsrfPreflight(path)) await primeCsrf(control);
       const response = await fetch(path, {
         method: 'POST',
         signal: control.signal,
@@ -232,22 +240,45 @@ export async function postFor<T>(
   timeoutMs: number = REQUEST_TIMEOUT_MS,
   sessionBinding?: string,
 ): Promise<T | null> {
-  const control = new AbortController();
-  const timeout = globalThis.setTimeout(() => control.abort(), timeoutMs);
+  const send = async (): Promise<{
+    readonly response: Response;
+    readonly clear: () => void;
+  }> => {
+    const control = new AbortController();
+    const timeout = globalThis.setTimeout(() => control.abort(), timeoutMs);
+    try {
+      if (needsCsrfPreflight(path)) await primeCsrf(control);
+      const response = await fetch(path, {
+        method: 'POST',
+        signal: control.signal,
+        credentials: 'same-origin',
+        headers: mutationHeaders(sessionBinding),
+        body: JSON.stringify(body),
+      });
+      return { response, clear: () => globalThis.clearTimeout(timeout) };
+    } catch (error) {
+      globalThis.clearTimeout(timeout);
+      throw error;
+    }
+  };
+
   try {
-    const response = await fetch(path, {
-      method: 'POST',
-      signal: control.signal,
-      credentials: 'same-origin',
-      headers: mutationHeaders(sessionBinding),
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) return null;
-    return (await response.json()) as T;
+    let sent = await send();
+    // The session endpoint may have issued a token between a concurrent read
+    // and this mutation. Retry once only when the server refused the missing
+    // proof and a token is now present; never turn another refusal into a loop.
+    if (sent.response.status === 403 && csrfToken() !== '') {
+      sent.clear();
+      sent = await send();
+    }
+    if (!sent.response.ok) { sent.clear(); return null; }
+    try {
+      return (await sent.response.json()) as T;
+    } finally {
+      sent.clear();
+    }
   } catch {
     return null;
-  } finally {
-    globalThis.clearTimeout(timeout);
   }
 }
 

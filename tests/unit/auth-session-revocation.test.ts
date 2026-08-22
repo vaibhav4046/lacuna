@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ACCOUNT_READY_TIMEOUT_MS, CloudAccounts, FileAccounts, type Accounts } from '../../src/auth/accounts.js';
+import { ACCOUNT_READ_TIMEOUT_MS, ACCOUNT_READY_TIMEOUT_MS, CloudAccounts, FileAccounts, type Accounts } from '../../src/auth/accounts.js';
 import { AccountStore, CredentialChanged, newSessionVersion, type Account } from '../../src/auth/store.js';
 import type { AppRecord, HydraCloud, IngestResult, InspectedSource } from '../../src/hydra/cloud.js';
 
@@ -58,6 +58,12 @@ class EventuallyConsistentRecordCloud extends RecordCloud {
 class HungReadinessCloud extends RecordCloud {
   async readyForIngestion(): Promise<boolean> {
     return await new Promise<boolean>(() => undefined);
+  }
+}
+
+class HungInspectCloud extends RecordCloud {
+  override async inspect(_id: string, _timeoutMs: number, _collection: string): Promise<InspectedSource | null> {
+    return await new Promise<InspectedSource | null>(() => undefined);
   }
 }
 
@@ -135,6 +141,18 @@ describe('credential-bound session versions', () => {
       const pending = accounts.available();
       await vi.advanceTimersByTimeAsync(ACCOUNT_READY_TIMEOUT_MS + 1);
       await expect(pending).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails closed when a hosted session read hangs', async () => {
+    vi.useFakeTimers();
+    try {
+      const accounts = new CloudAccounts(new HungInspectCloud() as unknown as HydraCloud);
+      const pending = accounts.sessionFor('stalled-token', Date.now());
+      await vi.advanceTimersByTimeAsync(ACCOUNT_READ_TIMEOUT_MS + 1);
+      await expect(pending).resolves.toBeNull();
     } finally {
       vi.useRealTimers();
     }

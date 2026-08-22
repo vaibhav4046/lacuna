@@ -56,6 +56,14 @@ export interface Accounts {
 /** Upper bound for the pre-auth hosted readiness check. */
 export const ACCOUNT_READY_TIMEOUT_MS = 8_000;
 
+/**
+ * A session check is on the critical path of every signed-in page. The cloud
+ * client has a deliberately generous transport deadline for ingestion, but
+ * auth must not inherit it: a session read that stalls must become a bounded
+ * signed-out response instead of leaving the browser on a spinner.
+ */
+export const ACCOUNT_READ_TIMEOUT_MS = 3_000;
+
 /** The local answer: the existing directory-backed store, behind the seam. */
 export class FileAccounts implements Accounts {
   readonly #store: AccountStore;
@@ -171,17 +179,32 @@ export class CloudAccounts implements Accounts {
   }
 
   async #read<T>(id: string): Promise<T | null> {
-    const source = await this.#cloud.inspect(id, 10_000, this.#collection);
-    if (source === null) return null;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
-      const text = envelope.content?.text;
-      if (typeof text !== 'string' || text === '') return null;
-      return JSON.parse(text) as T;
+      const source = await Promise.race([
+        this.#cloud.inspect(id, ACCOUNT_READ_TIMEOUT_MS, this.#collection),
+        new Promise<null>((resolve) => {
+          deadline = setTimeout(() => resolve(null), ACCOUNT_READ_TIMEOUT_MS);
+        }),
+      ]);
+      if (source === null) return null;
+      try {
+        const envelope = JSON.parse(source.envelope) as { content?: { text?: unknown } };
+        const text = envelope.content?.text;
+        if (typeof text !== 'string' || text === '') return null;
+        return JSON.parse(text) as T;
+      } catch {
+        // A record that does not parse is not a record. Treating it as absent
+        // is the safe reading: it can fail a sign in, never grant one.
+        return null;
+      }
     } catch {
-      // A record that does not parse is not a record. Treating it as absent is
-      // the safe reading: it can fail a sign in, never grant one.
+      // A transport failure is indistinguishable from an unavailable account
+      // store at this boundary. Fail closed rather than surfacing a platform
+      // 500 or leaving /api/session hanging.
       return null;
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
     }
   }
 

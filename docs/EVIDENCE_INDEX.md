@@ -50,7 +50,7 @@ not transfer without a named rerun.
 
 | Claim | Current evidence | Required before it becomes public proof |
 | --- | --- | --- |
-| Google sign-in completes for a human identity | accepted 16/16 pre-chooser boundary | human identity selection and accepted fresh callback |
+| Google sign-in completes for a human identity | accepted 16/16 security boundary plus an authorized browser chooser → callback → dashboard round trip with session persistence | `artifacts/verification/2026-08-22-v10/google-auth-browser.txt` |
 | hosted schedules run once | local serialization and hosted persistence tests | multi-instance atomic claim mechanism or explicit at-least-once wording and duplicate-safe jobs |
 | private MCP is usable | authenticated issue/revoke, random digest store, bounded body, rate limits, cross-workspace refusal and fail-closed listener tests | deployment probe and external-client read/write/revoke proof |
 | voice works end to end | state machine, fixture-tested provider routes, and a live provider token/audio smoke | owner browser session proving microphone/STT, autoplay playback and interruption |

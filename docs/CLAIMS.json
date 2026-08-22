@@ -438,13 +438,14 @@
     },
     {
       "id": "google-auth",
-      "claim": "The deployed Google sign-in boundary uses provider/subject binding, signed-token verification, request-bound PKCE S256 and state, nonce binding, isolated overlapping attempts, hardened cookies and non-cacheable redirects; its pre-chooser production gate passed 16/16.",
-      "capability": "PARTIAL",
+      "claim": "The deployed Google sign-in boundary uses provider/subject binding, signed-token verification, request-bound PKCE S256 and state, nonce binding, isolated overlapping attempts, hardened cookies and non-cacheable redirects; its production security gate passed 16/16 and an authorized browser completed the provider callback.",
+      "capability": "VERIFIED",
       "data": "LIVE",
       "measured": {
         "production_boundary_checks": "16/16",
         "account_chooser_reached": true,
-        "completed_provider_callback": false
+        "completed_provider_callback": true,
+        "browser_session_persisted": true
       },
       "evidence": [
         "src/auth/google.ts",
@@ -453,10 +454,11 @@
         "tests/unit/auth-identity.test.ts",
         "tests/unit/google-auth-api.test.ts",
         "scripts/smoke-google-auth.ts",
-        "artifacts/verification/2026-08-21-v10/google-auth-boundary.txt"
+        "artifacts/verification/2026-08-21-v10/google-auth-boundary.txt",
+        "artifacts/verification/2026-08-22-v10/google-auth-browser.txt"
       ],
       "reproduce": "npm run smoke:google -- https://lacuna-five.vercel.app",
-      "caveat": "The production proof intentionally stops before the human chooses a Google identity. It does not claim a newly created account or accepted provider callback. Legacy unbound Google records fail closed."
+      "caveat": "The browser proof uses the already-authorized owner identity and does not claim a different Google identity was created or that account ownership was transferred. Legacy unbound Google records fail closed."
     },
     {
       "id": "agent-runtime",

@@ -1,0 +1,15 @@
+Lacuna V10 Google browser round trip
+Checked: 2026-08-22
+Deployment: https://lacuna-five.vercel.app
+
+1. Opened /api/auth/google/start in a fresh browser tab.
+2. Google account chooser rendered for lacuna-five.vercel.app with the already-authorized identity chooser.
+3. Selected the authorized existing Google identity through the account chooser.
+4. Callback returned to https://lacuna-five.vercel.app/app/dash.
+5. The dashboard rendered the private workspace shell and authenticated identity state.
+6. Navigated to /signin; the session provider redirected back to /app/dash, proving cookie/session persistence across the auth route.
+7. Browser logs contained no Lacuna console errors or exceptions. Google emitted only its standard DevTools self-XSS warning.
+
+This is owner-session evidence for a completed provider callback. It does not
+claim that a different Google identity was created or that account ownership
+was transferred.

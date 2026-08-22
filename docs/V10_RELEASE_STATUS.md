@@ -65,15 +65,15 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `ded3fd7`
-(`fix(auth): prime csrf for private actions`) with the production-only
+The current production deployment is product commit `0bf8d5c`
+(`fix(voice): retry concurrent csrf refusal`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
 pass; the full unit suite is 2,222/2,222 (111 files), and the stable alias passed demo
 smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
 requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-87map9jip-vaibhav4046s-projects.vercel.app` (`dpl_7PSU1HfS71ZuNyVbCdB6Lbq1cn9d`).
+`https://lacuna-gtyn9ijq4-vaibhav4046s-projects.vercel.app` (`dpl_AWyZU341Z43eBKmEkDhAqsv6EsNH`).
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback

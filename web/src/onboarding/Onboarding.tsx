@@ -5,7 +5,7 @@ import { hydraState, useHealth, UNCHECKED } from '../api/health';
 import { useSession } from '../api/session';
 import { icStyle } from '../design/icons';
 import { MONO, Mark } from '../design/mark';
-import { retryWhilePending } from './readiness';
+import { retryWhilePending, storageProblem, storageReadiness } from './readiness';
 
 /** The private answer contract used by the final first-run proof. */
 export interface OnboardingAnswer {
@@ -151,6 +151,10 @@ export default function Onboarding() {
       if (!sourceStored && !(await storeFirstMemory())) return;
       setStep(4);
       return;
+    }
+    if (step === 1) {
+      const problem = storageProblem(storageReadiness(hydra));
+      if (problem !== null) { setProblem(problem); return; }
     }
     if (step === 4) {
       if (answer === null) { await proveAnswer(); return; }

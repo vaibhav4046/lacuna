@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { retryWhilePending } from '../../web/src/onboarding/readiness.js';
+import { retryWhilePending, storageReadiness, storageProblem } from '../../web/src/onboarding/readiness.js';
 
 describe('onboarding readiness retry', () => {
   it('retries a pending read and returns the first usable answer', async () => {
@@ -40,5 +40,22 @@ describe('onboarding readiness retry', () => {
 
     expect(result).toBeNull();
     expect(reads).toBe(3);
+  });
+});
+
+describe('onboarding storage gate', () => {
+  it('maps the health state to a truthful first-run gate', () => {
+    expect(storageReadiness('CONNECTED')).toBe('ready');
+    expect(storageReadiness('NOT CONFIGURED')).toBe('not_configured');
+    expect(storageReadiness('FAILED')).toBe('failed');
+    expect(storageReadiness('—')).toBe('checking');
+    expect(storageReadiness('unexpected')).toBe('checking');
+  });
+
+  it('does not let onboarding continue while storage is not ready', () => {
+    expect(storageProblem('ready')).toBeNull();
+    expect(storageProblem('checking')).toContain('still checking');
+    expect(storageProblem('not_configured')).toContain('not configured');
+    expect(storageProblem('failed')).toContain('could not be reached');
   });
 });

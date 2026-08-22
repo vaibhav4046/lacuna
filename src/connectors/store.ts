@@ -19,7 +19,7 @@ const MAX_IMPORTED_DOCUMENTS = 1_000_000;
 const DEFAULT_READBACK_TIMEOUT_MS = 10_000;
 const DEFAULT_POLL_INTERVAL_MS = 100;
 const CONNECTOR_IDS: readonly ConnectorId[] = [
-  'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+  'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
 ];
 const CONNECTOR_ID_SET = new Set<string>(CONNECTOR_IDS);
 const FAILURE_CODES = new Set<ConnectorFailureCode>([

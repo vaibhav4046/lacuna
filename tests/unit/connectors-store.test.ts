@@ -115,6 +115,18 @@ describe('CloudConnectorStore', () => {
     expect(await store.get(WORKSPACE)).toEqual({ github: GITHUB });
   });
 
+  it('persists GitLab observations because GitLab is a catalogued connector', async () => {
+    const cloud = new RecordCloud();
+    const store = fastStore(cloud);
+    const gitlab: ConnectorObservation = {
+      ...GITHUB,
+      importedDocuments: 2,
+    };
+
+    await expect(store.put(WORKSPACE, 'gitlab', gitlab)).resolves.toBe('stored');
+    expect(await store.get(WORKSPACE)).toEqual({ gitlab });
+  });
+
   it('keeps different connector writes isolated under adversarial interleaving', async () => {
     const cloud = new RecordCloud();
     const store = fastStore(cloud);

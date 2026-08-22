@@ -86,6 +86,8 @@ const agentProvider = configured(process.env).find((provider) => (
 // attempt failed.
 const AGENT_MODEL = process.env['LACUNA_AGENT_MODEL']
   ?? (agentProvider?.name === 'perplexity' ? 'sonar' : 'groq/compound-mini');
+const AGENT_DISPLAY_PROVIDER = agentProvider?.name ?? 'unconfigured';
+const AGENT_DISPLAY_MODEL = agentProvider === undefined ? 'unconfigured' : AGENT_MODEL;
 
 /** Names the public corpus holds, used to find what a task is about. */
 const SUBJECT_NAMES: readonly string[] = [
@@ -300,21 +302,24 @@ const api = new ApiRouter({
         ...(run.attempt === undefined ? {} : { attempt: run.attempt }),
         ...(run.retryOf === undefined ? {} : { retryOf: run.retryOf }),
       }),
-      agentStore: agentRuntime,
-      scheduleStore: scheduleRuntime,
-      prepareAgents: async (workspace: string): Promise<void> => {
-        await agentRuntime.putAgents(
-          workspace,
-            builtInAgents(workspace, agentProvider.name, AGENT_MODEL, new Date().toISOString()),
-        );
-      },
-      prepareSchedule: async (workspace: string): Promise<void> => {
-        await scheduleRuntime.putSchedule(dailyContextHealthSchedule(workspace, '06:00', 'UTC', Date.now()));
-      },
-      ...(process.env['CRON_SECRET'] === undefined ? {} : { cronSecret: process.env['CRON_SECRET'] }),
-      cronWorkspaces: ['public'],
     }),
   }),
+  // Persisted definitions and schedules are useful even when a model provider
+  // is absent: the Agents page can explain the missing run capability instead
+  // of disappearing behind a generic runtime-unavailable response.
+  agentStore: agentRuntime,
+  scheduleStore: scheduleRuntime,
+  prepareAgents: async (workspace: string): Promise<void> => {
+    await agentRuntime.putAgents(
+      workspace,
+      builtInAgents(workspace, AGENT_DISPLAY_PROVIDER, AGENT_DISPLAY_MODEL, new Date().toISOString()),
+    );
+  },
+  prepareSchedule: async (workspace: string): Promise<void> => {
+    await scheduleRuntime.putSchedule(dailyContextHealthSchedule(workspace, '06:00', 'UTC', Date.now()));
+  },
+  ...(process.env['CRON_SECRET'] === undefined ? {} : { cronSecret: process.env['CRON_SECRET'] }),
+  cronWorkspaces: ['public'],
   // The store's own relation graph, read from the service. Kept small: this is
   // a proof that HydraDB extracted relations from the transcripts, not a
   // browsable index of them.

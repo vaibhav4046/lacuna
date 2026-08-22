@@ -1737,7 +1737,12 @@ export class ApiRouter {
       if (part === 'agents' || part === 'runs' || part === 'tools' || part === 'schedules') {
         const runtime = this.#agentStore;
         const schedules = this.#scheduleStore;
-        if (runtime === undefined || schedules === undefined || this.#agent === undefined) {
+        // Definitions, tools and persisted history remain readable even when
+        // no model provider is configured. Only the run mutation needs
+        // `#agent`; hiding the runtime behind a 503 made the Agents page look
+        // broken instead of showing the governed built-ins and the precise
+        // provider-unavailable state on RUN.
+        if (runtime === undefined || schedules === undefined) {
           send(response, 503, { error: 'runtime_unavailable' });
           return HANDLED;
         }
@@ -2067,7 +2072,7 @@ export class ApiRouter {
         }
         const runtime = this.#agentStore;
         const schedules = this.#scheduleStore;
-        if (runtime === undefined || schedules === undefined || this.#agent === undefined) {
+        if (runtime === undefined || schedules === undefined) {
           send(response, 503, { error: 'runtime_unavailable' });
           return HANDLED;
         }

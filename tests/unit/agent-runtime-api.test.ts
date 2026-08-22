@@ -161,6 +161,38 @@ afterAll(async () => {
 });
 
 describe('authenticated agent-run request identity', () => {
+  it('keeps the agent catalogue readable when no model provider is configured', async () => {
+    const runtime = new FileAgentRuntimeStore(directory);
+    const router = new ApiRouter({
+      store: observedAccounts,
+      secure: false,
+      health: null,
+      now: () => Date.UTC(2026, 7, 21, 12),
+      agentStore: runtime,
+      scheduleStore: new FileScheduleStore(directory),
+      prepareAgents: async (workspace) => { await runtime.putAgents(workspace, []); },
+      prepareSchedule: async () => undefined,
+    });
+    const local = createServer((request, response) => {
+      const path = new URL(request.url ?? '/', 'http://test.invalid').pathname;
+      void router.handle(request, response, path).then((handled) => {
+        if (!handled.handled) response.writeHead(404).end('{}');
+      });
+    });
+    await new Promise<void>((resolve) => local.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = local.address();
+      if (address === null || typeof address === 'string') throw new Error('no port');
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/workspace/agents`, {
+        headers: { cookie: who.cookie },
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual([]);
+    } finally {
+      await new Promise<void>((resolve) => local.close(() => resolve()));
+    }
+  });
+
   it('keeps ordinary target GETs compatible and accepts a matching voice binding', async () => {
     for (const path of ['/api/workspace/runs', '/api/workspace/schedules']) {
       expect((await getPath(path, other)).status, path).toBe(200);

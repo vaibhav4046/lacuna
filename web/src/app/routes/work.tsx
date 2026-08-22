@@ -38,7 +38,7 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
   readonly run: AgentRunRecord;
   readonly agentName: string;
   readonly demo: boolean;
-  readonly binding?: string;
+  readonly binding?: string | undefined;
   readonly onChange: (run: AgentRunRecord) => void;
 }) {
   const [mutating, setMutating] = useState(false);
@@ -125,7 +125,7 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
   );
 }
 
-function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly binding?: string; readonly onRun: (run: AgentRunRecord) => void }) {
+function Schedules({ demo, binding, onRun }: { readonly demo: boolean; readonly binding?: string | undefined; readonly onRun: (run: AgentRunRecord) => void }) {
   const schedules = useScoped<readonly DailyScheduleRecord[]>('schedules');
   const rows = schedules.state === 'ready' ? schedules.value : [];
   const [working, setWorking] = useState<string | null>(null);

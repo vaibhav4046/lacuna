@@ -2984,11 +2984,6 @@ export class ApiRouter {
     const clear = cookie === null ? [] : [clearCookie(cookie, this.#secure)];
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured', clear);
 
-    // The person pressed cancel on Google's screen. Not an error.
-    if (url.searchParams.get('error') !== null) {
-      return this.#redirect(response, '/signin?google=cancelled', clear);
-    }
-
     const attempt = parseGoogleAttempt(cookie === null ? undefined : cookies[cookie]);
     const expected = attempt?.state;
     if (
@@ -2997,6 +2992,14 @@ export class ApiRouter {
       || !sameDigest(hashToken(state), hashToken(expected))
     ) {
       return this.#redirect(response, '/signin?google=state', clear);
+    }
+
+    // Even a cancelled authorization is only meaningful when it belongs to
+    // the browser attempt that started it. Checking state before honoring the
+    // provider's error prevents a forged cancellation callback from consuming
+    // a real in-flight attempt (and keeps every callback outcome CSRF-bound).
+    if (url.searchParams.get('error') !== null) {
+      return this.#redirect(response, '/signin?google=cancelled', clear);
     }
 
     const code = url.searchParams.get('code');

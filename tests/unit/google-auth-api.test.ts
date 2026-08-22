@@ -142,6 +142,17 @@ describe('Google OAuth HTTP boundary', () => {
     expect(response.headers.get('cache-control')).toBe('no-store, private');
   });
 
+  it('checks state before accepting a forged provider cancellation', async () => {
+    const begun = await start();
+    const response = await nativeFetch(`${base}/api/auth/google/callback?state=forged&error=access_denied`, {
+      redirect: 'manual',
+      headers: { cookie: cookieHeader(cookies(begun)) },
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/signin?google=state');
+  });
+
   it('keeps overlapping Google sign-in attempts independently valid', async () => {
     const first = await start();
     const second = await start();

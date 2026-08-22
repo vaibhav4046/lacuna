@@ -502,11 +502,13 @@
       "measured": {
         "available": [
           "GitHub",
+          "HTTPS API"
+        ],
+        "unavailable_in_current_deployment": [
           "Markdown",
           "Text",
           "PDF",
           "DOCX",
-          "HTTPS API",
           "Webhook"
         ],
         "planned": [

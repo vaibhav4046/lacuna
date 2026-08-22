@@ -18,7 +18,7 @@ not transfer without a named rerun.
 | anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
-| connector truth table | Public redacted catalogue exposes seven descriptors; private workflows implement GitHub, TXT/MD/PDF/DOCX, HTTPS/API and signed webhook paths; remaining providers stay planned | `src/connectors/catalog.ts`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
+| connector truth table | Public redacted catalogue exposes seven descriptors; current production marks GitHub and HTTPS API `available`, while file formats and webhook are `unavailable` until deployment capabilities are configured; remaining providers stay planned | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `src/connectors/catalog.ts`, `tests/unit/demo-api.test.ts` |
 | historical V8 landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
 | historical V8 landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
 | graph overview | 140 loaded of 453 | `artifacts/screens/v8/memory-field.png` |

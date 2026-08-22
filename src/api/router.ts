@@ -610,18 +610,15 @@ function isPrivateConnectorOperation(path: string, method: string): boolean {
 }
 
 /**
- * The address a rate limit key is built from. Behind a proxy this is the
- * socket, which is the proxy, so the forwarded header is used when present.
- * Only the first hop is read: the rest of that header is whatever the client
- * chose to put there.
+ * The address a rate limit key is built from.
+ *
+ * Forwarded headers are not an identity at this boundary: a caller can send
+ * them directly, and trusting them lets one client mint a fresh bucket for
+ * every credential attempt. The edge may already rate-limit by its own client
+ * address; this limiter must still fail closed when the header is forged, so
+ * it keys on the socket address only.
  */
 function sourceKey(request: IncomingMessage): string {
-  const forwarded = request.headers['x-forwarded-for'];
-  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  if (typeof first === 'string' && first.trim() !== '') {
-    const hop = first.split(',')[0];
-    if (hop !== undefined && hop.trim() !== '') return hop.trim();
-  }
   return requestRemoteAddress(request) ?? 'unknown';
 }
 

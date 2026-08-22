@@ -55,12 +55,12 @@ that production Cloud executes that Cypher path.
 | Blocked claim | Current truth |
 | --- | --- |
 | Exact 399-character `package-session` workflow | `NOT_PROVEN`; subject absent, request exceeds the 300-character sentence contract, and Web/CLI/MCP expose no general blast command. See `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json`. |
-| Native external connectors | Only Text and Custom ingestion are available. Other catalogued connectors are planned; Spotify is absent. |
+| Native external connectors | The current release has bounded private file workflows (TXT/MD/JSON/CSV/PDF/DOCX), public GitHub and GitLab snapshots, public HTTPS/API import, and signed webhook delivery. OAuth-backed account integrations (Linear, Jira, Slack, Notion, Gmail, Confluence and Database source) remain planned; Spotify is absent. |
 | Private ChatGPT memory write | Legacy capability fails closed; remint/use/revoke proof is absent. Public read-only ChatGPT proof is separate. |
 | Claude continuity | No accepted Claude-to-Lacuna run exists. |
 | Packaged Lacuna SDK | None is published; the official MCP SDK is used internally. |
-| Production voice round trip | Provider-backed STT → query → TTS → playback/interruption was not accepted. Film narration is not product voice proof. |
-| Completed Google sign-in | Security boundary reached the chooser; human selection/fresh callback remains incomplete. |
+| Production voice round trip | Provider token/audio boundary is accepted at 7/7 and the browser runtime has microphone, typed fallback, interruption and native playback guards. Full owner proof of microphone → STT → TTS → playback across browsers is still required; film narration is not product voice proof. |
+| Completed Google sign-in | Google security and an authorized chooser → callback → dashboard round trip are accepted on the stable alias. The latest hosted session-read timeout candidate is pushed but awaits Vercel promotion. |
 | Exactly-once hosted schedule | Definitions persist, but there is no distributed compare-and-swap guarantee. |
 | Official LongMemEval score | None exists. The committed evaluation is generated. |
 | General 453/682 scale claim | Counts belong only to the generated public workspace on the accepted deployment. |

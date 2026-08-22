@@ -158,17 +158,19 @@ Machine acceptance is recorded in
 
 - Production Cloud does not execute the self-hosted native-Cypher answer path.
 - The exact 399-character `package-session` request is `NOT_PROVEN`.
-- Text and Custom ingestion are available. Native GitHub, GitLab, Linear,
-  Jira, Slack, Notion, Gmail, Confluence, PDF, Markdown, Documents, API,
-  Webhook and Database connectors are planned, not connected. Spotify is not
-  implemented.
+- Bounded file ingestion (TXT, Markdown, JSON, CSV, PDF and DOCX), public
+  GitHub/GitLab snapshots, public HTTPS/API import and signed webhook delivery
+  are implemented. Linear, Jira, Slack, Notion, Gmail, Confluence and Database
+  source remain planned account integrations. Spotify is not implemented.
 - ChatGPT is proved only for the seven-tool public read-only corpus. Private
   `remember` is not accepted. Claude was not tested.
 - No packaged Lacuna SDK is published. The official MCP SDK is an internal
   dependency.
-- Production provider-backed voice was not accepted; typed Ask is the fallback.
-- Google OAuth passed the pre-chooser security boundary. Human account
-  selection and a fresh accepted callback remain owner actions.
+- Provider-backed voice is bounded and tested; typed Ask remains the explicit
+  fallback whenever microphone, provider or browser playback is unavailable.
+- Google OAuth security and an authorized chooser → callback → dashboard round
+  trip are accepted on the stable alias. The latest hosted session-read timeout
+  and cross-browser playback candidate are pushed but await Vercel promotion.
 - Hosted schedules are persistent; distributed exactly-once execution is not
   claimed.
 - The evaluation is generated and is not LongMemEval. No official benchmark

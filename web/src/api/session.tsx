@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 
-import type { Loaded } from './client';
+import { getJson, type Loaded } from './client';
 import {
   SessionEpochBus,
   SessionReadCoordinator,
@@ -27,26 +27,9 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 async function readSession(signal: AbortSignal): Promise<SessionState> {
-  const control = new AbortController();
-  const relay = () => control.abort();
-  if (signal.aborted) control.abort();
-  else signal.addEventListener('abort', relay, { once: true });
-  const timeout = globalThis.setTimeout(() => control.abort(), 15_000);
-  try {
-    const response = await fetch('/api/session', {
-      signal: control.signal,
-      credentials: 'same-origin',
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-    });
-    if (response.status !== 200) throw new Error('session unavailable');
-    const decoded = decodeSessionState(await response.json() as unknown);
-    if (decoded === null) throw new Error('invalid session response');
-    return decoded;
-  } finally {
-    globalThis.clearTimeout(timeout);
-    signal.removeEventListener('abort', relay);
-  }
+  const decoded = decodeSessionState(await getJson<unknown>('/api/session', signal));
+  if (decoded === null) throw new Error('invalid session response');
+  return decoded;
 }
 
 function browserEpochBus(onRemote: () => void): SessionEpochBus {

@@ -123,6 +123,8 @@ describe('web product contracts', () => {
     expect(provider).toContain("window.removeEventListener('pageshow', onPageShow)");
     expect(provider).toContain("coordinator.refresh('remote')");
     expect(provider).toContain('flushSync');
+    expect(provider).toContain("getJson<unknown>('/api/session'");
+    expect(provider).not.toContain('response.json()');
     expect(shell).toContain("key={scope.demo ? 'explore' : identity ?? 'unvalidated'}");
   });
 

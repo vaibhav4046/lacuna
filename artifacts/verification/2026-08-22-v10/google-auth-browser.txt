@@ -9,6 +9,8 @@ Deployment: https://lacuna-five.vercel.app
 5. The dashboard rendered the private workspace shell and authenticated identity state.
 6. Navigated to /signin; the session provider redirected back to /app/dash, proving cookie/session persistence across the auth route.
 7. Browser logs contained no Lacuna console errors or exceptions. Google emitted only its standard DevTools self-XSS warning.
+8. Signed out and submitted an invalid legacy-password attempt; the form returned the fixed `Email or password not recognised.` alert without a console error.
+9. Repeated the authorized Google chooser → callback flow to restore the owner session; the dashboard rendered normally.
 
 This is owner-session evidence for a completed provider callback. It does not
 claim that a different Google identity was created or that account ownership

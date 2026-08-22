@@ -185,7 +185,7 @@ export function synchronousSessionTeardown(
 /** Latest-started session reads own context; superseded callers await the newest read. */
 export class SessionReadCoordinator {
   readonly #options: SessionReadCoordinatorOptions;
-  readonly #waiters: { readonly generation: number; readonly resolve: () => void }[] = [];
+  readonly #waiters: { readonly generation: number; readonly resolve: (value: SessionState | null) => void }[] = [];
   #generation = 0;
   #active: AbortController | null = null;
   #lastValidated: string | undefined;
@@ -195,17 +195,17 @@ export class SessionReadCoordinator {
     this.#options = options;
   }
 
-  refresh(cause: SessionReadCause): Promise<void> {
+  refresh(cause: SessionReadCause): Promise<SessionState | null> {
     return this.#start(cause);
   }
 
   /** Teardown, publish one nonce, then begin the sole post-mutation validation read. */
-  refreshAfterMutation(publish: () => void): Promise<void> {
+  refreshAfterMutation(publish: () => void): Promise<SessionState | null> {
     return this.#start('mutation', publish);
   }
 
-  #start(cause: SessionReadCause, beforeRead?: () => void): Promise<void> {
-    if (this.#disposed) return Promise.resolve();
+  #start(cause: SessionReadCause, beforeRead?: () => void): Promise<SessionState | null> {
+    if (this.#disposed) return Promise.resolve(null);
     const generation = this.#generation + 1;
     this.#generation = generation;
     this.#active?.abort();
@@ -215,7 +215,7 @@ export class SessionReadCoordinator {
     if (beforeRead !== undefined) {
       try { beforeRead(); } catch { /* local teardown remains authoritative; validation still runs */ }
     }
-    const caller = new Promise<void>((resolve) => this.#waiters.push({ generation, resolve }));
+    const caller = new Promise<SessionState | null>((resolve) => this.#waiters.push({ generation, resolve }));
     void this.#run(generation, cause, control);
     return caller;
   }
@@ -229,15 +229,17 @@ export class SessionReadCoordinator {
       this.#lastValidated = identity;
       this.#options.onReady(value);
       if (changed && cause !== 'remote' && cause !== 'mutation') this.#options.onValidatedTransition(identity);
+      const settled = this.#waiters.splice(0);
+      settled.forEach(({ resolve }) => resolve(value));
     } catch {
       if (!this.#disposed && generation === this.#generation && !control.signal.aborted) {
         this.#options.onFailed();
+        const settled = this.#waiters.splice(0);
+        settled.forEach(({ resolve }) => resolve(null));
       }
     } finally {
       if (!this.#disposed && generation === this.#generation) {
         this.#active = null;
-        const settled = this.#waiters.splice(0);
-        settled.forEach(({ resolve }) => resolve());
       }
     }
   }
@@ -248,6 +250,6 @@ export class SessionReadCoordinator {
     this.#generation += 1;
     this.#active?.abort();
     this.#active = null;
-    this.#waiters.splice(0).forEach(({ resolve }) => resolve());
+    this.#waiters.splice(0).forEach(({ resolve }) => resolve(null));
   }
 }

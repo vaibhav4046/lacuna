@@ -22,8 +22,12 @@ export default function SignIn() {
     const failure = await signIn(email, password);
     setBusy(false);
     if (failure !== null) { setProblem(failure); return; }
-    await refreshAfterMutation();
-    go('/app/dash');
+    const session = await refreshAfterMutation();
+    if (session === null || !session.signedIn) {
+      setProblem('Your sign-in succeeded, but the session could not be confirmed. Try again.');
+      return;
+    }
+    go(session.session.workspace === null ? '/onboarding' : '/app/dash');
   }
 
   if (account.state === 'member') return <Navigate to={account.primary.path} replace />;

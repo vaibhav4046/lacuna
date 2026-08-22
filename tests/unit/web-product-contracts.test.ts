@@ -156,7 +156,7 @@ describe('web product contracts', () => {
     const system = readFileSync(new URL('../../web/src/app/routes/system.tsx', import.meta.url), 'utf8');
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
 
-    expect(provider).toContain('readonly refreshAfterMutation: () => Promise<void>;');
+    expect(provider).toContain('readonly refreshAfterMutation: () => Promise<SessionState | null>;');
     expect(provider).toContain('coordinator.refreshAfterMutation');
     for (const client of [signIn, forgot, system, onboarding]) {
       expect(client).toContain('refreshAfterMutation');

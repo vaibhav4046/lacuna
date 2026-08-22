@@ -19,9 +19,9 @@ interface SessionContextValue {
   readonly epoch: number;
   readonly identity: string | null;
   /** Resolves only after the newest read, including a superseding tab/focus read, settles. */
-  readonly refresh: () => Promise<void>;
+  readonly refresh: () => Promise<SessionState | null>;
   /** After a successful cookie/session mutation: teardown and publish before validating once. */
-  readonly refreshAfterMutation: () => Promise<void>;
+  readonly refreshAfterMutation: () => Promise<SessionState | null>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -88,13 +88,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const refresh = useCallback(async () => {
-    await coordinatorRef.current?.refresh('refresh');
+  const refresh = useCallback(async (): Promise<SessionState | null> => {
+    return await coordinatorRef.current?.refresh('refresh') ?? null;
   }, []);
-  const refreshAfterMutation = useCallback(async () => {
+  const refreshAfterMutation = useCallback(async (): Promise<SessionState | null> => {
     const coordinator = coordinatorRef.current;
-    if (coordinator === null) return;
-    await coordinator.refreshAfterMutation(() => {
+    if (coordinator === null) return null;
+    return await coordinator.refreshAfterMutation(() => {
       try { busRef.current?.publish(); } catch { /* local teardown and validation still complete */ }
     });
   }, []);

@@ -9,7 +9,7 @@ not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| focused connector and voice gates | 96 connector tests and 102 voice/browser tests passed | serial terminal runs on 2026-08-22 with one worker |
+| focused connector and voice gates | 166 structured connector tests plus the existing voice/browser gates passed; full unit suite 2,220/2,220 | serial terminal runs on 2026-08-22 with one worker |
 | root and web typecheck/build | both typecheck and the 135-module web build exit 0 | terminal run on 2026-08-22 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
 | native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |

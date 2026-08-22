@@ -267,7 +267,7 @@ file: every record parses, and no serialised haystack contains `has_answer` or
 
 ## The extractor does not read this domain, and the measurement says so
 
-**116 claims came out of 3.3 million tokens, and a manual sample of them is
+**117 claims came out of 3.3 million tokens, and a manual sample of them is
 mostly wrong.** This is the most important honest result in this document and it
 is not a good one.
 
@@ -334,7 +334,7 @@ per run.
 | loader and adapter | written, and run over all 500 published instances with 0 failures |
 | ground truth isolation | structural, and verified against the published file rather than fixtures |
 | dataset downloaded | yes, the oracle tier |
-| claim extraction from haystack prose | wired in, and **it does not read this domain**: 116 claims from 3.3M tokens, mostly wrong on inspection |
+| claim extraction from haystack prose | wired in, and **it does not read this domain**: 117 claims from 3.3M tokens (78/500 instances, 15.6%), mostly wrong on inspection |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | ingestion of a real haystack | adapted, not written to a store |
 | hypotheses produced | none |

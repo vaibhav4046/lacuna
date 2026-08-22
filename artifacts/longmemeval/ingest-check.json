@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-08-19T12:05:24.655Z",
+  "measuredAt": "2026-08-22T01:36:07.309Z",
   "dataset": "data/longmemeval_oracle.json",
   "instances": 500,
   "parseFailures": [],
@@ -8,15 +8,15 @@
   "sessions": 948,
   "messages": 10960,
   "estimatedTokens": 3303216,
-  "claims": 116,
-  "instancesWithAtLeastOneClaim": 80,
-  "coverage": 16,
+  "claims": 117,
+  "instancesWithAtLeastOneClaim": 78,
+  "coverage": 15.6,
   "bySlot": {
-    "storage": 55,
+    "storage": 58,
     "policy": 28,
     "depends_on": 19,
-    "region": 12,
+    "region": 10,
     "storage:plan": 2
   },
-  "ms": 646
+  "ms": 647
 }

@@ -267,7 +267,7 @@ because shortest path needs two known endpoints and a question arrives with one.
 | A forged `SYSTEM:` line files onto a slot no answer reads | `/demo/memory`, tests | [tests/unit/demo-api.test.ts](../tests/unit/demo-api.test.ts) | `npx vitest run tests/unit/demo-api.test.ts` | `LIVE` |
 | The frame table reads seven properties, not English | every extract response, README | the `readableProperties` field on every response | same curl | `LIVE` |
 | 500 published LongMemEval instances: 0 parse failures, 0 adapter failures, 0 ground truth leaks | BENCHMARK_LONGMEMEVAL | [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json) | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
-| **The extractor does not read the LongMemEval domain**: 116 claims from 3.3M tokens, mostly wrong on inspection | BENCHMARK_LONGMEMEVAL | same | same | `RECORDED` |
+| **The extractor does not read the LongMemEval domain**: 117 claims from 3.3M tokens (78/500 instances, 15.6%), mostly wrong on inspection | BENCHMARK_LONGMEMEVAL | same | same | `RECORDED` |
 | No LongMemEval score exists | BENCHMARK_LONGMEMEVAL | nothing, because nothing was run | there is no command | `UNAVAILABLE` |
 
 The last three rows are the ones a sceptical reader should start with. The first

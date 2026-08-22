@@ -143,6 +143,12 @@ describe('web product contracts', () => {
     expect(guard).not.toMatch(/if \(loaded\.state === 'failed'\) return null/u);
   });
 
+  it('gives failed data panels a recovery action instead of a dead-end error', () => {
+    const state = readFileSync(new URL('../../web/src/app/state.tsx', import.meta.url), 'utf8');
+    expect(state).toContain('Try again');
+    expect(state).toContain('window.location.reload()');
+  });
+
   it('invalidates every cookie-changing client mutation before its one validation read', () => {
     const provider = readFileSync(new URL('../../web/src/api/session.tsx', import.meta.url), 'utf8');
     const signIn = readFileSync(new URL('../../web/src/auth/SignIn.tsx', import.meta.url), 'utf8');

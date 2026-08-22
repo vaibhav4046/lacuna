@@ -38,8 +38,11 @@ export function Stage({ label }: { label: string }) {
 
 export function Failed({ reason }: { reason: string }) {
   return (
-    <div style={{ padding: '22px 2px' }}>
+    <div style={{ padding: '22px 2px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
       <span role="alert" style={{ fontSize: '14px', color: '#BDBDBD' }}>{reason}</span>
+      <button type="button" onClick={() => window.location.reload()} style={{ minHeight: '44px', padding: '9px 13px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.20)', background: 'transparent', color: '#FFFFFF', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em' }}>
+        Try again
+      </button>
     </div>
   );
 }

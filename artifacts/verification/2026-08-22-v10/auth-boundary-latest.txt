@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 114 files, 2,248/2,248 passed
+- current candidate full unit suite: 114 files, 2,249/2,249 passed
 - queued candidate adds bounded OAuth state/code parameters and bounded token/
   JWKS JSON reads under the ten-second Google deadline; it is not yet
   production-promoted because the

@@ -26,6 +26,15 @@ function tone(status: RunStatus): string {
   return '#FFFFFF';
 }
 
+/** Historical scheduled health runs can predate the empty-workspace fix. */
+function isEmptyHealth(run: AgentRunRecord): boolean {
+  return run.kind === 'CONTEXT_HEALTH' && run.error === 'no_known_subject';
+}
+
+function effectiveStatus(run: AgentRunRecord): RunStatus {
+  return isEmptyHealth(run) ? 'COMPLETED' : run.status;
+}
+
 type Filter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 function includes(filter: Filter, status: RunStatus): boolean {
@@ -43,6 +52,8 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
 }) {
   const [mutating, setMutating] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const emptyHealth = isEmptyHealth(run);
+  const displayedStatus = effectiveStatus(run);
 
   async function action(kind: 'cancel' | 'retry'): Promise<void> {
     setMutating(true);
@@ -65,7 +76,7 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
           <div style={{ fontSize: '16px', color: '#FFFFFF', lineHeight: 1.55 }}>{run.task}</div>
           <div style={{ ...note, marginTop: '6px' }}>{agentName} · {run.provider.name} / {run.provider.model} · ATTEMPT {run.attempt}</div>
         </div>
-        <div style={{ ...note, color: tone(run.status), border: '1px solid rgba(255,255,255,0.14)', padding: '7px 9px' }}>{run.status}</div>
+        <div style={{ ...note, color: tone(displayedStatus), border: '1px solid rgba(255,255,255,0.14)', padding: '7px 9px' }}>{emptyHealth ? 'NO EVIDENCE' : displayedStatus}</div>
       </div>
 
       <div aria-label="Observed run lifecycle" style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
@@ -77,8 +88,9 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
         ))}
       </div>
 
-      {run.result === null ? null : <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>{run.result}</p>}
-      {run.error === null ? null : <p style={{ fontSize: '13px', color: '#FFB829', margin: 0 }}>Run error: {run.error}</p>}
+      {run.result === null && emptyHealth ? <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>This workspace had no stored subjects when this scheduled review ran. Add a source before the next review.</p> : null}
+      {run.result === null || emptyHealth ? null : <p style={{ fontSize: '14.5px', color: '#BDBDBD', lineHeight: 1.7, margin: 0 }}>{run.result}</p>}
+      {run.error === null || emptyHealth ? null : <p style={{ fontSize: '13px', color: '#FFB829', margin: 0 }}>Run error: {run.error}</p>}
       {run.verdict !== null && run.verdict.unsupported.length > 0 ? (
         <div style={{ borderLeft: '2px solid #FFB829', paddingLeft: '12px' }}>
           <div style={{ ...head, color: '#FFB829' }}>UNSUPPORTED IN REVIEW</div>
@@ -112,10 +124,10 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
 
       {demo ? null : (
         <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {ACTIVE.has(run.status) ? (
+          {ACTIVE.has(displayedStatus) ? (
             <button disabled={mutating} onClick={() => void action('cancel')} style={{ ...note, background: 'none', border: '1px solid rgba(255,184,41,0.45)', color: '#FFB829', padding: '7px 10px', cursor: 'pointer' }}>CANCEL</button>
           ) : null}
-          {run.status === 'FAILED' || run.status === 'CANCELLED' ? (
+          {displayedStatus === 'FAILED' || displayedStatus === 'CANCELLED' ? (
             <button disabled={mutating} onClick={() => void action('retry')} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '7px 10px', cursor: 'pointer' }}>RETRY</button>
           ) : null}
           {problem === null ? null : <span style={{ color: '#FFB829', fontSize: '12px' }}>{problem}</span>}
@@ -197,7 +209,7 @@ export function Work() {
   const persistedRuns = loadedRuns.state === 'ready' ? loadedRuns.value : [];
   const changedIds = new Set(changedRuns.map((run) => run.id));
   const runs = [...changedRuns, ...persistedRuns.filter((run) => !changedIds.has(run.id))];
-  const visible = runs.filter((run) => includes(filter, run.status));
+  const visible = runs.filter((run) => includes(filter, effectiveStatus(run)));
   const filters: readonly Filter[] = ['ALL', 'ACTIVE', 'COMPLETED', 'FAILED', 'CANCELLED'];
 
   function replace(updated: AgentRunRecord): void {
@@ -211,7 +223,7 @@ export function Work() {
         <div style={head}>AGENT RUNS · OBSERVED EVENTS ONLY</div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {filters.map((value) => {
-            const count = runs.filter((run) => includes(value, run.status)).length;
+            const count = runs.filter((run) => includes(value, effectiveStatus(run))).length;
             return <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} style={{ ...note, background: 'none', border: `1px solid ${filter === value ? 'rgba(128,82,255,0.65)' : 'rgba(255,255,255,0.12)'}`, color: filter === value ? '#FFFFFF' : '#7A7A7A', padding: '7px 10px', cursor: 'pointer' }}>{value} · {count}</button>;
           })}
         </div>

@@ -272,7 +272,11 @@ export class VoiceAssistantController {
     } catch (error) {
       this.#assertCurrent(generation, signal);
       const failure = error instanceof VoiceOperationRequestError ? error.failure : 'request_failed';
-      if (failure === 'request_failed' && isReadOnlyQuestion(text)) {
+      // A session-binding read can race the provider/session refresh and fail
+      // before the intent endpoint is reached. A question is still safe to
+      // answer through the authenticated direct-read path; navigation and
+      // every write continue to fail closed until the planner is available.
+      if ((failure === 'request_failed' || failure === 'session_required') && isReadOnlyQuestion(text)) {
         try {
           const direct = await directAsk();
           this.#assertCurrent(generation, signal);

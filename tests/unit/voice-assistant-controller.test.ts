@@ -259,6 +259,23 @@ describe('immediate voice operations', () => {
     expect(executor.executed).toEqual([]);
   });
 
+  it('answers a read-only question when planning loses a binding race', async () => {
+    const { assistant, executor, runtime, voice } = harness();
+    executor.planFailures.set('Who owns Atlas?', new VoiceOperationRequestError('session_required'));
+
+    await voice.submitTyped('Who owns Atlas?');
+
+    expect(executor.executed).toEqual([]);
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'succeeded',
+      result: {
+        status: 'succeeded', operationKind: 'ask', answer: 'Priya owns Atlas.',
+        answerStatus: 'ANSWERED', observedCount: 1,
+      },
+    });
+    expect(runtime.spoken).toEqual(['Priya owns Atlas.']);
+  });
+
   it('falls back to the authenticated read path for questions when intent planning is unavailable', async () => {
     const { assistant, executor, runtime, voice } = harness();
     executor.planFailures.set('Who owns Atlas?', new VoiceOperationRequestError('request_failed'));

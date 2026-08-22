@@ -23,15 +23,16 @@ Live callback refusal:
 Candidate verification:
 - focused auth/session/browser tests pass; the DOCX connector suite passes
   84/84 after the bounded XML extraction fix; the full serial suite passes
-  2,275/2,275 across 117 files
-- commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`, `dc5c343` and
-  `35c32cd`
+  2,276/2,276 across 117 files
+- commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`, `dc5c343`,
+  `35c32cd` and `6feb07a`
   reduce
   duplicate durable account reads, route confirmed password sessions to
   onboarding, persist GitLab observations, align LongMemEval limitations and
-  extract validated DOCX XML without a Mammoth ZIP roundtrip, and replay
-  browser agent runs safely after lost responses, and remove the obsolete DOCX
-  parser dependency
+  extract validated DOCX XML without a Mammoth ZIP roundtrip, replay browser
+  agent runs safely after lost responses, remove the obsolete DOCX parser
+  dependency, and keep the password sign-in control locked through session
+  confirmation and the final route decision
 - the candidate is not yet production-promoted because Vercel rejected a new
   deployment after the free daily deployment quota was exhausted
 - current branch preview: `dpl_GL6xgnCfanJr6QssK3HPY4R3TmkH`
@@ -138,6 +139,15 @@ Candidate auth repair:
 - signed-out link starts and mismatched identities fail closed; focused Google
   auth regressions pass in `tests/unit/google-auth-api.test.ts`
 - candidate-only until Vercel deployment quota resets
+
+Candidate password sign-in repair:
+- the form keeps its busy lock through the confirmed session read and final
+  onboarding/dashboard route decision, preventing duplicate submissions during
+  a slow session boundary
+- the source contract regression is in
+  `tests/unit/web-product-contracts.test.ts`; focused auth tests, typecheck,
+  web build and the full serial suite pass; candidate-only until Vercel
+  deployment quota resets
 
 Candidate GitLab connector:
 - bounded public project snapshot workflow added with canonical project roots,

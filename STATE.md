@@ -7,7 +7,7 @@ dated evidence.
 
 The accepted production deployment remains `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`.
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
-`dc5c343` and `35c32cd`
+`dc5c343`, `35c32cd` and `6feb07a`
 add durable-read/session routing fixes, GitLab observation persistence,
 LongMemEval evidence alignment, bounded DOCX XML extraction, and idempotent
 browser agent retries, and remove the obsolete DOCX parser dependency. They are
@@ -16,7 +16,7 @@ Vercel rejected new deployments after the free daily deployment quota was
 exhausted.
 
 The latest candidate passes the complete serial unit suite: 117 files and
-2,275 tests, with no skips.
+2,276 tests, with no skips.
 
 ## Accepted product gate
 

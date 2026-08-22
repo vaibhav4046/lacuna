@@ -5,10 +5,10 @@ import { CONNECTOR_GROUPS } from '../../web/src/design/connectors.js';
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, httpsImport: true });
+    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
-      'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+      'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
     ]);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
     expect(entries.every((entry) => entry.label.trim() !== '' && entry.group.trim() !== '')).toBe(true);
@@ -26,6 +26,13 @@ describe('connector catalogue', () => {
     expect(catalogue({ githubImport: false }).find((entry) => entry.id === 'github'))
       .toMatchObject({ availability: 'unavailable', reason: 'github_import_unavailable' });
     expect(catalogue({ githubImport: true }).find((entry) => entry.id === 'github'))
+      .toMatchObject({ availability: 'available', reason: null });
+  });
+
+  it('fails public GitLab import closed unless its importer and runner are both available', () => {
+    expect(catalogue({ gitlabImport: false }).find((entry) => entry.id === 'gitlab'))
+      .toMatchObject({ availability: 'unavailable', reason: 'gitlab_import_unavailable' });
+    expect(catalogue({ gitlabImport: true }).find((entry) => entry.id === 'gitlab'))
       .toMatchObject({ availability: 'available', reason: null });
   });
 
@@ -60,7 +67,7 @@ describe('connector catalogue', () => {
       CONNECTOR_GROUPS.flatMap((group) => group.items.map((item) => [item.n, item.st] as const)),
     );
 
-    for (const name of ['GitLab', 'Slack', 'Notion', 'Gmail', 'Linear', 'Jira', 'Confluence']) {
+    for (const name of ['Slack', 'Notion', 'Gmail', 'Linear', 'Jira', 'Confluence']) {
       expect(publicStates.get(name), name).toBe('PLANNED');
     }
   });

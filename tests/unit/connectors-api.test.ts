@@ -851,7 +851,7 @@ describe('workspace connector catalogue API', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(connectorStore.reads).toEqual([workspaceCollection('connector-owner@example.com')]);
-    expect(body.connectors).toHaveLength(7);
+    expect(body.connectors).toHaveLength(8);
     expect(body.connectors.find((entry) => entry['id'] === 'github')).toMatchObject({
       availability: 'available', state: 'idle', importedDocuments: 4,
     });

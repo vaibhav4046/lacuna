@@ -98,6 +98,15 @@ export function canonicalGitHubReview(value: string): string | null {
   return ownerValid && repositoryValid ? held : null;
 }
 
+export function canonicalGitLabReview(value: string): string | null {
+  const held = value.trim();
+  const parts = held.replace(/^https:\/\/gitlab\.com\//u, '').split('/');
+  if (!held.startsWith('https://gitlab.com/') || held.endsWith('/') || parts.length < 2 || parts.length > 20) return null;
+  if (parts.some((part) => !/^(?!-)(?!.*--)[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/u.test(part))) return null;
+  if (parts.some((part) => part.toLowerCase() !== part) || parts.at(-1)?.endsWith('.git')) return null;
+  return held;
+}
+
 export interface SafeHttpsReview {
   readonly submitted: string;
   readonly displayed: string;
@@ -305,6 +314,15 @@ export function connectorOutcomeMessage(result: ConnectorOutcome<unknown>): stri
     github_budget_exceeded: 'The repository exceeds the bounded import limits. Choose a smaller repository.',
     github_no_documents: 'No supported public text files remained after safe filtering. Choose a repository with supported files.',
     github_import_failed: 'The repository import did not complete. Check Memory before reviewing it again.',
+    invalid_project_url: 'Enter one canonical public GitLab project root.',
+    invalid_gitlab_request: 'Review one canonical public GitLab project root before importing.',
+    gitlab_unavailable: 'GitLab did not answer safely. Wait, then review the project again.',
+    gitlab_timeout: 'GitLab did not answer within the bounded deadline. Wait before trying again.',
+    gitlab_snapshot_invalid: 'The resolved GitLab snapshot was invalid. Choose a different public project.',
+    gitlab_integrity_failed: 'GitLab content failed integrity validation. Do not import this snapshot.',
+    gitlab_budget_exceeded: 'The GitLab project exceeds the bounded import limits. Choose a smaller project.',
+    gitlab_no_documents: 'No supported public text files remained after safe filtering. Choose a project with supported files.',
+    gitlab_import_failed: 'The GitLab import did not complete. Check Memory before reviewing it again.',
     invalid_https_url: 'Enter one public HTTPS URL without credentials or a fragment.',
     invalid_https_request: 'Review one valid public HTTPS URL before importing.',
     https_busy: 'The bounded HTTPS reader is busy. Wait before submitting another reviewed source.',
@@ -327,6 +345,7 @@ export function connectorOutcomeMessage(result: ConnectorOutcome<unknown>): stri
     webhook_not_found: 'That endpoint is no longer active. Refresh webhook state.',
     invalid_webhook_request: 'Refresh webhook state and use only the current lifecycle controls.',
     github_import_unavailable: 'GitHub import is unavailable on this deployment.',
+    gitlab_import_unavailable: 'GitLab import is unavailable on this deployment.',
     https_import_unavailable: 'HTTPS import is unavailable on this deployment.',
   };
   return messages[result.code];
@@ -338,7 +357,7 @@ export interface ConnectorReceiptPresentation {
 }
 
 export type ConnectorReceiptEvent =
-  | { readonly type: 'dispatched'; readonly connector: 'file-preview' | 'file-import' | 'github' | 'https' }
+  | { readonly type: 'dispatched'; readonly connector: 'file-preview' | 'file-import' | 'github' | 'gitlab' | 'https' }
   | { readonly type: 'received'; readonly receipt: ConnectorRunReceipt; readonly reference: string | null }
   | { readonly type: 'reset' };
 

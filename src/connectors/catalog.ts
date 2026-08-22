@@ -15,6 +15,7 @@ const EMPTY_OBSERVATION: ConnectorObservation = Object.freeze({
 
 const IMPLEMENTED: readonly Omit<ConnectorDescriptor, 'availability' | 'reason'>[] = Object.freeze([
   { id: 'github', label: 'GitHub', group: 'CODE' },
+  { id: 'gitlab', label: 'GitLab', group: 'CODE' },
   { id: 'markdown', label: 'Markdown', group: 'FILES' },
   { id: 'text', label: 'Text', group: 'FILES' },
   { id: 'pdf', label: 'PDF', group: 'FILES' },
@@ -27,6 +28,7 @@ export interface ConnectorCatalogueOptions {
   readonly webhookService?: boolean | undefined;
   readonly fileImport?: boolean | undefined;
   readonly githubImport?: boolean | undefined;
+  readonly gitlabImport?: boolean | undefined;
   readonly httpsImport?: boolean | undefined;
 }
 
@@ -38,11 +40,13 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
   const webhookConfigured = options.webhookService === true;
   const fileConfigured = options.fileImport === true;
   const githubConfigured = options.githubImport === true;
+  const gitlabConfigured = options.gitlabImport === true;
   const httpsConfigured = options.httpsImport === true;
   return IMPLEMENTED.map((entry): ConnectorDescriptor => {
     const file = entry.group === 'FILES';
     const available = entry.id === 'webhook' ? webhookConfigured
       : entry.id === 'github' ? githubConfigured
+        : entry.id === 'gitlab' ? gitlabConfigured
         : entry.id === 'https_api' ? httpsConfigured
         : !file || fileConfigured;
     return Object.freeze({
@@ -51,6 +55,7 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
       reason: available ? null
         : entry.id === 'webhook' ? 'signing_not_configured'
           : entry.id === 'github' ? 'github_import_unavailable'
+            : entry.id === 'gitlab' ? 'gitlab_import_unavailable'
             : entry.id === 'https_api' ? 'https_import_unavailable'
             : 'file_import_unavailable',
     });

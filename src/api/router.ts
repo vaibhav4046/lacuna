@@ -75,6 +75,10 @@ import {
   type GitHubImporterBoundary,
 } from '../connectors/github.js';
 import {
+  GitLabImportError,
+  type GitLabImporterBoundary,
+} from '../connectors/gitlab.js';
+import {
   HTTPS_IMPORT_DEADLINE_MS,
   HttpsImportError,
   HttpsReadCancelledError,
@@ -126,6 +130,9 @@ interface GoogleAttempt {
   readonly state: string;
   readonly codeVerifier: string;
   readonly nonce: string;
+  /** A link attempt is only issued from an already authenticated session. */
+  readonly mode?: 'signin' | 'link';
+  readonly sessionVersion?: string;
 }
 
 const GOOGLE_PROOF_SHAPE = /^[A-Za-z0-9_-]{43}$/u;
@@ -143,6 +150,9 @@ function parseGoogleAttempt(raw: string | undefined): GoogleAttempt | null {
     if (!GOOGLE_PROOF_SHAPE.test(attempt.state ?? '')
       || !GOOGLE_PROOF_SHAPE.test(attempt.codeVerifier ?? '')
       || !GOOGLE_PROOF_SHAPE.test(attempt.nonce ?? '')) return null;
+    if (attempt.mode !== undefined && attempt.mode !== 'signin' && attempt.mode !== 'link') return null;
+    if (attempt.mode === 'link' && attempt.sessionVersion !== undefined
+      && (typeof attempt.sessionVersion !== 'string' || !GOOGLE_PROOF_SHAPE.test(attempt.sessionVersion))) return null;
     return attempt as GoogleAttempt;
   } catch {
     return null;
@@ -351,6 +361,8 @@ export interface ApiOptions {
   readonly fileConnector?: FileConnectorBoundary;
   /** Anonymous public-repository reader with a hardwired GitHub API boundary. */
   readonly githubImporter?: GitHubImporterBoundary;
+  /** Anonymous public-project reader with a hardwired GitLab API boundary. */
+  readonly gitlabImporter?: GitLabImporterBoundary;
   /** DNS-pinned public HTTPS reader; absent when the hardened runtime boundary is unavailable. */
   readonly httpsReader?: PinnedHttpsReaderBoundary;
   /** Shared governed ingestion runner used after an adapter has prepared content. */
@@ -590,6 +602,7 @@ function isPrivateConnectorOperation(path: string, method: string): boolean {
       || path === '/api/workspace/connectors/file/preview'
       || path === '/api/workspace/connectors/file/import'
       || path === '/api/workspace/connectors/github/import'
+      || path === '/api/workspace/connectors/gitlab/import'
       || path === '/api/workspace/connectors/api/import';
   }
   return method === 'DELETE'
@@ -735,6 +748,7 @@ export class ApiRouter {
   readonly #connectorStore: ConnectorStore | undefined;
   readonly #fileConnector: FileConnectorBoundary | undefined;
   readonly #githubImporter: GitHubImporterBoundary | undefined;
+  readonly #gitlabImporter: GitLabImporterBoundary | undefined;
   readonly #httpsReader: PinnedHttpsReaderBoundary | undefined;
   readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
   readonly #webhookService: Pick<WebhookService, 'issue' | 'state' | 'revoke' | 'admit' | 'accept'> | undefined;
@@ -784,6 +798,7 @@ export class ApiRouter {
     this.#connectorStore = options.connectorStore;
     this.#fileConnector = options.fileConnector;
     this.#githubImporter = options.githubImporter;
+    this.#gitlabImporter = options.gitlabImporter;
     this.#httpsReader = options.httpsReader;
     this.#connectorRunner = options.connectorRunner;
     this.#webhookService = options.webhookService;
@@ -795,6 +810,7 @@ export class ApiRouter {
         webhookService: this.#webhookService !== undefined,
         fileImport: this.#fileConnector !== undefined,
         githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
+        gitlabImport: this.#gitlabImporter !== undefined && this.#connectorRunner !== undefined,
         httpsImport: this.#httpsReader !== undefined && this.#connectorRunner !== undefined,
       }));
     this.#secure = options.secure;
@@ -1222,6 +1238,91 @@ export class ApiRouter {
       return HANDLED;
     }
 
+    if (path === '/api/workspace/connectors/gitlab/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'gitlab_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const importer = this.#gitlabImporter;
+      const runner = this.#connectorRunner;
+      if (importer === undefined || runner === undefined) {
+        send(response, 501, { error: 'gitlab_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const keys = body === null ? [] : Object.keys(body);
+      if (body === null || typeof body['url'] !== 'string' || keys.some((key) => key !== 'url')) {
+        send(response, 422, { error: 'invalid_gitlab_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) control.abort();
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
+        && !response.writableEnded && !response.writableFinished) control.abort();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        const batch = await importer.importPublicProject(body['url'], control.signal);
+        if (control.signal.aborted) return HANDLED;
+        const result = await runner.run(workspace, {
+          connectorId: 'gitlab',
+          documents: batch.documents.map((document) => ({
+            title: document.title,
+            text: document.text,
+            provenance: document.provenance,
+          })),
+          awaitSearchable: true,
+        }, { signal: control.signal });
+        if (control.signal.aborted) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          snapshotCommit: batch.commitSha,
+          snapshotDigest: batch.snapshotDigest,
+          consideredEntries: batch.consideredEntries,
+          fetchedBlobs: batch.fetchedBlobs,
+          skipped: batch.skipped.map(({ reason, count }) => ({ reason, count })),
+        });
+      } catch (error) {
+        if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
+        if (error instanceof GitLabImportError) send(response, error.status, { error: error.code });
+        else send(response, 502, { error: 'gitlab_import_failed' });
+      } finally {
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
     if (path === '/api/workspace/connectors/api/import' && method === 'POST') {
       if (this.#siteOrigin === undefined) {
         send(response, 501, { error: 'https_import_unavailable' });
@@ -1422,6 +1523,9 @@ export class ApiRouter {
       // for that reason.
       if (path === '/api/auth/google/start' && method === 'GET') {
         return this.#googleStart(request, response);
+      }
+      if (path === '/api/auth/google/link/start' && method === 'GET') {
+        return this.#googleLinkStart(request, response, cookies);
       }
       if (path === '/api/auth/google/callback' && method === 'GET') {
         return this.#googleCallback(request, response, cookies);
@@ -2969,6 +3073,46 @@ export class ApiRouter {
   }
 
   /**
+   * Start an explicit provider-link migration from an existing session.
+   *
+   * This is deliberately separate from sign in. A verified email must not
+   * merge into a password account by itself; the person must first prove the
+   * existing session, then prove the matching Google identity in the callback.
+   */
+  async #googleLinkStart(
+    request: IncomingMessage,
+    response: ServerResponse,
+    cookies: Readonly<Record<string, string>>,
+  ): Promise<Handled> {
+    const google = this.#google;
+    if (google === undefined) return this.#redirect(response, '/app/settings?google=unconfigured');
+    const account = await this.#accountFor(cookies);
+    if (account === null) return this.#redirect(response, '/signin?google=link_session');
+    if (account.authProvider === 'google' || account.providerSubject !== undefined && account.providerSubject !== null) {
+      return this.#redirect(response, '/app/settings?google=already_linked');
+    }
+    const verdict = this.#googleStartLimit.check(sourceKey(request), this.#now());
+    if (!verdict.allowed) return this.#redirect(response, '/app/settings?google=rate');
+
+    const state = mintToken();
+    const proof = newGoogleAuthorizationProof();
+    const cookie = googleAttemptCookie(state);
+    return this.#redirect(response, authorizeUrl(google, state, proof), [
+      serialiseCookie(cookie, JSON.stringify({
+        state,
+        codeVerifier: proof.codeVerifier,
+        nonce: proof.nonce,
+        mode: 'link',
+        ...(account.sessionVersion === undefined ? {} : { sessionVersion: account.sessionVersion }),
+      }), {
+        maxAgeSeconds: GOOGLE_STATE_TTL_SECONDS,
+        httpOnly: true,
+        secure: this.#secure,
+      }),
+    ]);
+  }
+
+  /**
    * Google sends the browser back here. Everything that can go wrong ends the
    * same way, at sign in with a reason in the query, because a person who
    * cancelled and a person whose token failed a check both just need the page
@@ -3034,6 +3178,48 @@ export class ApiRouter {
         `/signin?google=${error instanceof GoogleAuthError && error.message === 'the Google provider timed out' ? 'timeout' : 'identity'}`,
         clear,
       );
+    }
+
+    const verifiedAttempt = attempt;
+    if (verifiedAttempt === null) return this.#redirect(response, '/signin?google=state', clear);
+    if (verifiedAttempt.mode === 'link') {
+      const sessionToken = cookies[SESSION_COOKIE];
+      const account = typeof sessionToken === 'string' && sessionToken !== ''
+        ? await this.#accountFor(cookies)
+        : null;
+      if (account === null) return this.#redirect(response, '/signin?google=link_session', clear);
+      if (identity.email !== account.email) return this.#redirect(response, '/app/settings?google=link_email', clear);
+      if (account.authProvider === 'google' || (account.providerSubject !== undefined && account.providerSubject !== null)) {
+        return this.#redirect(response, '/app/settings?google=already_linked', clear);
+      }
+      if ((account.sessionVersion ?? '') !== (verifiedAttempt.sessionVersion ?? '')) {
+        return this.#redirect(response, '/app/settings?google=link_expired', clear);
+      }
+
+      try {
+        const current = await this.#store.find(account.email);
+        if (current === null
+          || (current.sessionVersion ?? '') !== (verifiedAttempt.sessionVersion ?? '')
+          || current.authProvider === 'google'
+          || (current.providerSubject !== undefined && current.providerSubject !== null)) {
+          return this.#redirect(response, '/app/settings?google=link_expired', clear);
+        }
+        const linked: Account = {
+          ...current,
+          // Linking is an explicit credential migration. The old password and
+          // recovery code are removed so the record has one unambiguous owner.
+          passwordHash: await decoy(),
+          authProvider: 'google',
+          providerSubject: identity.subject,
+          recoveryHash: null,
+          sessionVersion: newSessionVersion(),
+        };
+        await this.#store.update(linked);
+        const token = await this.#store.startSession(linked.email, this.#now(), linked.sessionVersion);
+        return this.#redirect(response, '/app/settings?google=linked', [...clear, this.#sessionCookie(token)]);
+      } catch {
+        return this.#redirect(response, '/app/settings?google=link_store', clear);
+      }
     }
 
     try {

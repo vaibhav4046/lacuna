@@ -6,6 +6,7 @@ import { useScope } from '../../api/scope';
 import { MONO } from '../../design/mark';
 import { SAMPLE_WORKSPACE } from '../Shell';
 import { PUBLIC_WORKSPACE_PATH } from '../product-contracts';
+import { googleProblem } from '../../auth/google-problem';
 
 /**
  * Settings.
@@ -29,6 +30,7 @@ export function Settings() {
   const scope = useScope();
   const account = loaded.state === 'ready' && loaded.value.signedIn ? loaded.value.session : null;
   const onDemo = scope.demo;
+  const googleNotice = new URLSearchParams(window.location.search).get('google');
 
   const rows: readonly (readonly [string, string])[] = [
     ['Workspace', scope.demo ? SAMPLE_WORKSPACE : account?.workspace ?? '—'],
@@ -70,6 +72,20 @@ export function Settings() {
         <span style={{ fontSize: '14.5px', color: '#BDBDBD' }}>{scope.demo ? 'Sign in' : 'Sign out'}</span>
         <button className="hv-edge35" onClick={() => { if (scope.demo) go('/signin'); else void leave(); }} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '7px', cursor: 'pointer', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.16em', color: '#BDBDBD', padding: '9px 14px' }}>{scope.demo ? 'SIGN IN' : 'SIGN OUT'}</button>
       </div>
+
+      {!onDemo && account !== null ? (
+        <div style={{ display: 'grid', gap: '10px', padding: '16px', marginTop: '10px', border: '1px solid rgba(128,82,255,0.30)', borderRadius: '8px', background: 'rgba(128,82,255,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '14.5px', color: '#FFFFFF' }}>Google sign-in</div>
+              <div style={{ ...note, marginTop: '5px', lineHeight: 1.6 }}>Link this verified Google identity after proving the existing password session. Lacuna will revoke the old password and recovery code.</div>
+            </div>
+            <a className="hv-edge35" href="/api/auth/google/link/start" style={{ display: 'inline-flex', alignItems: 'center', minHeight: '38px', boxSizing: 'border-box', padding: '9px 14px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.22)', color: '#FFFFFF', textDecoration: 'none', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.14em' }}>LINK GOOGLE</a>
+          </div>
+          {googleNotice !== null && googleNotice !== 'linked' ? <div role="alert" style={{ color: '#FFB84D', fontSize: '12px' }}>{googleProblem(window.location.search) ?? 'Google linking did not complete. Try again.'}</div> : null}
+          {googleNotice === 'linked' ? <div role="status" style={{ color: '#62E6D2', fontSize: '12px' }}>Google is linked. Future sign-ins use the verified Google account.</div> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

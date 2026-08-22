@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 114 files, 2,251/2,251 passed
+- current candidate full unit suite: 115 files, 2,258/2,258 passed
 - queued candidate adds bounded OAuth state/code parameters and bounded token/
   JWKS JSON reads under the ten-second Google deadline; it is not yet
   production-promoted because the
@@ -114,3 +114,23 @@ Promotion attempt:
 - candidate web build passed (`138` modules; `vite build` succeeded)
 - `npx vercel --prod --yes` was rejected again with
   `api-deployments-free-per-day`; the stable alias was not changed
+
+Candidate auth repair:
+- password/legacy accounts no longer dead-end after a Google mismatch: an
+  authenticated Settings flow now starts a separate state+PKCE+nonce-bound
+  Google link attempt
+- callback requires the still-valid password session and the same verified
+  Google email, re-reads the account at the write boundary, rotates the
+  credential epoch, revokes old sessions, and removes the old password and
+  recovery hash
+- signed-out link starts and mismatched identities fail closed; focused Google
+  auth regressions pass in `tests/unit/google-auth-api.test.ts`
+- candidate-only until Vercel deployment quota resets
+
+Candidate GitLab connector:
+- bounded public project snapshot workflow added with canonical project roots,
+  fixed GitLab API origin, immutable default-branch commit, SHA-1 blob
+  integrity checks, UTF-8/binary/secret filtering, request/file/aggregate
+  budgets, cancellation, and durable provenance
+- catalog, private route, client decoder, review/confirm UI, and focused tests
+  are wired; candidate-only until Vercel deployment quota resets

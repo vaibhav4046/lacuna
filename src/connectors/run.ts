@@ -24,7 +24,7 @@ import type {
 const WORKSPACE_SHAPE = /^lacuna-ws-[0-9a-f]{32}$/u;
 const MAX_STORED_DOCUMENTS = 1_000_000;
 const CONNECTOR_IDS = new Set<ConnectorId>([
-  'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+  'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
 ]);
 const REQUEST_KEYS = new Set(['connectorId', 'documents', 'awaitSearchable']);
 // This queue only prevents lost deltas inside one process. The store's put

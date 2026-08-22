@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { isCanonicalGitHubPath } from './evidence.js';
 import { isCanonicalGitHubRepositoryRoot } from './github-repository.js';
+import { isCanonicalGitLabProjectRoot } from './gitlab-project.js';
 import { canonicalizePublicHttpsUrl } from './https-url.js';
 import type { ConnectorId } from './types.js';
 
@@ -9,7 +10,7 @@ export const MAX_CONNECTOR_DOCUMENTS = 30;
 export const MAX_CONNECTOR_TEXT_BYTES = 4 * 1024 * 1024;
 const MAX_TITLE_CHARS = 120;
 const CONNECTOR_IDS = new Set<ConnectorId>([
-  'github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+  'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
 ]);
 const MEDIA_TYPES = new Set<ConnectorMediaType>([
   'text/plain',
@@ -22,10 +23,14 @@ const MEDIA_TYPES = new Set<ConnectorMediaType>([
 const INPUT_KEYS = new Set(['title', 'text', 'provenance']);
 const PROVENANCE_KEYS = new Set(['connectorId', 'sourceUrl', 'mediaType', 'observedAt']);
 const GITHUB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'github']);
+const GITLAB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'gitlab']);
 const HTTPS_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'https']);
 const WEBHOOK_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'webhook']);
 const GITHUB_EVIDENCE_KEYS = new Set([
   'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
+]);
+const GITLAB_EVIDENCE_KEYS = new Set([
+  'projectUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
 const GITHUB_SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
@@ -48,6 +53,7 @@ export interface ConnectorProvenance {
   readonly mediaType: ConnectorMediaType;
   readonly observedAt: string;
   readonly github?: GitHubConnectorEvidence;
+  readonly gitlab?: GitLabConnectorEvidence;
   readonly https?: HttpsConnectorEvidence;
   readonly webhook?: WebhookConnectorEvidence;
 }
@@ -60,6 +66,16 @@ export interface GitHubConnectorEvidence {
   readonly retrievedAt: string;
   readonly rawDigest: string;
   readonly parserVersion: 'github-v1';
+}
+
+export interface GitLabConnectorEvidence {
+  readonly projectUrl: string;
+  readonly commitSha: string;
+  readonly path: string;
+  readonly blobSha: string;
+  readonly retrievedAt: string;
+  readonly rawDigest: string;
+  readonly parserVersion: 'gitlab-v1';
 }
 
 export interface HttpsConnectorEvidence {
@@ -167,10 +183,13 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     throw new ConnectorNormalizationError('invalid_provenance');
   }
   const github = value['connectorId'] === 'github';
+  const gitlab = value['connectorId'] === 'gitlab';
   const https = value['connectorId'] === 'https_api';
   const webhook = value['connectorId'] === 'webhook';
   const expectedKeys = github
     ? GITHUB_PROVENANCE_KEYS
+    : gitlab
+      ? GITLAB_PROVENANCE_KEYS
     : https
       ? HTTPS_PROVENANCE_KEYS
       : webhook
@@ -181,6 +200,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
   }
   const normalizedSourceUrl = canonicalUrl(value['sourceUrl']);
   let githubEvidence: GitHubConnectorEvidence | undefined;
+  let gitlabEvidence: GitLabConnectorEvidence | undefined;
   let httpsEvidence: HttpsConnectorEvidence | undefined;
   let webhookEvidence: WebhookConnectorEvidence | undefined;
   if (github) {
@@ -205,6 +225,36 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     }
     githubEvidence = Object.freeze({
       repositoryUrl: evidence['repositoryUrl'],
+      commitSha: evidence['commitSha'],
+      path: evidence['path'],
+      blobSha: evidence['blobSha'],
+      retrievedAt: evidence['retrievedAt'],
+      rawDigest: evidence['rawDigest'],
+      parserVersion: evidence['parserVersion'],
+    });
+  }
+  if (gitlab) {
+    const evidence = value['gitlab'];
+    if (!isRecord(evidence) || !hasExactKeys(evidence, GITLAB_EVIDENCE_KEYS)
+      || typeof evidence['projectUrl'] !== 'string'
+      || !isCanonicalGitLabProjectRoot(evidence['projectUrl'])
+      || typeof evidence['commitSha'] !== 'string' || !GITHUB_SHA.test(evidence['commitSha'])
+      || typeof evidence['blobSha'] !== 'string' || !GITHUB_SHA.test(evidence['blobSha'])
+      || !isCanonicalGitHubPath(evidence['path'])
+      || !canonicalInstant(evidence['retrievedAt']) || evidence['retrievedAt'] !== value['observedAt']
+      || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
+      || evidence['parserVersion'] !== 'gitlab-v1') {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    const expectedSourceUrl = `${evidence['projectUrl']}/-/blob/${evidence['commitSha']}/${evidence['path']
+      .split('/')
+      .map((part) => encodeURIComponent(part))
+      .join('/')}`;
+    if (normalizedSourceUrl !== expectedSourceUrl) {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    gitlabEvidence = Object.freeze({
+      projectUrl: evidence['projectUrl'],
       commitSha: evidence['commitSha'],
       path: evidence['path'],
       blobSha: evidence['blobSha'],
@@ -256,6 +306,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     mediaType: value['mediaType'] as ConnectorMediaType,
     observedAt: value['observedAt'],
     ...(githubEvidence === undefined ? {} : { github: githubEvidence }),
+    ...(gitlabEvidence === undefined ? {} : { gitlab: gitlabEvidence }),
     ...(httpsEvidence === undefined ? {} : { https: httpsEvidence }),
     ...(webhookEvidence === undefined ? {} : { webhook: webhookEvidence }),
   });
@@ -308,6 +359,16 @@ export function prepareConnectorDocument(input: ConnectorDocumentInput): Prepare
         blobSha: provenance.github.blobSha,
         rawDigest: provenance.github.rawDigest,
         parserVersion: provenance.github.parserVersion,
+      },
+    }),
+    ...(provenance.gitlab === undefined ? {} : {
+      gitlab: {
+        projectUrl: provenance.gitlab.projectUrl,
+        commitSha: provenance.gitlab.commitSha,
+        path: provenance.gitlab.path,
+        blobSha: provenance.gitlab.blobSha,
+        rawDigest: provenance.gitlab.rawDigest,
+        parserVersion: provenance.gitlab.parserVersion,
       },
     }),
     ...(provenance.https === undefined ? {} : {

@@ -437,4 +437,66 @@ describe('Google OAuth HTTP boundary', () => {
     expect(unchanged?.providerSubject).toBeUndefined();
   });
 
+  it('links Google only from the existing password session and rotates the old credential epoch', async () => {
+    const email = 'link-me@example.com';
+    const oldPassword = 'old password under test';
+    const oldVersion = newSessionVersion();
+    expect(store.create({
+      email,
+      passwordHash: await hashPassword(oldPassword),
+      authProvider: 'password',
+      providerSubject: null,
+      sessionVersion: oldVersion,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      workspace: 'Linked workspace',
+      onboarded: true,
+      recoveryHash: 'old-recovery-hash',
+    })).not.toBeNull();
+    const oldSession = store.startSession(email, Date.now(), oldVersion);
+    const heldSession = { lacuna_session: oldSession };
+
+    const begun = await nativeFetch(`${base}/api/auth/google/link/start`, {
+      redirect: 'manual', headers: { cookie: cookieHeader(heldSession) },
+    });
+    expect(new URL(begun.headers.get('location') ?? '').origin).toBe('https://accounts.google.com');
+    const held = { ...heldSession, ...cookies(begun) };
+    const attempt = oauthAttempt(held);
+    if (attempt === null) throw new Error('link proof missing');
+
+    vi.stubGlobal('fetch', (async (input: string | URL | Request) => {
+      if (String(input) === 'https://www.googleapis.com/oauth2/v3/certs') {
+        return Response.json({ keys: [publicJwk] }, { headers: { 'cache-control': 'max-age=3600' } });
+      }
+      return Response.json({ id_token: idToken({
+        aud: CONFIG.clientId,
+        iss: 'https://accounts.google.com',
+        exp: Math.floor(Date.now() / 1_000) + 600,
+        sub: 'linked-google-subject',
+        email,
+        email_verified: true,
+        nonce: attempt.nonce,
+      }) });
+    }) as unknown as typeof fetch);
+
+    const response = await nativeFetch(`${base}/api/auth/google/callback?state=${encodeURIComponent(attempt.state)}&code=link-code`, {
+      redirect: 'manual', headers: { cookie: cookieHeader(held) },
+    });
+
+    expect(response.headers.get('location')).toBe('/app/settings?google=linked');
+    const linked = store.find(email);
+    expect(linked).toMatchObject({
+      authProvider: 'google', providerSubject: 'linked-google-subject', recoveryHash: null,
+      workspace: 'Linked workspace', onboarded: true,
+    });
+    expect(linked?.sessionVersion).not.toBe(oldVersion);
+    expect(await verifyPassword(oldPassword, linked?.passwordHash ?? '')).toBe(false);
+    expect(store.sessionFor(oldSession, Date.now())).toBeNull();
+    expect(response.headers.getSetCookie().some((cookie) => cookie.startsWith('lacuna_session='))).toBe(true);
+  });
+
+  it('does not start a Google link from a signed-out browser', async () => {
+    const response = await nativeFetch(`${base}/api/auth/google/link/start`, { redirect: 'manual' });
+    expect(response.headers.get('location')).toBe('/signin?google=link_session');
+  });
+
 });

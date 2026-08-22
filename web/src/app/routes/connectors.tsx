@@ -7,6 +7,7 @@ import {
   getWebhookState,
   importFile,
   importGitHub,
+  importGitLab,
   importHttps,
   issueWebhook,
   previewFile,
@@ -28,6 +29,7 @@ import {
   REVIEWED_OBSERVATION_COPY,
   WebhookLifecycleArbiter,
   canonicalGitHubReview,
+  canonicalGitLabReview,
   connectorAnchorTarget,
   connectorCataloguePresentation,
   connectorOutcomeMessage as outcomeMessage,
@@ -352,7 +354,7 @@ export function PrivateConnectors() {
   const [webhook, setWebhook] = useState<WebhookState | null>(null);
   const [webhookNeedsRefresh, setWebhookNeedsRefresh] = useState(false);
   const [secret, setSecret] = useState<Extract<WebhookIssueResponse, { readonly created: true }> | null>(null);
-  const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'https' | 'webhook'; readonly message: string } | null>(null);
+  const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook'; readonly message: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [receiptPresentation, dispatchReceipt] = useReducer(connectorReceiptPresentation, null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -360,6 +362,8 @@ export function PrivateConnectors() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [githubUrl, setGithubUrl] = useState('');
   const [githubReview, setGithubReview] = useState<string | null>(null);
+  const [gitlabUrl, setGitlabUrl] = useState('');
+  const [gitlabReview, setGitlabReview] = useState<string | null>(null);
   const [httpsUrl, setHttpsUrl] = useState('');
   const [httpsReview, setHttpsReview] = useState<SafeHttpsReview | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<WebhookRevokeConfirmation | null>(null);
@@ -418,7 +422,7 @@ export function PrivateConnectors() {
   useEffect(() => {
     if (control === null || arbiter === null) return undefined;
     dispatchCatalogue({ type: 'reset' }); setWebhook(null); setWebhookNeedsRefresh(false); setSecret(null); setProblem(null); setPending(null);
-    dispatchReceipt({ type: 'reset' }); setSelectedFile(null); setFilePreview(null); resetNativeFileSelection(fileInput.current); setGithubUrl(''); setGithubReview(null);
+    dispatchReceipt({ type: 'reset' }); setSelectedFile(null); setFilePreview(null); resetNativeFileSelection(fileInput.current); setGithubUrl(''); setGithubReview(null); setGitlabUrl(''); setGitlabReview(null);
     setHttpsUrl(''); setHttpsReview(null); setConfirmRevoke(null);
     void refreshCatalogue();
     void arbiter.refresh().then((result) => {
@@ -435,11 +439,11 @@ export function PrivateConnectors() {
 
   if (session === null || context === null) return <p role="status">Checking the exact session.</p>;
 
-  const status = (id: 'github' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook') =>
+  const status = (id: 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook') =>
     catalogue?.connectors.find((entry) => entry.id === id) ?? null;
   const currentStatus = (id: Parameters<typeof status>[0]) => catalogueState === 'ready' ? status(id) : null;
   const available = (id: Parameters<typeof status>[0]) => currentStatus(id)?.availability === 'available';
-  const problemFor = (source: 'catalogue' | 'file' | 'github' | 'https' | 'webhook') =>
+  const problemFor = (source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook') =>
     problem?.source === source ? problem.message : null;
   const selectedType = selectedFile === null ? null : /\.md$/iu.test(selectedFile.name) ? 'markdown'
     : /\.(?:txt|json|csv)$/iu.test(selectedFile.name) ? 'text' : /\.pdf$/iu.test(selectedFile.name) ? 'pdf'
@@ -481,6 +485,18 @@ export function PrivateConnectors() {
     setPending(null);
     if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
     else if (result.kind !== 'discarded') setProblem({ source: 'github', message: outcomeMessage(result) ?? 'GitHub import was not confirmed.' });
+    await refreshCatalogue();
+  }
+
+  async function confirmGitlab() {
+    const held = gitlabReview;
+    if (held === null) return;
+    dispatchReceipt({ type: 'dispatched', connector: 'gitlab' });
+    setGitlabReview(null); setPending('gitlab'); setProblem(null);
+    const result = await importGitLab(held, context!);
+    setPending(null);
+    if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
+    else if (result.kind !== 'discarded') setProblem({ source: 'gitlab', message: outcomeMessage(result) ?? 'GitLab import was not confirmed.' });
     await refreshCatalogue();
   }
 
@@ -543,7 +559,7 @@ export function PrivateConnectors() {
 
   return (
     <div className="connectors-page">
-      <header className="connectors-hero"><span>PRIVATE IMPORTS</span><h1>Bring bounded context into this workspace.</h1><p>Files, public GitHub snapshots, and public HTTPS reads are reviewed one-off imports. Configured signed webhooks accept bounded at-least-once deliveries without per-delivery manual review. Current operation receipts remain exact; recorded observations are separate and may lag.</p></header>
+      <header className="connectors-hero"><span>PRIVATE IMPORTS</span><h1>Bring bounded context into this workspace.</h1><p>Files, public GitHub snapshots, and public HTTPS reads are reviewed one-off imports. GitLab project snapshots use the same bounded review flow. Configured signed webhooks accept bounded at-least-once deliveries without per-delivery manual review. Current operation receipts remain exact; recorded observations are separate and may lag.</p></header>
       {problemFor('catalogue') === null ? null : <div id="connector-catalogue-error" className="connector-alert" role="alert" tabIndex={-1}>{problemFor('catalogue')}</div>}
       {receiptPresentation === null ? null : <Receipt receipt={receiptPresentation.receipt} reference={receiptPresentation.reference} />}
       <Observation catalogue={catalogue} catalogueState={catalogueState} />
@@ -565,6 +581,15 @@ export function PrivateConnectors() {
           <ConnectorAvailabilityNotice catalogueState={catalogueState} connector={currentStatus('github')} unavailableCopy="GitHub import is unavailable on this deployment." />
           <button type="button" disabled={pending !== null || !available('github')} onClick={() => { const next = canonicalGitHubReview(githubUrl); setGithubReview(next); if (next === null) setProblem({ source: 'github', message: 'Enter one canonical lowercase public GitHub repository root.' }); }}>REVIEW SNAPSHOT</button>
           {githubReview === null ? null : <div className="connector-review"><h3>Review manual import</h3><p>{githubReview}</p><p>One request resolves one default-branch commit. It will not create a connection.</p><button className="connector-primary" type="button" disabled={pending !== null} onClick={() => void confirmGithub()}>CONFIRM ONE IMPORT</button></div>}
+        </section>
+
+        <section id="gitlab" className="connector-card" aria-labelledby="gitlab-heading" tabIndex={-1}>
+          <span className="connector-kicker">CODE · MANUAL SNAPSHOT</span><h2 id="gitlab-heading">Public GitLab project snapshot</h2>
+          <p id="gitlab-instructions">Imports the immutable default-branch commit and bounded supported text files. No OAuth, private projects, cloning, branch sync, or continuous sync.</p>
+          <ConnectorUrlField id="gitlab-url" instructionsId="gitlab-instructions" errorId="connector-gitlab-error" label="CANONICAL PROJECT ROOT" name="public-gitlab-project" value={gitlabUrl} placeholder="https://gitlab.com/group/project" problem={problemFor('gitlab')} disabled={pending !== null} onChange={(value) => { setGitlabUrl(value); setGitlabReview(null); setProblem((held) => held?.source === 'gitlab' ? null : held); }} />
+          <ConnectorAvailabilityNotice catalogueState={catalogueState} connector={currentStatus('gitlab')} unavailableCopy="GitLab import is unavailable on this deployment." />
+          <button type="button" disabled={pending !== null || !available('gitlab')} onClick={() => { const next = canonicalGitLabReview(gitlabUrl); setGitlabReview(next); if (next === null) setProblem({ source: 'gitlab', message: 'Enter one canonical lowercase public GitLab project root.' }); }}>REVIEW SNAPSHOT</button>
+          {gitlabReview === null ? null : <div className="connector-review"><h3>Review manual import</h3><p>{gitlabReview}</p><p>One request resolves one default-branch commit. It will not create a connection.</p><button className="connector-primary" type="button" disabled={pending !== null} onClick={() => void confirmGitlab()}>CONFIRM ONE IMPORT</button></div>}
         </section>
 
         <section id="https-api" className="connector-card" aria-labelledby="https-heading" tabIndex={-1}>
@@ -593,12 +618,12 @@ export function ExploreConnectors() {
   const card = (item: (typeof CONNECTOR_PRESENTATION)[number]) => (
     <article key={item.key}><span className="connector-kicker">{item.group}</span><h3>{item.name}</h3><p>{item.summary}</p><strong>{item.implementation === 'planned' ? 'PLANNED' : 'PRIVATE WORKFLOW'}</strong></article>
   );
-  const workflow = (name: 'github' | 'https' | 'webhook') => CONNECTOR_PRESENTATION.find((item) => item.workflow === name);
+  const workflow = (name: 'github' | 'gitlab' | 'https' | 'webhook') => CONNECTOR_PRESENTATION.find((item) => item.workflow === name);
   return (
     <div className="connectors-page connectors-explore">
       <header className="connectors-hero"><span>EXPLORE · READ ONLY</span><h1>Import workflows, without private controls.</h1><p>Sign in to check deployment availability and use the appropriate reviewed one-off import or signed-delivery setup. This public page does not request workspace state.</p></header>
       <section id="file" tabIndex={-1} aria-labelledby="explore-file-heading"><h2 id="explore-file-heading">Reviewed files</h2><div className="connector-observation-grid">{CONNECTOR_PRESENTATION.filter((item) => item.workflow === 'file').map(card)}</div></section>
-      {(['github', 'https', 'webhook'] as const).map((name) => {
+      {(['github', 'gitlab', 'https', 'webhook'] as const).map((name) => {
         const item = workflow(name);
         const target = name === 'https' ? 'https-api' : name;
         return item === undefined ? null : <section key={name} id={target} tabIndex={-1} aria-labelledby={`explore-${target}-heading`}><h2 id={`explore-${target}-heading`}>{item.name}</h2><div className="connector-observation-grid">{card(item)}</div></section>;

@@ -50,6 +50,7 @@ import { CloudConnectorStore } from '../src/connectors/store.js';
 import { ConnectorRunner } from '../src/connectors/run.js';
 import { FileConnectorService } from '../src/connectors/files.js';
 import { GitHubImporter } from '../src/connectors/github.js';
+import { GitLabImporter } from '../src/connectors/gitlab.js';
 import { PinnedHttpsReader } from '../src/connectors/https.js';
 import { FilePreviewTokenService, previewSigningKey } from '../src/connectors/preview-token.js';
 import { CloudWebhookRecordStore } from '../src/connectors/webhook-store.js';
@@ -146,6 +147,7 @@ const connectorRunner = cloud === null || connectorStore === null ? null : new C
   ingest: (workspace, prepared, options) => ingestPreparedSource(cloud, workspace, prepared, options),
 });
 const githubImporter = connectorRunner === null ? null : new GitHubImporter();
+const gitlabImporter = connectorRunner === null ? null : new GitLabImporter();
 const httpsReader = connectorRunner === null ? null : new PinnedHttpsReader();
 const fileConnector = connectorRunner === null || filePreviewKey === null ? null : new FileConnectorService({
   runner: connectorRunner,
@@ -231,14 +233,15 @@ const api = new ApiRouter({
   ...(mcpCapabilities === null ? {} : { mcpCapabilities }),
   ...(connectorStore === null ? {} : { connectorStore }),
   ...(fileConnector === null ? {} : { fileConnector }),
-  ...(githubImporter === null || httpsReader === null || connectorRunner === null
+  ...(githubImporter === null || gitlabImporter === null || httpsReader === null || connectorRunner === null
     ? {}
-    : { githubImporter, httpsReader, connectorRunner }),
+    : { githubImporter, gitlabImporter, httpsReader, connectorRunner }),
   ...(webhookService === null ? {} : { webhookService }),
   connectorCatalog: () => catalogue({
     webhookService: webhookService !== null,
     fileImport: fileConnector !== null,
     githubImport: githubImporter !== null && connectorRunner !== null,
+    gitlabImport: gitlabImporter !== null && connectorRunner !== null,
     httpsImport: httpsReader !== null && connectorRunner !== null,
   }),
   secure: true,

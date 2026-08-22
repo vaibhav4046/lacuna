@@ -1,4 +1,4 @@
-export type ConnectorId = 'github' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook';
+export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook';
 export type FileConnectorId = 'markdown' | 'text' | 'pdf' | 'docx';
 
 export type ConnectorFailureCode =
@@ -16,6 +16,10 @@ export type ConnectorRefusalCode = ConnectorFailureCode
   | 'github_unavailable' | 'github_timeout' | 'github_snapshot_invalid'
   | 'github_integrity_failed' | 'github_budget_exceeded' | 'github_no_documents'
   | 'github_import_failed' | 'https_import_unavailable' | 'invalid_https_request'
+  | 'gitlab_import_unavailable' | 'invalid_gitlab_request' | 'invalid_project_url'
+  | 'gitlab_unavailable' | 'gitlab_timeout' | 'gitlab_snapshot_invalid'
+  | 'gitlab_integrity_failed' | 'gitlab_budget_exceeded' | 'gitlab_no_documents'
+  | 'gitlab_import_failed'
   | 'invalid_https_url' | 'https_busy' | 'https_timeout' | 'https_dns_failed'
   | 'https_address_blocked' | 'https_peer_mismatch' | 'https_redirect_refused'
   | 'https_upstream_failed' | 'https_tls_failed' | 'https_response_invalid'
@@ -78,6 +82,15 @@ export interface GitHubImportResponse extends ConnectorRunReceipt {
   readonly skipped: readonly { readonly reason: string; readonly count: number }[];
 }
 
+export interface GitLabImportResponse extends ConnectorRunReceipt {
+  readonly connectorId: 'gitlab';
+  readonly snapshotCommit: string;
+  readonly snapshotDigest: string;
+  readonly consideredEntries: number;
+  readonly fetchedBlobs: number;
+  readonly skipped: readonly { readonly reason: string; readonly count: number }[];
+}
+
 export interface HttpsImportResponse extends ConnectorRunReceipt {
   readonly connectorId: 'https_api';
   readonly sourceDigest: string;
@@ -90,7 +103,7 @@ export interface ConnectorStatus {
   readonly group: 'CODE' | 'FILES' | 'DATA';
   readonly availability: 'available' | 'unavailable';
   readonly reason: 'signing_not_configured' | 'file_import_unavailable'
-    | 'github_import_unavailable' | 'https_import_unavailable' | null;
+    | 'github_import_unavailable' | 'gitlab_import_unavailable' | 'https_import_unavailable' | null;
   readonly configuredAt: string | null;
   readonly lastAttemptAt: string | null;
   readonly lastSuccessAt: string | null;
@@ -120,7 +133,7 @@ const ID = /^[A-Za-z0-9_-]{22}$/u;
 const SECRET = /^[A-Za-z0-9_-]{43}$/u;
 const PREVIEW_TOKEN = /^[A-Za-z0-9_-]{1,2956}\.[A-Za-z0-9_-]{43}$/u;
 const SKIP_REASON = /^[a-z][a-z0-9_]{0,63}$/u;
-const IDS = ['github', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook'] as const;
+const IDS = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook'] as const;
 const FILE_IDS = ['markdown', 'text', 'pdf', 'docx'] as const;
 const MAX_RUN_DOCUMENTS = 30;
 const MAX_RUN_RECORDS = 1_000_000;
@@ -139,6 +152,9 @@ const REFUSALS: readonly ConnectorRefusalCode[] = [
   'github_import_unavailable', 'invalid_github_request', 'invalid_repository_url',
   'github_unavailable', 'github_timeout', 'github_snapshot_invalid', 'github_integrity_failed',
   'github_budget_exceeded', 'github_no_documents', 'github_import_failed',
+  'gitlab_import_unavailable', 'invalid_gitlab_request', 'invalid_project_url',
+  'gitlab_unavailable', 'gitlab_timeout', 'gitlab_snapshot_invalid', 'gitlab_integrity_failed',
+  'gitlab_budget_exceeded', 'gitlab_no_documents', 'gitlab_import_failed',
   'https_import_unavailable', 'invalid_https_request', 'invalid_https_url', 'https_busy',
   'https_timeout', 'https_dns_failed', 'https_address_blocked', 'https_peer_mismatch',
   'https_redirect_refused', 'https_upstream_failed', 'https_tls_failed',
@@ -269,6 +285,17 @@ function decodeGitHub(value: unknown): GitHubImportResponse | null {
   return value as unknown as GitHubImportResponse;
 }
 
+function decodeGitLab(value: unknown): GitLabImportResponse | null {
+  if (!record(value) || !exact(value, [...RUN_KEYS, 'snapshotCommit', 'snapshotDigest', 'consideredEntries', 'fetchedBlobs', 'skipped'])
+    || decodeRun(runPart(value), ['gitlab']) === null
+    || typeof value.snapshotCommit !== 'string' || !SHA1.test(value.snapshotCommit)
+    || typeof value.snapshotDigest !== 'string' || !SHA256.test(value.snapshotDigest)
+    || !count(value.consideredEntries) || !count(value.fetchedBlobs) || !Array.isArray(value.skipped)
+    || value.skipped.length > 32 || value.skipped.some((item) => !exact(item, ['reason', 'count'])
+      || typeof item.reason !== 'string' || !SKIP_REASON.test(item.reason) || !count(item.count))) return null;
+  return value as unknown as GitLabImportResponse;
+}
+
 function decodeHttps(value: unknown): HttpsImportResponse | null {
   if (!record(value) || !exact(value, [...RUN_KEYS, 'sourceDigest', 'contentDigest'])
     || decodeRun(runPart(value), ['https_api']) === null
@@ -278,13 +305,14 @@ function decodeHttps(value: unknown): HttpsImportResponse | null {
 }
 
 const CATALOGUE_SHAPE: Readonly<Record<ConnectorId, readonly [string, ConnectorStatus['group']]>> = {
-  github: ['GitHub', 'CODE'], markdown: ['Markdown', 'FILES'], text: ['Text', 'FILES'],
+  github: ['GitHub', 'CODE'], gitlab: ['GitLab', 'CODE'], markdown: ['Markdown', 'FILES'], text: ['Text', 'FILES'],
   pdf: ['PDF', 'FILES'], docx: ['DOCX', 'FILES'], https_api: ['HTTPS API', 'DATA'],
   webhook: ['Webhook', 'DATA'],
 };
 
 const UNAVAILABLE_REASON: Readonly<Record<ConnectorId, NonNullable<ConnectorStatus['reason']>>> = {
   github: 'github_import_unavailable',
+  gitlab: 'gitlab_import_unavailable',
   markdown: 'file_import_unavailable',
   text: 'file_import_unavailable',
   pdf: 'file_import_unavailable',
@@ -308,7 +336,7 @@ function decodeCatalogue(value: unknown): ConnectorCatalogue | null {
     if (item.label !== expected[0] || item.group !== expected[1]
       || !member(item.availability, ['available', 'unavailable'] as const)
       || !(item.reason === null || member(item.reason, [
-        'signing_not_configured', 'file_import_unavailable', 'github_import_unavailable', 'https_import_unavailable',
+        'signing_not_configured', 'file_import_unavailable', 'github_import_unavailable', 'gitlab_import_unavailable', 'https_import_unavailable',
       ] as const))
       || (item.availability === 'available') !== (item.reason === null)
       || (item.availability === 'unavailable' && item.reason !== UNAVAILABLE_REASON[item.id])
@@ -498,6 +526,16 @@ export function importGitHub(url: string, context: ConnectorMutationContext): Pr
     init: { method: 'POST', credentials: 'same-origin', headers: mutationHeaders(context, true), body: JSON.stringify({ url }) },
     successfulStatus: (status) => status === 200,
     decode: (value) => decodeGitHub(value),
+  });
+}
+
+export function importGitLab(url: string, context: ConnectorMutationContext): Promise<ConnectorOutcome<GitLabImportResponse>> {
+  return oneRequest({
+    path: '/api/workspace/connectors/gitlab/import', signal: context.signal,
+    timeoutMs: IMPORT_TIMEOUT_MS,
+    init: { method: 'POST', credentials: 'same-origin', headers: mutationHeaders(context, true), body: JSON.stringify({ url }) },
+    successfulStatus: (status) => status === 200,
+    decode: (value) => decodeGitLab(value),
   });
 }
 

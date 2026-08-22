@@ -38,6 +38,11 @@ function catalogueBody(): { connectors: MutableConnectorStatus[] } {
       configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
       importedDocuments: 0, state: 'idle',
     },
+    {
+      id: 'gitlab', label: 'GitLab', group: 'CODE', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    },
     ...(['markdown', 'text', 'pdf', 'docx'] as const).map((id) => ({
       id, label: id === 'docx' ? 'DOCX' : id === 'pdf' ? 'PDF' : id[0]!.toUpperCase() + id.slice(1), group: 'FILES',
       availability: 'available', reason: null, configuredAt: null, lastAttemptAt: null,

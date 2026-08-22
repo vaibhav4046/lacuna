@@ -166,7 +166,7 @@ Candidate workflow safety repairs:
   source contract and focused agent tests pass
 - GitLab legacy and direct connector anchors now resolve to the real workflow
   review surface; focused connector tests pass
-- the latest serial unit suite passes 2,279/2,279 across 117 files, with no
+- the latest serial unit suite passes 2,280/2,280 across 117 files, with no
   skips; candidate-only until Vercel deployment quota resets
 - Work cancel/retry and schedule dispatch also reject duplicate lifecycle
   mutations before their busy state renders; focused product contracts pass

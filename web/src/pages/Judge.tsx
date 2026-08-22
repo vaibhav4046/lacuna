@@ -484,12 +484,15 @@ function AskYourOwn() {
   const [reply, setReply] = useState<PlannedReply | null>(null);
 
   async function go() {
-    if (text.trim() === '') return;
+    if (busy || text.trim() === '') return;
     setBusy(true);
     setReply(null);
-    const planned = await postFor<PlannedReply>('/api/explore/query', { question: text.trim() });
-    setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null, ms: 0 });
-    setBusy(false);
+    try {
+      const planned = await postFor<PlannedReply>('/api/explore/query', { question: text.trim() });
+      setReply(planned ?? { reading: null, unread: 'unreachable', knownSubjects: [], available: [], answer: null, ms: 0 });
+    } finally {
+      setBusy(false);
+    }
   }
 
   const answer = reply?.answer ?? null;

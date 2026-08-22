@@ -301,6 +301,26 @@ describe('web product contracts', () => {
     expect(runNow).toContain('if (working !== null) return;');
   });
 
+  it('releases public query and MCP busy state when requests throw', () => {
+    const judge = readFileSync(new URL('../../web/src/pages/Judge.tsx', import.meta.url), 'utf8');
+    const landing = readFileSync(new URL('../../web/src/landing/Try.tsx', import.meta.url), 'utf8');
+    const tools = readFileSync(new URL('../../web/src/app/routes/tools.tsx', import.meta.url), 'utf8');
+    const sections = [
+      judge.slice(judge.indexOf('  async function go()'), judge.indexOf('\n\n  const answer', judge.indexOf('  async function go()'))),
+      landing.slice(landing.indexOf('  async function ask('), landing.indexOf('\n\n  const answer', landing.indexOf('  async function ask('))),
+      tools.slice(tools.indexOf('  async function issue()'), tools.indexOf('\n\n  async function copy', tools.indexOf('  async function issue()'))),
+      tools.slice(tools.indexOf('  async function revoke()'), tools.indexOf('\n\n  if (scope.demo)', tools.indexOf('  async function revoke()'))),
+    ];
+    for (const section of sections) {
+      expect(section).toContain('try {');
+      expect(section).toContain('} finally {');
+      expect(section).toContain('setBusy(false);');
+    }
+    expect(judge).toContain("if (busy || text.trim() === '') return;");
+    expect(landing).toContain('if (busy) return;');
+    expect(tools).toContain('if (busy) return;');
+  });
+
   it('makes a browser agent retry idempotent after a lost response', () => {
     const agents = readFileSync(new URL('../../web/src/app/routes/agents.tsx', import.meta.url), 'utf8');
     expect(agents).toContain("import { createClientUuid } from '../../api/request-id';");

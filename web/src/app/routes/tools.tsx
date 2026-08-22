@@ -30,15 +30,19 @@ function McpAccess() {
   const endpoint = typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`;
 
   async function issue() {
+    if (busy) return;
     setBusy(true);
     setProblem(null);
-    const result = await postFor<McpCapabilityResponse>('/api/workspace/mcp/capabilities', {});
-    setBusy(false);
-    if (result === null) {
-      setProblem('A private MCP capability could not be issued.');
-      return;
+    try {
+      const result = await postFor<McpCapabilityResponse>('/api/workspace/mcp/capabilities', {});
+      if (result === null) {
+        setProblem('A private MCP capability could not be issued.');
+        return;
+      }
+      setIssued(result);
+    } finally {
+      setBusy(false);
     }
-    setIssued(result);
   }
 
   async function copy() {
@@ -52,17 +56,20 @@ function McpAccess() {
   }
 
   async function revoke() {
-    if (issued === null) return;
+    if (busy || issued === null) return;
     setBusy(true);
     setProblem(null);
-    const result = await postJson('/api/workspace/mcp/capabilities/revoke', { capability: issued.capability });
-    setBusy(false);
-    if (!result.ok) {
-      setProblem('The capability could not be revoked.');
-      return;
+    try {
+      const result = await postJson('/api/workspace/mcp/capabilities/revoke', { capability: issued.capability });
+      if (!result.ok) {
+        setProblem('The capability could not be revoked.');
+        return;
+      }
+      setIssued(null);
+      setProblem('Capability revoked. Clients using it no longer have private access.');
+    } finally {
+      setBusy(false);
     }
-    setIssued(null);
-    setProblem('Capability revoked. Clients using it no longer have private access.');
   }
 
   if (scope.demo) {

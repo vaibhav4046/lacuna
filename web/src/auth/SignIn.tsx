@@ -19,15 +19,18 @@ export default function SignIn() {
   async function submit() {
     setBusy(true);
     setProblem(null);
-    const failure = await signIn(email, password);
-    setBusy(false);
-    if (failure !== null) { setProblem(failure); return; }
-    const session = await refreshAfterMutation();
-    if (session === null || !session.signedIn) {
-      setProblem('Your sign-in succeeded, but the session could not be confirmed. Try again.');
-      return;
+    try {
+      const failure = await signIn(email, password);
+      if (failure !== null) { setProblem(failure); return; }
+      const session = await refreshAfterMutation();
+      if (session === null || !session.signedIn) {
+        setProblem('Your sign-in succeeded, but the session could not be confirmed. Try again.');
+        return;
+      }
+      go(session.session.workspace === null ? '/onboarding' : '/app/dash');
+    } finally {
+      setBusy(false);
     }
-    go(session.session.workspace === null ? '/onboarding' : '/app/dash');
   }
 
   if (account.state === 'member') return <Navigate to={account.primary.path} replace />;

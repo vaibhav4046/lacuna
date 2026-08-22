@@ -165,6 +165,13 @@ describe('web product contracts', () => {
     expect(system).toContain('if (!await signOut()) return;');
   });
 
+  it('keeps password sign-in busy until the confirmed session has routed', () => {
+    const signIn = readFileSync(new URL('../../web/src/auth/SignIn.tsx', import.meta.url), 'utf8');
+    expect(signIn).toContain('try {');
+    expect(signIn).toContain('} finally {\n      setBusy(false);');
+    expect(signIn.indexOf('await refreshAfterMutation()')).toBeLessThan(signIn.indexOf('setBusy(false)'));
+  });
+
   it('distinguishes reviewed one-off imports from configured at-least-once webhook delivery', () => {
     const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');

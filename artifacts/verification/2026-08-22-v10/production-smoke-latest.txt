@@ -2,9 +2,9 @@ Lacuna V10 production verification — 2026-08-22
 
 Deployment
 - stable alias: https://lacuna-five.vercel.app
-- immutable: https://lacuna-ga5ebcntv-vaibhav4046s-projects.vercel.app
-- deployment: dpl_B5ot1JT2naabyLt8QCPD7xrZmhoZ
-- commit: 8013014
+- immutable: https://lacuna-hnrkm2gsb-vaibhav4046s-projects.vercel.app
+- deployment: dpl_Bdod4AG9yLCqiTnESEnxetQvJ4Ch
+- commit: ff4e23c
 
 HTTP acceptance
 - smoke:web: 9/9 passed
@@ -20,8 +20,9 @@ Browser owner-session checks
 - When audio playback was not confirmed by automation, the answer stayed visible as AUDIO UNCONFIRMED.
 - Work rendered historical empty-health runs as COMPLETED / NO EVIDENCE with no FAILED lifecycle label.
 - Agents rendered the same historical last run as COMPLETED rather than FAILED.
+- Typed `open dashboard` in the signed-in owner browser reached `/app/dash` after the optional planner request was unavailable, using the safe local read/navigation fallback; browser error log was empty.
 
 Notes
 - Provider-backed voice and auth boundaries are live and bounded; secrets were not printed.
-- The optional voice intent planner remains fail-closed for navigation/mutation commands when unavailable.
+- The optional voice intent planner remains fail-closed for writes and confirmations when unavailable; safe navigation/read-only intents have a deterministic local fallback for embedded browsers.
 - No official LongMemEval judge score is claimed without the required paid judge key.

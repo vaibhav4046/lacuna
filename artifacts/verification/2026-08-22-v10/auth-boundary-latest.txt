@@ -26,7 +26,7 @@ Candidate verification:
   JWKS JSON reads under the ten-second Google deadline; it is not yet
   production-promoted because the
   Vercel Hobby deployment quota is exhausted. Current branch preview:
-  `dpl_7dkHagpjQ2TqK1Z6CSoGfJs2mnmE` (no production Hydra context store).
+  `dpl_EeU5TvrryEDZ3CLGsSNv9ZBDCh8y` (no production Hydra context store).
 
 Voice candidate hardening:
 - a stalled speech body reader is cancelled when the bounded acquisition signal

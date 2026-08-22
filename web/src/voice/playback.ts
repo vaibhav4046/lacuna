@@ -169,7 +169,17 @@ export class PlaybackSession {
       }
 
       try {
-        void element.play().catch((error: unknown) => {
+        // HTMLMediaElement.play() resolves once playback has begun, but a few
+        // WebKit/WebView combinations do not emit `playing` for a blob-backed
+        // element. Treat the fulfilled promise as the equivalent lifecycle
+        // boundary so the controller cannot remain stuck in CHECKING_CONTEXT
+        // or leave the answer marked as not yet speaking. The event handler
+        // remains authoritative where it is delivered and `started` is
+        // idempotent through the local guard.
+        void element.play().then(() => {
+          if (!current() || finished || started) return;
+          playing();
+        }).catch((error: unknown) => {
           if (!current() || finished) return;
           if (signal.aborted) aborted();
           else if (isAutoplayRejection(error)) finish(new VoiceRuntimeError('playback_blocked'));

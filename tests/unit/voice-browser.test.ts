@@ -140,6 +140,69 @@ describe('playback audio guard', () => {
     expect(NativeAudio.instance?.preload).toBe('auto');
   });
 
+  it('uses a fulfilled play promise when WebKit omits the playing event', async () => {
+    class PromiseOnlyAudio {
+      static instance: PromiseOnlyAudio | null = null;
+      paused = true;
+      ended = false;
+      readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+
+      constructor(_url: string) { PromiseOnlyAudio.instance = this; }
+
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        listeners.add(listener);
+        this.#listeners.set(type, listeners);
+      }
+
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        this.#listeners.get(type)?.delete(listener);
+      }
+
+      play(): Promise<void> {
+        this.paused = false;
+        // Deliberately do not emit `playing`: this is the WebKit/WebView
+        // lifecycle variant the runtime must still handle.
+        return Promise.resolve();
+      }
+
+      emitEnded(): void {
+        this.ended = true;
+        for (const listener of this.#listeners.get('ended') ?? []) {
+          if (typeof listener === 'function') listener(new Event('ended'));
+          else listener.handleEvent(new Event('ended'));
+        }
+      }
+
+      pause(): void { this.paused = true; }
+      removeAttribute(_name: string): void {}
+      load(): void {}
+    }
+
+    vi.stubGlobal('document', { cookie: '' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      new Uint8Array([0x49, 0x44, 0x33, 4]),
+      { headers: { 'content-type': 'audio/mpeg' } },
+    )));
+    vi.stubGlobal('Audio', PromiseOnlyAudio);
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:promise-only',
+      revokeObjectURL: () => undefined,
+    });
+
+    const started: string[] = [];
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    const pending = runtime.speak('Supported answer.', {
+      started: (analysis) => started.push(analysis),
+      signal: () => undefined,
+    }, new AbortController().signal);
+
+    await vi.waitFor(() => expect(started).toEqual(['unavailable']));
+    PromiseOnlyAudio.instance?.emitEnded();
+    await expect(pending).resolves.toBeUndefined();
+  });
+
   it('finishes native playback when the optional analyser cannot attach', async () => {
     class NativeAudio {
       paused = true;

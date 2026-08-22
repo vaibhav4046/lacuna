@@ -65,15 +65,15 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `6544847`
-(`fix(voice): support WebKit capture contexts`) with the production-only
+The current production deployment is product commit `8c85738`
+(`fix(onboarding): bind private first-run mutations`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
-pass; the full unit suite is 2,209/2,209 (110 files), and the stable alias passed demo
+pass; the full unit suite is 2,210/2,210 (110 files), and the stable alias passed demo
 smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
 requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-qtbkfoykk-vaibhav4046s-projects.vercel.app` (`dpl_5KeujWyUGzyccgA4tTh6pxH94wdL`).
+`https://lacuna-cpnfn6hbw-vaibhav4046s-projects.vercel.app` (`dpl_689mcvUhktwGUpVafCuh2euaB69U`).
 
 The first-run flow now creates a workspace, stores a real private memory through
 `POST /api/workspace/ingest`, proves a private answer through

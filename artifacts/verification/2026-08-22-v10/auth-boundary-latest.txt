@@ -89,6 +89,8 @@ Read-only signed-session browser check:
   `Reviewer`) and the explicit run control
 - `/app/work` rendered the daily schedule and five observed runs
 - `/app/connectors` rendered all seven implemented workflows as available
+- `/app/voice` rendered `AUTHENTICATED · WORKSPACE BOUND`, `READY`, a
+  `START LISTENING` control, and typed-command fallback
 - the browser reported no console errors or warnings during these route reads
 
 Production runtime scan:

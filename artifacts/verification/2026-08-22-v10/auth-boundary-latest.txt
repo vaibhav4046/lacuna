@@ -23,16 +23,17 @@ Live callback refusal:
 Candidate verification:
 - focused auth/session/browser tests pass; the DOCX connector suite passes
   84/84 after the bounded XML extraction fix; the full serial suite passes
-  2,276/2,276 across 117 files
+  2,278/2,278 across 117 files
 - commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`, `dc5c343`,
-  `35c32cd` and `6feb07a`
+  `35c32cd`, `6feb07a` and `c4f13e8`
   reduce
   duplicate durable account reads, route confirmed password sessions to
   onboarding, persist GitLab observations, align LongMemEval limitations and
   extract validated DOCX XML without a Mammoth ZIP roundtrip, replay browser
   agent runs safely after lost responses, remove the obsolete DOCX parser
-  dependency, and keep the password sign-in control locked through session
-  confirmation and the final route decision
+  dependency, keep the password sign-in control locked through session
+  confirmation and the final route decision, and fail closed when recovery or
+  first-run onboarding cannot confirm the signed-in workspace
 - the candidate is not yet production-promoted because Vercel rejected a new
   deployment after the free daily deployment quota was exhausted
 - current branch preview: `dpl_GL6xgnCfanJr6QssK3HPY4R3TmkH`
@@ -148,6 +149,14 @@ Candidate password sign-in repair:
   `tests/unit/web-product-contracts.test.ts`; focused auth tests, typecheck,
   web build and the full serial suite pass; candidate-only until Vercel
   deployment quota resets
+
+Candidate recovery/onboarding repair:
+- recovery now keeps its control locked through session confirmation and shows
+  a bounded error if the reset cannot produce a confirmed signed-in session
+- first-run onboarding now confirms a signed-in session with a non-null
+  workspace before opening `/app/dash`, and always releases its transition lock
+- source contract regressions are in `tests/unit/web-product-contracts.test.ts`;
+  candidate-only until Vercel deployment quota resets
 
 Candidate GitLab connector:
 - bounded public project snapshot workflow added with canonical project roots,

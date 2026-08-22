@@ -1,6 +1,6 @@
 # Evidence index
 
-## Current V10 evidence boundary: 2026-08-21
+## Current V10 evidence boundary: 2026-08-22
 
 These rows separate accepted V10 production evidence and dated V8 history. The
 authoritative boundary is [V10_RELEASE_STATUS.md](V10_RELEASE_STATUS.md); a
@@ -9,8 +9,8 @@ not transfer without a named rerun.
 
 | Evidence | Result | Location |
 | --- | --- | --- |
-| full unit gate, accepted product tree | 84 files, 1,393 tests passed | serial terminal run on 2026-08-21 after auth, timeout, voice-recovery and first-use honesty fixes |
-| root and web typecheck | both exit 0 | terminal run on 2026-08-21 |
+| focused connector and voice gates | 96 connector tests and 102 voice/browser tests passed | serial terminal runs on 2026-08-22 with one worker |
+| root and web typecheck/build | both typecheck and the 135-module web build exit 0 | terminal run on 2026-08-22 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |
 | native HydraDB graph proof | separate self-hosted `NodeSource` executes bounded Cypher; 162 compatibility probes are retained | `src/hydra/node-source.ts`, `artifacts/cypher-probe/` |
 | seeded public graph census | 453 nodes, 682 edges | production overview and proof API probes |
@@ -18,7 +18,7 @@ not transfer without a named rerun.
 | anonymous public agent creation, production | both explore/demo POST names return `403 public_preview_read_only`; invalid JSON on the legacy alias is refused before body/provider processing | deployment `dpl_GZhotqcHc2p3f2AKCeezQKNidjwc`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | authenticated workspace agent run | signed-in, CSRF-protected route persists real workspace-scoped work and enforces a workspace budget | `src/api/router.ts`, `tests/unit/agent-recommendations-api.test.ts` |
 | exact 399-character `package-session` blast request | **`NOT_PROVEN`**: absent subject, oversized sentence request, and no routed Web/CLI/MCP general blast command | `artifacts/verification/2026-08-21-v10/package-session-proof-audit.json` |
-| connector truth table | `AVAILABLE`: Text, Custom ingestion; all catalogued external/file/data connectors are `PLANNED`; Spotify is absent | `web/src/design/connectors.ts` |
+| connector truth table | Public redacted catalogue exposes seven descriptors; private workflows implement GitHub, TXT/MD/PDF/DOCX, HTTPS/API and signed webhook paths; remaining providers stay planned | `src/connectors/catalog.ts`, `src/api/router.ts`, `tests/unit/demo-api.test.ts` |
 | historical V8 landing desktop | inspected | `artifacts/screens/v8/landing-1440.png` |
 | historical V8 landing mobile | inspected, 0 px overflow | `artifacts/screens/v8/landing-390.png` |
 | graph overview | 140 loaded of 453 | `artifacts/screens/v8/memory-field.png` |
@@ -35,6 +35,7 @@ not transfer without a named rerun.
 | rejected V8-film visual audit | 3 contact sheets and 8 key frames, retained as historical inspection evidence only | `artifacts/video/judges-master/` |
 | historical V8 production inspected | READY; web smoke 9/9, demo smoke 30/30 and password auth smoke 12/12 | deployment `dpl_4y81oRF31j1d4iUUKSSY4V7bZWsN` |
 | accepted V10 production baseline | exact accepted probes and deployment id | `docs/V10_RELEASE_STATUS.md` |
+| public connector catalogue, production | 31/31 demo smoke gates; seven redacted entries, no private observations | `GET https://lacuna-five.vercel.app/api/explore/connectors`, `scripts/smoke-demo.ts` |
 
 ## Candidate acceptance gaps
 

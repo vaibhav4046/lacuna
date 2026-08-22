@@ -1,6 +1,6 @@
 {
   "about": "Every claim this project makes about itself, with the state of the thing claimed, where its numbers came from, and the file that proves it. The two state vocabularies are the ones in src/model/capability.ts and nowhere else, so a state cannot appear here that the interface pages do not also know. Checked by tests/unit/claims.test.ts, which fails if a state is invented, an id repeats, or an evidence path does not exist on disk.",
-  "generated_at": "2026-08-21",
+  "generated_at": "2026-08-22",
   "states_from": "src/model/capability.ts",
   "capability_states": [
     "NOT_STARTED",
@@ -346,11 +346,11 @@
     },
     {
       "id": "voice-surface",
-      "claim": "The voice interface and provider routes exist, with explicit listening, thinking, speaking, interrupted, error and typed-fallback states. Production has no provider credentials and no accepted end-to-end audio session.",
+      "claim": "The voice interface and provider routes exist, with explicit listening, thinking, speaking, interrupted, error and typed-fallback states. Current production has server-side ElevenLabs configuration, but no accepted end-to-end audio session.",
       "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "measured": {
-        "provider_enabled_in_production": false,
+        "provider_enabled_in_production": true,
         "end_to_end_audio_proof": false
       },
       "evidence": [
@@ -360,11 +360,11 @@
         "tests/unit/voice-browser.test.ts"
       ],
       "reproduce": "npm test && npm run serve  # then open /voice",
-      "caveat": "Fixture coverage proves route and state-machine behaviour, not microphone capture, provider transcription, the selected voice clone, streamed playback or interruption in production. The deployed route returns speech_unavailable until server-only credentials are supplied."
+      "caveat": "Fixture coverage proves route and state-machine behaviour, not microphone capture, provider transcription, the selected voice clone, streamed playback or interruption in production. Server-side configuration is present, but a real authenticated browser session is still required for acceptance."
     },
     {
       "id": "speech-to-text",
-      "claim": "Realtime speech-to-text code targets ElevenLabs Scribe through a server-issued single-use token; it is fixture-tested and unavailable in production because provider credentials are absent.",
+      "claim": "Realtime speech-to-text code targets ElevenLabs Scribe through a server-issued single-use token; it is fixture-tested and configured for production, but lacks an accepted live microphone/provider session.",
       "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "evidence": [
@@ -374,11 +374,11 @@
         "tests/unit/voice-browser.test.ts"
       ],
       "reproduce": "npm test",
-      "caveat": "No production microphone or provider session has been accepted. A route that returns the correct unavailable state is not working speech recognition."
+      "caveat": "No production microphone or provider session has been accepted. Configuration presence is not proof of working speech recognition."
     },
     {
       "id": "text-to-speech",
-      "claim": "Text-to-speech code streams ElevenLabs audio through the server with cancellation and backpressure; it is fixture-tested and unavailable in production because provider credentials are absent.",
+      "claim": "Text-to-speech code streams ElevenLabs audio through the server with cancellation and backpressure; it is fixture-tested and configured for production, but lacks an accepted live playback session.",
       "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "evidence": [
@@ -392,15 +392,15 @@
     },
     {
       "id": "metered-voice-fallback",
-      "claim": "Production voice is blocked on server-only ElevenLabs credentials and returns an explicit unavailable response while typed Ask remains usable.",
-      "capability": "BLOCKED",
+      "claim": "Production voice keeps provider credentials server-side and retains typed Ask as a fallback; native-first playback and provider routes are implemented, but end-to-end browser acceptance is still pending.",
+      "capability": "PARTIAL",
       "data": "UNAVAILABLE",
       "evidence": [
         "src/api/voice.ts",
         "docs/FINAL_EXECUTION_STATE.md"
       ],
       "reproduce": "open /voice on production and request provider speech",
-      "caveat": "Absence of a browser-visible API key proves secret placement, not provider readiness. A real production STT/TTS/interruption session is still required."
+      "caveat": "A configured server secret proves neither provider readiness nor browser playback. A real production STT/TTS/interruption session is still required."
     },
     {
       "id": "llm-router",
@@ -496,16 +496,20 @@
     },
     {
       "id": "connector-catalogue",
-      "claim": "Text and Custom ingestion are AVAILABLE; every catalogued external, file and data-source connector is PLANNED, with none marked CONNECTED or SYNCING.",
+      "claim": "The public catalogue exposes seven redacted connector descriptors. Private workflows are implemented for one-off file ingestion, public GitHub snapshot import, public HTTPS/API import, and signed bounded webhook delivery; workspace observations remain authenticated.",
       "capability": "PARTIAL",
       "data": "LIVE",
       "measured": {
         "available": [
+          "GitHub",
+          "Markdown",
           "Text",
-          "Custom ingestion"
+          "PDF",
+          "DOCX",
+          "HTTPS API",
+          "Webhook"
         ],
         "planned": [
-          "GitHub",
           "GitLab",
           "Linear",
           "Jira",
@@ -513,11 +517,6 @@
           "Notion",
           "Gmail",
           "Confluence",
-          "PDF",
-          "Markdown",
-          "Documents",
-          "API",
-          "Webhook",
           "Database source"
         ],
         "connected": [],
@@ -525,13 +524,14 @@
         "spotify_catalogued": false
       },
       "evidence": [
-        "web/src/design/connectors.ts",
-        "web/src/app/routes/ingest.tsx",
-        "src/api/ingest.ts",
-        "tests/unit/ingest-source.test.ts"
+        "src/connectors/catalog.ts",
+        "src/api/router.ts",
+        "web/src/app/routes/connectors.tsx",
+        "tests/unit/connectors-api.test.ts",
+        "tests/unit/demo-api.test.ts"
       ],
-      "reproduce": "npx vitest run tests/unit/ingest-source.test.ts && open /explore/conn",
-      "caveat": "AVAILABLE means a person can provide text through the implemented ingestion path; it does not mean an external service is connected or syncing. Spotify is not in the catalogue and is not implemented."
+      "reproduce": "npm run smoke:demo -- https://lacuna-five.vercel.app && npx vitest run tests/unit/connectors-api.test.ts tests/unit/demo-api.test.ts --maxWorkers=1",
+      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF. GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify are not implemented."
     },
     {
       "id": "package-session-blast-request",

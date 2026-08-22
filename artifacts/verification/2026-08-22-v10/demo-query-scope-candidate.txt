@@ -1,0 +1,32 @@
+Lacuna V10 candidate: authenticated demo workspace query scope
+Date: 2026-08-22
+Commit: b8a17a5
+
+Root cause reproduced in a focused socket test:
+- the signed-in sample workspace dashboard reads the default demo source;
+- authenticated sentence Ask and typed Voice fallback read the per-email
+  collection instead;
+- the result was a truthful but wrong `no_subject` response for the workspace
+  the user was looking at.
+
+Fix:
+- `workspaceReadCollection()` selects the default source for `DEMO_WORKSPACE`;
+- real private workspaces remain collection-scoped by normalized email.
+
+Verification:
+- regression before patch: failed (`unread: no_subject`);
+- regression after patch: passed and asserted the source opened with no
+  private collection override;
+- focused auth/voice/query matrix: 126/126 passed;
+- `npm run typecheck`: passed;
+- `npm run build`: passed;
+- `npm --prefix web run build`: passed.
+
+Deployment boundary:
+- branch-head preview: `dpl_7726UYAzmVwm39udLJSmQKm5q5vf`
+  (`https://lacuna-3c8pk64ld-vaibhav4046s-projects.vercel.app`), READY;
+- preview smoke: auth 3/3, Google 5/16, voice 3/7;
+- Google/voice preview failures are expected because preview has no
+  production OAuth/provider secrets;
+- `npx vercel deploy --prod --yes` was rejected with
+  `api-deployments-free-per-day`; stable production was not changed.

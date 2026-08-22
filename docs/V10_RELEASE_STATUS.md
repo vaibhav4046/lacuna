@@ -56,6 +56,7 @@ Production: <https://lacuna-five.vercel.app>
 | Agent runtime | Two built-in roles and two accepted production runs. The current adversarial run completed eight Researcher → Reviewer events, included both conflicting `runbook_owner` claims and quotations, reported zero unsupported claims, and made no authoritative writeback. |
 | Connector indexing boundary | Production `dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L` includes the queued-status fix. Candidate `09fde47` additionally treats a readiness transport/deadline after exact receipts as accepted-pending; terminal `failed`/`errored` statuses and caller cancellation remain failures. The follow-up candidate awaits the next Vercel deployment window. |
 | Connector observation clarity candidate | `abdc5fb` renders accepted documents with readiness-only historical failures as `SYNCING` and keeps the explicit indexing caveat; 29/29 web connector tests and the web build pass. It awaits the same deployment window. |
+| Authenticated demo Ask/Voice scope candidate | `b8a17a5` aligns the signed-in sample workspace's sentence Ask and typed Voice query with the default HydraDB corpus already used by its dashboard memory. The regression reproduced `no_subject` before the patch and passed after it; the focused auth/voice/query matrix passed 126/126 with root typecheck and both web builds. The branch-head preview has no production secrets, and production promotion remains blocked by Vercel's `api-deployments-free-per-day` quota. |
 
 The full dated artifact ledger remains in [EVIDENCE_INDEX.md](EVIDENCE_INDEX.md).
 

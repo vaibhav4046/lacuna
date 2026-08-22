@@ -741,6 +741,17 @@ async function knownSubjects(source: HydraSource): Promise<readonly string[]> {
   return (await source.subjects(8_000)).value;
 }
 
+/**
+ * The signed-in sample workspace is the public corpus shown by the dashboard.
+ * Its view is intentionally backed by the demo source, while a real account
+ * is isolated in the collection derived from its email. Keeping this choice in
+ * one helper prevents sentence Ask and voice Ask from silently reading a
+ * different, empty tenant than the workspace the page just rendered.
+ */
+function workspaceReadCollection(account: Pick<Account, 'email' | 'workspace'>): string | undefined {
+  return account.workspace === DEMO_WORKSPACE ? undefined : workspaceCollection(account.email);
+}
+
 export class ApiRouter {
   readonly #store: Accounts;
   readonly #allowPasswordSignup: boolean;
@@ -2436,7 +2447,7 @@ export class ApiRouter {
         send(response, 422, invalidRequest('question_unreadable'));
         return HANDLED;
       }
-      const source = openSource(workspaceCollection(account.email));
+      const source = openSource(workspaceReadCollection(account));
       try {
         send(response, 200, await plannedAskEnvelope(
           source,

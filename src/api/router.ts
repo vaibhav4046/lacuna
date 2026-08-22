@@ -3039,6 +3039,9 @@ export class ApiRouter {
       Location: to,
       'Cache-Control': 'no-store, private',
       Pragma: 'no-cache',
+      // OAuth codes and state arrive in the callback URL. Do not let a browser
+      // carry that URL as a referrer into the post-auth page or provider.
+      'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
     };
     if (cookies.length > 0) headers['Set-Cookie'] = [...cookies];

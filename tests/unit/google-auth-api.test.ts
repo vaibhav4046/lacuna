@@ -102,6 +102,7 @@ describe('Google OAuth HTTP boundary', () => {
     expect(response.status).toBe(302);
     expect(response.headers.get('cache-control')).toBe('no-store, private');
     expect(response.headers.get('pragma')).toBe('no-cache');
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer');
     expect(location.origin).toBe('https://accounts.google.com');
     expect(location.searchParams.get('state')).toBe(attempt?.state);
     expect(location.searchParams.get('code_challenge_method')).toBe('S256');

@@ -7,6 +7,7 @@ import {
 } from '../../src/voice/operations.js';
 import type { VoiceIntentReason } from '../../src/voice/intent.js';
 import {
+  createVoiceRequestId,
   VoiceOperationExecutor,
   type VoiceOperationPlan,
 } from '../../web/src/voice/operations.js';
@@ -136,6 +137,10 @@ function expectVoiceBinding(call: FetchCall, binding = SESSION_BINDING_A): void 
 }
 
 describe('voice operation planning boundary', () => {
+  it('creates a v4 request id without requiring randomUUID', () => {
+    expect(createVoiceRequestId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
+  });
+
   it('generates a canonical request id and validates the authenticated network plan again', async () => {
     const operation = { version: 1, kind: 'ask', question: 'Who owns Atlas?' } as const;
     const expected = planned(operation);

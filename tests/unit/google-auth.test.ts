@@ -179,6 +179,33 @@ describe('an identity Lacuna refuses', () => {
     await expect(identityFromCode(CONFIG, 'code', empty)).rejects.toBeInstanceOf(GoogleAuthError);
   });
 
+  it('fails a Google token exchange when headers arrive but the response body stalls', async () => {
+    let release: (() => void) | undefined;
+    const bodyStarted = new Promise<void>((resolve) => { release = resolve; });
+    const stalled = (async () => ({
+      ok: true,
+      status: 200,
+      body: null,
+      json: async () => {
+        release?.();
+        return await new Promise<never>(() => undefined);
+      },
+    })) as unknown as typeof fetch;
+
+    const result = await Promise.race([
+      identityFromCode(CONFIG, 'code', stalled, { timeoutMs: 20 })
+        .then(() => ({ kind: 'resolved' as const }), (error: unknown) => ({ kind: 'error' as const, error })),
+      bodyStarted.then(() => new Promise<{ readonly kind: 'hung' }>((resolve) => {
+        setTimeout(() => resolve({ kind: 'hung' }), 100);
+      })),
+    ]);
+    expect(result.kind).toBe('error');
+    if (result.kind === 'error') {
+      expect(result.error).toBeInstanceOf(GoogleAuthError);
+      expect((result.error as Error).message).toBe('the Google provider timed out');
+    }
+  });
+
   it('refuses something that is not a JWT at all', async () => {
     const junk = (async () => new Response(JSON.stringify({ id_token: 'not.a' }), {
       status: 200,

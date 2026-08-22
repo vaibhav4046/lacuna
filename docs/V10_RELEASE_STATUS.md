@@ -68,7 +68,7 @@ alias was still refused before body processing.
 The current production deployment is product commit `ff4e23c`
 (`fix(voice): keep local fallback in browser boundary`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
-pass; the current candidate full unit suite is 2,245/2,245 (114 files), and the stable alias passed demo
+pass; the current candidate full unit suite is 2,247/2,247 (114 files), and the stable alias passed demo
 smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
@@ -78,7 +78,7 @@ requests sending it. The stable alias points to the immutable deployment
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback
 cannot consume an in-flight sign-in attempt. The current candidate full unit
-suite is 2,245/2,245 (114 files), including the serverless request-lifecycle
+suite is 2,247/2,247 (114 files), including the serverless request-lifecycle
 adapter guard, stalled speech-body cancellation, GitHub body cancellation, and
 the embedded-browser Work request-id guard.
 
@@ -118,7 +118,7 @@ accepted production deployment above, so it is not replaced by an unsafe preview
 The candidate voice boundary now cancels a speech body reader when response
 headers arrive but the provider stream stalls, returning a bounded provider
 failure instead of leaving the voice controller busy. The regression is covered
-in the 2,245-test candidate suite and is not described as live until promotion
+in the 2,247-test candidate suite and is not described as live until promotion
 succeeds.
 
 The candidate GitHub transport also cancels its response body reader when the
@@ -127,23 +127,33 @@ bounded `github_timeout` rather than leaving a connector run waiting forever.
 
 The candidate HydraDB client now cancels a response body reader when the caller
 aborts after headers arrive, returning a bounded transport failure rather than
-leaving a query waiting forever. Its regression is covered in the 2,245-test
+leaving a query waiting forever. Its regression is covered in the 2,247-test
 candidate suite.
 
 The candidate browser connector client now reads JSON through a bounded response
 stream, cancelling and releasing the reader when the caller aborts or a request
 deadline fires. Its regression covers a stalled response after headers arrive
-and is included in the 2,245-test candidate suite.
+and is included in the 2,247-test candidate suite.
 
 The candidate Agents and Work actions now guard schedule, run-now, cancel and
 retry requests. A thrown network or session failure clears the busy state and
 shows bounded recovery copy instead of freezing the control; the helper has two
-focused regressions in the 2,245-test candidate suite.
+focused regressions in the 2,247-test candidate suite.
 
 The shared browser API client now uses the same bounded response-reader
 contract for session, workspace and agent reads/mutations. A caller or deadline
 abort cancels and releases a stalled JSON body instead of freezing route guards
-or action controls; the focused regression is included in the 2,245-test suite.
+or action controls; the focused regression is included in the 2,247-test suite.
+
+The Google provider reader now applies that same boundary to token and JWKS JSON:
+headers without a completing body are cancelled by the ten-second exchange
+deadline, and oversized or malformed provider payloads fail closed. A focused
+regression reproduces the stalled token-body sign-in failure.
+
+The landing overlays that sit above the persistent particle canvas now all carry
+the canvas text shield, including the architecture, model-routing and voice
+annotations. This removes bright particle marks from live labels without
+disabling the field itself.
 
 ## Named boundaries
 

@@ -7,7 +7,7 @@ dated evidence.
 
 ## Accepted product gate
 
-- 114 unit test files and 2,245 tests passed with no skips.
+- 114 unit test files and 2,247 tests passed with no skips.
 - Root and web TypeScript checks pass.
 - The production web bundle builds from 138 modules. The entry is 304.34 kB,
   100.04 kB gzip.
@@ -63,7 +63,8 @@ dated evidence.
 - Voice browser/runtime routes are implemented and fixture-tested. Typed Ask
   remains available when the provider is absent. Candidate browser playback
   and connector response readers now cancel stalled streams instead of leaving
-  the UI busy.
+  the UI busy. Candidate Google token/JWKS JSON reads share the provider
+  deadline, and landing overlays are shielded from particle labels.
 
 ## Accepted production
 

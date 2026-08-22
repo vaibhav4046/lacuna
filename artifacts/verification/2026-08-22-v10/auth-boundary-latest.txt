@@ -21,9 +21,10 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 114 files, 2,245/2,245 passed
-- queued candidate adds bounded OAuth state/code parameters and a ten-second
-  Google token/JWKS deadline; it is not yet production-promoted because the
+- current candidate full unit suite: 114 files, 2,247/2,247 passed
+- queued candidate adds bounded OAuth state/code parameters and bounded token/
+  JWKS JSON reads under the ten-second Google deadline; it is not yet
+  production-promoted because the
   Vercel Hobby deployment quota is exhausted. Current branch preview:
   `dpl_EdtFRMoQWo5XBcbencCJnepDACpN` (no production Hydra context store).
 

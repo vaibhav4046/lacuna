@@ -57,6 +57,9 @@ const SCOPES = 'openid email profile';
 /** A provider outage must return to sign-in, never leave the callback hanging. */
 export const GOOGLE_PROVIDER_TIMEOUT_MS = 10_000;
 
+/** Provider JSON is small identity metadata, never an unbounded document. */
+const GOOGLE_JSON_MAX_BYTES = 1_048_576;
+
 /** The issuer Google uses. Both spellings are current and both are accepted. */
 const ISSUERS = new Set(['https://accounts.google.com', 'accounts.google.com']);
 
@@ -132,6 +135,62 @@ export function authorizeUrl(
 
 interface TokenResponse {
   readonly id_token?: unknown;
+}
+
+/** Read provider JSON with the same bounded timeout as the network request. */
+async function readGoogleJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let rejectAbort!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { rejectAbort = reject; });
+  const onAbort = () => {
+    rejectAbort(new GoogleAuthError('the Google provider timed out'));
+    if (reader !== null) void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    if (signal.aborted) onAbort();
+    if (response.body === null || typeof response.body.getReader !== 'function') {
+      try {
+        return await Promise.race([response.json() as Promise<unknown>, aborted]);
+      } catch (error) {
+        if (error instanceof GoogleAuthError) throw error;
+        throw new GoogleAuthError('the provider response could not be read');
+      }
+    }
+
+    reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      let next: ReadableStreamReadResult<Uint8Array>;
+      try {
+        next = await Promise.race([reader.read(), aborted]);
+      } catch (error) {
+        if (error instanceof GoogleAuthError) throw error;
+        if (signal.aborted) throw new GoogleAuthError('the Google provider timed out');
+        throw new GoogleAuthError('the provider response could not be read');
+      }
+      if (next.done) break;
+      if (next.value === undefined) continue;
+      total += next.value.byteLength;
+      if (total > GOOGLE_JSON_MAX_BYTES) throw new GoogleAuthError('the provider response was too large');
+      chunks.push(next.value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    try {
+      return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+    } catch {
+      throw new GoogleAuthError('the provider response could not be read');
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    reader?.releaseLock();
+  }
 }
 
 interface GoogleJwk {
@@ -217,7 +276,7 @@ async function googleKey(
   if (!response.ok) throw new GoogleAuthError(`the key endpoint answered ${response.status}`);
   let body: GoogleJwks;
   try {
-    body = await response.json() as GoogleJwks;
+    body = await readGoogleJson(response, signal ?? new AbortController().signal) as GoogleJwks;
   } catch {
     throw new GoogleAuthError('the key endpoint response could not be read');
   }
@@ -302,6 +361,8 @@ export async function verifyGoogleIdToken(
 export interface GoogleCodeOptions {
   readonly codeVerifier?: string;
   readonly expectedNonce?: string;
+  /** Test seam for exercising the same bounded timeout with a short clock. */
+  readonly timeoutMs?: number;
   /** Test seam. Production uses verifyGoogleIdToken above. */
   readonly verifyIdToken?: (idToken: string, clientId: string, expectedNonce?: string) => Promise<Record<string, unknown>>;
 }
@@ -325,7 +386,7 @@ export async function identityFromCode(
   )) {
     throw new GoogleAuthError('the PKCE verifier is malformed');
   }
-  const signal = AbortSignal.timeout(GOOGLE_PROVIDER_TIMEOUT_MS);
+  const signal = AbortSignal.timeout(options.timeoutMs ?? GOOGLE_PROVIDER_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetchImpl(TOKEN, {
@@ -350,7 +411,7 @@ export async function identityFromCode(
 
   if (!response.ok) throw new GoogleAuthError(`the token endpoint answered ${response.status}`);
 
-  const body = await response.json() as TokenResponse;
+  const body = await readGoogleJson(response, signal) as TokenResponse;
   if (typeof body.id_token !== 'string') {
     throw new GoogleAuthError('the token response carried no identity token');
   }

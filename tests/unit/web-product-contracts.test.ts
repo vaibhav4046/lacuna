@@ -72,6 +72,13 @@ describe('web product contracts', () => {
     expect(landing).toContain('whiteSpace: \'nowrap\'');
   });
 
+  it('shields landing overlays from the persistent particle field', () => {
+    for (const file of ['Arch.tsx', 'Route.tsx', 'Voice.tsx']) {
+      const source = readFileSync(new URL(`../../web/src/landing/${file}`, import.meta.url), 'utf8');
+      expect(source).toContain('data-mhide="1" data-shield');
+    }
+  });
+
   it('keeps file connector copy aligned with the implemented JSON and CSV formats', () => {
     const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');

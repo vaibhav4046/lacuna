@@ -11,7 +11,7 @@ export function Voice() {
           <h2 style={{ fontSize: 'clamp(40px, 4.6vw, 78px)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', margin: 0, color: '#FFFFFF' }}>Talk to<br />the same memory.</h2>
           <p style={{ fontSize: '15.5px', color: '#9A9A9A', margin: '16px 0 0', maxWidth: '36ch', lineHeight: 1.7 }}>Voice is another way into Lacuna. It uses the same context, evidence and memory as text.</p>
         </div>
-        <div data-mhide="1" style={{ position: 'absolute', right: 'clamp(20px, 7vw, 110px)', top: '24%', width: 'min(320px, 38vw)', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div data-mhide="1" data-shield style={{ position: 'absolute', right: 'clamp(20px, 7vw, 110px)', top: '24%', width: 'min(320px, 38vw)', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div data-vt="0" style={{ ...transcript, fontSize: '17px', color: '#BDBDBD' }}>"Where does session state live now?"</div>
           <div data-vt="1" style={transcript}>
             <div style={{ fontSize: '26px', color: '#FFFFFF', letterSpacing: '-0.02em' }}>Postgres</div>

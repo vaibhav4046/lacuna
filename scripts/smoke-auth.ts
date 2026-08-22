@@ -89,6 +89,16 @@ record(first.status === 200 && first.body['signedIn'] === false, 'a fresh visito
 record(jar.get('lacuna_csrf') !== undefined, 'the session read issues a CSRF cookie', 'set');
 
 const created = await call(jar, '/api/auth/signup', { method: 'POST', body: { email, password } });
+if (created.status === 403 && created.body['error'] === 'google_required') {
+  // Hosted CloudAccounts deliberately fail closed because HydraDB upsert does
+  // not provide a conditional-create primitive. Password signup is therefore
+  // not a broken auth path on production; the non-destructive Google boundary
+  // is the correct gate (npm run smoke:google). Keep this script useful on
+  // local/file-backed deployments where password signup is enabled.
+  record(true, 'hosted password signup is explicitly gated', 'use smoke:google for OAuth');
+  process.stdout.write(`\n${passed} of ${passed + failed} gates passed against ${target}\n`);
+  process.exit(failed > 0 ? 1 : 0);
+}
 record(created.body['signedIn'] === true, 'sign up creates an account', `${created.status}`);
 
 // A separate request, which on this host is very likely a separate instance.

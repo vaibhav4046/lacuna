@@ -348,19 +348,21 @@
       "id": "voice-surface",
       "claim": "The voice interface and provider routes exist, with explicit listening, thinking, speaking, interrupted, error and typed-fallback states. Current production has server-side ElevenLabs configuration and a live provider-backed token/audio boundary; microphone/STT and browser playback acceptance remain separate gates.",
       "capability": "PARTIAL",
-      "data": "UNAVAILABLE",
+      "data": "LIVE",
       "measured": {
         "provider_enabled_in_production": true,
         "provider_token_status": 200,
         "provider_audio_content_type": "audio/mpeg",
         "provider_audio_bytes": 26794,
-        "browser_microphone_playback_proof": false
+        "browser_microphone_playback_proof": false,
+        "production_deployment": "dpl_Bdod4AG9yLCqiTnESEnxetQvJ4Ch"
       },
       "evidence": [
         "src/api/voice.ts",
         "web/src/voice",
         "tests/unit/voice-api.test.ts",
-        "tests/unit/voice-browser.test.ts"
+        "tests/unit/voice-browser.test.ts",
+        "artifacts/verification/2026-08-22-v10/production-smoke-latest.txt"
       ],
       "reproduce": "npm test && npm run serve  # then open /voice",
       "caveat": "The production smoke proves a real server-issued provider token and bounded MPEG audio response without printing secrets. It does not prove microphone capture, provider transcription, browser autoplay acceptance or interruption in a human browser session."
@@ -398,10 +400,11 @@
       "id": "metered-voice-fallback",
       "claim": "Production voice keeps provider credentials server-side and retains typed Ask as a fallback; native-first playback and provider routes are implemented, with the live TTS boundary verified and browser/STT acceptance still pending.",
       "capability": "PARTIAL",
-      "data": "UNAVAILABLE",
+      "data": "LIVE",
       "evidence": [
         "src/api/voice.ts",
-        "docs/FINAL_EXECUTION_STATE.md"
+        "docs/FINAL_EXECUTION_STATE.md",
+        "artifacts/verification/2026-08-22-v10/production-smoke-latest.txt"
       ],
       "reproduce": "open /voice on production and request provider speech",
       "caveat": "The live smoke proves provider readiness and server audio, but a real production STT/TTS/interruption session in the owner's browser is still required."

@@ -397,11 +397,13 @@ identical thing locally with no database and no token.
 
 ## What this index does not cover
 
-Nothing here supports voice, an LLM router, or authentication, because none of
-those has produced an artifact. Their rows in [docs/CLAIMS.json](CLAIMS.json)
-carry `UNAVAILABLE` and that is the whole of what is claimed about them. A
-capability with no line in this file is a capability with no evidence, which is
-the state this file exists to make visible rather than to hide.
+The current release has production evidence for the Google authentication
+boundary, the provider-backed voice boundary, and the governed agent runtime.
+What remains deliberately outside the accepted proof is a paid official
+LongMemEval judge score, a human microphone/STT/playback acceptance session,
+and the OAuth-backed providers still listed as planned in the connector
+catalogue. A capability with no line in this file is a capability with no
+evidence, which is the state this file exists to make visible rather than hide.
 
 ## What moves
 
@@ -434,9 +436,9 @@ not a host, and the row for a host is the one this file does not yet have.
 **The deployed URL arrived on the sixth run.** It sat in the not-covered list
 until [artifacts/verification/2026-08-14f/](../artifacts/verification/2026-08-14f/README.md)
 measured it from outside; its rows are in [Deployment](#deployment) above.
-What remains not covered is voice, an LLM router, and authentication. Those
-remain `UNAVAILABLE` in the ledger and absent from this index, which is the
-same statement made twice on purpose.
+The later V10 release added live Google and provider-voice boundary evidence;
+the remaining gaps are the paid benchmark judge and human browser STT/playback
+acceptance, not the existence of those product surfaces.
 
 **The second store arrived on the seventh run.** Until it did, every claim in
 this file rested on one store: a self-hosted node on loopback, which the

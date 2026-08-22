@@ -611,46 +611,6 @@ function crc32(data) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function canonicalZip(entries) {
-  const local = [];
-  const central = [];
-  let offset = 0;
-  for (const entry of entries) {
-    const name = Buffer.from(entry.name, 'utf8');
-    const checksum = crc32(entry.data);
-    const header = Buffer.alloc(30);
-    header.writeUInt32LE(0x04034b50, 0);
-    header.writeUInt16LE(20, 4);
-    header.writeUInt16LE(0x0800, 6);
-    header.writeUInt32LE(checksum, 14);
-    header.writeUInt32LE(entry.data.length, 18);
-    header.writeUInt32LE(entry.data.length, 22);
-    header.writeUInt16LE(name.length, 26);
-    local.push(header, name, entry.data);
-
-    const directory = Buffer.alloc(46);
-    directory.writeUInt32LE(0x02014b50, 0);
-    directory.writeUInt16LE(0x0314, 4);
-    directory.writeUInt16LE(20, 6);
-    directory.writeUInt16LE(0x0800, 8);
-    directory.writeUInt32LE(checksum, 16);
-    directory.writeUInt32LE(entry.data.length, 20);
-    directory.writeUInt32LE(entry.data.length, 24);
-    directory.writeUInt16LE(name.length, 28);
-    directory.writeUInt32LE(offset, 42);
-    central.push(directory, name);
-    offset += header.length + name.length + entry.data.length;
-  }
-  const centralBytes = Buffer.concat(central);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(entries.length, 8);
-  end.writeUInt16LE(entries.length, 10);
-  end.writeUInt32LE(centralBytes.length, 12);
-  end.writeUInt32LE(offset, 16);
-  return Buffer.concat([...local, centralBytes, end]);
-}
-
 async function validatedDocx(bytes) {
   if (!begins(bytes, ZIP_MAGIC)) fail('invalid_file');
   if (bytes.indexOf(ZIP64_EOCD) >= 0 || bytes.indexOf(ZIP64_LOCATOR) >= 0) fail('file_too_complex');
@@ -751,20 +711,58 @@ async function validatedDocx(bytes) {
   const tables = documentXml.match(/<w:tbl(?:\s|>)/gu)?.length ?? 0;
   if (paragraphs > MAX_DOCX_PARAGRAPHS || tables > MAX_DOCX_TABLES) fail('file_too_complex');
   return {
-    archive: canonicalZip(entries.map(({ name, data }) => ({ name, data }))),
     paragraphs,
     tables,
+    documentXml,
   };
+}
+
+function decodeXmlText(value) {
+  return value.replace(/&(?:#x([0-9a-f]+)|#([0-9]+)|([a-z][a-z0-9]+));/giu, (entity, hexadecimal, decimal, named) => {
+    if (named !== undefined) {
+      const decoded = { amp: '&', apos: "'", gt: '>', lt: '<', quot: '"' }[named.toLowerCase()];
+      if (decoded === undefined) fail('invalid_file');
+      return decoded;
+    }
+    const codePoint = Number.parseInt(hexadecimal ?? decimal, hexadecimal === undefined ? 10 : 16);
+    if (!Number.isSafeInteger(codePoint) || codePoint === 0 || codePoint > 0x10ffff
+      || (codePoint >= 0xd800 && codePoint <= 0xdfff)) fail('invalid_file');
+    return String.fromCodePoint(codePoint);
+  });
+}
+
+function extractDocxText(documentXml) {
+  const paragraphs = [];
+  let current = '';
+  let inParagraph = false;
+  const tokens = /<w:p(?:\s[^>]*)?>|<\/w:p>|<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/\s*>|<w:br(?:\s[^>]*)?\/\s*>/gu;
+  for (const match of documentXml.matchAll(tokens)) {
+    const token = match[0];
+    if (token.startsWith('<w:p')) {
+      if (inParagraph) fail('invalid_file');
+      inParagraph = true;
+      current = '';
+    } else if (token === '</w:p>') {
+      if (!inParagraph) fail('invalid_file');
+      paragraphs.push(current);
+      inParagraph = false;
+    } else if (!inParagraph || match[1] === undefined) {
+      if (inParagraph) current += token.startsWith('<w:tab') ? '\t' : '\n';
+    } else {
+      current += decodeXmlText(match[1]);
+    }
+  }
+  if (inParagraph) fail('invalid_file');
+  const text = paragraphs.filter((paragraph) => paragraph.trim() !== '').join('\n').normalize('NFC').trim();
+  if (text === '') fail('empty_file');
+  if (text.length > MAX_SOURCE_CHARS) fail('document_too_long');
+  return text;
 }
 
 async function extractDocx(bytes) {
   const validated = await validatedDocx(bytes);
   try {
-    const mammoth = (await import('mammoth')).default;
-    const result = await mammoth.extractRawText({ buffer: validated.archive });
-    const text = result.value.normalize('NFC').replace(/\r\n?/gu, '\n').trim();
-    if (text === '') fail('empty_file');
-    if (text.length > MAX_SOURCE_CHARS) fail('document_too_long');
+    const text = extractDocxText(validated.documentXml);
     return { text, pages: 0, paragraphs: validated.paragraphs, tables: validated.tables };
   } catch (error) {
     if (error instanceof ParserPolicyError) throw error;

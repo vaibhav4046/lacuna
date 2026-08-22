@@ -7,7 +7,7 @@ dated evidence.
 
 The accepted production deployment remains `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`.
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
-`dc5c343`, `35c32cd`, `6feb07a` and `c4f13e8`
+`dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8` and `e3c24ab`
 add durable-read/session routing fixes, GitLab observation persistence,
 LongMemEval evidence alignment, bounded DOCX XML extraction, and idempotent
 browser agent retries, and remove the obsolete DOCX parser dependency. They are

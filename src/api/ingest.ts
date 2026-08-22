@@ -597,11 +597,13 @@ async function preparedIngest(
     const completed = new Set(
       statuses.filter((status) => status.indexingStatus === 'completed').map((status) => status.id),
     );
-    if (receipts.accepted.some((id) => !completed.has(id))) {
-      throw new IngestReadinessError('timeout', receipts.accepted.length, receipts.refused.length);
+    // Exact receipts are durable even when the provider has not finished
+    // indexing by the request deadline. Preserve that accepted state so the
+    // connector can report a pending search index instead of a false failure.
+    if (receipts.accepted.every((id) => completed.has(id))) {
+      searchable = true;
+      indexing = 'completed';
     }
-    searchable = true;
-    indexing = 'completed';
   }
   return {
     sourceKey: prepared.sourceKey,

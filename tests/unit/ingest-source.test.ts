@@ -666,8 +666,7 @@ describe('prepared connector ingestion', () => {
   it.each([
     ['failed', 'failed'],
     ['errored', 'failed'],
-    ['queued', 'timeout'],
-  ] as const)('reports %s indexing with a typed readiness failure', async (status, reason) => {
+  ] as const)('reports terminal %s indexing with a typed readiness failure', async (status, reason) => {
     const result = ingestPreparedSource(
       cloudWithIndexingStatus(status),
       workspaceCollection(`${status}@example.com`),
@@ -680,6 +679,22 @@ describe('prepared connector ingestion', () => {
       acceptedRecords: expect.any(Number),
       refusedRecords: 0,
     });
+  });
+
+  it('returns an accepted pending report when indexing is still queued at the request deadline', async () => {
+    const result = await ingestPreparedSource(
+      cloudWithIndexingStatus('queued'),
+      workspaceCollection('queued@example.com'),
+      prepared(),
+      { awaitSearchable: true, readiness: { timeoutMs: 0, intervalMs: 0 } },
+    );
+    if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
+
+    expect(result).toMatchObject({
+      searchable: false,
+      indexing: 'accepted',
+    });
+    expect(result.accepted).toBeGreaterThan(0);
   });
 
   it('accepts the exact prepared extractor limit and refuses one extra character before Hydra writes', async () => {

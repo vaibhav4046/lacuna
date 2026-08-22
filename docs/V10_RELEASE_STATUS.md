@@ -71,7 +71,7 @@ typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
 
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,
-`bf987e2` and `750a9f5`
+`bf987e2`, `750a9f5` and `3dafaa9`
 are pushed to `v10-zeus-release`. They pass typecheck, web build, focused
 auth/Google/connector/DOCX tests, and the DOCX suite now runs 84/84 without
 the earlier extraction timeout; browser agent retries now preserve a UUID

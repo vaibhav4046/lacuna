@@ -90,12 +90,23 @@ record(
 
 const publicConnectors = await json<{ connectors: readonly Record<string, unknown>[] }>('/api/explore/connectors');
 const connectorRows = publicConnectors.body?.connectors ?? [];
+const expectedConnectorIds = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook'];
 record(
   publicConnectors.status === 200
-    && connectorRows.length === 8
+    && connectorRows.length === expectedConnectorIds.length
+    && connectorRows.map((connector) => connector['id']).join(',') === expectedConnectorIds.join(',')
+    && connectorRows.every((connector) => connector['availability'] === 'available' && connector['reason'] === null)
     && connectorRows.every((connector) => Object.keys(connector).sort().join(',') === 'availability,group,id,label,reason'),
-  'public connector catalogue is redacted',
+  'public connector catalogue is complete and redacted',
   `${publicConnectors.status} ${connectorRows.length} entries`,
+);
+
+const agentRows = (await json<readonly Record<string, unknown>[]>('/api/demo/agents')).body ?? [];
+const agentRoles = agentRows.map((agent) => agent['role']).sort().join(',');
+record(
+  agentRows.length === 2 && agentRoles === 'RESEARCHER,REVIEWER',
+  'public agent catalogue exposes both bounded roles',
+  `${agentRows.length} roles · ${agentRoles || 'none'}`,
 );
 
 // 3. Read only. A write to it is not a route.

@@ -187,6 +187,7 @@ describe('web product contracts', () => {
 
   it('releases onboarding busy state when private setup requests throw', () => {
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    expect(onboarding).toContain('if (busy) return;');
     for (const name of ['createWorkspace', 'storeFirstMemory', 'proveAnswer']) {
       const start = onboarding.indexOf(`  async function ${name}`);
       const end = onboarding.indexOf('\n\n  async function', start + 1);

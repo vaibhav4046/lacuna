@@ -140,6 +140,7 @@ export default function Onboarding() {
   }
 
   async function next() {
+    if (busy) return;
     setProblem(null);
     if (step === 0) {
       if (!workspaceReady && !(await createWorkspace())) return;

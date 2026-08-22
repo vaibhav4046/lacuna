@@ -7,10 +7,10 @@ dated evidence.
 
 ## Accepted product gate
 
-- 115 unit test files and 2,261 tests passed with no skips.
+- 117 unit test files and 2,271 tests passed with no skips in the latest serial verification.
 - Root and web TypeScript checks pass.
-- The production web bundle builds from 138 modules. The entry is 306.83 kB,
-  100.62 kB gzip.
+- The production web bundle builds from 139 modules. The entry is 306.97 kB,
+  100.66 kB gzip.
 - Copy lint scans 58 files with zero findings.
 - Public and private graph APIs expose an interactive overview and an exact
   provenance table/DAG with signed cursor pagination.
@@ -65,14 +65,19 @@ dated evidence.
   and connector response readers now cancel stalled streams instead of leaving
   the UI busy. Candidate Google token/JWKS JSON reads share the provider
   deadline, and landing overlays are shielded from particle labels.
+- LongMemEval has a scoped exact-span personal-memory bridge for explicit
+  first-person facts. The oracle ingest check reads all 500 records with zero
+  adapter failures and zero ground-truth leaks, producing 128 claims across
+  84 records (16.8% ingest coverage). No official score is claimed.
 
 ## Accepted production
 
 The stable URL is <https://lacuna-five.vercel.app>. It points to immutable
-deployment `dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz`, built from product commit
-`a471baf`. The latest stable smoke passed demo 31/31, Google OAuth 16/16,
-auth boundary 3/3, and provider voice 7/7. Public `main` and the release
-branch contain the accepted product source.
+deployment `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`, built from release commit
+`d5f9d02`. Post-deploy checks passed HydraDB health, Google OAuth start with
+PKCE/state/nonce and `Referrer-Policy: no-referrer`, malformed callback
+fail-closed handling, and private auth CSRF refusal. Public `main` and the
+release branch contain the accepted product source.
 
 The selected narration voice is the verified ElevenLabs **Vaibhav Lalwani
 Professional** clone. Raw clone audio stays local and gitignored so a biometric

@@ -65,15 +65,15 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `a471baf`
-(`feat(auth): add safe Google account linking`) with the production-only
-file-preview and webhook signing keys enabled. Root and web typecheck/build
-pass; the current full unit suite is 2,261/2,261 (115 files), and the stable alias passed demo
-smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
-provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
-dispatch mutations now require the exact current-session binding, with browser
-requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-mtty3t0z6-vaibhav4046s-projects.vercel.app` (`dpl_32sKxNhyJLFUYwdHyCY2JJF2srkz`), aliased to `https://lacuna-five.vercel.app`.
+The current production deployment is release commit `d5f9d02` with the
+production-only file-preview and webhook signing keys enabled. Root and web
+typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
+The stable alias points to immutable deployment
+`https://lacuna-ls23bt77b-vaibhav4046s-projects.vercel.app`
+(`dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`), aliased to
+`https://lacuna-five.vercel.app`. Post-deploy checks passed HydraDB health,
+Google PKCE/state/nonce start, hardened OAuth redirect headers, malformed
+callback refusal, and missing-CSRF refusal.
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback

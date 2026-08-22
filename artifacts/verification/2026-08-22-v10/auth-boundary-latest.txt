@@ -159,6 +159,9 @@ Candidate recovery/onboarding repair:
   workspace before opening `/app/dash`, and always releases its transition lock
 - source contract regressions are in `tests/unit/web-product-contracts.test.ts`;
   candidate-only until Vercel deployment quota resets
+- the onboarding `next()` transition also rejects re-entry before the disabled
+  control can render, so workspace creation, ingest and private proof cannot
+  be double-dispatched from rapid input
 
 Candidate workflow safety repairs:
 - Agents recommendation controls are disabled while a run is busy, preventing

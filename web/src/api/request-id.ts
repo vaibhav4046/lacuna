@@ -2,7 +2,7 @@
  * Request ids used by browser mutations must work in embedded browsers too.
  * Some expose Web Crypto but omit the convenience randomUUID method.
  */
-export function createClientRequestId(prefix: string): string {
+function createUuid(): string {
   const cryptoApi = globalThis.crypto;
   let value: string;
   if (typeof cryptoApi?.randomUUID === 'function') {
@@ -16,5 +16,19 @@ export function createClientRequestId(prefix: string): string {
     const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
     value = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
-  return `${prefix}-${value}`;
+  return value;
+}
+
+/**
+ * A UUID-shaped id for APIs that accept a browser idempotency key directly.
+ * Keep this separate from the prefixed ids used by schedule dispatch, whose
+ * keys are intentionally descriptive and are validated by a different
+ * server boundary.
+ */
+export function createClientUuid(): string {
+  return createUuid();
+}
+
+export function createClientRequestId(prefix: string): string {
+  return `${prefix}-${createUuid()}`;
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createClientRequestId } from '../../web/src/api/request-id.js';
+import { createClientRequestId, createClientUuid } from '../../web/src/api/request-id.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -15,5 +15,10 @@ describe('browser mutation request ids', () => {
       getRandomValues: (bytes: Uint8Array) => { bytes.fill(0x11); return bytes; },
     });
     expect(createClientRequestId('ui')).toMatch(/^ui-11111111-1111-4111-9111-111111111111$/u);
+  });
+
+  it('also exposes a raw UUID for APIs with UUID-shaped idempotency keys', () => {
+    vi.stubGlobal('crypto', { randomUUID: () => 'native-id' });
+    expect(createClientUuid()).toBe('native-id');
   });
 });

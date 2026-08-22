@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { postFor, postJson } from '../../api/client';
+import { createClientUuid } from '../../api/request-id';
 import { useScope, useScoped } from '../../api/scope';
 import { useSession } from '../../api/session';
 import { MONO } from '../../design/mark';
@@ -48,6 +49,10 @@ export function Agents() {
   const [problem, setProblem] = useState<string | null>(null);
   const [recommendationMessage, setRecommendationMessage] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState<string | null>(null);
+  // Preserve the id after a client timeout. The server may have finished the
+  // run even when the response was lost, so retrying with the same id lets the
+  // durable runtime return that exact run instead of starting another one.
+  const pendingRequestId = useRef<string | null>(null);
 
   function useRecommendation(recommendation: AgentRecommendationRecord): void {
     setTask(recommendation.task);
@@ -83,15 +88,21 @@ export function Agents() {
 
   async function launch(): Promise<void> {
     if (researcher === null || task.trim() === '') return;
+    const requestId = pendingRequestId.current ?? createClientUuid();
+    pendingRequestId.current = requestId;
     setBusy(true);
     setProblem(null);
     try {
       const response = await postJson(
         `${scope.base}/agent/run`,
-        { task, agentId: researcher.id },
+        { task, agentId: researcher.id, requestId },
         AGENT_REQUEST_TIMEOUT_MS,
         binding,
       );
+      // A timeout or transport failure is ambiguous: retain the key so the
+      // next click can safely replay it. All ordinary HTTP responses are
+      // authoritative and start a fresh request on the next launch.
+      if (response.status !== 408 && response.status !== 0) pendingRequestId.current = null;
       if (response.status === 429) setProblem('The run budget is busy. Try again after the current rate window.');
       else if (response.status === 401 || response.status === 403) setProblem('Permission required.');
       else if (response.status === 501) setProblem('No model provider is configured on this deployment.');
@@ -219,10 +230,14 @@ export function Agents() {
           <textarea
             aria-label="Agent task"
             value={task}
-            onChange={(event) => setTask(event.target.value)}
+            onChange={(event) => {
+              setTask(event.target.value);
+              if (!busy) pendingRequestId.current = null;
+            }}
             placeholder="Ask a task about a named subject in this workspace."
             rows={3}
             maxLength={600}
+            disabled={busy}
             style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.16)', padding: '12px 13px', color: '#FFFFFF', fontFamily: MONO, fontSize: '12px', outline: 'none', resize: 'vertical', lineHeight: 1.6 }}
           />
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>

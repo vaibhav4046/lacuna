@@ -227,7 +227,7 @@ interface AgentRunRequest {
   readonly requestId?: string;
 }
 
-/** Closed body for a browser run. Only voice may supply a durable request id. */
+/** Closed body for a browser or voice run. A UUID request id enables safe replay. */
 function readAgentRunRequest(value: unknown): AgentRunRequest | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const body = value as Readonly<Record<string, unknown>>;

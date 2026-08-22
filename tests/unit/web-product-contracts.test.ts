@@ -244,6 +244,14 @@ describe('web product contracts', () => {
     expect(work).not.toContain('crypto.randomUUID()');
   });
 
+  it('makes a browser agent retry idempotent after a lost response', () => {
+    const agents = readFileSync(new URL('../../web/src/app/routes/agents.tsx', import.meta.url), 'utf8');
+    expect(agents).toContain("import { createClientUuid } from '../../api/request-id';");
+    expect(agents).toContain('const requestId = pendingRequestId.current ?? createClientUuid();');
+    expect(agents).toContain('{ task, agentId: researcher.id, requestId }');
+    expect(agents).toContain('response.status !== 408 && response.status !== 0');
+  });
+
   it('does not show a historical no-evidence health run as failed in its lifecycle', () => {
     const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
     expect(work).toContain('Historical empty-workspace health records');

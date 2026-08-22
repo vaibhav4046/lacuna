@@ -24,12 +24,14 @@ Candidate verification:
 - focused auth/session/browser tests pass; the DOCX connector suite passes
   84/84 after the bounded XML extraction fix; the full serial suite has one
   unrelated MCP timeout on this rerun and passes when that file is rerun alone
-- commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8` and `dc5c343`
+- commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`, `dc5c343` and
+  `35c32cd`
   reduce
   duplicate durable account reads, route confirmed password sessions to
   onboarding, persist GitLab observations, align LongMemEval limitations and
   extract validated DOCX XML without a Mammoth ZIP roundtrip, and replay
-  browser agent runs safely after lost responses
+  browser agent runs safely after lost responses, and remove the obsolete DOCX
+  parser dependency
 - the candidate is not yet production-promoted because Vercel rejected a new
   deployment after the free daily deployment quota was exhausted
 - current branch preview: `dpl_GL6xgnCfanJr6QssK3HPY4R3TmkH`

@@ -69,12 +69,13 @@ The current production deployment is release commit `d5f9d02` with the
 production-only file-preview and webhook signing keys enabled. Root and web
 typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
 
-Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8` and
-`dc5c343`
+Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
+`dc5c343` and `35c32cd`
 are pushed to `v10-zeus-release`. They pass typecheck, web build, focused
 auth/Google/connector/DOCX tests, and the DOCX suite now runs 84/84 without
 the earlier extraction timeout; browser agent retries now preserve a UUID
-idempotency key after a lost response. They are not part of the accepted production
+idempotency key after a lost response, and the obsolete DOCX parser dependency
+is removed. They are not part of the accepted production
 deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the
 project's free daily deployment quota was exhausted.
 The stable alias points to immutable deployment

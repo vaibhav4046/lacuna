@@ -92,14 +92,14 @@ never auto-merges a verified address into a password account.
 They are not part of the accepted production
 deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the
 project's free daily deployment quota was exhausted.
-Vercel subsequently built the exact branch head as preview deployment
-`dpl_6kGLHtEZYK2Uh1QuiSeCnAS8q1Z9` from `cb0e9f4`. Its basic auth smoke passed
-3/3, but the preview had no production Google credentials and therefore failed
-the Google smoke 5/16; promoting it would make the hosted Google path
-unconfigured, so it remains a verification artifact rather than production.
-The later `641d039` landing fix is source-verified and locally built, but has
-not been promoted independently; it changes only the signed-in hero destination
-and does not alter the already accepted OAuth boundary.
+Vercel subsequently built the latest branch head as preview deployment
+`dpl_3JMPkrTwWtkPRJPxn5hzL9XViJBi` at
+`https://lacuna-4c7pfx2ub-vaibhav4046s-projects.vercel.app` from `7ff2fcb`.
+Its basic auth smoke passed 3/3. The preview has no production secrets, so
+Google smoke is 5/16, demo smoke is 22/31 and voice smoke is 3/7; promoting it
+would make the hosted Google, HydraDB and ElevenLabs paths unavailable. It is
+therefore a verification artifact rather than production. The stable alias
+remains the last production deployment with its required environment.
 The stable alias points to immutable deployment
 `https://lacuna-ls23bt77b-vaibhav4046s-projects.vercel.app`
 (`dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`), aliased to

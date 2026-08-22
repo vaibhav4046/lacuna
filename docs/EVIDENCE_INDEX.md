@@ -10,6 +10,7 @@ not transfer without a named rerun.
 | Evidence | Result | Location |
 | --- | --- | --- |
 | latest production deployment | `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF` is READY and aliased to `https://lacuna-five.vercel.app`; post-deploy HydraDB health, Google OAuth start, malformed callback refusal and CSRF refusal passed | Vercel deployment inspection and live probes on 2026-08-22 |
+| latest production smoke | demo surface 31/31, Google auth boundary 16/16, and provider voice boundary 7/7 pass against the stable alias | `npm run smoke:demo -- https://lacuna-five.vercel.app`, `npm run smoke:google -- https://lacuna-five.vercel.app`, `npm run smoke:voice -- https://lacuna-five.vercel.app` |
 | focused connector, auth, voice, agent and onboarding gates | focused connector/auth/voice/agent regressions plus onboarding readiness coverage passed; current candidate full unit suite is 2,271/2,271 | serial terminal runs on 2026-08-22 with one worker |
 | root and web typecheck/build | both typecheck and the 136-module web build exit 0 | terminal run on 2026-08-22 |
 | production HydraDB answer path | HydraDB Cloud stores collection-scoped addressed entity records; Lacuna applies temporal and relationship resolution after deterministic inspect reads | `src/hydra/cloud-graph.ts`, `src/hydra/cloud-source.ts`, `artifacts/hydra/cloud-ingest.json`, `artifacts/hydra/cloud-parity.json` |

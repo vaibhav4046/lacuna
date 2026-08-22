@@ -22,8 +22,8 @@ Live callback refusal:
 
 Candidate verification:
 - focused auth/session/browser tests pass; the DOCX connector suite passes
-  84/84 after the bounded XML extraction fix; the full serial suite has one
-  unrelated MCP timeout on this rerun and passes when that file is rerun alone
+  84/84 after the bounded XML extraction fix; the full serial suite passes
+  2,275/2,275 across 117 files
 - commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`, `dc5c343` and
   `35c32cd`
   reduce

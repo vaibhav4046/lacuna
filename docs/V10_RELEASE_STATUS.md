@@ -74,8 +74,9 @@ Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 are pushed to `v10-zeus-release`. They pass typecheck, web build, focused
 auth/Google/connector/DOCX tests, and the DOCX suite now runs 84/84 without
 the earlier extraction timeout; browser agent retries now preserve a UUID
-idempotency key after a lost response, and the obsolete DOCX parser dependency
-is removed. They are not part of the accepted production
+idempotency key after a lost response, the obsolete DOCX parser dependency is
+removed, and the current serial unit suite passes 2,275/2,275 (117 files).
+They are not part of the accepted production
 deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the
 project's free daily deployment quota was exhausted.
 The stable alias points to immutable deployment

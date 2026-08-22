@@ -15,6 +15,9 @@ pushed to `v10-zeus-release` but could not be promoted on 2026-08-22 because
 Vercel rejected new deployments after the free daily deployment quota was
 exhausted.
 
+The latest candidate passes the complete serial unit suite: 117 files and
+2,275 tests, with no skips.
+
 ## Accepted product gate
 
 - 117 unit test files and 2,271 tests passed with no skips in the latest serial verification.

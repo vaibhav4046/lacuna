@@ -7,11 +7,12 @@ dated evidence.
 
 The accepted production deployment remains `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`.
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
-`dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440` and
-`bf987e2`
+`dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,
+`bf987e2` and `750a9f5`
 add durable-read/session routing fixes, GitLab observation persistence,
 LongMemEval evidence alignment, bounded DOCX XML extraction, and idempotent
-browser agent retries, and remove the obsolete DOCX parser dependency. They are
+browser agent retries, duplicate-submit auth guards, and remove the obsolete
+DOCX parser dependency. They are
 pushed to `v10-zeus-release` but could not be promoted on 2026-08-22 because
 Vercel rejected new deployments after the free daily deployment quota was
 exhausted.

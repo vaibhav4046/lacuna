@@ -145,6 +145,8 @@ Candidate password sign-in repair:
 - the form keeps its busy lock through the confirmed session read and final
   onboarding/dashboard route decision, preventing duplicate submissions during
   a slow session boundary
+- the submit handler also rejects rapid re-entry before the busy state update
+  is rendered; recovery uses the same guard
 - the source contract regression is in
   `tests/unit/web-product-contracts.test.ts`; focused auth tests, typecheck,
   web build and the full serial suite pass; candidate-only until Vercel

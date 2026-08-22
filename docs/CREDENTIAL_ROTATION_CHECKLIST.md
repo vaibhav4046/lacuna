@@ -8,7 +8,7 @@ Everything below was read from variable names in gitignored files and from
 availability column is the result of a live call where one was possible, made
 without printing the key.
 
-Last inventory: 2026-08-19.
+Last inventory: 2026-08-22.
 
 ## What exists
 
@@ -29,9 +29,9 @@ Last inventory: 2026-08-19.
 
 | Credential | State | What it blocks |
 | --- | --- | --- |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | The local provider-bound candidate passes OAuth HTTP/security tests. Production must be redeployed and reverified with a fresh identity; legacy unbound records fail closed. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | The stable production alias passes OAuth start, PKCE/state/nonce and malformed-callback security probes; a fresh human identity round trip remains owner-operated evidence, and legacy unbound records fail closed. |
 | Supabase project URL and keys | MISSING | Nothing today. Accounts are durable in HydraDB Cloud already, so the Supabase path described in the earlier plan is not on the critical path and starting it now would replace a working, tested auth store with an untested one. |
-| A provider account credential for third-party sync | MISSING | GitHub snapshot, HTTPS/API, file import and webhook workflows are enabled; GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify remain planned. |
+| A provider account credential for third-party sync | MISSING | GitHub and GitLab public snapshot, HTTPS/API, file import and webhook workflows are enabled without user provider credentials; Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify remain planned. |
 
 ## One secret to rotate, and why
 

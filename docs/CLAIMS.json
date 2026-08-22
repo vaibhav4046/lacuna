@@ -505,12 +505,13 @@
     },
     {
       "id": "connector-catalogue",
-      "claim": "The public catalogue exposes seven redacted connector descriptors. Private workflows are implemented for one-off file ingestion, public GitHub snapshot import, public HTTPS/API import, and signed bounded webhook delivery; workspace observations remain authenticated.",
+      "claim": "The public catalogue exposes eight redacted connector descriptors. Private workflows are implemented for one-off file ingestion, public GitHub and GitLab snapshot imports, public HTTPS/API import, and signed bounded webhook delivery; workspace observations remain authenticated.",
       "capability": "PARTIAL",
       "data": "LIVE",
       "measured": {
         "available": [
           "GitHub",
+          "GitLab",
           "Markdown",
           "Text",
           "PDF",
@@ -520,7 +521,6 @@
         ],
         "unavailable_in_current_deployment": [],
         "planned": [
-          "GitLab",
           "Linear",
           "Jira",
           "Slack",
@@ -541,7 +541,7 @@
         "tests/unit/demo-api.test.ts"
       ],
       "reproduce": "npm run smoke:demo -- https://lacuna-five.vercel.app && npx vitest run tests/unit/connectors-api.test.ts tests/unit/demo-api.test.ts --maxWorkers=1",
-      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF, and the webhook secret is revealed only once. GitLab, Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify are not implemented."
+      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF, and the webhook secret is revealed only once. Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify are not implemented."
     },
     {
       "id": "package-session-blast-request",

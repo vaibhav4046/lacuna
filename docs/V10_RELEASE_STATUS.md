@@ -110,7 +110,7 @@ Commit `72d0ddb` adds two bounded Google callback guards: malformed or
 oversized state/code is rejected before hashing or provider contact, and the
 token/JWKS exchange has a ten-second deadline that returns a fixed timeout
 message instead of freezing the sign-in form. The current release-branch
-preview is `dpl_EdtFRMoQWo5XBcbencCJnepDACpN`; its preview environment has no
+preview is `dpl_7dkHagpjQ2TqK1Z6CSoGfJs2mnmE`; its preview environment has no
 production Hydra context store, and promotion is still queued because the
 Vercel Hobby deployment quota is exhausted. The stable alias remains on the
 accepted production deployment above, so it is not replaced by an unsafe preview.

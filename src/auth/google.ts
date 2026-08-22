@@ -164,7 +164,11 @@ async function readGoogleJson(response: Response, signal: AbortSignal): Promise<
     for (;;) {
       let next: ReadableStreamReadResult<Uint8Array>;
       try {
-        next = await Promise.race([reader.read(), aborted]);
+        // Node's fetch reader and the DOM lib describe the optional `value`
+        // on a completed read differently. The runtime contract is the same;
+        // normalize it at this boundary before racing the provider deadline.
+        const read = reader.read() as Promise<ReadableStreamReadResult<Uint8Array>>;
+        next = await Promise.race([read, aborted]);
       } catch (error) {
         if (error instanceof GoogleAuthError) throw error;
         if (signal.aborted) throw new GoogleAuthError('the Google provider timed out');

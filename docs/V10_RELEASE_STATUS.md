@@ -49,7 +49,7 @@ Production: <https://lacuna-five.vercel.app>
 | Landing motion | The exact release passed eight local viewports, 20/20 distinct desktop stages, 7/7 priority mobile scenes, a 29/29 manifest and reduced motion 6/6. The promoted production landing was then recaptured at desktop and mobile widths. |
 | Google auth boundary | The deployed security sweep passed 16/16: Google origin, exact callback, identity-only scopes, request-bound PKCE S256 and state, nonce binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. An authorized owner browser also completed the real chooser → callback → `/app/dash` round trip and remained signed in after revisiting `/signin`. |
 | Password account | Hosted password creation is deliberately disabled because the HydraDB document boundary cannot atomically enforce a unique email. A historical 12/12 run exists for an existing password identity; it is not the current signup path. |
-| Legacy Google migration gate | Vercel Production now carries a single exact-owner migration allowlist for the observed legacy password account. The existing callback rotates the old credential epoch and removes the recovery hash only after Google verifies the same address; the variable still needs a fresh production deployment before the immutable stable alias can consume it. |
+| Legacy Google migration gate | Vercel Production carries a single exact-owner migration allowlist for the observed legacy password account, and it is now included in production deployment `dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L`. The callback rotates the old credential epoch and removes the recovery hash only after Google verifies the same address; the live owner callback itself remains intentionally unexercised. |
 | Surface continuity | The deployed web endpoint, cloud-pointed Lacuna CLI and a Lacuna MCP process returned identical results for six outcome classes in `artifacts/continuity/one-context.json`. This is the same temporal read contract across those three surfaces, not a ChatGPT or Claude proof. |
 | ChatGPT public MCP | The ChatGPT Lacuna app called health, ask, timeline, explain, sentence read, search and fetch on the production endpoint. It resolved a temporal correction, exposed a two-source conflict, abstained on it, and returned a connector artifact. |
 | Agent runtime | Two built-in roles and two accepted production runs. The current adversarial run completed eight Researcher → Reviewer events, included both conflicting `runbook_owner` claims and quotations, reported zero unsupported claims, and made no authoritative writeback. |
@@ -105,9 +105,9 @@ Google smoke is 5/16, demo smoke is 22/31 and voice smoke is 3/7; promoting it
 would make the hosted Google, HydraDB and ElevenLabs paths unavailable. It is
 therefore a verification artifact rather than production. The stable alias
 remains the last production deployment with its required environment.
-The stable alias points to immutable deployment
-`https://lacuna-ls23bt77b-vaibhav4046s-projects.vercel.app`
-(`dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`), aliased to
+The stable alias now points to immutable deployment
+`https://lacuna-dlwetfu5c-vaibhav4046s-projects.vercel.app`
+(`dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L`), aliased to
 `https://lacuna-five.vercel.app`. Post-deploy checks passed HydraDB health,
 Google PKCE/state/nonce start, hardened OAuth redirect headers, malformed
 callback refusal, and missing-CSRF refusal.

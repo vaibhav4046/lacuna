@@ -185,6 +185,18 @@ describe('web product contracts', () => {
     expect(transition.indexOf('await refreshAfterMutation()')).toBeLessThan(transition.indexOf('setBusy(false)'));
   });
 
+  it('releases onboarding busy state when private setup requests throw', () => {
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    for (const name of ['createWorkspace', 'storeFirstMemory', 'proveAnswer']) {
+      const start = onboarding.indexOf(`  async function ${name}`);
+      const end = onboarding.indexOf('\n\n  async function', start + 1);
+      const section = onboarding.slice(start, end === -1 ? onboarding.indexOf('\n\n  async function next', start) : end);
+      expect(section, name).toContain('try {');
+      expect(section, name).toContain('} finally {');
+      expect(section, name).toContain('setBusy(false);');
+    }
+  });
+
   it('keeps recovery busy through session confirmation and always releases the form lock', () => {
     const forgot = readFileSync(new URL('../../web/src/auth/Forgot.tsx', import.meta.url), 'utf8');
     const submitStart = forgot.indexOf('  async function submit()');

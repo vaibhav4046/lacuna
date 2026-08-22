@@ -79,12 +79,15 @@ export default function Onboarding() {
     const name = workspace.trim();
     if (name === '') { setProblem('Name your workspace first.'); return false; }
     setBusy(true);
-    const result = await postJson('/api/workspace', { workspace: name }, 15_000, sessionBinding ?? undefined);
-    setBusy(false);
-    if (!result.ok) { setProblem('The workspace could not be created.'); return false; }
-    setWorkspaceReady(true);
-    setProblem(null);
-    return true;
+    try {
+      const result = await postJson('/api/workspace', { workspace: name }, 15_000, sessionBinding ?? undefined);
+      if (!result.ok) { setProblem('The workspace could not be created.'); return false; }
+      setWorkspaceReady(true);
+      setProblem(null);
+      return true;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function storeFirstMemory(): Promise<boolean> {
@@ -92,42 +95,48 @@ export default function Onboarding() {
     if (text === '') { setProblem('Add a note or choose Use example before storing.'); return false; }
     if (sourceTitle.trim() === '') { setProblem('Give the first memory a title.'); return false; }
     setBusy(true);
-    const result = await postJson('/api/workspace/ingest', { title: sourceTitle.trim(), text }, 15_000, sessionBinding ?? undefined);
-    setBusy(false);
-    if (!result.ok) { setProblem(ingestProblem(result.status)); return false; }
-    const body = result.body;
-    if (typeof body !== 'object' || body === null || (body as { ok?: unknown }).ok !== true) {
-      setProblem('No structured memory was extracted. Try a direct statement such as “Session data is stored in HydraDB Cloud.”');
-      return false;
+    try {
+      const result = await postJson('/api/workspace/ingest', { title: sourceTitle.trim(), text }, 15_000, sessionBinding ?? undefined);
+      if (!result.ok) { setProblem(ingestProblem(result.status)); return false; }
+      const body = result.body;
+      if (typeof body !== 'object' || body === null || (body as { ok?: unknown }).ok !== true) {
+        setProblem('No structured memory was extracted. Try a direct statement such as “Session data is stored in HydraDB Cloud.”');
+        return false;
+      }
+      const report = body as { accepted?: unknown; searchable?: unknown };
+      const accepted = typeof report.accepted === 'number' ? report.accepted : 0;
+      if (accepted <= 0) {
+        setProblem('The store accepted no searchable record. Edit the note and try again.');
+        return false;
+      }
+      setReceipt({ accepted, searchable: report.searchable === true });
+      setSourceStored(true);
+      setProblem(null);
+      return true;
+    } finally {
+      setBusy(false);
     }
-    const report = body as { accepted?: unknown; searchable?: unknown };
-    const accepted = typeof report.accepted === 'number' ? report.accepted : 0;
-    if (accepted <= 0) {
-      setProblem('The store accepted no searchable record. Edit the note and try again.');
-      return false;
-    }
-    setReceipt({ accepted, searchable: report.searchable === true });
-    setSourceStored(true);
-    setProblem(null);
-    return true;
   }
 
   async function proveAnswer(): Promise<boolean> {
     const text = question.trim();
     if (text === '') { setProblem('Ask one private question first.'); return false; }
     setBusy(true);
-    const result = await retryWhilePending(
-      () => postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined),
-      (value) => receipt?.searchable === false
-        && (value === null || value.answer === null || value.answer.status === 'NO_EVIDENCE'),
-      { attempts: receipt?.searchable === false ? 4 : 1 },
-    );
-    setBusy(false);
-    const reason = answerProblem(result);
-    if (reason !== '') { setProblem(reason); return false; }
-    setAnswer(result?.answer ?? null);
-    setProblem(null);
-    return true;
+    try {
+      const result = await retryWhilePending(
+        () => postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined),
+        (value) => receipt?.searchable === false
+          && (value === null || value.answer === null || value.answer.status === 'NO_EVIDENCE'),
+        { attempts: receipt?.searchable === false ? 4 : 1 },
+      );
+      const reason = answerProblem(result);
+      if (reason !== '') { setProblem(reason); return false; }
+      setAnswer(result?.answer ?? null);
+      setProblem(null);
+      return true;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function next() {

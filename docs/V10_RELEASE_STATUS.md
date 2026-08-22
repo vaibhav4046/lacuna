@@ -55,6 +55,7 @@ Production: <https://lacuna-five.vercel.app>
 | ChatGPT public MCP | The ChatGPT Lacuna app called health, ask, timeline, explain, sentence read, search and fetch on the production endpoint. It resolved a temporal correction, exposed a two-source conflict, abstained on it, and returned a connector artifact. |
 | Agent runtime | Two built-in roles and two accepted production runs. The current adversarial run completed eight Researcher → Reviewer events, included both conflicting `runbook_owner` claims and quotations, reported zero unsupported claims, and made no authoritative writeback. |
 | Connector indexing boundary | Production `dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L` includes the queued-status fix. Candidate `09fde47` additionally treats a readiness transport/deadline after exact receipts as accepted-pending; terminal `failed`/`errored` statuses and caller cancellation remain failures. The follow-up candidate awaits the next Vercel deployment window. |
+| Connector observation clarity candidate | `abdc5fb` renders accepted documents with readiness-only historical failures as `SYNCING` and keeps the explicit indexing caveat; 29/29 web connector tests and the web build pass. It awaits the same deployment window. |
 
 The full dated artifact ledger remains in [EVIDENCE_INDEX.md](EVIDENCE_INDEX.md).
 

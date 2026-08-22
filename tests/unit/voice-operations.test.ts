@@ -83,13 +83,13 @@ describe('closed voice operation registry', () => {
     ]);
   });
 
-  it('keeps connector catalogue and setup operations unavailable until their API exists', () => {
+  it('keeps connector catalogue and setup operations available now that their API exists', () => {
     expect(voiceOperationAvailability({ version: 1, kind: 'summarize', resource: 'connectors' }))
-      .toEqual({ available: false, reason: 'connector_catalogue_unavailable' });
+      .toEqual({ available: true, reason: null });
     expect(voiceOperationAvailability({ version: 1, kind: 'open_connector_setup' }))
-      .toEqual({ available: false, reason: 'connector_catalogue_unavailable' });
+      .toEqual({ available: true, reason: null });
     expect(voiceOperationAvailability({ version: 1, kind: 'open_file_setup' }))
-      .toEqual({ available: false, reason: 'connector_catalogue_unavailable' });
+      .toEqual({ available: true, reason: null });
     expect(voiceOperationAvailability({ version: 1, kind: 'summarize', resource: 'memory' }))
       .toEqual({ available: true, reason: null });
   });

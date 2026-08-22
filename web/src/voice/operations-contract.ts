@@ -79,10 +79,9 @@ export function isVoiceOperation(value: unknown): value is VoiceOperation {
 }
 export function voiceOperationEffect(operation: VoiceOperation): VoiceEffect { return FACTS[operation.kind].effect; }
 export function voiceOperationRequiresConfirmation(operation: VoiceOperation): boolean { return FACTS[operation.kind].confirm; }
-export function voiceOperationAvailability(operation: VoiceOperation): { readonly available: boolean; readonly reason: 'connector_catalogue_unavailable' | null } {
-  if (operation.kind === 'open_connector_setup' || operation.kind === 'open_file_setup' || (operation.kind === 'summarize' && operation.resource === 'connectors')) {
-    return { available: false, reason: 'connector_catalogue_unavailable' };
-  }
+export function voiceOperationAvailability(_operation: VoiceOperation): { readonly available: boolean; readonly reason: 'connector_catalogue_unavailable' | null } {
+  // The planner may open the authenticated connector catalogue. Runtime
+  // session, CSRF, and provider capability checks remain authoritative.
   return { available: true, reason: null };
 }
 const ROUTE_LABELS: Readonly<Record<VoiceRoute, string>> = Object.freeze({ dash: 'Dashboard', ask: 'Ask', memory: 'Memory', timeline: 'Timeline', graph: 'Graph', health: 'Context health', work: 'Work', agents: 'Agents', tools: 'Tools', voice: 'Voice', models: 'Models', mcp: 'MCP', sdk: 'SDK and API', cli: 'CLI', conn: 'Connectors', evals: 'Evaluations', hydra: 'HydraDB', settings: 'Settings' });

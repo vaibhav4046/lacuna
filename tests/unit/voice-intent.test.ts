@@ -59,18 +59,18 @@ describe('deterministic voice intent parser', () => {
     expect(operation('evaluation summary').operation).toEqual({ version: 1, kind: 'summarize', resource: 'evaluations' });
   });
 
-  it('returns connector summary and setup operations as unavailable plans', () => {
+  it('returns connector summary and setup operations as available plans', () => {
     expect(operation('summarize connectors')).toMatchObject({
       operation: { version: 1, kind: 'summarize', resource: 'connectors' },
       effect: 'read',
-      available: false,
-      reason: 'connector_catalogue_unavailable',
+      available: true,
+      reason: null,
     });
     expect(operation('open connector setup')).toMatchObject({
       operation: { version: 1, kind: 'open_connector_setup' },
       effect: 'navigation',
-      available: false,
-      reason: 'connector_catalogue_unavailable',
+      available: true,
+      reason: null,
     });
     expect(operation('open file setup').operation).toEqual({ version: 1, kind: 'open_file_setup' });
   });

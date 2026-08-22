@@ -311,6 +311,7 @@ function observedCount(value: unknown): number | null {
   if (Array.isArray(value)) count = value.length;
   else if (isRecord(value) && Array.isArray(value['rows'])) count = value['rows'].length;
   else if (isRecord(value) && Array.isArray(value['nodes'])) count = value['nodes'].length;
+  else if (isRecord(value) && Array.isArray(value['connectors'])) count = value['connectors'].length;
   else if (isRecord(value)) count = 1;
   else return null;
   return count <= MAX_VOICE_RESULT_COUNT ? count : null;
@@ -462,14 +463,14 @@ export class VoiceOperationExecutor {
           : success(plan, answer.count, answer.answer, answer.status);
       }
       case 'summarize': {
-        if (operation.resource === 'connectors') return unavailableResult(plan, 'operation_unavailable');
-        const raw = await getVoiceOperationJson(`/api/workspace/${operation.resource}`, this.#api);
+        const raw = await getVoiceOperationJson(`/api/workspace/${operation.resource}`, this.#api, sessionBinding);
         const count = observedCount(raw);
         return count === null ? unavailableResult(plan, 'invalid_response') : success(plan, count);
       }
       case 'open_connector_setup':
       case 'open_file_setup':
-        return unavailableResult(plan, 'operation_unavailable');
+        this.#navigate(operation.kind === 'open_file_setup' ? '/app/conn#file' : '/app/conn');
+        return success(plan, 0);
       case 'remember': {
         const raw = await postVoiceOperationJson('/api/workspace/ingest', {
           title: 'Voice memory', text: operation.text,

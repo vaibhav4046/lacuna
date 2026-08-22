@@ -482,35 +482,35 @@ describe('exhaustive operation allowlist', () => {
     }
   });
 
-  it('performs no fetch for refusal, controls, or unavailable connector operations', async () => {
-    const { calls, executor, trust } = harness(() => { throw new Error('no execution request allowed'); });
+  it('executes connector summaries and setup navigation after planning', async () => {
+    const { calls, executor, trust, navigate } = harness((path) => path.endsWith('/connectors')
+      ? json({ connectors: [{ id: 'text' }, { id: 'github' }] })
+      : (() => { throw new Error(`unexpected execution request: ${path}`); })());
     const operations = [
       refused(),
       planned({ version: 1, kind: 'confirm' }),
       planned({ version: 1, kind: 'cancel' }),
-      planned({ version: 1, kind: 'summarize', resource: 'connectors' }, {
-        available: false, reason: 'connector_catalogue_unavailable',
-      }),
-      planned({ version: 1, kind: 'open_connector_setup' }, {
-        available: false, reason: 'connector_catalogue_unavailable',
-      }),
-      planned({ version: 1, kind: 'open_file_setup' }, {
-        available: false, reason: 'connector_catalogue_unavailable',
-      }),
+      planned({ version: 1, kind: 'summarize', resource: 'connectors' }),
+      planned({ version: 1, kind: 'open_connector_setup' }),
+      planned({ version: 1, kind: 'open_file_setup' }),
     ] as const;
 
-    for (const operation of operations) {
+    for (const [index, operation] of operations.entries()) {
       const plan = await trust(operation);
       const before = calls.length;
-      await expect(executor.execute(plan)).resolves.toMatchObject({
-        status: operation.reason === 'connector_catalogue_unavailable' ? 'unavailable' : 'refused',
-      });
-      expect(calls).toHaveLength(before);
+      const result = await executor.execute(plan);
+      if (index === 3 || index === 4 || index === 5) expect(result.status).toBe('succeeded');
+      else expect(result.status).toBe('refused');
+      if (index === 3) expect(calls.slice(before).map((call) => call.path)).toEqual(['/api/workspace/connectors']);
+      else expect(calls).toHaveLength(before);
     }
-    expect(calls.map((call) => call.path)).toEqual(Array.from(
-      { length: operations.length },
-      () => '/api/workspace/voice/intent',
-    ));
+    expect(calls.map((call) => call.path)).toEqual([
+      '/api/workspace/voice/intent', '/api/workspace/voice/intent', '/api/workspace/voice/intent',
+      '/api/workspace/voice/intent', '/api/workspace/connectors',
+      '/api/workspace/voice/intent', '/api/workspace/voice/intent',
+    ]);
+    expect(navigate).toHaveBeenNthCalledWith(1, '/app/conn');
+    expect(navigate).toHaveBeenNthCalledWith(2, '/app/conn#file');
   });
 });
 

@@ -146,12 +146,10 @@ export function voiceOperationRequiresConfirmation(operation: VoiceOperation): b
   return VOICE_OPERATION_REGISTRY[operation.kind].requiresConfirmation;
 }
 
-export function voiceOperationAvailability(operation: VoiceOperation): VoiceOperationAvailability {
-  if (operation.kind === 'open_connector_setup'
-    || operation.kind === 'open_file_setup'
-    || (operation.kind === 'summarize' && operation.resource === 'connectors')) {
-    return { available: false, reason: 'connector_catalogue_unavailable' };
-  }
+export function voiceOperationAvailability(_operation: VoiceOperation): VoiceOperationAvailability {
+  // Connector catalogue and setup are real authenticated workspace routes.
+  // Availability here means the operation can be planned; the route still
+  // enforces session, CSRF, and provider capability boundaries at execution.
   return { available: true, reason: null };
 }
 

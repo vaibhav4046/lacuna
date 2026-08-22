@@ -55,6 +55,8 @@ export function Agents() {
   const pendingRequestId = useRef<string | null>(null);
 
   function useRecommendation(recommendation: AgentRecommendationRecord): void {
+    if (busy) return;
+    pendingRequestId.current = null;
     setTask(recommendation.task);
     setRun(null);
     setProblem(null);
@@ -171,7 +173,7 @@ export function Agents() {
               </details>
             )}
             <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className="hv-text" onClick={() => useRecommendation(recommendation)} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: '#FFFFFF', padding: '8px 11px', cursor: 'pointer' }}>USE THIS TASK</button>
+              <button className="hv-text" disabled={busy} onClick={() => useRecommendation(recommendation)} style={{ ...note, background: 'none', border: '1px solid rgba(128,82,255,0.55)', color: busy ? '#7A7A7A' : '#FFFFFF', padding: '8px 11px', cursor: busy ? 'default' : 'pointer' }}>USE THIS TASK</button>
               {scope.demo ? (
                 <span style={{ ...note, letterSpacing: '0.08em' }}>SIGN IN TO SCHEDULE · PREVIEW STAYS READ ONLY</span>
               ) : (

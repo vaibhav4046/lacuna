@@ -281,6 +281,13 @@ describe('web product contracts', () => {
     expect(agents).toContain('response.status !== 408 && response.status !== 0');
   });
 
+  it('does not let a recommendation replace the task while a run is pending', () => {
+    const agents = readFileSync(new URL('../../web/src/app/routes/agents.tsx', import.meta.url), 'utf8');
+    expect(agents).toContain('if (busy) return;');
+    expect(agents).toContain('pendingRequestId.current = null;');
+    expect(agents).toContain('<button className="hv-text" disabled={busy} onClick={() => useRecommendation(recommendation)}');
+  });
+
   it('does not show a historical no-evidence health run as failed in its lifecycle', () => {
     const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
     expect(work).toContain('Historical empty-workspace health records');

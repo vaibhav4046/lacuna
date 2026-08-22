@@ -91,18 +91,24 @@ export async function postVoiceOperationJson(
         // The private mutation below remains fail-closed if no token appears.
       }
     }
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': options.csrfToken(),
+    const send = () => {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': options.csrfToken(),
+      };
+      if (sessionBinding !== undefined) headers['X-Lacuna-Voice-Binding'] = sessionBinding;
+      return options.fetchImpl(path, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify(body),
+      });
     };
-    if (sessionBinding !== undefined) headers['X-Lacuna-Voice-Binding'] = sessionBinding;
-    const response = await options.fetchImpl(path, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers,
-      body: JSON.stringify(body),
-    });
+    let response = await send();
+    // A concurrent session read can issue the cookie just after the first
+    // request starts. Retry once only when that new proof is visible.
+    if (response.status === 403 && options.csrfToken() !== '') response = await send();
     return await responseJson(response);
   } catch (error) {
     if (error instanceof VoiceOperationRequestError) throw error;

@@ -69,7 +69,11 @@ alias was still refused before body processing.
 
 The current production deployment is release commit `d5f9d02` with the
 production-only file-preview and webhook signing keys enabled. Root and web
-typecheck/build pass; the current full unit suite is 2,294/2,294 (117 files).
+typecheck/build pass; focused candidate auth, connector, agent, voice and
+ingestion suites are green. A serial all-unit run currently exits unexpectedly
+when the isolated Vitest worker reaches the Node worker-thread file-parser
+tests, so 2,294/2,294 is retained only as historical evidence, not a current
+candidate claim.
 
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,
@@ -83,8 +87,7 @@ removed, password sign-in remains locked until session confirmation and route
 completion, recovery and first-run onboarding now fail closed if their session
 confirmation is missing, Agents task recommendations cannot replace a task
 while a run is busy, and the GitLab workflow anchor resolves to its real
-review/confirm surface. The latest serial unit suite passes 2,294/2,294
-(117 files). The sign-in and recovery submit handlers also reject re-entry
+review/confirm surface. The sign-in and recovery submit handlers also reject re-entry
 before their busy state can be observed, closing a rapid Enter/duplicate
 mutation edge. Work cancel/retry and schedule dispatch use the same guard, so
 rapid clicks cannot issue a second lifecycle mutation. Password-owned Google

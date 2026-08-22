@@ -159,6 +159,21 @@ describe('voice operation planning boundary', () => {
     });
   });
 
+  it('keeps navigation available when an embedded browser cannot reach the optional planner', async () => {
+    const navigate = vi.fn<(path: string) => void>();
+    const executor = new VoiceOperationExecutor({
+      fetchImpl: vi.fn(async () => { throw new TypeError('network unavailable'); }) as unknown as typeof fetch,
+      navigate,
+      randomUUID: () => REQUEST_ID,
+      csrfToken: () => CSRF,
+      sessionBinding: () => SESSION_BINDING_A,
+    });
+    const plan = await executor.plan('open dashboard', '/app/voice');
+    expect(plan.operation).toEqual({ version: 1, kind: 'navigate', route: 'dash' });
+    await expect(executor.execute(plan)).resolves.toMatchObject({ status: 'succeeded', operationKind: 'navigate' });
+    expect(navigate).toHaveBeenCalledWith('/app/dash');
+  });
+
   it('refuses private planning without one exact opaque session binding', async () => {
     const valid = planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' });
     for (const binding of [null, '', 'A'.repeat(64), 'a'.repeat(63), 'a'.repeat(65), 'g'.repeat(64)]) {

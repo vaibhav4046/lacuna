@@ -31,6 +31,7 @@ import {
   type VoiceOperationApiOptions,
   type VoiceOperationRequestFailure,
 } from '../api/voice-operations';
+import { planVoiceIntent } from '../../../src/voice/intent.js';
 
 const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const SESSION_BINDING = /^[0-9a-f]{64}$/u;
@@ -421,12 +422,24 @@ export class VoiceOperationExecutor {
     const context = planContext(currentRoute, this.#sessionBinding());
     if (!REQUEST_ID.test(requestId)) throw new VoiceOperationRequestError('invalid_plan');
     if (context === null) throw new VoiceOperationRequestError('session_required');
-    const raw = await requestVoiceIntent(
-      { version: 1, requestId, transcript, currentRoute },
-      this.#api,
-      context.sessionBinding,
-    );
-    const plan = readVoiceOperationPlan(raw, requestId, context);
+    let plan: VoiceOperationPlan | null = null;
+    try {
+      const raw = await requestVoiceIntent(
+        { version: 1, requestId, transcript, currentRoute },
+        this.#api,
+        context.sessionBinding,
+      );
+      plan = readVoiceOperationPlan(raw, requestId, context);
+    } catch (error) {
+      // Embedded browsers can reject the optional planner request before it
+      // reaches the server. Reuse the same deterministic grammar locally for
+      // navigation and read-only operations only; writes never gain authority
+      // from this fallback and remain fail-closed in the assistant controller.
+      if (!(error instanceof VoiceOperationRequestError) || error.failure !== 'request_failed') throw error;
+      const local = planVoiceIntent(transcript, currentRoute, context.scope);
+      if (local.operation !== null && (local.effect === 'write' || local.operation.kind === 'confirm')) throw error;
+      plan = { ...local, requestId };
+    }
     if (plan === null) throw new VoiceOperationRequestError('invalid_plan');
     this.#planContexts.set(plan, context);
     return plan;

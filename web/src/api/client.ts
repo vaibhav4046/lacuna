@@ -27,6 +27,17 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const SESSION_BINDING = /^[0-9a-f]{64}$/u;
 const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
 
+/**
+ * Fetch errors can cross a browser realm (or come from a polyfill), so an
+ * `instanceof Error` check is not a reliable way to recognise an abort. The
+ * stable boundary is the standard error name.
+ */
+function hasErrorName(error: unknown, names: readonly string[]): boolean {
+  return typeof error === 'object' && error !== null
+    && typeof (error as { readonly name?: unknown }).name === 'string'
+    && names.includes((error as { readonly name: string }).name);
+}
+
 function reasonForStatus(status: number): string {
   if (status === 401 || status === 403) return PERMISSION_REQUIRED;
   if (status === 408 || status === 504) return REQUEST_TIMED_OUT;
@@ -34,7 +45,11 @@ function reasonForStatus(status: number): string {
 }
 
 function reasonFor(error: unknown): string {
-  return error instanceof Error && REASONS.has(error.message) ? error.message : CONNECTION_FAILED;
+  const message = typeof error === 'object' && error !== null
+    && typeof (error as { readonly message?: unknown }).message === 'string'
+    ? (error as { readonly message: string }).message
+    : null;
+  return message !== null && REASONS.has(message) ? message : CONNECTION_FAILED;
 }
 
 /**
@@ -98,7 +113,9 @@ export async function getJson<T>(path: string, signal: AbortSignal, sessionBindi
     if (!response.ok) throw new Error(reasonForStatus(response.status));
     return (await readJsonBody(response, control.signal)) as T;
   } catch (error) {
-    if (timedOut && error instanceof Error && error.name === 'AbortError') throw new Error(REQUEST_TIMED_OUT);
+    if (timedOut && hasErrorName(error, ['AbortError', 'TimeoutError'])) {
+      throw new Error(REQUEST_TIMED_OUT);
+    }
     throw error;
   } finally {
     globalThis.clearTimeout(timeout);
@@ -269,7 +286,7 @@ export async function postJson(
     }
     return { ok: sent.response.ok, status: sent.response.status, body: parsed };
   } catch (error) {
-    return { ok: false, status: error instanceof Error && error.name === 'AbortError' ? 408 : 0, body: null };
+    return { ok: false, status: hasErrorName(error, ['AbortError', 'TimeoutError']) ? 408 : 0, body: null };
   }
 }
 

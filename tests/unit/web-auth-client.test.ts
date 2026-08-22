@@ -321,6 +321,21 @@ describe('the browser auth client', () => {
     await expect(request).resolves.toMatchObject({ ok: false, status: 408 });
   });
 
+  it('recognises a cross-realm timeout error from a browser fetch implementation', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { cookie: 'lacuna_csrf=csrf-under-test' });
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => (
+      await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject({ name: 'TimeoutError' }), { once: true });
+      })
+    )));
+
+    const request = postJson('/api/auth/signin', { email: 'probe@example.invalid', password: 'not-a-password' });
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    await expect(request).resolves.toMatchObject({ ok: false, status: 408 });
+  });
+
   it('primes the CSRF cookie before the first auth submit on a clean browser', async () => {
     const browserDocument = { cookie: '' };
     vi.stubGlobal('document', browserDocument);

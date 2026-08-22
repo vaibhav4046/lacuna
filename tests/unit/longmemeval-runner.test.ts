@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createDeterministicAnswerer } from '../../benchmarks/longmemeval/answerer.js';
-import { runLongMemEval } from '../../benchmarks/longmemeval/run.js';
+import { cliRunOptions, runLongMemEval } from '../../benchmarks/longmemeval/run.js';
 import type { IngestibleQuestion } from '../../benchmarks/longmemeval/schema.js';
 import type { HydraSource } from '../../src/hydra/source.js';
 
@@ -31,6 +31,13 @@ function unavailable(): HydraSource {
 }
 
 describe('LongMemEval answerer', () => {
+  it('passes the bounded CLI limit into the runner options', () => {
+    expect(cliRunOptions(['--dataset', 'oracle.json', '--limit', '7'], createDeterministicAnswerer(1))).toMatchObject({
+      dataset: 'oracle.json',
+      limit: 7,
+    });
+  });
+
   it('produces a truthful abstention when the store cannot answer', async () => {
     const answer = await createDeterministicAnswerer(1).answer(QUESTION, unavailable());
     expect(answer).toBe('I do not have enough evidence in this memory to answer that.');

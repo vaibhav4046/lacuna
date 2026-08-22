@@ -186,8 +186,28 @@ export function parseArgs(argv: readonly string[]): { dataset: string | null; li
   return { dataset, limit };
 }
 
+/** Build the exact runner options represented by the CLI flags. */
+export function cliRunOptions(
+  argv: readonly string[],
+  answerer: LongMemEvalAnswerer,
+): RunOptions {
+  const { dataset, limit } = parseArgs(argv);
+  if (dataset === null) {
+    throw new LongMemEvalRunError(
+      'Usage: npm run bench:longmemeval -- --dataset <path to longmemeval_*.json> [--limit N]',
+    );
+  }
+  return {
+    dataset,
+    outDir: 'artifacts/longmemeval/run',
+    answerer,
+    ...(limit === undefined ? {} : { limit }),
+  };
+}
+
 async function main(): Promise<void> {
-  const { dataset } = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const { dataset } = parseArgs(argv);
   if (dataset === null) {
     throw new LongMemEvalRunError(
       'Usage: npm run bench:longmemeval -- --dataset <path to longmemeval_*.json> [--limit N]',
@@ -199,11 +219,7 @@ async function main(): Promise<void> {
   const records = loadDataset(dataset);
   process.stdout.write(`Loaded ${records.length} instances from ${dataset}\n\n`);
   const { createDeterministicAnswerer } = await import('./answerer.js');
-  const outcome = await runLongMemEval({
-    dataset,
-    outDir: 'artifacts/longmemeval/run',
-    answerer: createDeterministicAnswerer(),
-  });
+  const outcome = await runLongMemEval(cliRunOptions(argv, createDeterministicAnswerer()));
   process.stdout.write(`Wrote ${outcome.hypotheses.length} hypotheses to ${outcome.hypothesisPath}\n`);
   process.stdout.write(`Run artifact: ${outcome.artifactPath}\n`);
 }

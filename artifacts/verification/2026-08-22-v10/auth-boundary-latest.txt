@@ -21,11 +21,13 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- focused auth/session/browser tests pass; the full serial suite has one
-  unrelated flaky DOCX extraction timeout on this rerun and passes when that
-  file is rerun alone
-- commits `b11b471` and `c48d58d` reduce duplicate durable account reads and
-  route a confirmed password session to onboarding when its workspace is new
+- focused auth/session/browser tests pass; the DOCX connector suite passes
+  84/84 after the bounded XML extraction fix; the full serial suite has one
+  unrelated MCP timeout on this rerun and passes when that file is rerun alone
+- commits `b11b471`, `c48d58d`, `1264423`, `356190c` and `5451bf8` reduce
+  duplicate durable account reads, route confirmed password sessions to
+  onboarding, persist GitLab observations, align LongMemEval limitations and
+  extract validated DOCX XML without a Mammoth ZIP roundtrip
 - the candidate is not yet production-promoted because Vercel rejected a new
   deployment after the free daily deployment quota was exhausted
 - current branch preview: `dpl_9iXYwpg142tq6H6oVEZgPMrGhs22` (preview env has no

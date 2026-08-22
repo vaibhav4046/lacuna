@@ -43,7 +43,7 @@ Production: <https://lacuna-five.vercel.app>
 | HydraDB health | `GET /api/health` returned HTTP 200 on 2026-08-21 with four passing checks: config, token, reachable and round trip. The final stable-domain smoke measured the context store ready in 65 ms. |
 | Public graph | `GET /api/explore/graph?mode=overview&limit=1` returned 453 total nodes, 682 total edges, zero orphan edges and a signed next cursor on 2026-08-21. |
 | Public MCP | `POST /mcp` with `tools/list` returned seven read-only tools on 2026-08-21: `lacuna_ask`, `lacuna_explain`, `lacuna_timeline`, `lacuna_read_question`, `search`, `fetch`, `lacuna_health`. |
-| Official LongMemEval oracle adapter | The published 500-instance oracle was loaded and adapted on 2026-08-22: 0 parse failures, 0 adapter failures, 0 ground-truth leaks, 117 extracted claims across 78/500 instances (15.6%). This is ingestion evidence only; no official answer/judge score is claimed. |
+| Official LongMemEval oracle adapter | The published 500-instance oracle was loaded and adapted on 2026-08-22: 0 parse failures, 0 adapter failures, 0 ground-truth leaks, 128 extracted claims across 84/500 instances (16.8%). This is ingestion evidence only; no official answer/judge score is claimed. |
 | Web | The current alias passed demo smoke 31/31 (including the public redacted connector catalogue), Google boundary smoke 16/16, and auth boundary smoke 3/3 after the first-run onboarding release. |
 | Route/browser matrix | Production passed 198/198 normal-motion and 198/198 reduced-motion checks: 22 routes at nine viewports, zero console errors, exceptions, failed requests or horizontal overflow. |
 | Landing motion | The exact release passed eight local viewports, 20/20 distinct desktop stages, 7/7 priority mobile scenes, a 29/29 manifest and reduced motion 6/6. The promoted production landing was then recaptured at desktop and mobile widths. |
@@ -69,11 +69,12 @@ The current production deployment is release commit `d5f9d02` with the
 production-only file-preview and webhook signing keys enabled. Root and web
 typecheck/build pass; the current full unit suite is 2,271/2,271 (117 files).
 
-Candidate auth commits `b11b471` and `c48d58d` are pushed to
-`v10-zeus-release` and pass typecheck, web build and focused auth/session tests.
-They are not part of the accepted production deployment yet: Vercel rejected
-the promotion attempt on 2026-08-22 after the project's free daily deployment
-quota was exhausted.
+Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c` and `5451bf8`
+are pushed to `v10-zeus-release`. They pass typecheck, web build, focused
+auth/Google/connector/DOCX tests, and the DOCX suite now runs 84/84 without
+the earlier extraction timeout. They are not part of the accepted production
+deployment yet: Vercel rejected the promotion attempt on 2026-08-22 after the
+project's free daily deployment quota was exhausted.
 The stable alias points to immutable deployment
 `https://lacuna-ls23bt77b-vaibhav4046s-projects.vercel.app`
 (`dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`), aliased to

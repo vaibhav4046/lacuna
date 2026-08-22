@@ -1,0 +1,28 @@
+Lacuna V10 post-promotion verification — 2026-08-22
+
+Stable production deployment:
+- deployment: dpl_12hddZ6fkCmTLoWMPg5bXrj3Rg8L
+- alias: https://lacuna-five.vercel.app
+- build: READY
+
+Stable smoke gates after promotion:
+- auth boundary: 3/3
+- Google OAuth security boundary: 16/16
+- demo/API/connectors/agent catalogue: 32/32
+- voice provider boundary: 7/7
+
+Owner browser checks:
+- existing authenticated owner session remained signed in after revisiting
+  /signin and redirected to /app/dash
+- /app/agents loaded both Researcher and Reviewer roles
+- bounded task completed in 4,337 ms with 2 claims and NO AUTHORITATIVE WRITE
+
+Connector follow-up:
+- one reviewed public HTTPS import returned accepted=1, searchable=0,
+  stored observation and a readiness_failed detail while HydraDB polling hit
+  the request transport deadline
+- candidate commit 09fde47 changes that exact boundary to accepted-pending;
+  focused ingestion/connector tests pass 73/73
+- 09fde47 is pushed but its follow-up production promotion was rejected by
+  Vercel's free daily deployment quota; stable production still runs the
+  prior queued-status fix until the next deployment window

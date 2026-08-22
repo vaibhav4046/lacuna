@@ -1542,6 +1542,18 @@ export class ApiRouter {
         send(response, 405, { error: 'method' });
         return HANDLED;
       }
+      // Browser auth mutations carry an Origin header. When one is present,
+      // bind it to the canonical deployment origin before accepting even a
+      // valid double-submit token. Non-browser callers may omit Origin for
+      // backwards-compatible CLI/API use; a supplied cross-origin value is
+      // never accepted.
+      const requestOrigin = firstHeader(request.headers.origin);
+      if (this.#siteOrigin !== undefined
+        && requestOrigin !== undefined
+        && !exactVoiceOrigin(requestOrigin, this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
       if (!csrfOk(request, cookies)) {
         send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
         return HANDLED;

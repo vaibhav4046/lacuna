@@ -129,10 +129,11 @@ async function session(jar: Jar): Promise<Response> {
   return response;
 }
 
-async function post(jar: Jar, path: string, body: unknown, options: { csrf?: string } = {}): Promise<Response> {
+async function post(jar: Jar, path: string, body: unknown, options: { csrf?: string; origin?: string } = {}): Promise<Response> {
   const token = options.csrf ?? jar.get('lacuna_csrf') ?? '';
   const headers: Record<string, string> = { 'content-type': 'application/json', cookie: jar.header() };
   if (token !== '') headers['x-csrf-token'] = decodeURIComponent(token);
+  if (options.origin !== undefined) headers.origin = options.origin;
   const response = await fetch(url(path), { method: 'POST', headers, body: JSON.stringify(body) });
   jar.absorb(response);
   return response;
@@ -151,6 +152,7 @@ beforeAll(async () => {
   const router = new ApiRouter({
     store: accounts,
     secure: false,
+    siteOrigin: 'http://test.invalid',
     health: async () => ({ command: 'doctor', ok: true, warnings: 0, exitCode: 0, checks: [] }),
     inventory: buildDemo().inventory,
     now: () => clock,
@@ -332,6 +334,18 @@ describe('sign up', () => {
 });
 
 describe('sign in', () => {
+  it('refuses a browser auth mutation from a different origin', async () => {
+    nextMinute();
+    const jar = await primed();
+
+    const response = await post(jar, '/api/auth/signin', {
+      email: 'new@example.com', password: PASSWORD,
+    }, { origin: 'https://evil.example' });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.getSetCookie().some((line) => line.startsWith('lacuna_session='))).toBe(false);
+  });
+
   it('rejects the wrong password', async () => {
     const jar = await primed();
 

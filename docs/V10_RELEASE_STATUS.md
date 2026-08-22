@@ -97,6 +97,12 @@ The Work schedule control uses the same browser-compatible request-id fallback
 as voice, so an embedded browser without `crypto.randomUUID` cannot strand
 `RUN NOW` in a busy state. The regression is covered by the web product gate.
 
+The private connector request lifecycle now tolerates hosting adapters that omit
+or partially implement Node's request socket. HTTPS imports no longer turn the
+socket close hook into a 500 before the reader runs; the connector API regression
+suite covers the adapter boundary and the stable production failure was traced to
+this exact TypeError.
+
 ## Queued auth hardening
 
 Commit `72d0ddb` adds two bounded Google callback guards: malformed or

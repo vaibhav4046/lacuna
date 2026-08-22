@@ -119,7 +119,7 @@ production secrets.
 The candidate voice boundary now cancels a speech body reader when response
 headers arrive but the provider stream stalls, returning a bounded provider
 failure instead of leaving the voice controller busy. The regression is covered
-in the 2,244-test candidate suite and is not described as live until promotion
+in the 2,245-test candidate suite and is not described as live until promotion
 succeeds.
 
 The candidate GitHub transport also cancels its response body reader when the
@@ -128,7 +128,7 @@ bounded `github_timeout` rather than leaving a connector run waiting forever.
 
 The candidate HydraDB client now cancels a response body reader when the caller
 aborts after headers arrive, returning a bounded transport failure rather than
-leaving a query waiting forever. Its regression is covered in the 2,244-test
+leaving a query waiting forever. Its regression is covered in the 2,245-test
 candidate suite.
 
 The candidate browser connector client now reads JSON through a bounded response

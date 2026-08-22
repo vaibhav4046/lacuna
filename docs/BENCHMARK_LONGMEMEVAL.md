@@ -156,6 +156,18 @@ budget. A partial diagnostic run must opt into `--max-calls` explicitly. No such
 key is configured in this repository and no such call has been made, so there
 is still no official score.
 
+Before treating a downloaded file as the official oracle tier, run the identity
+gate:
+
+```bash
+npm run bench:longmemeval:verify -- data/longmemeval_oracle.json
+```
+
+It requires the pinned filename, 15,388,478 bytes, the recorded SHA-256, exactly
+500 unique question ids, and the recorded SHA-256 of the lexically sorted id
+stream. The command only verifies acquisition identity; it never calls a judge
+and never emits a score.
+
 ## The ability taxonomy
 
 Five abilities in the paper: Information Extraction, Multi-Session Reasoning,

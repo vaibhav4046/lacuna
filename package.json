@@ -24,6 +24,7 @@
     "reset": "tsx scripts/reset.ts",
     "bench": "tsx scripts/benchmark.ts",
     "bench:longmemeval": "tsx benchmarks/longmemeval/run.ts",
+    "bench:longmemeval:verify": "tsx scripts/longmemeval-verify.ts",
     "bench:longmemeval:judge": "tsx scripts/longmemeval-judge.ts",
     "eval": "tsx scripts/evaluate.ts",
     "snapshot": "tsx scripts/export-snapshot.ts",

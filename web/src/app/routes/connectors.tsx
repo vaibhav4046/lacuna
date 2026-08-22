@@ -360,6 +360,10 @@ export function PrivateConnectors() {
   const [secret, setSecret] = useState<Extract<WebhookIssueResponse, { readonly created: true }> | null>(null);
   const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook'; readonly message: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  // React's disabled prop is only visible after a render. Keep the lock in a
+  // ref as well so two rapid clicks cannot dispatch duplicate imports or
+  // webhook lifecycle mutations in the same event turn.
+  const pendingRef = useRef<string | null>(null);
   const [receiptPresentation, dispatchReceipt] = useReducer(connectorReceiptPresentation, null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<FilePreviewResponse | null>(null);
@@ -379,6 +383,18 @@ export function PrivateConnectors() {
   const binding = session?.binding ?? null;
   const workspace = session?.workspace ?? null;
   const [control, setControl] = useState<AbortController | null>(null);
+
+  function beginPending(value: string): boolean {
+    if (pendingRef.current !== null) return false;
+    pendingRef.current = value;
+    setPending(value);
+    return true;
+  }
+
+  function finishPending(): void {
+    pendingRef.current = null;
+    setPending(null);
+  }
 
   useEffect(() => {
     const next = new AbortController();
@@ -425,7 +441,7 @@ export function PrivateConnectors() {
 
   useEffect(() => {
     if (control === null || arbiter === null) return undefined;
-    dispatchCatalogue({ type: 'reset' }); setWebhook(null); setWebhookNeedsRefresh(false); setSecret(null); setProblem(null); setPending(null);
+    dispatchCatalogue({ type: 'reset' }); setWebhook(null); setWebhookNeedsRefresh(false); setSecret(null); setProblem(null); finishPending();
     dispatchReceipt({ type: 'reset' }); setSelectedFile(null); setFilePreview(null); resetNativeFileSelection(fileInput.current); setGithubUrl(''); setGithubReview(null); setGitlabUrl(''); setGitlabReview(null);
     setHttpsUrl(''); setHttpsReview(null); setConfirmRevoke(null);
     void refreshCatalogue();
@@ -457,93 +473,123 @@ export function PrivateConnectors() {
     const held = selectedFile;
     if (held === null || held.size > 8 * 1024 * 1024 || selectedType === null) { setProblem({ source: 'file', message: 'Choose one .txt, .md, .json, .csv, .pdf, or .docx file smaller than 8 MiB.' }); return; }
     if (!available(selectedType)) { setProblem({ source: 'file', message: status(selectedType)?.availability === 'unavailable' ? 'This file importer is unavailable on this deployment.' : 'File import availability is unknown. Refresh recorded state.' }); return; }
+    if (!beginPending('file-preview')) return;
     const generation = ++fileGeneration.current;
-    dispatchReceipt({ type: 'dispatched', connector: 'file-preview' });
-    setPending('file-preview'); setProblem(null); setFilePreview(null);
-    const result = await previewFile(held, context!);
-    if (generation === fileGeneration.current && result.kind === 'receipt') setFilePreview(result.value);
-    else if (result.kind !== 'discarded') setProblem({ source: 'file', message: outcomeMessage(result) ?? 'File preview was not confirmed.' });
-    await refreshCatalogue();
-    setPending(null);
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'file-preview' });
+      setProblem(null); setFilePreview(null);
+      const result = await previewFile(held, context!);
+      if (generation === fileGeneration.current && result.kind === 'receipt') setFilePreview(result.value);
+      else if (result.kind !== 'discarded') setProblem({ source: 'file', message: outcomeMessage(result) ?? 'File preview was not confirmed.' });
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   async function importSelected() {
     const heldFile = selectedFile;
     const heldPreview = filePreview;
     if (heldFile === null || heldPreview === null) return;
-    dispatchReceipt({ type: 'dispatched', connector: 'file-import' });
-    setFilePreview(null); setSelectedFile(null); resetNativeFileSelection(fileInput.current); setPending('file-import'); setProblem(null);
-    const result = await importFile(heldFile, heldPreview.previewToken, context!);
-    setPending(null);
-    if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: heldPreview.normalizedDigest });
-    else if (result.kind !== 'discarded') setProblem({ source: 'file', message: outcomeMessage(result) ?? 'File import was not confirmed.' });
-    await refreshCatalogue();
+    if (!beginPending('file-import')) return;
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'file-import' });
+      setFilePreview(null); setSelectedFile(null); resetNativeFileSelection(fileInput.current); setProblem(null);
+      const result = await importFile(heldFile, heldPreview.previewToken, context!);
+      if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: heldPreview.normalizedDigest });
+      else if (result.kind !== 'discarded') setProblem({ source: 'file', message: outcomeMessage(result) ?? 'File import was not confirmed.' });
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   async function confirmGithub() {
     const held = githubReview;
     if (held === null) return;
-    dispatchReceipt({ type: 'dispatched', connector: 'github' });
-    setGithubReview(null); setPending('github'); setProblem(null);
-    const result = await importGitHub(held, context!);
-    setPending(null);
-    if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
-    else if (result.kind !== 'discarded') setProblem({ source: 'github', message: outcomeMessage(result) ?? 'GitHub import was not confirmed.' });
-    await refreshCatalogue();
+    if (!beginPending('github')) return;
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'github' });
+      setGithubReview(null); setProblem(null);
+      const result = await importGitHub(held, context!);
+      if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
+      else if (result.kind !== 'discarded') setProblem({ source: 'github', message: outcomeMessage(result) ?? 'GitHub import was not confirmed.' });
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   async function confirmGitlab() {
     const held = gitlabReview;
     if (held === null) return;
-    dispatchReceipt({ type: 'dispatched', connector: 'gitlab' });
-    setGitlabReview(null); setPending('gitlab'); setProblem(null);
-    const result = await importGitLab(held, context!);
-    setPending(null);
-    if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
-    else if (result.kind !== 'discarded') setProblem({ source: 'gitlab', message: outcomeMessage(result) ?? 'GitLab import was not confirmed.' });
-    await refreshCatalogue();
+    if (!beginPending('gitlab')) return;
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'gitlab' });
+      setGitlabReview(null); setProblem(null);
+      const result = await importGitLab(held, context!);
+      if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
+      else if (result.kind !== 'discarded') setProblem({ source: 'gitlab', message: outcomeMessage(result) ?? 'GitLab import was not confirmed.' });
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   async function confirmHttps() {
     const held = httpsReview;
     if (held === null) return;
-    dispatchReceipt({ type: 'dispatched', connector: 'https' });
-    setHttpsReview(null); setPending('https'); setProblem(null);
-    const result = await importHttps(held.submitted, context!);
-    setPending(null); setHttpsUrl('');
-    if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.contentDigest });
-    else if (result.kind !== 'discarded') setProblem({ source: 'https', message: outcomeMessage(result) ?? 'HTTPS import was not confirmed.' });
-    await refreshCatalogue();
+    if (!beginPending('https')) return;
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'https' });
+      setHttpsReview(null); setProblem(null);
+      const result = await importHttps(held.submitted, context!);
+      setHttpsUrl('');
+      if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.contentDigest });
+      else if (result.kind !== 'discarded') setProblem({ source: 'https', message: outcomeMessage(result) ?? 'HTTPS import was not confirmed.' });
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   async function setupWebhook() {
-    setPending('webhook'); setProblem(null); setSecret(null);
-    const result = await arbiter!.issue();
-    setPending(null);
-    if (typeof result === 'object') {
-      if (!result.reconciled) setWebhookNeedsRefresh(true);
-      setProblem({ source: 'webhook', message: outcomeMessage(result) ?? 'Webhook setup was safely refused.' });
-    } else if (result === 'indeterminate') { setWebhookNeedsRefresh(true); setProblem({ source: 'webhook', message: 'Webhook setup is indeterminate. Check the authoritative state; do not issue again automatically.' }); }
-    await refreshCatalogue();
+    if (!beginPending('webhook')) return;
+    try {
+      setProblem(null); setSecret(null);
+      const result = await arbiter!.issue();
+      if (typeof result === 'object') {
+        if (!result.reconciled) setWebhookNeedsRefresh(true);
+        setProblem({ source: 'webhook', message: outcomeMessage(result) ?? 'Webhook setup was safely refused.' });
+      } else if (result === 'indeterminate') { setWebhookNeedsRefresh(true); setProblem({ source: 'webhook', message: 'Webhook setup is indeterminate. Check the authoritative state; do not issue again automatically.' }); }
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   async function removeWebhook() {
     const confirmation = confirmRevoke;
+    if (confirmation === null || !beginPending('webhook-revoke')) return;
     commitAndRestoreWebhookTrigger(() => {
-      setConfirmRevoke(null); setPending('webhook-revoke'); setProblem(null); setSecret(null);
+      setConfirmRevoke(null); setProblem(null); setSecret(null);
     }, flushSync, webhookTrigger.current);
-    const result = await arbiter!.revoke(confirmation);
-    commitAndRestoreWebhookTrigger(() => {
-      setPending(null);
-      if (typeof result === 'object') {
-        if (!result.reconciled) setWebhookNeedsRefresh(true);
-        setProblem({ source: 'webhook', message: outcomeMessage(result) ?? 'Webhook revocation was safely refused.' });
-      } else if (result === 'indeterminate') {
-        setWebhookNeedsRefresh(true);
-        setProblem({ source: 'webhook', message: 'Revocation could not be confirmed. Authoritative state was checked once; do not retry automatically.' });
-      }
-    }, flushSync, webhookTrigger.current);
-    await refreshCatalogue();
+    try {
+      const result = await arbiter!.revoke(confirmation);
+      commitAndRestoreWebhookTrigger(() => {
+        finishPending();
+        if (typeof result === 'object') {
+          if (!result.reconciled) setWebhookNeedsRefresh(true);
+          setProblem({ source: 'webhook', message: outcomeMessage(result) ?? 'Webhook revocation was safely refused.' });
+        } else if (result === 'indeterminate') {
+          setWebhookNeedsRefresh(true);
+          setProblem({ source: 'webhook', message: 'Revocation could not be confirmed. Authoritative state was checked once; do not retry automatically.' });
+        }
+      }, flushSync, webhookTrigger.current);
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
   }
 
   function cancelWebhookRevoke() {
@@ -555,10 +601,14 @@ export function PrivateConnectors() {
   }
 
   async function refreshWebhookExplicitly() {
-    setWebhookNeedsRefresh(false); setPending('webhook-state'); setProblem(null); setSecret(null);
-    const result = await arbiter!.refresh();
-    setPending(null);
-    if (result === 'indeterminate') { setWebhookNeedsRefresh(true); setProblem({ source: 'webhook', message: 'Webhook state could not be verified. Try an explicit state refresh later.' }); }
+    if (!beginPending('webhook-state')) return;
+    try {
+      setWebhookNeedsRefresh(false); setProblem(null); setSecret(null);
+      const result = await arbiter!.refresh();
+      if (result === 'indeterminate') { setWebhookNeedsRefresh(true); setProblem({ source: 'webhook', message: 'Webhook state could not be verified. Try an explicit state refresh later.' }); }
+    } finally {
+      finishPending();
+    }
   }
 
   return (

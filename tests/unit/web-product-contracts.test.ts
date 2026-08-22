@@ -174,6 +174,21 @@ describe('web product contracts', () => {
     expect(signIn.indexOf('await refreshAfterMutation()')).toBeLessThan(signIn.indexOf('setBusy(false)'));
   });
 
+  it('locks connector mutations synchronously before React can repaint disabled controls', () => {
+    const connectors = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
+    expect(connectors).toContain('const pendingRef = useRef<string | null>(null);');
+    expect(connectors).toContain('function beginPending(value: string): boolean');
+    expect(connectors).toContain('if (!beginPending(\'file-preview\')) return;');
+    expect(connectors).toContain('if (!beginPending(\'file-import\')) return;');
+    expect(connectors).toContain('if (!beginPending(\'github\')) return;');
+    expect(connectors).toContain('if (!beginPending(\'gitlab\')) return;');
+    expect(connectors).toContain('if (!beginPending(\'https\')) return;');
+    expect(connectors).toContain('if (!beginPending(\'webhook\')) return;');
+    expect(connectors).toMatch(/beginPending\('webhook-revoke'\)/u);
+    expect(connectors).toContain('if (!beginPending(\'webhook-state\')) return;');
+    expect(connectors).toContain('function finishPending(): void');
+  });
+
   it('keeps first-run onboarding busy until the validated session has routed', () => {
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
     const transitionStart = onboarding.indexOf("if (step === 4) {");

@@ -175,8 +175,13 @@ export class PlaybackSession {
         // boundary so the controller cannot remain stuck in CHECKING_CONTEXT
         // or leave the answer marked as not yet speaking. The event handler
         // remains authoritative where it is delivered and `started` is
-        // idempotent through the local guard.
-        void element.play().then(() => {
+        // idempotent through the local guard. Older WebKit implementations
+        // return `undefined` from play(); in that case the native lifecycle
+        // events remain the only start signal and must not be treated as an
+        // exception.
+        const playResult = element.play() as unknown as PromiseLike<void> | undefined;
+        if (playResult === undefined) return;
+        void Promise.resolve(playResult).then(() => {
           if (!current() || finished || started) return;
           playing();
         }).catch((error: unknown) => {

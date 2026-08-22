@@ -125,7 +125,7 @@ describe('web product contracts', () => {
     expect(route).toContain('Configured signed webhooks accept bounded at-least-once deliveries without per-delivery manual review.');
     expect(route).toContain('Each valid signed event is a bounded at-least-once delivery, not a manually reviewed one-off import.');
     expect(route).not.toContain('Every source is reviewed before one import.');
-    expect(onboarding).toContain('review a one-off file, public GitHub snapshot, or public HTTPS source; or configure signed bounded at-least-once webhook delivery');
+    expect(onboarding).toContain('After this setup, Memory also supports a one-off file, public GitHub snapshot, public HTTPS source, or signed bounded at-least-once webhook delivery.');
     expect(onboarding).not.toContain('review a file, public GitHub snapshot, public HTTPS source, or signed webhook');
   });
 
@@ -137,7 +137,7 @@ describe('web product contracts', () => {
 
   it('does not claim onboarding ingests a source before the Memory form is open', () => {
     const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
-    expect(onboarding).toContain("b: 'After setup, paste a note in Memory; review a one-off file, public GitHub snapshot, or public HTTPS source; or configure signed bounded at-least-once webhook delivery.'");
+    expect(onboarding).toContain("b: 'Start with one note you control. After this setup, Memory also supports a one-off file, public GitHub snapshot, public HTTPS source, or signed bounded at-least-once webhook delivery.'");
     expect(onboarding).not.toContain("b: 'Paste a note or transcript now. More connectors are planned.'");
   });
 
@@ -159,6 +159,18 @@ describe('web product contracts', () => {
     expect(onboarding).toContain('MODEL SWITCHING · PLANNED');
     expect(onboarding).not.toContain('setModel(');
     expect(onboarding).not.toContain('MODELS.map');
+  });
+
+  it('makes first-run onboarding prove a private memory before opening the shell', () => {
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    expect(onboarding).toContain("postJson('/api/workspace/ingest'");
+    expect(onboarding).toContain("postFor<OnboardingAnswer>('/api/workspace/query'");
+    expect(onboarding).toContain('USE EXAMPLE');
+    expect(onboarding).toContain('STORE FIRST MEMORY');
+    expect(onboarding).toContain('CHECK PRIVATE ANSWER');
+    expect(onboarding).toContain('sourceStored');
+    expect(onboarding).toContain('answer !== null');
+    expect(onboarding).not.toContain("go('/app/dash')");
   });
 
   it('documents private MCP access with capabilities, never workspace names', () => {

@@ -90,3 +90,7 @@ Read-only signed-session browser check:
 - `/app/work` rendered the daily schedule and five observed runs
 - `/app/connectors` rendered all seven implemented workflows as available
 - the browser reported no console errors or warnings during these route reads
+
+Production runtime scan:
+- Vercel grouped runtime errors for the production project returned no errors
+  in the selected one-hour window after the connector lifecycle fix

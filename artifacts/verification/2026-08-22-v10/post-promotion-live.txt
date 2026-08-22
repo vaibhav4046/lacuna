@@ -14,6 +14,8 @@ Stable smoke gates after promotion:
 Owner browser checks:
 - existing authenticated owner session remained signed in after revisiting
   /signin and redirected to /app/dash
+- guarded Google link start returned `/app/settings?google=already_linked`,
+  and Settings displayed "This account is already linked to Google."
 - /app/agents loaded both Researcher and Reviewer roles
 - bounded task completed in 4,337 ms with 2 claims and NO AUTHORITATIVE WRITE
 

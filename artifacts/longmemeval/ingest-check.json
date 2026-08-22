@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-08-22T11:35:57.399Z",
+  "measuredAt": "2026-08-22T13:09:45.534Z",
   "dataset": "data/longmemeval_oracle.json",
   "instances": 500,
   "parseFailures": [],
@@ -21,5 +21,5 @@
     "commute_duration": 2,
     "bedroom_color": 1
   },
-  "ms": 869
+  "ms": 916
 }

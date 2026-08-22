@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRouter } from '../../src/api/router.js';
 import { FileAccounts } from '../../src/auth/accounts.js';
+import { GOOGLE_PROVIDER_TIMEOUT_MS, identityFromCode } from '../../src/auth/google.js';
 import { hashPassword, verifyPassword } from '../../src/auth/password.js';
 import { AccountStore, newSessionVersion } from '../../src/auth/store.js';
 
@@ -140,6 +141,37 @@ describe('Google OAuth HTTP boundary', () => {
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('/signin?google=state');
     expect(response.headers.get('cache-control')).toBe('no-store, private');
+  });
+
+  it('rejects oversized callback proofs before hashing or contacting Google', async () => {
+    const begun = await start();
+    const held = cookies(begun);
+    const attempt = oauthAttempt(held);
+    if (attempt === null) throw new Error('OAuth proof missing');
+    const provider = vi.fn(async () => { throw new Error('provider must not be called'); });
+    vi.stubGlobal('fetch', provider);
+
+    const stateResponse = await nativeFetch(`${base}/api/auth/google/callback?state=${'a'.repeat(44)}&code=unused`, {
+      redirect: 'manual', headers: { cookie: cookieHeader(held) },
+    });
+    expect(stateResponse.headers.get('location')).toBe('/signin?google=state');
+
+    const codeResponse = await nativeFetch(
+      `${base}/api/auth/google/callback?state=${encodeURIComponent(attempt.state)}&code=${'c'.repeat(2_049)}`,
+      { redirect: 'manual', headers: { cookie: cookieHeader(held) } },
+    );
+    expect(codeResponse.headers.get('location')).toBe('/signin?google=code');
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it('bounds a stalled token or key provider call and fails with a stable auth error', async () => {
+    vi.useFakeTimers();
+    const provider = (async (_input: string | URL, init?: RequestInit) => await new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('timed out', 'TimeoutError')), { once: true });
+    })) as unknown as typeof fetch;
+    const request = identityFromCode(CONFIG, 'one-time-code', provider);
+    await vi.advanceTimersByTimeAsync(GOOGLE_PROVIDER_TIMEOUT_MS);
+    await expect(request).rejects.toThrow('the Google provider timed out');
   });
 
   it('checks state before accepting a forged provider cancellation', async () => {

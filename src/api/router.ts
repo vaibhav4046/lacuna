@@ -33,7 +33,7 @@ import {
 import type { HydraImpactReadPort } from '../hydra/impact-read.js';
 import { canonicalEntityName } from '../retrieval/resolve.js';
 import type { WorkspaceView } from './workspace.js';
-import { authorizeUrl, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
+import { authorizeUrl, GoogleAuthError, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
 import { extractionReport } from './extract-demo.js';
 import type { HydraSource } from '../hydra/source.js';
@@ -118,6 +118,7 @@ import {
  */
 const GOOGLE_ATTEMPT_COOKIE = 'lacuna_google_attempt';
 const GOOGLE_STATE_TTL_SECONDS = 600;
+const GOOGLE_CODE_MAX_CHARS = 2_048;
 const GOOGLE_START_LIMIT = { limit: 8, windowMs: GOOGLE_STATE_TTL_SECONDS * 1_000, maxKeys: 4_096 };
 
 interface GoogleAttempt {
@@ -2980,7 +2981,12 @@ export class ApiRouter {
     const google = this.#google;
     const url = new URL(request.url ?? '/', 'http://placeholder');
     const state = url.searchParams.get('state');
-    const cookie = state === null ? null : googleAttemptCookie(state);
+    // State is always a 43-character base64url proof minted by Lacuna. Reject
+    // malformed values before hashing attacker-controlled query bytes or
+    // looking up a dynamically named cookie.
+    const cookie = state !== null && GOOGLE_PROOF_SHAPE.test(state)
+      ? googleAttemptCookie(state)
+      : null;
     const clear = cookie === null ? [] : [clearCookie(cookie, this.#secure)];
     if (google === undefined) return this.#redirect(response, '/signin?google=unconfigured', clear);
 
@@ -3003,7 +3009,7 @@ export class ApiRouter {
     }
 
     const code = url.searchParams.get('code');
-    if (code === null || code === '') {
+    if (code === null || code === '' || code.length > GOOGLE_CODE_MAX_CHARS) {
       return this.#redirect(response, '/signin?google=code', clear);
     }
 
@@ -3021,8 +3027,12 @@ export class ApiRouter {
     let identity;
     try {
       identity = await identityFromCode(google, code, fetch, { codeVerifier, expectedNonce });
-    } catch {
-      return this.#redirect(response, '/signin?google=identity', clear);
+    } catch (error) {
+      return this.#redirect(
+        response,
+        `/signin?google=${error instanceof GoogleAuthError && error.message === 'the Google provider timed out' ? 'timeout' : 'identity'}`,
+        clear,
+      );
     }
 
     try {

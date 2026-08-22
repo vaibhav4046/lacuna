@@ -80,6 +80,11 @@ provider cancellation responses, so a forged `error=access_denied` callback
 cannot consume an in-flight sign-in attempt. The full unit suite is 2,231/2,231
 (111 files), including this regression.
 
+The OAuth callback also rejects malformed or oversized state/code parameters
+before hashing or contacting Google, and bounds the token/JWKS exchange at ten
+seconds. A provider stall now returns to sign-in with a fixed timeout message
+instead of leaving the form frozen; no credential or provider detail is shown.
+
 Credential mutations now prime the CSRF cookie with a bounded, read-only
 `/api/session` preflight when a clean browser submits before the session
 provider's first read completes. The server still fails closed if the token

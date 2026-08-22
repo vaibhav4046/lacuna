@@ -54,6 +54,9 @@ const JWKS = 'https://www.googleapis.com/oauth2/v3/certs';
 
 const SCOPES = 'openid email profile';
 
+/** A provider outage must return to sign-in, never leave the callback hanging. */
+export const GOOGLE_PROVIDER_TIMEOUT_MS = 10_000;
+
 /** The issuer Google uses. Both spellings are current and both are accepted. */
 const ISSUERS = new Set(['https://accounts.google.com', 'accounts.google.com']);
 
@@ -197,11 +200,20 @@ function keyTtl(response: Response, now: number): number {
   return now + bounded * 1_000;
 }
 
-async function googleKey(kid: string, fetchImpl: typeof fetch, now: number): Promise<KeyObject> {
+async function googleKey(
+  kid: string,
+  fetchImpl: typeof fetch,
+  now: number,
+  signal?: AbortSignal,
+): Promise<KeyObject> {
   const cached = keyCache.get(kid);
   if (cached !== undefined && cached.expiresAt > now) return cached.key;
 
-  const response = await fetchImpl(JWKS, { method: 'GET', headers: { Accept: 'application/json' } });
+  const response = await fetchImpl(JWKS, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    ...(signal === undefined ? {} : { signal }),
+  });
   if (!response.ok) throw new GoogleAuthError(`the key endpoint answered ${response.status}`);
   let body: GoogleJwks;
   try {
@@ -242,6 +254,7 @@ export interface GoogleIdTokenOptions {
   readonly expectedNonce?: string;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
+  readonly signal?: AbortSignal;
 }
 
 /** Verify Google's RS256 signature and every claim Lacuna relies on. */
@@ -257,7 +270,7 @@ export async function verifyGoogleIdToken(
     throw new GoogleAuthError('the identity token named no supported signing key');
   }
   const now = (options.now ?? Date.now)();
-  const key = await googleKey(kid, options.fetch ?? fetch, now);
+  const key = await googleKey(kid, options.fetch ?? fetch, now, options.signal);
   if (!verifySignature('RSA-SHA256', parts.signingInput, key, parts.signature)) {
     throw new GoogleAuthError('the identity token signature was invalid');
   }
@@ -312,18 +325,28 @@ export async function identityFromCode(
   )) {
     throw new GoogleAuthError('the PKCE verifier is malformed');
   }
-  const response = await fetchImpl(TOKEN, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
-      grant_type: 'authorization_code',
-      ...(options.codeVerifier === undefined ? {} : { code_verifier: options.codeVerifier }),
-    }).toString(),
-  });
+  const signal = AbortSignal.timeout(GOOGLE_PROVIDER_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetchImpl(TOKEN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        redirect_uri: config.redirectUri,
+        grant_type: 'authorization_code',
+        ...(options.codeVerifier === undefined ? {} : { code_verifier: options.codeVerifier }),
+      }).toString(),
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new GoogleAuthError('the Google provider timed out');
+    }
+    throw error;
+  }
 
   if (!response.ok) throw new GoogleAuthError(`the token endpoint answered ${response.status}`);
 
@@ -336,6 +359,7 @@ export async function identityFromCode(
     ? await verifyGoogleIdToken(body.id_token, config.clientId, {
       ...(options.expectedNonce === undefined ? {} : { expectedNonce: options.expectedNonce }),
       fetch: fetchImpl,
+      signal,
     })
     : await options.verifyIdToken(body.id_token, config.clientId, options.expectedNonce);
 

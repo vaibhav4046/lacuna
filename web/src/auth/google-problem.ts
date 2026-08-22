@@ -2,6 +2,7 @@ const REASONS: Readonly<Record<string, string>> = {
   cancelled: 'Sign in with Google was cancelled. Nothing happened.',
   state: 'Your Google sign-in expired. Try again.',
   code: 'Google sign-in did not finish. Try again.',
+  timeout: 'Google sign-in took too long to respond. Try again.',
   identity: 'Google sign-in did not finish. Try again.',
   email_mismatch: 'Choose the Google account you previously used for Lacuna.',
   legacy_unbound: 'This older account is not linked to Google. Use its existing password below. If you saved a recovery code, use Forgot password; otherwise this account cannot be reset or linked automatically.',

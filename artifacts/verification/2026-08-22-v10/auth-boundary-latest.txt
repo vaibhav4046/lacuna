@@ -93,6 +93,12 @@ Read-only signed-session browser check:
   `START LISTENING` control, and typed-command fallback
 - the browser reported no console errors or warnings during these route reads
 
+Production voice operation check:
+- typed the non-mutating command `open graph` into the authenticated Voice
+  route and sent it
+- the controller navigated to `/app/graph` and loaded the graph route
+- no browser console errors or warnings were recorded
+
 Production runtime scan:
 - Vercel grouped runtime errors for the production project returned no errors
   in the selected one-hour window after the connector lifecycle fix

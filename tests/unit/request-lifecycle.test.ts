@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  onLifecycleEvent,
   onRequestSocketClose,
   requestRemoteAddress,
   requestSocketDestroyed,
@@ -14,6 +15,19 @@ describe('request socket lifecycle adapter', () => {
     expect(requestRemoteAddress(request)).toBeUndefined();
     expect(requestSocketDestroyed(request)).toBe(false);
     expect(() => onRequestSocketClose(request, () => undefined)()).not.toThrow();
+  });
+
+  it('fails closed when a serverless request or response omits event methods', () => {
+    const listener = () => undefined;
+    const request = {} as IncomingMessage;
+    const response = {};
+
+    expect(() => {
+      const removeRequest = onLifecycleEvent(request, 'aborted', listener);
+      const removeResponse = onLifecycleEvent(response, 'close', listener);
+      removeRequest();
+      removeResponse();
+    }).not.toThrow();
   });
 
   it('attaches and removes a compatible socket listener', () => {

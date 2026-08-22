@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { onRequestSocketClose, requestRemoteAddress, requestSocketDestroyed } from './request-lifecycle.js';
+import { onLifecycleEvent, onRequestSocketClose, requestRemoteAddress, requestSocketDestroyed } from './request-lifecycle.js';
 
 import { hashPassword, MAX_PASSWORD_CHARS, MIN_PASSWORD_CHARS, verifyPassword } from '../auth/password.js';
 import { canonicalRecoveryCode, newRecoveryCode, normaliseRecoveryCode } from '../auth/recovery.js';
@@ -1042,8 +1042,8 @@ export class ApiRouter {
       const abortIfPremature = () => {
         if (!response.writableEnded && !response.writableFinished) controller.abort();
       };
-      request.once('aborted', abortIfPremature);
-      response.once('close', abortIfPremature);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
       const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
       const deadline = setTimeout(() => controller.abort(), Math.max(1, settlementDeadlineMs - this.#now()));
       deadline.unref?.();
@@ -1073,8 +1073,8 @@ export class ApiRouter {
         else send(response, 502, { error: 'webhook_failed' });
       } finally {
         clearTimeout(deadline);
-        request.off('aborted', abortIfPremature);
-        response.off('close', abortIfPremature);
+        removeRequestAbort();
+        removeResponseClose();
         removeSocketClose();
       }
       return HANDLED;
@@ -1183,8 +1183,8 @@ export class ApiRouter {
       const abortIfPremature = () => {
         if (!response.writableEnded && !response.writableFinished) control.abort();
       };
-      request.once('aborted', abortIfPremature);
-      response.once('close', abortIfPremature);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
       const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
       if ((response.destroyed || requestSocketDestroyed(request))
         && !response.writableEnded && !response.writableFinished) control.abort();
@@ -1215,8 +1215,8 @@ export class ApiRouter {
         if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
         else send(response, 502, { error: 'github_import_failed' });
       } finally {
-        request.off('aborted', abortIfPremature);
-        response.off('close', abortIfPremature);
+        removeRequestAbort();
+        removeResponseClose();
         removeSocketClose();
       }
       return HANDLED;
@@ -1272,8 +1272,8 @@ export class ApiRouter {
           control.abort();
         }
       };
-      request.once('aborted', abortIfPremature);
-      response.once('close', abortIfPremature);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
       const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
       if ((response.destroyed || requestSocketDestroyed(request))
         && !response.writableEnded && !response.writableFinished) abortIfPremature();
@@ -1317,8 +1317,8 @@ export class ApiRouter {
         }
       } finally {
         clearTimeout(deadline);
-        request.off('aborted', abortIfPremature);
-        response.off('close', abortIfPremature);
+        removeRequestAbort();
+        removeResponseClose();
         removeSocketClose();
       }
       return HANDLED;
@@ -1914,8 +1914,8 @@ export class ApiRouter {
         }
         const controller = new AbortController();
         const abort = () => controller.abort();
-        request.once('aborted', abort);
-        response.once('close', abort);
+        const removeRequestAbort = onLifecycleEvent(request, 'aborted', abort);
+        const removeResponseClose = onLifecycleEvent(response, 'close', abort);
         const started = Date.now();
         try {
           const result: WorkspaceImpactResult = await runWorkspaceImpact(
@@ -1938,8 +1938,8 @@ export class ApiRouter {
             send(response, 503, { error: 'impact_unavailable' });
           }
         } finally {
-          request.removeListener('aborted', abort);
-          response.removeListener('close', abort);
+          removeRequestAbort();
+          removeResponseClose();
         }
         return HANDLED;
       }
@@ -2101,8 +2101,8 @@ export class ApiRouter {
       const workspace = workspaceCollection(account.email);
       const control = new AbortController();
       const abort = () => control.abort();
-      request.once('aborted', abort);
-      response.once('close', abort);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abort);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abort);
       const access = {
         origin: firstHeader(request.headers.origin),
         expectedOrigin,
@@ -2115,8 +2115,8 @@ export class ApiRouter {
         ? await voice.token(access, control.signal)
         : await voice.speech(access, body, control.signal);
       await sendVoiceResult(response, result, control);
-      request.removeListener('aborted', abort);
-      response.removeListener('close', abort);
+      removeRequestAbort();
+      removeResponseClose();
       return HANDLED;
     }
 
@@ -2262,8 +2262,8 @@ export class ApiRouter {
       }
       const control = new AbortController();
       const abort = () => control.abort();
-      request.once('aborted', abort);
-      response.once('close', abort);
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abort);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abort);
       const access = {
         origin: firstHeader(request.headers.origin),
         expectedOrigin,
@@ -2276,8 +2276,8 @@ export class ApiRouter {
         ? await voice.token(access, control.signal)
         : await voice.speech(access, body, control.signal);
       await sendVoiceResult(response, result, control);
-      request.removeListener('aborted', abort);
-      response.removeListener('close', abort);
+      removeRequestAbort();
+      removeResponseClose();
       return HANDLED;
     }
 

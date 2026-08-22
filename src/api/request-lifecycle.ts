@@ -12,6 +12,23 @@ interface RequestSocketLike {
   off?: (event: 'close', listener: () => void) => unknown;
 }
 
+interface LifecycleTargetLike {
+  readonly once?: (event: string, listener: () => void) => unknown;
+  readonly off?: (event: string, listener: () => void) => unknown;
+  readonly removeListener?: (event: string, listener: () => void) => unknown;
+}
+
+/** Attach an optional serverless request/response event without assuming Node's EventEmitter. */
+export function onLifecycleEvent(target: unknown, event: string, listener: () => void): () => void {
+  const candidate = typeof target === 'object' && target !== null
+    ? target as LifecycleTargetLike : undefined;
+  if (typeof candidate?.once === 'function') candidate.once(event, listener);
+  return () => {
+    if (typeof candidate?.off === 'function') candidate.off(event, listener);
+    else if (typeof candidate?.removeListener === 'function') candidate.removeListener(event, listener);
+  };
+}
+
 function socketOf(request: IncomingMessage): RequestSocketLike | undefined {
   const candidate = (request as IncomingMessage & { readonly socket?: unknown }).socket;
   return typeof candidate === 'object' && candidate !== null

@@ -1,10 +1,11 @@
 
+import { useEffect, useState } from 'react';
 import { useScope, useScoped } from '../../api/scope';
 import { hydraState, useHealth, UNCHECKED } from '../../api/health';
 import type { HealthReport } from '../../api/health';
 import { ProofGraph } from '../../canvas/ProofGraph';
 import { icStyle } from '../../design/icons';
-import { useLoaded } from '../../api/client';
+import { getJson, useLoaded, type Loaded } from '../../api/client';
 import { MONO } from '../../design/mark';
 import { useGraph } from '../../graph/useGraph';
 import { Empty, Failed, Stage } from '../state';
@@ -240,6 +241,159 @@ interface ImpactReply {
   readonly ms?: number;
 }
 
+interface PrivateImpactEndpoint {
+  readonly raw: string | null;
+  readonly display: string | null;
+  readonly key: string | null;
+}
+
+interface PrivateImpactEdge {
+  readonly outcome: string;
+  readonly reason: string | null;
+  readonly depth: number;
+  readonly source: PrivateImpactEndpoint;
+  readonly target: PrivateImpactEndpoint;
+  readonly rawPredicate: string | null;
+  readonly predicate: string | null;
+  readonly direction: string;
+  readonly context: string | null;
+  readonly provenanceJoin: string;
+  readonly sourceIds: readonly string[];
+  readonly claimId: number | null;
+}
+
+interface PrivateImpactReply {
+  readonly available: boolean;
+  readonly reason?: string;
+  readonly subject: string;
+  readonly reached?: number;
+  readonly accepted?: readonly PrivateImpactEdge[];
+  readonly rejected?: readonly PrivateImpactEdge[];
+  readonly duplicates?: number;
+  readonly affected?: readonly PrivateImpactEndpoint[];
+  readonly depth?: number;
+  readonly ms?: number;
+}
+
+type PrivateImpactLoaded = Loaded<PrivateImpactReply> | { readonly state: 'idle' };
+
+function usePrivateImpact(base: string, subject: string): PrivateImpactLoaded {
+  const [loaded, setLoaded] = useState<PrivateImpactLoaded>({ state: 'idle' });
+  useEffect(() => {
+    const value = subject.trim();
+    if (value === '') {
+      setLoaded({ state: 'idle' });
+      return;
+    }
+    const control = new AbortController();
+    setLoaded({ state: 'loading' });
+    getJson<PrivateImpactReply>(`${base}/impact?subject=${encodeURIComponent(value)}`, control.signal).then(
+      (result) => {
+        if (!control.signal.aborted) setLoaded({ state: 'ready', value: result });
+      },
+      () => {
+        if (!control.signal.aborted) setLoaded({ state: 'failed', reason: 'Connection failed.' });
+      },
+    );
+    return () => control.abort();
+  }, [base, subject]);
+  return loaded;
+}
+
+function privateEndpoint(endpoint: PrivateImpactEndpoint): string {
+  return endpoint.display ?? endpoint.raw ?? 'unnamed';
+}
+
+function PrivateGraphImpact() {
+  const { base } = useScope();
+  const [draft, setDraft] = useState('');
+  const [subject, setSubject] = useState('');
+  const impact = usePrivateImpact(base, subject);
+
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubject(draft.trim());
+  };
+
+  const rejected = impact.state === 'ready' ? (impact.value.rejected ?? []) : [];
+  const accepted = impact.state === 'ready' ? (impact.value.accepted ?? []) : [];
+  const it = impact.state === 'ready' ? impact.value : null;
+
+  return (
+    <>
+      <span style={{ fontSize: '13.5px', color: '#9A9A9A', maxWidth: '68ch', lineHeight: 1.7 }}>
+        HydraDB supplies bounded candidate relations from this private memory. Lacuna then
+        evaluates current standing from the authenticated claim and Mention rows; the store
+        never decides temporal truth on its own.
+      </span>
+      <form onSubmit={submit} style={{ display: 'flex', gap: '10px', alignItems: 'stretch', maxWidth: '680px' }}>
+        <label htmlFor="private-impact-subject" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+          Subject for private impact
+        </label>
+        <input
+          id="private-impact-subject"
+          value={draft}
+          maxLength={160}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="Subject to trace"
+          autoComplete="off"
+          style={{ flex: 1, minWidth: 0, border: '1px solid rgba(255,255,255,0.16)', borderRadius: '7px', background: 'transparent', color: '#FFFFFF', padding: '10px 12px', fontFamily: MONO, fontSize: '11px' }}
+        />
+        <button type="submit" disabled={draft.trim() === ''} style={{ border: '1px solid rgba(128,82,255,0.7)', borderRadius: '7px', background: 'rgba(128,82,255,0.16)', color: '#FFFFFF', padding: '0 14px', fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em' }}>
+          TRACE
+        </button>
+      </form>
+
+      {impact.state === 'idle' ? (
+        <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Enter a subject to trace its private dependency impact.</span>
+      ) : impact.state === 'loading' ? (
+        <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Reading private memory.</span>
+      ) : impact.state === 'failed' ? (
+        <span style={{ fontSize: '14px', color: '#9A9A9A' }}>{impact.reason}</span>
+      ) : !impact.value.available ? (
+        <span style={{ fontSize: '14px', color: '#9A9A9A' }}>Private impact is unavailable right now.</span>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', paddingTop: '2px' }}>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#8052FF' }}>{accepted.length} ACCEPTED</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7A7A' }}>{rejected.length} POLICY REJECTIONS</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7A7A' }}>{it?.duplicates ?? 0} DUPLICATES</span>
+            <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7A7A' }}>{it?.reached ?? 0} REACHED</span>
+          </div>
+          <div style={{ padding: '12px 0' }}>
+            <span style={{ fontSize: '17px', color: '#FFFFFF' }}>
+              {(it?.affected ?? []).length === 0 ? 'Nothing currently depends on it.' : (it?.affected ?? []).map(privateEndpoint).join(', ')}
+            </span>
+            <div style={{ ...note, letterSpacing: '0.14em', paddingTop: '6px' }}>
+              AFFECTED AT DEPTH {it?.depth ?? 0} · COMPUTED IN {it?.ms ?? 0} MS
+            </div>
+          </div>
+          {accepted.map((edge, index) => (
+            <div key={`private-a-${index}`} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', padding: '7px 0', fontFamily: MONO, fontSize: '12px' }}>
+              <span style={{ color: '#7A7A7A' }}>D{edge.depth}</span>
+              <span style={{ color: '#FFFFFF' }}>{privateEndpoint(edge.source)}</span>
+              <span style={{ color: '#8052FF' }}>{edge.predicate ?? edge.rawPredicate ?? 'depends_on'}</span>
+              <span style={{ color: '#FFFFFF' }}>{privateEndpoint(edge.target)}</span>
+              <span style={{ color: '#8052FF', fontSize: '10px', letterSpacing: '0.14em' }}>ACCEPTED · {edge.provenanceJoin}</span>
+            </div>
+          ))}
+          {rejected.slice(0, 6).map((edge, index) => (
+            <div key={`private-r-${index}`} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '7px 0', opacity: 0.7 }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap', fontFamily: MONO, fontSize: '12px' }}>
+                <span style={{ color: '#BDBDBD' }}>{privateEndpoint(edge.source)}</span>
+                <span style={{ color: '#7A7A84' }}>{edge.rawPredicate ?? 'relation'}</span>
+                <span style={{ color: '#BDBDBD' }}>{privateEndpoint(edge.target)}</span>
+                <span style={{ color: '#FFB829', fontSize: '10px', letterSpacing: '0.14em' }}>{edge.outcome.toUpperCase()}</span>
+              </div>
+              {edge.context === null ? null : <span style={{ fontSize: '12.5px', color: '#7A7A7A', lineHeight: 1.6, maxWidth: '70ch' }}>{edge.context}</span>}
+            </div>
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
 const REJECTION_LABEL: Readonly<Record<RejectedEdge['reason'], string>> = {
   historical: 'REPLACED',
   contradicted: 'DISPUTED',
@@ -257,6 +411,9 @@ const REJECTION_LABEL: Readonly<Record<RejectedEdge['reason'], string>> = {
  * answer. Both halves are shown, because a filter nobody can see is a claim.
  */
 function GraphImpact() {
+  const { demo } = useScope();
+  if (!demo) return <PrivateGraphImpact />;
+
   const impact = useLoaded<ImpactReply>('/api/explore/impact');
 
   if (impact.state !== 'ready') {

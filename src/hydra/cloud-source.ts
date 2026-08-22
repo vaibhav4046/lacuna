@@ -13,6 +13,11 @@ import { HydraDecodeError } from './errors.js';
 import { RetrievalDecodeError } from '../retrieval/errors.js';
 import type { DependentEdge, EntityHead } from '../retrieval/decode.js';
 import type { EvidenceRecord, QueryTrace, SubjectView } from '../retrieval/types.js';
+import {
+  assertImpactActive,
+  assertImpactControl,
+  type HydraImpactReadControl,
+} from './impact-read.js';
 
 /**
  * HydraDB Cloud behind the same seam the node sits behind.
@@ -42,6 +47,8 @@ export class CloudSource implements HydraSource {
    */
   readonly #records = new Map<string, EntityRecord | null>();
   #index: IndexRecord | null = null;
+  readonly #impactRecords = new Map<string, EntityRecord | null>();
+  #impactIndex: IndexRecord | null = null;
 
   constructor(cloud: HydraCloud) {
     this.#cloud = cloud;
@@ -140,6 +147,104 @@ export class CloudSource implements HydraSource {
         kind: record.kind,
         claims: record.claims,
         mentions: orderMentions(record.mentions),
+      },
+      traces,
+    };
+  }
+
+  async #impactRecord(
+    name: string,
+    control: HydraImpactReadControl,
+  ): Promise<{ record: EntityRecord | null; traces: QueryTrace[] }> {
+    assertImpactActive(control);
+    const id = entityRecordId(name);
+    const cached = this.#impactRecords.get(id);
+    if (cached !== undefined) return { record: cached, traces: [] };
+
+    const started = performance.now();
+    const source = await this.#cloud.inspectForImpact(id, control);
+    assertImpactActive(control);
+    const trace: QueryTrace = {
+      cypher: null,
+      request: `GET /context/inspect id=${id}`,
+      parameters: { name, database: this.#cloud.database, collection: this.#cloud.collection },
+      rows: source === null ? 0 : 1,
+      ms: Math.round((performance.now() - started) * 10) / 10,
+      readEpoch: null,
+    };
+    if (source === null) {
+      const { index, traces } = await this.#impactIndexRecord(control);
+      const canonical = canonicalName(Object.values(index.entities), name);
+      assertImpactActive(control);
+      if (canonical !== null) {
+        const retried = await this.#impactRecord(canonical, control);
+        assertImpactActive(control);
+        return { record: retried.record, traces: [trace, ...traces, ...retried.traces] };
+      }
+      assertImpactActive(control);
+      this.#impactRecords.set(id, null);
+      return { record: null, traces: [trace, ...traces] };
+    }
+    const text = unwrapEnvelope(source.envelope);
+    if (text === null) {
+      throw new HydraDecodeError('impact inspect contains an unreadable stored entity envelope');
+    }
+    const record = parseEntity(text, name);
+    assertImpactActive(control);
+    this.#impactRecords.set(id, record);
+    return { record, traces: [trace] };
+  }
+
+  async #impactIndexRecord(
+    control: HydraImpactReadControl,
+  ): Promise<{ index: IndexRecord; traces: QueryTrace[] }> {
+    assertImpactActive(control);
+    if (this.#impactIndex !== null) return { index: this.#impactIndex, traces: [] };
+    const started = performance.now();
+    const source = await this.#cloud.inspectForImpact(INDEX_ID, control);
+    assertImpactActive(control);
+    const trace: QueryTrace = {
+      cypher: null,
+      request: `GET /context/inspect id=${INDEX_ID}`,
+      parameters: { database: this.#cloud.database, collection: this.#cloud.collection },
+      rows: source === null ? 0 : 1,
+      ms: Math.round((performance.now() - started) * 10) / 10,
+      readEpoch: null,
+    };
+    if (source === null) {
+      this.#impactIndex = { claims: {}, entities: {} };
+      return { index: this.#impactIndex, traces: [trace] };
+    }
+    const text = unwrapEnvelope(source.envelope);
+    if (text === null) {
+      throw new HydraDecodeError('impact inspect contains an unreadable stored index envelope');
+    }
+    const parsed = parseIndex(text);
+    if (parsed === null) {
+      throw new HydraDecodeError('impact inspect contains a malformed stored index');
+    }
+    assertImpactActive(control);
+    this.#impactIndex = parsed;
+    return { index: parsed, traces: [trace] };
+  }
+
+  /** Strict impact-only subject read; never calls the legacy inspect path. */
+  async subjectForImpact(
+    name: string,
+    control: HydraImpactReadControl,
+  ): Promise<Read<SubjectView>> {
+    assertImpactControl(control);
+    const { record, traces } = await this.#impactRecord(name, control);
+    if (record === null) return { value: emptySubject(name), traces };
+    const mentions = orderMentions(record.mentions);
+    assertImpactActive(control);
+    return {
+      value: {
+        name,
+        id: record.id,
+        kind: record.kind,
+        claims: record.claims,
+        mentions,
       },
       traces,
     };

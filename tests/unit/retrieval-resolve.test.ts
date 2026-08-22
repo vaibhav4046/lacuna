@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { RetrievalConsistencyError } from '../../src/retrieval/errors.js';
-import { citedClaims, resolve, selectHopTarget } from '../../src/retrieval/resolve.js';
+import {
+  canonicalEntityName as canonical,
+  citedClaims,
+  evaluateTargetStanding as standing,
+  resolve,
+  selectHopTarget,
+} from '../../src/retrieval/resolve.js';
 import type {
   ClaimRecord,
   Mention,
@@ -58,6 +64,119 @@ function view(over: Partial<SubgraphView> = {}): SubgraphView {
 function reasonOf(resolution: Resolution): string {
   return resolution.outcome.type === 'abstain' ? resolution.outcome.reason : 'answered';
 }
+
+function relationMention(over: Partial<Mention> = {}): Mention {
+  return { claimId: 1, predicate: 'depends_on', entityId: 200, entityName: 'Redis', ...over };
+}
+
+describe('canonicalEntityName', () => {
+  it('NFC-normalizes, maps only remaining Unicode whitespace, and lowercases without locale folding', () => {
+    expect(canonical('\u00a0Cafe\u0301\u2003I\u00a0')).toEqual({
+      display: 'Café I',
+      key: 'café i',
+    });
+    expect(canonical('Ａ')).toEqual({ display: 'Ａ', key: 'ａ' });
+  });
+
+  it('rejects unpaired surrogates, controls, and bidi controls before canonicalization', () => {
+    for (const raw of [
+      '\ud800', '\udc00', 'a\u0000b', 'a\tb', 'a\u0085b',
+      `a${String.fromCodePoint(0x202a)}b`, `a${String.fromCodePoint(0x202e)}b`,
+      `a${String.fromCodePoint(0x2066)}b`, `a${String.fromCodePoint(0x2069)}b`,
+    ]) {
+      expect(canonical(raw), JSON.stringify(raw)).toBeNull();
+    }
+    expect(canonical('A\ud83d\ude00B')).toEqual({ display: 'A😀B', key: 'a😀b' });
+  });
+
+  it('enforces inclusive scalar and UTF-8 caps before and after lowercase expansion', () => {
+    expect(canonical('a'.repeat(160))).toEqual({ display: 'a'.repeat(160), key: 'a'.repeat(160) });
+    expect(canonical('a'.repeat(161))).toBeNull();
+    expect(canonical('😀'.repeat(128))).toEqual({ display: '😀'.repeat(128), key: '😀'.repeat(128) });
+    expect(canonical('😀'.repeat(129))).toBeNull();
+    expect(canonical('\u0130'.repeat(80))).toEqual({ display: '\u0130'.repeat(80), key: 'i\u0307'.repeat(80) });
+    expect(canonical('\u0130'.repeat(81))).toBeNull();
+    expect(canonical('\u00a0\u2003')).toBeNull();
+  });
+});
+
+describe('evaluateTargetStanding', () => {
+  it('requires one Mention with the exact claim, predicate, and canonical target', () => {
+    const live = claim({ id: 10, predicate: 'depends_on', objectText: ' Redis ' });
+    const nearMisses = [
+      relationMention({ claimId: 9 }),
+      relationMention({ claimId: 10, predicate: 'uses' }),
+      relationMention({ claimId: 10, entityName: 'Postgres' }),
+    ];
+    expect(standing(subject({ claims: [live], mentions: nearMisses }), 'depends_on', 'redis'))
+      .toEqual({ state: 'missing_mention' });
+
+    const exact = relationMention({ claimId: 10, entityName: '\u00a0REDIS\u2003' });
+    expect(standing(subject({ claims: [live], mentions: [...nearMisses, exact] }), 'depends_on', 'redis'))
+      .toEqual({ state: 'current', claim: live, mention: exact });
+  });
+
+  it('is shuffle-stable and selects the newest equivalently supported claim and exact Mention', () => {
+    const oldest = claim({ id: 7, predicate: 'depends_on', objectText: 'Redis', validFrom: '2026-01-01T00:00:00.000Z' });
+    const newer = claim({ id: 5, predicate: 'depends_on', objectText: ' REDIS ', validFrom: '2026-02-01T00:00:00.000Z' });
+    const newest = claim({ id: 9, predicate: 'depends_on', objectText: 'redis', validFrom: '2026-02-01T00:00:00.000Z' });
+    const oldestMention = relationMention({ claimId: 7, entityId: 207 });
+    const newerMention = relationMention({ claimId: 5, entityId: 205, entityName: 'REDIS' });
+    const newestMention = relationMention({ claimId: 9, entityId: 209, entityName: ' redis ' });
+
+    for (const [claims, mentions] of [
+      [[oldest, newer, newest], [oldestMention, newerMention, newestMention]],
+      [[newest, oldest, newer], [newestMention, oldestMention, newerMention]],
+    ] as const) {
+      expect(standing(subject({ claims, mentions }), 'depends_on', 'redis')).toEqual({
+        state: 'current', claim: newest, mention: newestMention,
+      });
+    }
+  });
+
+  it('contradicts every candidate target for a single-valued predicate with two live values', () => {
+    const northfold = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold' });
+    const millbrace = claim({ id: 2, predicate: 'vendor', objectText: 'Millbrace' });
+    const view = subject({
+      claims: [millbrace, northfold],
+      mentions: [
+        relationMention({ claimId: 1, predicate: 'vendor', entityName: 'Northfold' }),
+        relationMention({ claimId: 2, predicate: 'vendor', entityName: 'Millbrace' }),
+      ],
+    });
+    expect(standing(view, 'vendor', 'northfold')).toEqual({ state: 'contradicted' });
+    expect(standing(view, 'vendor', 'millbrace')).toEqual({ state: 'contradicted' });
+  });
+
+  it('evaluates live values independently for a multi-valued predicate', () => {
+    const redis = claim({ id: 1, predicate: 'depends_on', objectText: 'Redis' });
+    const postgres = claim({ id: 2, predicate: 'depends_on', objectText: 'Postgres' });
+    const redisMention = relationMention({ claimId: 1, entityName: 'Redis' });
+    const postgresMention = relationMention({ claimId: 2, entityName: 'Postgres' });
+    const view = subject({ claims: [postgres, redis], mentions: [postgresMention, redisMention] });
+
+    expect(standing(view, 'depends_on', 'redis')).toEqual({ state: 'current', claim: redis, mention: redisMention });
+    expect(standing(view, 'depends_on', 'postgres')).toEqual({ state: 'current', claim: postgres, mention: postgresMention });
+  });
+
+  it('distinguishes retracted, historical, and unstated target states', () => {
+    const old = claim({ id: 1, predicate: 'depends_on', objectText: 'Redis', supersededBy: [2] });
+    const withdrawal = claim({ id: 2, predicate: 'depends_on', objectText: '', polarity: 'negative' });
+    expect(standing(subject({ claims: [withdrawal, old] }), 'depends_on', 'redis'))
+      .toEqual({ state: 'retracted' });
+
+    const replacement = claim({ id: 2, predicate: 'depends_on', objectText: 'Postgres' });
+    expect(standing(subject({ claims: [replacement, old] }), 'depends_on', 'redis'))
+      .toEqual({ state: 'historical' });
+
+    expect(standing(subject({ claims: [replacement] }), 'depends_on', 'redis'))
+      .toEqual({ state: 'unstated' });
+    expect(standing(subject({ claims: [old] }), 'depends_on', 'redis'))
+      .toEqual({ state: 'unstated' });
+    expect(standing(subject({ claims: [claim({ predicate: 'vendor', objectText: 'Redis' })] }), 'depends_on', 'redis'))
+      .toEqual({ state: 'unstated' });
+  });
+});
 
 describe('resolve, direct questions', () => {
   it('answers when one current claim stands', () => {
@@ -224,6 +343,16 @@ describe('selectHopTarget', () => {
     expect(selection.type).toBe('retracted');
   });
 
+  it('reports a live relation without its exact Mention as missing_mention, not retracted', () => {
+    const via = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold' });
+    const selection = selectHopTarget(subject({
+      claims: [via],
+      mentions: [mention({ claimId: 1, predicate: 'vendor', entityName: 'Millbrace' })],
+    }), 'vendor');
+
+    expect(selection).toEqual({ type: 'missing_mention', claims: [via] });
+  });
+
   it('reports ambiguous when live claims name two different entities', () => {
     const first = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold' });
     const second = claim({ id: 2, predicate: 'vendor', objectText: 'Millbrace' });
@@ -241,9 +370,57 @@ describe('selectHopTarget', () => {
     expect(selection.type).toBe('ambiguous');
   });
 
+  it('preserves scalar ambiguity when one canonical name identifies two entity ids', () => {
+    const via = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold' });
+    const selection = selectHopTarget(subject({
+      claims: [via],
+      mentions: [mention({ entityId: 201 }), mention({ entityId: 200 })],
+    }), 'vendor');
+
+    expect(selection.type).toBe('ambiguous');
+    if (selection.type !== 'ambiguous') return;
+    expect(selection.mentions.map((row) => row.entityId)).toEqual([200, 201]);
+  });
+
+  it('aggregates exact Mentions across shuffled equivalent live claims before selecting a hop', () => {
+    const older = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold', validFrom: '2026-01-01T00:00:00.000Z' });
+    const newer = claim({ id: 2, predicate: 'vendor', objectText: ' NORTHFOLD ', validFrom: '2026-02-01T00:00:00.000Z' });
+    const olderMention = mention({ claimId: 1, entityId: 200, entityName: 'northfold' });
+    const newerMention = mention({ claimId: 2, entityId: 201, entityName: ' Northfold ' });
+
+    for (const [claims, mentions] of [
+      [[older, newer], [olderMention, newerMention]],
+      [[newer, older], [newerMention, olderMention]],
+    ] as const) {
+      const selection = selectHopTarget(subject({ claims, mentions }), 'vendor');
+
+      expect(selection.type).toBe('ambiguous');
+      if (selection.type !== 'ambiguous') continue;
+      expect(selection.mentions.map(({ claimId, entityId }) => [claimId, entityId]))
+        .toEqual([[1, 200], [2, 201]]);
+    }
+  });
+
+  it('fails unconnected when only one of several shuffled multi-valued targets has an exact Mention', () => {
+    const redis = claim({ id: 1, predicate: 'depends_on', objectText: 'Redis' });
+    const postgres = claim({ id: 2, predicate: 'depends_on', objectText: 'Postgres' });
+    const supported = relationMention({ claimId: 1, entityId: 200, entityName: 'Redis' });
+    const nearMiss = relationMention({ claimId: 2, predicate: 'uses', entityId: 201, entityName: 'Postgres' });
+
+    for (const [claims, mentions] of [
+      [[redis, postgres], [supported, nearMiss]],
+      [[postgres, redis], [nearMiss, supported]],
+    ] as const) {
+      expect(selectHopTarget(subject({ claims, mentions }), 'depends_on')).toEqual({
+        type: 'missing_mention',
+        claims: [redis, postgres],
+      });
+    }
+  });
+
   it('treats the same target named twice as one target', () => {
-    const first = claim({ id: 1, predicate: 'vendor', validFrom: '2026-01-01T00:00:00.000Z' });
-    const second = claim({ id: 2, predicate: 'vendor', validFrom: '2026-02-01T00:00:00.000Z' });
+    const first = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold', validFrom: '2026-01-01T00:00:00.000Z' });
+    const second = claim({ id: 2, predicate: 'vendor', objectText: 'Northfold', validFrom: '2026-02-01T00:00:00.000Z' });
     const selection = selectHopTarget(
       subject({
         claims: [first, second],
@@ -313,6 +490,20 @@ describe('resolve, hops', () => {
 
     expect(reasonOf(landed)).toBe('unconnected');
     expect(reasonOf(neverLanded)).toBe('never_stated');
+  });
+
+  it('maps a stated relation with no exact Mention to the existing unconnected abstention', () => {
+    const relation = claim({ id: 1, predicate: 'vendor', objectText: 'Northfold' });
+    const resolution = resolve(view({
+      question: hopQuestion,
+      subject: subject({ claims: [relation], mentions: [] }),
+      bridge: null,
+    }));
+
+    expect(reasonOf(resolution)).toBe('unconnected');
+    expect(resolution.considered).toEqual([relation]);
+    expect(resolution.hop).toBeNull();
+    expect(resolution.trace.join(' ')).toContain('no exact entity Mention');
   });
 
   it('throws when the view carries a bridge the hop does not select', () => {

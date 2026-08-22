@@ -25,6 +25,13 @@ import { FixedWindow, type RateLimitOptions, type RateLimitVerdict } from '../se
 import { DEMO_WORKSPACE, askEnvelope, demoWorkspace, emptyWorkspace, invalidRequest, plannedAskEnvelope, storeWorkspace, validateQuestion } from './workspace.js';
 import { MAX_SOURCE_CHARS, ingestSource, serializeIngestReport, validateSource, workspaceCollection } from './ingest.js';
 import { graphImpact } from './impact.js';
+import {
+  runWorkspaceImpact,
+  WORKSPACE_IMPACT_LIMITS,
+  type WorkspaceImpactResult,
+} from './workspace-impact.js';
+import type { HydraImpactReadPort } from '../hydra/impact-read.js';
+import { canonicalEntityName } from '../retrieval/resolve.js';
 import type { WorkspaceView } from './workspace.js';
 import { authorizeUrl, identityFromCode, newGoogleAuthorizationProof, type GoogleConfig } from '../auth/google.js';
 import type { ServiceRelation } from '../hydra/relations.js';
@@ -372,6 +379,8 @@ export interface ApiOptions {
    * exactly as long as the request that filled it.
    */
   readonly source?: (collection?: string) => HydraSource;
+  /** Strict Hydra-native impact reader, scoped by the server-derived collection. */
+  readonly impact?: (collection?: string) => HydraImpactReadPort;
   /**
    * Writes one source into a collection. Absent where nothing can be written,
    * and the route then answers 501 rather than pretending to have stored it.
@@ -732,6 +741,7 @@ export class ApiRouter {
   readonly #secure: boolean;
   readonly #health: (() => Promise<unknown>) | null;
   readonly #source: ((collection?: string) => HydraSource) | undefined;
+  readonly #impact: ((collection?: string) => HydraImpactReadPort) | undefined;
   readonly #ingest: ApiOptions['ingest'];
   readonly #agent: ApiOptions['agent'];
   readonly #agentStore: AgentRuntimeStore | undefined;
@@ -788,6 +798,7 @@ export class ApiRouter {
     this.#secure = options.secure;
     this.#health = options.health;
     this.#source = options.source;
+    this.#impact = options.impact;
     this.#ingest = options.ingest;
     this.#agent = options.agent;
     this.#agentStore = options.agentStore;
@@ -1856,6 +1867,68 @@ export class ApiRouter {
           send(response, error instanceof GraphApiError ? error.status : 503, {
             error: error instanceof GraphApiError ? error.code : 'SOURCE_UNAVAILABLE',
           });
+        }
+        return HANDLED;
+      }
+
+      /**
+       * Private, source-backed Hydra impact. The account is resolved first and
+       * the collection is derived only from that account; no tenant or
+       * provider selector is accepted from the URL. Public Explore continues
+       * using its legacy fixture endpoint.
+       */
+      if (part === 'impact') {
+        const account = await this.#accountFor(cookies);
+        if (account === null) {
+          send(response, 401, { error: 'session' });
+          return HANDLED;
+        }
+        const query = new URL(request.url ?? path, 'http://lacuna.invalid').searchParams;
+        const keys = [...query.keys()];
+        const subjects = query.getAll('subject');
+        if (keys.some((key) => key !== 'subject') || subjects.length !== 1) {
+          send(response, 422, { error: 'subject' });
+          return HANDLED;
+        }
+        const rawSubject = subjects[0];
+        const subject = rawSubject === undefined ? null : canonicalEntityName(rawSubject);
+        if (subject === null) {
+          send(response, 422, { error: 'subject' });
+          return HANDLED;
+        }
+        const impactFactory = this.#impact;
+        if (impactFactory === undefined) {
+          send(response, 503, { error: 'impact_unavailable' });
+          return HANDLED;
+        }
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        request.once('aborted', abort);
+        response.once('close', abort);
+        const started = Date.now();
+        try {
+          const result: WorkspaceImpactResult = await runWorkspaceImpact(
+            subject.display,
+            impactFactory(workspaceCollection(account.email)),
+            {
+              signal: controller.signal,
+              deadlineMs: started + WORKSPACE_IMPACT_LIMITS.routeDeadlineMs,
+            },
+          );
+          const { subject: resultSubject, ...payload } = result;
+          send(response, 200, {
+            available: true,
+            subject: resultSubject.display,
+            ...payload,
+            ms: Math.max(0, Date.now() - started),
+          });
+        } catch {
+          if (!response.destroyed && !response.writableEnded) {
+            send(response, 503, { error: 'impact_unavailable' });
+          }
+        } finally {
+          request.removeListener('aborted', abort);
+          response.removeListener('close', abort);
         }
         return HANDLED;
       }

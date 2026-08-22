@@ -12,6 +12,14 @@ import {
 } from './errors.js';
 import { assertSingleStatement } from './statement.js';
 import { decodeRows, rowsToObjects, type HydraValue } from './values.js';
+import {
+  IMPACT_SUBJECT_BODY_CAP,
+  assertImpactActive,
+  assertImpactControl,
+  sendImpactJson,
+  type HydraImpactReadControl,
+} from './impact-read.js';
+import type { PreparedQuery } from './queries.js';
 
 export interface QueryRequest {
   readonly cypher: string;
@@ -167,6 +175,57 @@ export class HydraClient {
    */
   static mintQueryId(): string {
     return `lacuna-${crypto.randomUUID()}`;
+  }
+
+  /** One strict, non-paged read used only by the private impact source. */
+  async queryForImpact(
+    request: PreparedQuery,
+    control: HydraImpactReadControl,
+  ): Promise<QueryPage> {
+    assertImpactControl(control);
+    const cypher = request.cypher.trim();
+    if (cypher === '' || cypher.length > this.#limits.maxQueryChars) {
+      throw new HydraGuardError('impact query text is invalid');
+    }
+    assertSingleStatement(cypher);
+    const timeoutMs = Math.max(
+      1,
+      Math.min(this.#limits.defaultTimeoutMs, control.deadlineMs - Date.now()),
+    );
+    const body: WireRequest = {
+      cell_id: this.#config.cell,
+      query: cypher,
+      query_id: HydraClient.mintQueryId(),
+      parameters: { ...request.parameters },
+      consistency: 'strong',
+      timeout_ms: timeoutMs,
+      page_size: 128,
+    };
+    const encoded = JSON.stringify(body);
+    if (Buffer.byteLength(encoded, 'utf8') > this.#limits.maxParameterBytes) {
+      throw new HydraGuardError('impact query payload exceeds its byte cap');
+    }
+    const response = await sendImpactJson(
+      this.#fetch,
+      queryEndpoint(this.#config),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.#config.token}`,
+          'X-Graph-Namespace': this.#config.namespace,
+        },
+        body: encoded,
+      },
+      control,
+      IMPACT_SUBJECT_BODY_CAP,
+    );
+    if (!response.ok) {
+      throw new HydraQueryError(response.status, impactNodeErrorCode(response.body));
+    }
+    const decoded = decodeImpactPage(response.body);
+    assertImpactActive(control);
+    return decoded;
   }
 
   /** One HTTP request. Does not follow cursors. */
@@ -380,4 +439,127 @@ function decodePage(parsed: unknown): QueryPage {
     nextCursor: typeof nextCursor === 'number' ? nextCursor : null,
     bookmark: typeof bookmark === 'string' ? bookmark : null,
   };
+}
+
+function decodeImpactPage(parsed: unknown): QueryPage {
+  if (!isRecord(parsed)) {
+    throw new HydraDecodeError('impact node response is not an object');
+  }
+  const allowed = new Set([
+    'query_id', 'columns', 'rows', 'read_epoch', 'next_cursor', 'bookmark',
+  ]);
+  if (Object.keys(parsed).some((key) => !allowed.has(key))) {
+    throw new HydraDecodeError('impact node response has an unknown field');
+  }
+  const queryId = impactNodeString(parsed['query_id'], 256, false);
+  const rawColumns = parsed['columns'];
+  if (!Array.isArray(rawColumns) || rawColumns.length > 8) {
+    throw new HydraDecodeError('impact node response columns is not a bounded array');
+  }
+  const columns = rawColumns.map((column) => impactNodeString(column, 256, false));
+  if (new Set(columns).size !== columns.length) {
+    throw new HydraDecodeError('impact node response contains duplicate columns');
+  }
+  const rows = parsed['rows'];
+  if (!Array.isArray(rows) || rows.length > 128) {
+    throw new HydraDecodeError('impact node response rows is not a bounded array');
+  }
+  const decodedRows = rows.map((row, rowIndex): HydraValue[] => {
+    if (!Array.isArray(row) || row.length !== columns.length) {
+      throw new HydraDecodeError('impact node response row does not match its columns');
+    }
+    return row.map((cell, columnIndex) => decodeImpactNodeValue(cell, rowIndex, columnIndex));
+  });
+  const readEpoch = parsed['read_epoch'];
+  if (readEpoch !== undefined && readEpoch !== null
+    && (typeof readEpoch !== 'number' || !Number.isSafeInteger(readEpoch))) {
+    throw new HydraDecodeError('impact node response read_epoch is invalid');
+  }
+  const nextCursor = parsed['next_cursor'];
+  if (nextCursor !== undefined && nextCursor !== null) {
+    throw new HydraDecodeError('impact node response unexpectedly requires paging');
+  }
+  const rawBookmark = parsed['bookmark'];
+  const bookmark = rawBookmark === undefined || rawBookmark === null
+    ? null
+    : impactNodeString(rawBookmark, 256, false);
+  return {
+    queryId,
+    columns,
+    rows: decodedRows,
+    readEpoch: typeof readEpoch === 'number' ? readEpoch : null,
+    nextCursor: null,
+    bookmark,
+  };
+}
+
+function impactNodeString(value: unknown, maxBytes: number, empty: boolean): string {
+  if (typeof value !== 'string' || (!empty && value === '') || !impactNodeScalarString(value)
+    || Buffer.byteLength(value, 'utf8') > maxBytes) {
+    throw new HydraDecodeError('impact node response contains an invalid string');
+  }
+  return value;
+}
+
+function impactNodeScalarString(value: string): boolean {
+  for (let at = 0; at < value.length; at += 1) {
+    const code = value.charCodeAt(at);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(at + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
+      at += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function decodeImpactNodeValue(raw: unknown, row: number, column: number): HydraValue {
+  if (!isRecord(raw)) {
+    throw new HydraDecodeError(`impact node response cell ${row}:${column} is not tagged`);
+  }
+  const keys = Object.keys(raw);
+  if (keys.some((key) => key !== 'type' && key !== 'value')) {
+    throw new HydraDecodeError(`impact node response cell ${row}:${column} has an unknown field`);
+  }
+  const tag = raw['type'];
+  const value = raw['value'];
+  if (typeof tag !== 'string') {
+    throw new HydraDecodeError(`impact node response cell ${row}:${column} has no type`);
+  }
+  if (tag === 'null') {
+    if (value !== undefined && value !== null) {
+      throw new HydraDecodeError(`impact node response cell ${row}:${column} has an invalid null`);
+    }
+    return null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(raw, 'value')) {
+    throw new HydraDecodeError(`impact node response cell ${row}:${column} has no value`);
+  }
+  if (tag === 'boolean') {
+    if (typeof value !== 'boolean') {
+      throw new HydraDecodeError(`impact node response cell ${row}:${column} has an invalid boolean`);
+    }
+    return value;
+  }
+  if (tag === 'string') return impactNodeString(value, 2_048, true);
+  if (tag === 'float') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new HydraDecodeError(`impact node response cell ${row}:${column} has an invalid float`);
+    }
+    return value;
+  }
+  if (tag === 'integer' || tag === 'signed_integer' || tag === 'vertex_id') {
+    if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+      throw new HydraDecodeError(`impact node response cell ${row}:${column} has an invalid integer`);
+    }
+    return value;
+  }
+  throw new HydraDecodeError(`impact node response cell ${row}:${column} has an unsupported type`);
+}
+
+function impactNodeErrorCode(body: unknown): string {
+  void body;
+  return 'provider_refused';
 }

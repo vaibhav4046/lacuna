@@ -115,6 +115,10 @@ describe('the web talks to the product over HTTP and no other way', () => {
 const PINNED = new Set([
   'api/index.ts',
   'src/hydra/open.ts',
+  // The impact port factory is a pinned Hydra seam: it binds one scoped cloud
+  // client to its private CloudSource and exposes no collection choice to the
+  // browser/router.
+  'src/hydra/impact-read.ts',
   'src/bench/systems.ts',
   'src/server/server.ts',
   'scripts/ask.ts',

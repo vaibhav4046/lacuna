@@ -764,13 +764,14 @@ encoding, container shape, and closed keys, but does not call
 semantic entity. Thus bounded NUL/control/bidi/non-NFC endpoint strings and
 unknown predicates survive to occurrence identity and classification. A query
 chunk is strictly `{ chunkId, text, score, sourceIds, sourceTitle, sourceType,
-observedAt }`: `chunkId` comes only from the provider chunk `id`; `sourceIds`
-is the bounded stable union, by exact UTF-8 bytes, of a present nonempty
-`source_id` followed by `source_ids[]`, retaining first occurrence order. A
-missing/null singular id contributes nothing; every array element and any
-present singular id is 1..256 UTF-8 bytes, the raw array and final union are
-each at most 8, and union cap+1 fails the whole response. The chunk id never
-substitutes for a source id. A relation is strictly
+observedAt }`: `chunkId` comes only from the provider chunk `chunk_uuid`; the
+stable source identity is the bounded union, by exact UTF-8 bytes, of a
+present nonempty `source_id` or `id` alias (both, when present, must match)
+followed by `source_ids[]`, retaining first occurrence order. A missing/null
+singular id contributes nothing; every array element and any present singular
+id is 1..256 UTF-8 bytes, the raw array and final union are each at most 8,
+and union cap+1 fails the whole response. The chunk UUID never substitutes for
+a source id. A relation is strictly
 `{ relationshipId, source, target, predicate, chunkId, context }`:
 `chunkId` comes only from provider `chunk_id`. Test singular source id, array
 source ids, both, neither, relationship/chunk id present and absent, and the

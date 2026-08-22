@@ -10,8 +10,18 @@ import {
   type VoiceEffect,
   type VoiceOperation,
   type VoiceRoute,
-} from '../../../src/voice/operations';
-import type { VoiceIntentReason } from '../../../src/voice/intent';
+} from './operations-contract';
+type VoiceIntentReason =
+  | 'empty_transcript'
+  | 'invalid_transcript'
+  | 'transcript_too_long'
+  | 'unsupported_command'
+  | 'unsafe_command'
+  | 'ambiguous_target'
+  | 'invalid_control'
+  | 'public_read_only'
+  | 'connector_catalogue_unavailable'
+  | 'already_on_route';
 import {
   VoiceOperationRequestError,
   browserCsrfToken,

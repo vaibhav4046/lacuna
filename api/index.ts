@@ -28,6 +28,7 @@ import { CloudAccounts, FileAccounts } from '../src/auth/accounts.js';
 import { CloudMcpCapabilities } from '../src/auth/mcp-capability-store.js';
 import { cloudFromEnv } from '../src/hydra/cloud.js';
 import { CloudSource } from '../src/hydra/cloud-source.js';
+import { createCloudImpactReadPort } from '../src/hydra/impact-read.js';
 import { normaliseGraphContext, normaliseRelations, type ServiceRelation } from '../src/hydra/relations.js';
 import { buildDemo } from '../src/server/examples.js';
 import { evaluationRows } from '../src/report/evaluations.js';
@@ -259,6 +260,9 @@ const api = new ApiRouter({
   ...(cloud === null ? {} : {
     source: (collection?: string): CloudSource =>
       new CloudSource(collection === undefined ? cloud : cloud.withCollection(collection)),
+    impact: (collection?: string) => createCloudImpactReadPort(
+      collection === undefined ? cloud : cloud.withCollection(collection),
+    ),
     // Prose into this account's own collection. The public demo collection is
     // never written to, so ingesting a transcript cannot publish it.
     ingest: (collection: string, title: string, text: string) =>

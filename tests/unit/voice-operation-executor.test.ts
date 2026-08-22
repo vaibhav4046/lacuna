@@ -174,6 +174,20 @@ describe('voice operation planning boundary', () => {
     expect(navigate).toHaveBeenCalledWith('/app/dash');
   });
 
+  it('never turns a planner outage into a local write', async () => {
+    const fetchImpl = vi.fn(async () => { throw new TypeError('network unavailable'); }) as unknown as typeof fetch;
+    const executor = new VoiceOperationExecutor({
+      fetchImpl,
+      randomUUID: () => REQUEST_ID,
+      csrfToken: () => CSRF,
+      sessionBinding: () => SESSION_BINDING_A,
+    });
+
+    await expect(executor.plan('remember Session data is private.', '/app/voice'))
+      .rejects.toMatchObject({ failure: 'request_failed' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses private planning without one exact opaque session binding', async () => {
     const valid = planned({ version: 1, kind: 'ask', question: 'Who owns Atlas?' });
     for (const binding of [null, '', 'A'.repeat(64), 'a'.repeat(63), 'a'.repeat(65), 'g'.repeat(64)]) {

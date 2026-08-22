@@ -483,6 +483,36 @@ describe('the browser auth client', () => {
     expect(new Headers(call?.[1]?.headers).get('x-lacuna-voice-binding')).toBe('b'.repeat(64));
   });
 
+  it('cancels a stalled private read body when the caller aborts after headers', async () => {
+    let readStarted = false;
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => {
+        readStarted = true;
+        return new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+          releaseRead = resolve;
+        });
+      }),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      body: { getReader: () => reader },
+    })));
+    const caller = new AbortController();
+    const request = getJson('/api/workspace/runs', caller.signal, 'b'.repeat(64));
+
+    await vi.waitFor(() => expect(readStarted).toBe(true));
+    caller.abort();
+    if (reader.cancel.mock.calls.length === 0) releaseRead({ done: true });
+
+    await expect(request).rejects.toThrow('response body read cancelled');
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+  });
+
   it('settles a stalled session read as a timeout instead of freezing route guards', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => (

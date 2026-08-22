@@ -25,6 +25,7 @@ export const PERMISSION_REQUIRED = 'Permission required.';
 const REASONS: ReadonlySet<string> = new Set([CONNECTION_FAILED, REQUEST_TIMED_OUT, PERMISSION_REQUIRED]);
 const REQUEST_TIMEOUT_MS = 15_000;
 const SESSION_BINDING = /^[0-9a-f]{64}$/u;
+const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
 
 function reasonForStatus(status: number): string {
   if (status === 401 || status === 403) return PERMISSION_REQUIRED;
@@ -34,6 +35,48 @@ function reasonForStatus(status: number): string {
 
 function reasonFor(error: unknown): string {
   return error instanceof Error && REASONS.has(error.message) ? error.message : CONNECTION_FAILED;
+}
+
+/**
+ * Consume JSON through the response stream so a caller/deadline abort also
+ * cancels a body that delivered headers but never completes. Small embedded
+ * adapters that expose only `json()` retain the compatibility fallback.
+ */
+async function readJsonBody(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (response.body === null || typeof response.body?.getReader !== 'function') {
+    return response.json() as Promise<unknown>;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let abortReject!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { abortReject = reject; });
+  const onAbort = () => {
+    abortReject(new Error('response body read cancelled'));
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    if (signal.aborted) onAbort();
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > MAX_JSON_RESPONSE_BYTES) throw new Error('response body too large');
+      chunks.push(value);
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
 }
 
 export async function getJson<T>(path: string, signal: AbortSignal, sessionBinding?: string): Promise<T> {
@@ -53,7 +96,7 @@ export async function getJson<T>(path: string, signal: AbortSignal, sessionBindi
       headers: { Accept: 'application/json', ...sessionBindingHeader(sessionBinding) },
     });
     if (!response.ok) throw new Error(reasonForStatus(response.status));
-    return (await response.json()) as T;
+    return (await readJsonBody(response, control.signal)) as T;
   } catch (error) {
     if (timedOut && error instanceof Error && error.name === 'AbortError') throw new Error(REQUEST_TIMED_OUT);
     throw error;
@@ -158,6 +201,7 @@ export async function postJson(
 ): Promise<PostResult> {
   const send = async (): Promise<{
     readonly response: Response;
+    readonly signal: AbortSignal;
     readonly clear: () => void;
     readonly timedOut: () => boolean;
   }> => {
@@ -184,7 +228,7 @@ export async function postJson(
       // `fetch` resolves after headers. Keep its abort timer alive while the
       // response body is parsed, otherwise a stalled JSON body leaves a form
       // disabled forever even though the request appeared to finish.
-      return { response, clear: () => globalThis.clearTimeout(timeout), timedOut: () => timedOut };
+      return { response, signal: control.signal, clear: () => globalThis.clearTimeout(timeout), timedOut: () => timedOut };
     } catch (error) {
       globalThis.clearTimeout(timeout);
       throw error;
@@ -216,7 +260,7 @@ export async function postJson(
     // best effort because the status is what decides everything a user sees.
     let parsed: unknown = null;
     try {
-      parsed = sent.response.status === 204 ? null : await sent.response.json();
+      parsed = sent.response.status === 204 ? null : await readJsonBody(sent.response, sent.signal);
     } catch (error) {
       if (sent.timedOut()) throw error;
       parsed = null;
@@ -242,6 +286,7 @@ export async function postFor<T>(
 ): Promise<T | null> {
   const send = async (): Promise<{
     readonly response: Response;
+    readonly signal: AbortSignal;
     readonly clear: () => void;
   }> => {
     const control = new AbortController();
@@ -255,7 +300,7 @@ export async function postFor<T>(
         headers: mutationHeaders(sessionBinding),
         body: JSON.stringify(body),
       });
-      return { response, clear: () => globalThis.clearTimeout(timeout) };
+      return { response, signal: control.signal, clear: () => globalThis.clearTimeout(timeout) };
     } catch (error) {
       globalThis.clearTimeout(timeout);
       throw error;
@@ -273,7 +318,7 @@ export async function postFor<T>(
     }
     if (!sent.response.ok) { sent.clear(); return null; }
     try {
-      return (await sent.response.json()) as T;
+      return (await readJsonBody(sent.response, sent.signal)) as T;
     } finally {
       sent.clear();
     }

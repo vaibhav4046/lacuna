@@ -191,6 +191,13 @@ describe('web product contracts', () => {
     expect(onboarding).not.toContain("go('/app/dash')");
   });
 
+  it('binds every first-run private mutation to the current session epoch', () => {
+    const onboarding = readFileSync(new URL('../../web/src/onboarding/Onboarding.tsx', import.meta.url), 'utf8');
+    expect(onboarding).toContain('const sessionBinding = loaded.state === \'ready\' && loaded.value.signedIn');
+    expect(onboarding).toContain("postJson('/api/workspace/ingest', { title: sourceTitle.trim(), text }, 15_000, sessionBinding ?? undefined)");
+    expect(onboarding).toContain("postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined)");
+  });
+
   it('documents private MCP access with capabilities, never workspace names', () => {
     const developers = readFileSync(new URL('../../web/src/app/routes/developers.tsx', import.meta.url), 'utf8');
     expect(developers).toContain('Authorization: Bearer');

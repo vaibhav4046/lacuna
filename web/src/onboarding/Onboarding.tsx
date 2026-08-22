@@ -54,7 +54,10 @@ function answerProblem(result: OnboardingAnswer | null): string {
 
 export default function Onboarding() {
   const go = useNavigate();
-  const { refreshAfterMutation } = useSession();
+  const { loaded, refreshAfterMutation } = useSession();
+  const sessionBinding = loaded.state === 'ready' && loaded.value.signedIn
+    ? loaded.value.session.binding
+    : null;
   const health = useHealth();
   const [step, setStep] = useState(0);
   const [workspace, setWorkspace] = useState('');
@@ -75,7 +78,7 @@ export default function Onboarding() {
     const name = workspace.trim();
     if (name === '') { setProblem('Name your workspace first.'); return false; }
     setBusy(true);
-    const result = await postJson('/api/workspace', { workspace: name });
+    const result = await postJson('/api/workspace', { workspace: name }, 15_000, sessionBinding ?? undefined);
     setBusy(false);
     if (!result.ok) { setProblem('The workspace could not be created.'); return false; }
     setWorkspaceReady(true);
@@ -88,7 +91,7 @@ export default function Onboarding() {
     if (text === '') { setProblem('Add a note or choose Use example before storing.'); return false; }
     if (sourceTitle.trim() === '') { setProblem('Give the first memory a title.'); return false; }
     setBusy(true);
-    const result = await postJson('/api/workspace/ingest', { title: sourceTitle.trim(), text });
+    const result = await postJson('/api/workspace/ingest', { title: sourceTitle.trim(), text }, 15_000, sessionBinding ?? undefined);
     setBusy(false);
     if (!result.ok) { setProblem(ingestProblem(result.status)); return false; }
     const body = result.body;
@@ -112,7 +115,7 @@ export default function Onboarding() {
     const text = question.trim();
     if (text === '') { setProblem('Ask one private question first.'); return false; }
     setBusy(true);
-    const result = await postFor<OnboardingAnswer>('/api/workspace/query', { question: text });
+    const result = await postFor<OnboardingAnswer>('/api/workspace/query', { question: text }, 15_000, sessionBinding ?? undefined);
     setBusy(false);
     const reason = answerProblem(result);
     if (reason !== '') { setProblem(reason); return false; }

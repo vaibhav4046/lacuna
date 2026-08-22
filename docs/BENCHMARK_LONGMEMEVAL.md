@@ -4,9 +4,9 @@
 document reports a score, and nothing in `benchmarks/longmemeval/` can produce
 one yet. What exists is the integration: the official format read correctly, an
 adapter that cannot carry an answer into ingestion, claim extraction from the
-raw haystack prose, a runner that refuses rather than invents, and this record
-of what a real run would still need. One component is still missing and it is
-named in [What a real run still needs](#what-a-real-run-still-needs).
+raw haystack prose, a deterministic hypothesis runner that refuses to invent,
+and this record of what a real run would still need. The repository now has a deterministic
+hypothesis producer; the domain extractor and paid official judge remain open.
 
 ## The benchmark
 
@@ -210,10 +210,11 @@ every message carries exactly those eight keys.
 The adapter's return type declares `questions: readonly never[]`, so the value
 it hands ingestion cannot be given a question with an expected answer either.
 
-The runner fails loudly in two places and neither has a fallback: an absent or
-malformed dataset file throws with the download command in the message, and a
-run with no answerer wired throws naming the two components below. It never
-writes a hypothesis it did not get from a system.
+The runner fails loudly when the dataset is absent or malformed. Its default
+answerer is `lacuna-deterministic-planner-v1`: it uses the same sentence planner
+and evidence resolver as the product and writes an abstention when the bounded
+planner cannot read a question. It never writes a hypothesis from the gold
+answer, and it never pretends that writing hypotheses is an official score.
 
 ## Claims out of the haystack
 
@@ -299,19 +300,19 @@ Tightening further would be fitting the frames to this dataset, which is a
 different thing from reading it, so it was not done.
 
 **No LongMemEval score is claimed, and none would be meaningful until an
-extractor exists that reads this domain.** That is a larger gap than the
-question parser named below, and it is named first because it is the one that
-decides whether a number would mean anything.
+extractor exists that reads this domain.** The deterministic runner is useful
+for measuring pipeline behavior and producing inspectable hypotheses, but its
+current sparse personal-domain coverage is not an accepted benchmark result.
 
 ## What a real run still needs
 
-One component, which does not exist in this repository.
+Two components remain before an accepted official result.
 
-**A question parser and a verbaliser.** `ask` takes
-`{subject, predicate, via}`, not a sentence. LongMemEval asks "What degree did I
-graduate with?". Something has to turn that sentence into a structured question,
-and turn the resulting `Outcome` back into the free text string the official
-hypothesis file wants.
+**A domain extractor and question/verbaliser.** The current planner handles the
+product's bounded vocabulary and is now wired into the deterministic runner,
+but LongMemEval asks questions such as "What degree did I graduate with?". A
+personal-domain extractor and broader parser must be added before a score would
+mean what the benchmark says it means.
 
 Then, to score it: an API key for the judge model, and the budget for 500 calls
 per run.
@@ -323,7 +324,7 @@ per run.
 | download | 15.4 MB (oracle), 277 MB (s), 2.74 GB (m). Public, no credential |
 | store | a HydraDB node. The runner is pinned to the node profile, as the other benchmarks are |
 | isolation | one question's haystack per graph. Session ids are drawn from a shared pool and repeat across questions, so two haystacks in one graph collide on keys |
-| missing code | a natural language question parser and verbaliser |
+| missing code | a high-precision personal-domain extractor and broader question/verbaliser |
 | judge | `gpt-4o`, `gpt-4o-mini` or `llama-3.1-70b-instruct`, 500 calls, paid, not configured here |
 
 ## Honest status
@@ -337,6 +338,6 @@ per run.
 | claim extraction from haystack prose | wired in, and **it does not read this domain**: 117 claims from 3.3M tokens (78/500 instances, 15.6%), mostly wrong on inspection |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | ingestion of a real haystack | adapted, not written to a store |
-| hypotheses produced | none |
+| hypotheses produced | deterministic runner implemented; no full store-backed run accepted |
 | official evaluation run | no |
 | score | **none. No LongMemEval number exists for Lacuna** |

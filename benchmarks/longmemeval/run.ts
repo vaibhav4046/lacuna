@@ -62,6 +62,14 @@ export interface RunOptions {
   readonly limit?: number;
 }
 
+export function hypothesisFor(
+  answerer: LongMemEvalAnswerer,
+  question: IngestibleQuestion,
+  source: HydraSource,
+): Promise<string> {
+  return answerer.answer(question, source);
+}
+
 export interface RunOutcome {
   readonly hypotheses: readonly Hypothesis[];
   readonly artifact: RunArtifact;
@@ -91,7 +99,7 @@ export async function runLongMemEval(options: RunOptions): Promise<RunOutcome> {
   for (const record of attempted) {
     const question = stripGroundTruth(record);
     await runIngest(opened.client, buildPlan(adaptHaystack(question)));
-    const hypothesis = await options.answerer.answer(question, opened.source);
+    const hypothesis = await hypothesisFor(options.answerer, question, opened.source);
     hypotheses.push({ question_id: question.question_id, hypothesis });
   }
 
@@ -147,23 +155,6 @@ export function parseArgs(argv: readonly string[]): { dataset: string | null; li
   return { dataset, limit };
 }
 
-const NO_ANSWERER = [
-  'No system is wired to answer LongMemEval questions, so this run would produce nothing.',
-  '',
-  'The dataset loads and the adapter works. What is missing is two components:',
-  '',
-  '  1. A claim extractor. Lacuna ingests claims and evidence spans. LongMemEval',
-  '     supplies raw prose, so the adapted sessions carry no claims and the graph',
-  '     has nothing for the resolver to resolve.',
-  '  2. A question parser. ask() takes {subject, predicate, via}, not a sentence.',
-  '',
-  'Supply both, pass a LongMemEvalAnswerer to runLongMemEval(), and this refuses',
-  'no longer. Until then no LongMemEval number exists for Lacuna, and inventing',
-  'one here would be worse than having none.',
-  '',
-  'See docs/BENCHMARK_LONGMEMEVAL.md.',
-].join('\n');
-
 async function main(): Promise<void> {
   const { dataset } = parseArgs(process.argv.slice(2));
   if (dataset === null) {
@@ -172,11 +163,18 @@ async function main(): Promise<void> {
     );
   }
 
-  // Loading first, so a missing dataset reports the download rather than the
-  // missing answerer. Both are real, and this is the one the reader hits first.
+  // Loading first, so a missing dataset reports the download before opening a
+  // store or writing an artifact.
   const records = loadDataset(dataset);
   process.stdout.write(`Loaded ${records.length} instances from ${dataset}\n\n`);
-  throw new LongMemEvalRunError(NO_ANSWERER);
+  const { createDeterministicAnswerer } = await import('./answerer.js');
+  const outcome = await runLongMemEval({
+    dataset,
+    outDir: 'artifacts/longmemeval/run',
+    answerer: createDeterministicAnswerer(),
+  });
+  process.stdout.write(`Wrote ${outcome.hypotheses.length} hypotheses to ${outcome.hypothesisPath}\n`);
+  process.stdout.write(`Run artifact: ${outcome.artifactPath}\n`);
 }
 
 await main();

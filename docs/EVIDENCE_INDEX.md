@@ -39,6 +39,7 @@ not transfer without a named rerun.
 | provider-backed voice boundary, production | 7/7 voice smoke gates; real ElevenLabs single-use token and `audio/mpeg` response (25,958 bytes in this run), bounded without printing provider secrets | `scripts/smoke-voice.ts`, production deployment `dpl_5KeujWyUGzyccgA4tTh6pxH94wdL` |
 | private agent mutation binding, production code path | browser Agents/Work mutations send the validated current-session binding; server rejects missing, stale or malformed bindings on launch, scheduling, cancel, retry and schedule dispatch | `web/src/api/client.ts`, `web/src/app/routes/agents.tsx`, `web/src/app/routes/work.tsx`, `src/api/router.ts`, `tests/unit/agent-runtime-api.test.ts`, `tests/unit/agent-recommendations-api.test.ts`, production deployment `dpl_5KeujWyUGzyccgA4tTh6pxH94wdL` |
 | cross-browser voice capture guard | microphone capture uses the standard AudioContext or WebKit fallback, reports unsupported media devices as a bounded browser error, and retains native playback fallback | `web/src/voice/browser.ts`, `web/src/voice/playback.ts`, `tests/unit/voice-browser.test.ts` |
+| LongMemEval deterministic hypothesis pipeline | a model-free answerer now routes stripped questions through Lacuna's bounded sentence planner/resolver and emits inspectable hypotheses; no official judge score is claimed | `benchmarks/longmemeval/answerer.ts`, `benchmarks/longmemeval/run.ts`, `tests/unit/longmemeval-runner.test.ts`, `docs/BENCHMARK_LONGMEMEVAL.md` |
 
 ## Candidate acceptance gaps
 

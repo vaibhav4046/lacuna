@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { MONO } from '../design/mark';
 import { icStyle } from '../design/icons';
 import { CONNECTOR_PRESENTATION, dotFor } from '../design/connectors';
@@ -6,7 +7,35 @@ const POSITIONS = {
   CODE: ['22%', '42%'], WORK: ['76%', '40%'], FILES: ['24%', '74%'], DATA: ['76%', '74%'],
 } as const;
 
+interface PublicConnectorState {
+  readonly id: string;
+  readonly availability: 'available' | 'unavailable';
+}
+
+function usePublicConnectorState(): Readonly<Record<string, PublicConnectorState>> {
+  const [state, setState] = useState<Readonly<Record<string, PublicConnectorState>>>({});
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/explore/connectors', { headers: { Accept: 'application/json' } })
+      .then((response) => response.ok ? response.json() as Promise<{ connectors?: readonly PublicConnectorState[] }> : null)
+      .then((body) => {
+        if (!active || body === null || !Array.isArray(body.connectors)) return;
+        const next: Record<string, PublicConnectorState> = {};
+        for (const connector of body.connectors) {
+          if (typeof connector?.id !== 'string'
+            || (connector.availability !== 'available' && connector.availability !== 'unavailable')) continue;
+          next[connector.id] = connector;
+        }
+        setState(next);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  return state;
+}
+
 export function Conn() {
+  const publicState = usePublicConnectorState();
   return (
     <section id="conn" data-scene="conn" style={{ position: 'relative', height: '200vh' }}>
       <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
@@ -19,12 +48,17 @@ export function Conn() {
           return <div key={group} data-mhide="1" data-shield style={{ position: 'absolute', left, top, transform: 'translate(-50%,-50%)', width: '190px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontFamily: MONO, fontSize: '9.5px', fontWeight: 500, letterSpacing: '0.24em', color: '#7A7A84' }}>{group}</span>
             {CONNECTOR_PRESENTATION.filter((item) => item.group === group).slice(0, 4).map((item) => {
-              const status = item.implementation === 'implemented' ? 'PRIVATE WORKFLOW' : 'PLANNED';
+              const runtime = item.serverIds.map((id) => publicState[id]).find((entry) => entry !== undefined);
+              const status = item.implementation === 'planned' ? 'PLANNED'
+                : runtime === undefined ? 'CHECKING'
+                  : runtime.availability === 'available' ? 'AVAILABLE' : 'UNAVAILABLE';
+              const dot = item.implementation === 'planned' ? 'planned'
+                : runtime === undefined ? 'planned' : runtime.availability;
               return <span key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={icStyle(item.name, 13)} />
                 <span style={{ fontSize: '13.5px', color: '#BDBDBD' }}>{item.name}</span>
-                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: dotFor(item.implementation === 'implemented' ? 'available' : 'planned'), flexShrink: 0 }} />
-                <span style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.1em', color: '#7A7A7A' }}>{status}</span>
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: dotFor(dot), flexShrink: 0 }} aria-hidden="true" />
+                <span style={{ minWidth: '76px', fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.1em', color: '#7A7A7A', whiteSpace: 'nowrap' }}>{status}</span>
               </span>;
             })}
           </div>;

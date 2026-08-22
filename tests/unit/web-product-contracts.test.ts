@@ -54,6 +54,14 @@ describe('web product contracts', () => {
     expect(developers).not.toContain('export function Connectors()');
   });
 
+  it('keeps the landing connector scene aligned with public runtime availability', () => {
+    const landing = readFileSync(new URL('../../web/src/landing/Conn.tsx', import.meta.url), 'utf8');
+    expect(landing).toContain("fetch('/api/explore/connectors'");
+    expect(landing).toContain("status = item.implementation === 'planned' ? 'PLANNED'");
+    expect(landing).toContain("runtime.availability === 'available' ? 'AVAILABLE' : 'UNAVAILABLE'");
+    expect(landing).toContain('whiteSpace: \'nowrap\'');
+  });
+
   it('uses truthful recorded observations, inert planned cards, and a contained one-time secret modal', () => {
     const route = readFileSync(new URL('../../web/src/app/routes/connectors.tsx', import.meta.url), 'utf8');
     const observation = Reflect.get(browserContracts, 'REVIEWED_OBSERVATION_COPY');

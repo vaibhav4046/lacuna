@@ -64,6 +64,22 @@ export class PlaybackSession {
     const generation = ++this.#generation;
     const url = URL.createObjectURL(blob);
     const element = new Audio(url);
+    // iOS Safari otherwise promotes a blob-backed element into a full-screen
+    // player and can discard the user-gesture relationship needed for play().
+    // These properties are harmless on desktop browsers and keep playback
+    // inline wherever the platform supports it.
+    // The DOM lib exposes `playsInline` on video but not audio even though
+    // WebKit honors it for both. Keep the narrow runtime extension local.
+    (element as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+    element.preload = 'auto';
+
+    // A context prepared before an async provider round trip may still be
+    // suspended (notably on Safari). Retry the resume immediately before
+    // attaching the optional analyser; native element playback remains the
+    // contract if the context is unavailable or refuses to resume.
+    if (this.#context !== null && this.#context.state !== 'running') {
+      try { await this.#context.resume(); } catch { /* native playback still proceeds */ }
+    }
 
     await new Promise<void>((resolve, reject) => {
       let finished = false;

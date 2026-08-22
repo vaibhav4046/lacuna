@@ -74,11 +74,14 @@ describe('playback audio guard', () => {
 
   it('plays through native audio when Web Audio is unavailable', async () => {
     class NativeAudio {
+      static instance: NativeAudio | null = null;
       paused = true;
       ended = false;
+      playsInline = false;
+      preload = '';
       readonly #listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
 
-      constructor(_url: string) {}
+      constructor(_url: string) { NativeAudio.instance = this; }
 
       addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
         const listeners = this.#listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
@@ -133,6 +136,8 @@ describe('playback audio guard', () => {
     await expect(runtime.speak('Supported answer.', handlers, signal)).resolves.toBeUndefined();
     expect(started).toEqual(['unavailable']);
     expect(frames).toEqual([]);
+    expect(NativeAudio.instance?.playsInline).toBe(true);
+    expect(NativeAudio.instance?.preload).toBe('auto');
   });
 
   it('finishes native playback when the optional analyser cannot attach', async () => {

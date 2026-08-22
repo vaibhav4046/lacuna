@@ -19,11 +19,13 @@ Vercel rejected new deployments after the free daily deployment quota was
 exhausted.
 
 The latest candidate passes the complete serial unit suite: 117 files and
-2,283 tests, with no skips.
+2,294 tests, with no skips. Commit `641d039` also makes the landing hero
+session-aware, so a verified member returns to the private workspace instead
+of being sent to the public read-only explore route.
 
 ## Accepted product gate
 
-- 117 unit test files and 2,283 tests passed with no skips in the latest serial verification.
+- 117 unit test files and 2,294 tests passed with no skips in the latest serial verification.
 - Root and web TypeScript checks pass.
 - The production web bundle builds from 139 modules. The entry is 306.97 kB,
   100.66 kB gzip.

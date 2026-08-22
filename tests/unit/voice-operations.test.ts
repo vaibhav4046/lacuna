@@ -121,4 +121,11 @@ describe('closed voice operation registry', () => {
     expect(() => formatVoiceResultSummary({ version: 1, kind: 'remember', text: 'x' }, -1))
       .toThrow(/count/u);
   });
+
+  it('describes connector setup as opened after the route became executable', () => {
+    expect(formatVoiceResultSummary({ version: 1, kind: 'open_connector_setup' }))
+      .toBe('Opened connector setup.');
+    expect(formatVoiceResultSummary({ version: 1, kind: 'open_file_setup' }))
+      .toBe('Opened file connector setup.');
+  });
 });

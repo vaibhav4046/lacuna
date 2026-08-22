@@ -203,8 +203,8 @@ export function formatVoiceResultSummary(operation: VoiceOperation, observedCoun
     case 'navigate': return `Opened ${ROUTE_LABELS[operation.route]}.`;
     case 'ask': return `Answer ready with ${counted(count, 'evidence item')}.`;
     case 'summarize': return `${SUMMARY_LABELS[operation.resource]} summary ready with ${counted(count, 'item')}.`;
-    case 'open_connector_setup': return 'Connector setup is unavailable.';
-    case 'open_file_setup': return 'File connector setup is unavailable.';
+    case 'open_connector_setup': return 'Opened connector setup.';
+    case 'open_file_setup': return 'Opened file connector setup.';
     case 'remember': return `Stored ${counted(count, 'claim')}.`;
     case 'start_researcher': return 'Researcher work started.';
     case 'cancel_selected_run': return 'Run cancelled.';

@@ -8,7 +8,7 @@ dated evidence.
 The accepted production deployment remains `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`.
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,
-`bf987e2`, `750a9f5`, `3dafaa9`, `a9542ed` and `292532a`
+`bf987e2`, `750a9f5`, `3dafaa9`, `a9542ed`, `292532a` and `894c03d`
 add durable-read/session routing fixes, GitLab observation persistence,
 LongMemEval evidence alignment, bounded DOCX XML extraction, and idempotent
 browser agent retries, duplicate-submit auth and Work guards, and remove the
@@ -18,7 +18,7 @@ Vercel rejected new deployments after the free daily deployment quota was
 exhausted.
 
 The latest candidate passes the complete serial unit suite: 117 files and
-2,281 tests, with no skips.
+2,282 tests, with no skips.
 
 ## Accepted product gate
 

@@ -285,6 +285,8 @@ describe('web product contracts', () => {
     expect(voice).toContain("'ENABLE SOUND'");
     expect(voice).toContain("speech.playbackAnalysis === 'unavailable'");
     expect(voice).toContain('AUDIO PLAYING · METER UNAVAILABLE');
+    expect(voice).toContain('ANSWER READY · AUDIO UNCONFIRMED');
+    expect(voice).toContain('The answer was retrieved and remains visible below. Browser playback was not confirmed.');
   });
 
   it('keeps dock keyboard handling collapse-only on Escape and contains zero, one, or many focus targets', () => {

@@ -99,6 +99,7 @@ export function VoiceAssistantSurface({ expanded = false }: { readonly expanded?
   const operationProblem = snapshot.result?.failure === null || snapshot.result?.failure === undefined
     ? null
     : OPERATION_FAILURE_COPY[snapshot.result.failure];
+  const answerRetrieved = snapshot.result?.status === 'succeeded' && speech.failure !== null;
   const committedTranscript = speech.partialTranscript !== ''
     ? speech.partialTranscript
     : speech.transcript;
@@ -128,18 +129,23 @@ export function VoiceAssistantSurface({ expanded = false }: { readonly expanded?
       </div>
 
       <div aria-live="polite" style={{ display: 'grid', gap: '6px' }}>
-        <span style={{ ...label, color: '#9A9A9A' }}>{VOICE_STATE_COPY[speech.state].status}</span>
+        <span style={{ ...label, color: '#9A9A9A' }}>{answerRetrieved ? 'ANSWER READY · AUDIO UNCONFIRMED' : VOICE_STATE_COPY[speech.state].status}</span>
         <span style={{ color: '#BDBDBD', fontSize: expanded ? '15px' : '13px', lineHeight: 1.55 }}>
-          {VOICE_STATE_COPY[speech.state].detail}
+          {answerRetrieved ? 'The answer was retrieved and remains visible below. Browser playback was not confirmed.' : VOICE_STATE_COPY[speech.state].detail}
         </span>
         {speech.state === 'SPEAKING' && speech.playbackAnalysis === 'unavailable' ? (
           <span style={{ ...label, color: '#FFB829' }}>AUDIO PLAYING · METER UNAVAILABLE</span>
         ) : null}
-        {speech.failure === null ? null : (
+        {speech.failure === null || answerRetrieved ? null : (
           <span role="alert" style={{ color: '#FFB829', fontSize: '13px', lineHeight: 1.55 }}>
             {FAILURE_COPY[speech.failure]}
           </span>
         )}
+        {answerRetrieved ? (
+          <span role="status" style={{ color: '#FFB829', fontSize: '13px', lineHeight: 1.55 }}>
+            The answer was retrieved. Select PLAY ANSWER or read the observed result if sound is unavailable.
+          </span>
+        ) : null}
       </div>
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

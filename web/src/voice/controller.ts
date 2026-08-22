@@ -137,6 +137,12 @@ function spokenResult(planned: PlannedVoiceAnswer): {
 } | null {
   const answer = planned.answer;
   if (answer === null || planned.reading === null) {
+    if (planned.unread === 'no_subject' && planned.knownSubjects.length === 0) {
+      return { event: 'abstain', text: 'This workspace has no stored memory yet. Add a source before asking a private question.' };
+    }
+    if (planned.unread === 'no_subject' && planned.knownSubjects.length > 0) {
+      return { event: 'abstain', text: 'Name one of the stored subjects before asking a private question.' };
+    }
     return { event: 'abstain', text: 'I could not read that as a question for this workspace.' };
   }
   if (answer.status === 'ANSWERED' || answer.status === 'PARTIAL') {

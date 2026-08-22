@@ -98,6 +98,33 @@ function sameContext(left: VoiceAssistantContext, right: VoiceAssistantContext):
 }
 
 /**
+ * A read-only question can still be answered safely when the optional voice
+ * intent planner is temporarily unavailable. This never executes navigation or
+ * mutation text; the direct runtime is the existing authenticated query path.
+ */
+function isReadOnlyQuestion(text: string): boolean {
+  const normalized = text.trim();
+  return normalized.endsWith('?') || /^(who|what|when|where|why|how|which|is|are|can|does|did|do|tell me|show me)\b/iu.test(normalized);
+}
+
+function directReadResult(response: VoiceCommittedTextResult): VoiceOperationResult {
+  const answer = response.planned?.answer ?? null;
+  const status = answer?.status;
+  return {
+    requestId: null,
+    operationKind: 'ask',
+    status: 'succeeded',
+    failure: null,
+    summary: response.spoken,
+    observedCount: answer?.evidence.length ?? 0,
+    answer: answer?.answer ?? null,
+    answerStatus: status === 'ANSWERED' || status === 'PARTIAL' || status === 'CONFLICT' || status === 'NO_EVIDENCE'
+      ? status
+      : null,
+  };
+}
+
+/**
  * Coordinates allowlisted operations without adding operation authority to the
  * microphone/playback machine. A pending mutation retains the exact trusted
  * plan privately and exposes only its validated preview.
@@ -245,6 +272,19 @@ export class VoiceAssistantController {
     } catch (error) {
       this.#assertCurrent(generation, signal);
       const failure = error instanceof VoiceOperationRequestError ? error.failure : 'request_failed';
+      if (failure === 'request_failed' && isReadOnlyQuestion(text)) {
+        try {
+          const direct = await directAsk();
+          this.#assertCurrent(generation, signal);
+          this.#operationPhase = 'succeeded';
+          this.#result = directReadResult(direct);
+          this.#emit();
+          return direct;
+        } catch {
+          // Preserve the normal bounded unavailable result if the direct read
+          // is also unavailable; no command is ever executed by this fallback.
+        }
+      }
       const result = fixedResult('unavailable', failure, 'The operation could not be completed.');
       this.#operationPhase = 'unavailable';
       this.#result = result;

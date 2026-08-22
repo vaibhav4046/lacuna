@@ -94,3 +94,8 @@ Read-only signed-session browser check:
 Production runtime scan:
 - Vercel grouped runtime errors for the production project returned no errors
   in the selected one-hour window after the connector lifecycle fix
+
+Promotion attempt:
+- candidate web build passed (`138` modules; `vite build` succeeded)
+- `npx vercel --prod --yes` was rejected again with
+  `api-deployments-free-per-day`; the stable alias was not changed

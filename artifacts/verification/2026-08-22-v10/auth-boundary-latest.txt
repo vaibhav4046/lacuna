@@ -81,3 +81,12 @@ Fresh stable smoke rerun:
 - `smoke:google`: 16/16
 - `smoke:demo`: 31/31
 - `smoke:voice`: 7/7, including bounded `audio/mpeg` provider output
+
+Read-only signed-session browser check:
+- visiting `/signin` with the existing production session redirected to
+  `/app/dash` without prompting for credentials
+- `/app/agents` rendered both persisted governed roles (`Researcher` and
+  `Reviewer`) and the explicit run control
+- `/app/work` rendered the daily schedule and five observed runs
+- `/app/connectors` rendered all seven implemented workflows as available
+- the browser reported no console errors or warnings during these route reads

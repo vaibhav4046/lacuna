@@ -21,10 +21,17 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 113 files, 2,238/2,238 passed
+- current candidate full unit suite: 113 files, 2,239/2,239 passed
 - queued candidate adds bounded OAuth state/code parameters and a ten-second
   Google token/JWKS deadline; it is not yet production-promoted because the
   Vercel Hobby deployment quota is exhausted
+
+Voice candidate hardening:
+- a stalled speech body reader is cancelled when the bounded acquisition signal
+  fires after headers have arrived
+- the voice path returns `provider_unavailable` instead of remaining busy
+- the regression is covered by `tests/unit/voice-browser.test.ts`; not yet
+  production-promoted
 
 Fresh stable smoke rerun:
 - `smoke:auth`: 3/3

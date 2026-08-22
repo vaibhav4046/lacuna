@@ -1,0 +1,18 @@
+Lacuna V10 production Git deployment receipt
+Date: 2026-08-22
+Stable alias: https://lacuna-five.vercel.app
+Deployment: dpl_GWF5vaPYaRQgNkZhDrfit81KmPkE
+Source: GitHub main branch, production environment
+
+Live gates after the production deployment:
+- auth smoke: 3/3
+- Google OAuth/security smoke: 16/16
+- provider voice boundary: 7/7
+- demo/API/catalogue smoke: 32/32
+- provider response: audio/mpeg, bounded payload, CSRF refusal on missing proof
+
+The deployment includes the reviewed release path, including exact auth Origin
+binding, demo-workspace Ask/Voice scope alignment, connector catalogues, pinned
+LongMemEval oracle verification tooling, and legacy native Audio.play()
+compatibility. No official LongMemEval judge score is claimed without a paid
+judge key and 500-call budget.

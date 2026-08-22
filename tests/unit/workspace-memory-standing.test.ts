@@ -49,4 +49,18 @@ describe('signed-in memory standings', () => {
     expect(view.memory.map((row) => row.st)).toEqual(['CON', 'CON', 'CUR']);
     expect(view.health).toEqual({ current: 1, historical: 0, conflicts: 2 });
   });
+
+  it('derives Ask suggestions from the claims the signed-in view actually read', async () => {
+    const view = await storeWorkspace(source([
+      { predicate: 'owner', value: 'Priya Raman' },
+      { predicate: 'owner', value: 'Rasmus Berg' },
+      { predicate: 'region', value: 'eu-central-1' },
+    ]), 1_000);
+
+    expect(view.questions).toEqual([
+      { label: 'Gateway · region — is current', subject: 'Gateway', predicate: 'region' },
+      { label: 'Gateway · owner — has sources that disagree', subject: 'Gateway', predicate: 'owner' },
+      { label: 'Gateway · connection pool size — nothing states it', subject: 'Gateway', predicate: 'pool_size' },
+    ]);
+  });
 });

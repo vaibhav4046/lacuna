@@ -21,7 +21,7 @@ Live callback refusal:
 - the attempt cookie is cleared; no token exchange is reached
 
 Candidate verification:
-- current candidate full unit suite: 113 files, 2,240/2,240 passed
+- current candidate full unit suite: 113 files, 2,241/2,241 passed
 - queued candidate adds bounded OAuth state/code parameters and a ten-second
   Google token/JWKS deadline; it is not yet production-promoted because the
   Vercel Hobby deployment quota is exhausted
@@ -38,6 +38,13 @@ Connector candidate hardening:
   bounded importer signal fires after headers arrive
 - the importer returns `github_timeout` rather than remaining busy
 - the regression is covered by `tests/unit/connectors-github.test.ts`; not yet
+  production-promoted
+
+HydraDB candidate hardening:
+- the HydraDB response body reader is cancelled when the caller aborts after
+  headers arrive
+- the client returns a bounded transport failure rather than remaining busy
+- the regression is covered by `tests/unit/client.test.ts`; not yet
   production-promoted
 
 Fresh stable smoke rerun:

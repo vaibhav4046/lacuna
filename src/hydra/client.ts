@@ -74,14 +74,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * while the stream is being consumed, not after, so an oversized response is
  * cut off rather than buffered and then rejected.
  */
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
+async function readCapped(res: Response, maxBytes: number, signal: AbortSignal): Promise<string> {
   if (res.body === null) return '';
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let abortReject!: (reason: unknown) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { abortReject = reject; });
+  const onAbort = () => {
+    abortReject(new HydraTransportError('response body read cancelled'));
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', onAbort, { once: true });
   try {
+    if (signal.aborted) onAbort();
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), aborted]);
       if (done) break;
       if (value === undefined) continue;
       total += value.byteLength;
@@ -94,6 +102,7 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
       chunks.push(value);
     }
   } finally {
+    signal.removeEventListener('abort', onAbort);
     reader.releaseLock();
   }
 
@@ -316,11 +325,11 @@ export class HydraClient {
     }
 
     if (!res.ok) {
-      const text = await readCapped(res, 64 * 1024).catch(() => '');
+      const text = await readCapped(res, 64 * 1024, signal).catch(() => '');
       throw new HydraQueryError(res.status, unwrapEngineMessage(text));
     }
 
-    const text = await readCapped(res, this.#limits.maxResponseBytes);
+    const text = await readCapped(res, this.#limits.maxResponseBytes, signal);
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);

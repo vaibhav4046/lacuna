@@ -131,6 +131,28 @@ export class CloudAccounts implements Accounts {
     return `lacuna:profile:${createHash('sha256').update(email.toLowerCase(), 'utf8').digest('hex').slice(0, 32)}`;
   }
 
+  /**
+   * Hydra accepts app-ingest before the record is readable from another
+   * invocation. Auth cannot return a session on that acknowledgement alone:
+   * the next request would look signed out. Keep the write boundary bounded,
+   * then read the exact id until the service exposes it.
+   */
+  async #waitForWrite(id: string): Promise<void> {
+    let delayMs = 25;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      try {
+        if (await this.#cloud.inspect(id, 1_000, this.#collection) !== null) return;
+      } catch {
+        // A transient inspect failure is indistinguishable from an index that
+        // has not caught up. The bounded loop below still fails closed.
+      }
+      if (attempt === 5) break;
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      delayMs = Math.min(delayMs * 2, 400);
+    }
+    throw new StoreUnavailable('the account write was not readable yet');
+  }
+
   async #read<T>(id: string): Promise<T | null> {
     const source = await this.#cloud.inspect(id, 10_000, this.#collection);
     if (source === null) return null;
@@ -159,6 +181,7 @@ export class CloudAccounts implements Accounts {
     if (refused !== undefined) {
       throw new StoreUnavailable('the account store refused the write');
     }
+    await this.#waitForWrite(id);
   }
 
   async available(): Promise<boolean> {

@@ -37,6 +37,24 @@ class RecordCloud {
   }
 }
 
+class EventuallyConsistentRecordCloud extends RecordCloud {
+  #hiddenReads = 0;
+
+  override async ingestApp(records: readonly AppRecord[], collection: string): Promise<readonly IngestResult[]> {
+    const result = await super.ingestApp(records, collection);
+    this.#hiddenReads += records.length;
+    return result;
+  }
+
+  override async inspect(id: string, timeoutMs: number, collection: string): Promise<InspectedSource | null> {
+    if (this.#hiddenReads > 0) {
+      this.#hiddenReads -= 1;
+      return null;
+    }
+    return super.inspect(id, timeoutMs, collection);
+  }
+}
+
 const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
@@ -104,6 +122,15 @@ async function provesWorkspaceUpdateCannotResurrect(accounts: Accounts): Promise
 }
 
 describe('credential-bound session versions', () => {
+  it('waits for queued Hydra account writes before minting a session', async () => {
+    const accounts = new CloudAccounts(new EventuallyConsistentRecordCloud() as unknown as HydraCloud);
+    expect(await accounts.create(ACCOUNT)).not.toBeNull();
+
+    const token = await accounts.startSession(EMAIL, Date.now(), ACCOUNT.sessionVersion);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    await expect(accounts.sessionFor(token, Date.now() + 1)).resolves.toMatchObject({ email: EMAIL });
+  });
+
   it('revokes legacy sessions in the file-backed store and survives a restart', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'lacuna-session-version-'));
     directories.push(directory);

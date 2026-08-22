@@ -22,8 +22,11 @@ Live callback refusal:
 
 Candidate verification:
 - focused auth/session/browser tests pass; the DOCX connector suite passes
-  84/84 after the bounded XML extraction fix; the full serial suite passes
-  2,278/2,278 across 117 files
+  84/84 after the bounded XML extraction fix; the focused release matrix passes
+  214/214 across Google auth, password/session auth, connectors, ingestion,
+  agents and voice. A serial all-unit run currently exits unexpectedly when
+  Vitest's isolated worker reaches the Node worker-thread file-parser tests;
+  no current full-suite pass is claimed.
 - commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`, `dc5c343`,
   `35c32cd`, `6feb07a`, `c4f13e8` and `e3c24ab`
   reduce
@@ -169,8 +172,9 @@ Candidate workflow safety repairs:
   source contract and focused agent tests pass
 - GitLab legacy and direct connector anchors now resolve to the real workflow
   review surface; focused connector tests pass
-- the latest serial unit suite passes 2,283/2,283 across 117 files, with no
-  skips; candidate-only until Vercel deployment quota resets
+- focused connector/product tests pass; the serial all-unit run remains
+  candidate-only until the Vitest worker-thread isolation failure is resolved
+  and Vercel deployment quota resets
 - Work cancel/retry and schedule dispatch also reject duplicate lifecycle
   mutations before their busy state renders; focused product contracts pass
 

@@ -31,7 +31,7 @@ import {
   type VoiceOperationApiOptions,
   type VoiceOperationRequestFailure,
 } from '../api/voice-operations';
-import { planVoiceIntent } from '../../../src/voice/intent.js';
+import { planLocalVoiceIntent } from './local-intent';
 
 const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const SESSION_BINDING = /^[0-9a-f]{64}$/u;
@@ -436,9 +436,13 @@ export class VoiceOperationExecutor {
       // navigation and read-only operations only; writes never gain authority
       // from this fallback and remain fail-closed in the assistant controller.
       if (!(error instanceof VoiceOperationRequestError) || error.failure !== 'request_failed') throw error;
-      const local = planVoiceIntent(transcript, currentRoute, context.scope);
+      const local = planLocalVoiceIntent(transcript);
       if (local.operation !== null && (local.effect === 'write' || local.operation.kind === 'confirm')) throw error;
-      plan = { ...local, requestId };
+      plan = {
+        ...local,
+        requestId,
+        display: local.operation === null ? local.display : formatVoicePreview(local.operation),
+      };
     }
     if (plan === null) throw new VoiceOperationRequestError('invalid_plan');
     this.#planContexts.set(plan, context);

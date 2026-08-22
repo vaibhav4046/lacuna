@@ -65,7 +65,7 @@ alias was still refused before body processing.
 
 ## V10 production gate
 
-The current production deployment is product commit `c63032b`
+The current production deployment is product commit `8013014`
 (`fix(connectors): align json csv product copy`) with the production-only
 file-preview and webhook signing keys enabled. Root and web typecheck/build
 pass; the full unit suite is 2,226/2,226 (111 files), and the stable alias passed demo
@@ -73,7 +73,7 @@ smoke 31/31, Google auth smoke 16/16, auth boundary smoke 3/3, and the live
 provider voice smoke 7/7. Private agent launch, scheduling, cancel, retry and
 dispatch mutations now require the exact current-session binding, with browser
 requests sending it. The stable alias points to the immutable deployment
-`https://lacuna-le3okh65r-vaibhav4046s-projects.vercel.app` (`dpl_5jVMVKXyLCP9QP8Ni2ZrwUtKLFc3`), aliased to `https://lacuna-five.vercel.app`.
+`https://lacuna-ga5ebcntv-vaibhav4046s-projects.vercel.app` (`dpl_B5ot1JT2naabyLt8QCPD7xrZmhoZ`), aliased to `https://lacuna-five.vercel.app`.
 
 The Google callback now validates the browser-bound OAuth state before honoring
 provider cancellation responses, so a forged `error=access_denied` callback

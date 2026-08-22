@@ -276,6 +276,25 @@ describe('immediate voice operations', () => {
     expect(runtime.spoken).toEqual(['Priya owns Atlas.']);
   });
 
+  it('uses the canonical read path before the operation planner for ordinary questions', async () => {
+    const { assistant, executor, runtime, voice } = harness();
+    executor.plans.set('Who owns Atlas?', plan(
+      { version: 1, kind: 'navigate', route: 'graph' },
+      REQUEST_IDS[0],
+      'Open Graph.',
+    ));
+
+    await voice.submitTyped('Who owns Atlas?');
+
+    expect(executor.planCalls).toEqual([]);
+    expect(executor.executed).toEqual([]);
+    expect(runtime.queryCalls).toEqual(['Who owns Atlas?']);
+    expect(assistant.snapshot).toMatchObject({
+      operationPhase: 'succeeded',
+      result: { operationKind: 'ask', answer: 'Priya owns Atlas.', answerStatus: 'ANSWERED' },
+    });
+  });
+
   it('falls back to the authenticated read path for questions when intent planning is unavailable', async () => {
     const { assistant, executor, runtime, voice } = harness();
     executor.planFailures.set('Who owns Atlas?', new VoiceOperationRequestError('request_failed'));
@@ -293,7 +312,7 @@ describe('immediate voice operations', () => {
     expect(runtime.spoken).toEqual(['Priya owns Atlas.']);
   });
 
-  it('speaks only the fixed observed summary while retaining the bounded Ask result', async () => {
+  it('speaks the canonical answer while retaining its bounded Ask result', async () => {
     const { assistant, executor, runtime, voice } = harness();
     const ask = plan(
       { version: 1, kind: 'ask', question: 'Who owns Atlas?' },
@@ -306,7 +325,7 @@ describe('immediate voice operations', () => {
     await voice.submitTyped('Who owns Atlas?');
 
     expect(assistant.snapshot.result?.answer).toBe('Priya owns Atlas.');
-    expect(runtime.spoken).toEqual(['Answer ready with 1 evidence item.']);
+    expect(runtime.spoken).toEqual(['Priya owns Atlas.']);
   });
 });
 

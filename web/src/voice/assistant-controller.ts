@@ -266,6 +266,29 @@ export class VoiceAssistantController {
     this.#result = null;
     this.#emit();
 
+    // A question is already a governed read. Sending it through the operation
+    // planner first made a healthy workspace answer depend on a second,
+    // optional service and turned a planner/session race into a voice error.
+    // Read-only text uses the same canonical query path as Ask; only commands
+    // and writes need intent planning and confirmation.
+    if (isReadOnlyQuestion(text)) {
+      try {
+        const direct = await directAsk();
+        this.#assertCurrent(generation, signal);
+        this.#operationPhase = 'succeeded';
+        this.#result = directReadResult(direct);
+        this.#emit();
+        return direct;
+      } catch {
+        this.#assertCurrent(generation, signal);
+        const result = fixedResult('unavailable', 'request_failed', 'The operation could not be completed.', 'ask');
+        this.#operationPhase = 'unavailable';
+        this.#result = result;
+        this.#emit();
+        return responseFor(result);
+      }
+    }
+
     let planned: VoiceOperationPlan;
     try {
       planned = await this.#executor.plan(text, this.#context.currentRoute);

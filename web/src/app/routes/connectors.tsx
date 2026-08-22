@@ -53,6 +53,9 @@ function currentCsrf(): string {
 export function ReceiptSummary({ receipt, reference }: { receipt: ConnectorRunReceipt; reference: string | null }) {
   const fullySearchable = receipt.acceptedDocuments > 0
     && receipt.searchableDocuments === receipt.acceptedDocuments;
+  const readinessPending = receipt.acceptedDocuments > 0
+    && receipt.searchableDocuments < receipt.acceptedDocuments
+    && (receipt.failure === 'readiness_failed' || receipt.failure === 'readiness_timeout');
   return (
     <>
       <span className="connector-kicker">EXACT OPERATION RECEIPT</span>
@@ -64,7 +67,8 @@ export function ReceiptSummary({ receipt, reference }: { receipt: ConnectorRunRe
         <div><dt>DUPLICATE</dt><dd>{receipt.duplicateDocuments}</dd></div>
         <div><dt>FAILED</dt><dd>{receipt.failedDocuments}</dd></div>
       </dl>
-      <p>Readiness: {receiptReadiness(receipt)} · operation failure: {receipt.failure ?? 'none'} · observation: {receipt.observationWrite}</p>
+      <p>Readiness: {receiptReadiness(receipt)} · failure detail: {receipt.failure ?? 'none'} · observation: {receipt.observationWrite}</p>
+      {readinessPending ? <p>Accepted documents are stored. Search indexing has not been confirmed yet; refresh Memory before retrying.</p> : null}
       {receipt.failedDocuments === 0 ? null : <p>{receipt.failedDocuments} submitted {receipt.failedDocuments === 1 ? 'document failed' : 'documents failed'}{receipt.searchableDocuments > 0 ? ' separately from the searchable acceptance.' : '.'}</p>}
       {reference === null ? null : <p>SAFE REFERENCE · <code>{reference}</code></p>}
     </>

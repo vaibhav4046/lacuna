@@ -223,6 +223,8 @@ describe('private connector workflow contracts', () => {
     expect(searchable).toContain('TEXT · 2026-08-21T12:00:00.000Z');
     expect(incomplete).toContain('Accepted; search readiness incomplete');
     expect(incomplete).toContain('Readiness: not confirmed');
+    expect(incomplete).toContain('Accepted documents are stored. Search indexing has not been confirmed yet');
+    expect(incomplete).toContain('failure detail: readiness_timeout');
     expect(indeterminate).toContain('Submission outcome indeterminate');
     expect(indeterminate).toContain('submission indeterminate; not confirmed');
 

@@ -1,12 +1,13 @@
 # LongMemEval integration
 
 **No LongMemEval number has been produced by this repository.** Nothing in this
-document reports a score, and nothing in `benchmarks/longmemeval/` can produce
-one yet. What exists is the integration: the official format read correctly, an
-adapter that cannot carry an answer into ingestion, claim extraction from the
-raw haystack prose, a deterministic hypothesis runner that refuses to invent,
-and this record of what a real run would still need. The repository now has a deterministic
-hypothesis producer; the domain extractor and paid official judge remain open.
+document reports a score. What exists is the integration: the official format
+read correctly, an adapter that cannot carry an answer into ingestion, claim
+extraction from the raw haystack prose, a deterministic hypothesis runner that
+refuses to invent, and an official-compatible paid-judge client. The repository
+can now produce hypotheses and, when an owner supplies a judge key and budget,
+an auditable evaluation log; it does not claim a score until that run actually
+completes.
 
 ## The benchmark
 
@@ -138,8 +139,20 @@ selected by `'_abs' in entry['question_id']`.
 
 **The official evaluation is an LLM judge and it costs money.** Running it means
 500 calls to `gpt-4o` (or a hosted Llama 3.1 70B), so it needs an API key and a
-budget. No such key is configured in this repository and no such call has been
-made.
+budget. The repository includes the same prompt branches and model mappings in
+`benchmarks/longmemeval/judge.ts`, exposed as:
+
+```bash
+npm run bench:longmemeval:judge -- \
+  --dataset data/longmemeval_oracle.json \
+  --hypotheses artifacts/longmemeval/run/hypotheses.jsonl \
+  --out artifacts/longmemeval/run/judge.jsonl \
+  --model gpt-4o-mini
+```
+
+The command fails closed when `OPENAI_API_KEY` is absent and enforces a 500-call
+default budget. No such key is configured in this repository and no such call
+has been made, so there is still no official score.
 
 ## The ability taxonomy
 
@@ -178,8 +191,11 @@ benchmarks/longmemeval/
   load.ts       reads and validates a dataset file, and strips ground truth
   adapt.ts      one question's haystack into raw sessions for ingestion
   artifact.ts   what a run must record about itself
-  run.ts        the runner, and the two places it refuses
+  run.ts        the deterministic hypothesis runner
+  answerer.ts   the bounded planner-backed answerer
+  judge.ts      the official prompt-compatible, fail-closed judge client
 tests/unit/longmemeval-adapter.test.ts
+tests/unit/longmemeval-judge.test.ts
 ```
 
 ```bash

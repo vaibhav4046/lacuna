@@ -4,9 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  agentPageRecords,
-} from '../../src/agent/registry.js';
+import { agentPageRecords, agentPageStatus } from '../../src/agent/registry.js';
 import {
   AgentInputRejected,
   cancelAgentRun,
@@ -111,6 +109,10 @@ const base = {
 };
 
 describe('persisted agent runtime', () => {
+  it('treats empty context health as completed no-evidence on the Agents page', () => {
+    expect(agentPageStatus({ kind: 'CONTEXT_HEALTH', error: 'no_known_subject', status: 'FAILED' })).toBe('COMPLETED');
+    expect(agentPageStatus({ kind: 'TASK', error: 'no_known_subject', status: 'FAILED' })).toBe('FAILED');
+  });
   it('stores the full operational result and reloads it deterministically', async () => {
     const runtime = store();
     const run = await runAgents({

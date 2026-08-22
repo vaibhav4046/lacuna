@@ -247,18 +247,28 @@ class ScribeSession implements TranscriptSession {
   }
 }
 
-async function acquireAudio(response: Response, callerSignal: AbortSignal): Promise<Blob> {
+async function acquireAudio(
+  response: Response,
+  readSignal: AbortSignal,
+  callerSignal: AbortSignal,
+): Promise<Blob> {
   const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.toLowerCase();
   if (contentType !== 'audio/mpeg') {
     throw new VoiceRuntimeError('provider_unavailable');
   }
   if (response.body === null) throw new VoiceRuntimeError('provider_unavailable');
   const reader = response.body.getReader();
+  const cancelReader = () => { void reader.cancel().catch(() => undefined); };
+  readSignal.addEventListener('abort', cancelReader, { once: true });
+  if (readSignal.aborted) cancelReader();
   const chunks: Uint8Array<ArrayBuffer>[] = [];
   let bytes = 0;
   try {
     while (true) {
       const next = await reader.read();
+      if (readSignal.aborted) {
+        throw new VoiceRuntimeError(callerSignal.aborted ? 'interrupted' : 'provider_unavailable');
+      }
       if (next.done) break;
       bytes += next.value.byteLength;
       if (bytes > MAX_AUDIO_BYTES) {
@@ -270,6 +280,8 @@ async function acquireAudio(response: Response, callerSignal: AbortSignal): Prom
   } catch (error) {
     if (error instanceof VoiceRuntimeError) throw error;
     throw new VoiceRuntimeError(callerSignal.aborted ? 'interrupted' : 'provider_unavailable');
+  } finally {
+    readSignal.removeEventListener('abort', cancelReader);
   }
   const blob = new Blob(chunks, { type: contentType });
   if (blob.size === 0) throw new VoiceRuntimeError('provider_unavailable');
@@ -440,7 +452,7 @@ export class BrowserVoiceRuntime implements VoiceRuntime {
         throw new VoiceRuntimeError(signal.aborted ? 'interrupted' : 'provider_unavailable');
       }
       if (!response.ok) throw new VoiceRuntimeError(providerFailureForStatus(response.status));
-      audio = await acquireAudio(response, signal);
+      audio = await acquireAudio(response, acquisition.signal, signal);
     } finally {
       acquisition.dispose();
     }

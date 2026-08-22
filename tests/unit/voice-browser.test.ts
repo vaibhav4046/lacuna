@@ -487,6 +487,38 @@ describe('playback audio guard', () => {
     expect(failure).toMatchObject({ failure: 'provider_unavailable' });
     await pending;
   });
+
+  it('cancels a speech body reader when headers arrived but the stream stalls', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { cookie: '' });
+    let releaseRead!: (result: { readonly done: boolean; readonly value?: Uint8Array }) => void;
+    const reader = {
+      read: vi.fn(() => new Promise<{ readonly done: boolean; readonly value?: Uint8Array }>((resolve) => {
+        releaseRead = resolve;
+      })),
+      cancel: vi.fn(async () => { releaseRead?.({ done: true }); }),
+    };
+    const body = { getReader: () => reader } as unknown as ReadableStream<Uint8Array>;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'audio/mpeg' }),
+      body,
+    } as unknown as Response));
+
+    const runtime = new BrowserVoiceRuntime('/api/workspace');
+    let failure: unknown = null;
+    const pending = runtime.speak('A supported answer.', {
+      started: () => undefined,
+      signal: () => undefined,
+    }, new AbortController().signal).catch((error: unknown) => { failure = error; });
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    if (reader.cancel.mock.calls.length === 0) releaseRead({ done: true });
+    await pending;
+
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(failure).toMatchObject({ failure: 'provider_unavailable' });
+  });
 });
 
 describe('realtime socket lifecycle', () => {

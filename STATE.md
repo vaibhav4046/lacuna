@@ -6,9 +6,11 @@ current production deployment. The current handoff is
 dated evidence.
 
 The accepted production deployment remains `dpl_6f9rhpqCTsdDcyvoR5VN489nP1vF`.
-Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c` and `5451bf8`
+Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8` and
+`dc5c343`
 add durable-read/session routing fixes, GitLab observation persistence,
-LongMemEval evidence alignment, and bounded DOCX XML extraction. They are
+LongMemEval evidence alignment, bounded DOCX XML extraction, and idempotent
+browser agent retries. They are
 pushed to `v10-zeus-release` but could not be promoted on 2026-08-22 because
 Vercel rejected new deployments after the free daily deployment quota was
 exhausted.

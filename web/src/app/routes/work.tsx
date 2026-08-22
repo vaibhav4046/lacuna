@@ -35,6 +35,20 @@ function effectiveStatus(run: AgentRunRecord): RunStatus {
   return isEmptyHealth(run) ? 'COMPLETED' : run.status;
 }
 
+/**
+ * Historical empty-workspace health records were persisted with a terminal
+ * FAILED event before the no-evidence result became a first-class success.
+ * Keep that evidence truthful without making the current UI contradict the
+ * effective COMPLETED/NO EVIDENCE status shown for the record.
+ */
+function eventStage(run: AgentRunRecord, stage: string, index: number): string {
+  return isEmptyHealth(run)
+    && index === run.events.length - 1
+    && stage === 'FAILED'
+    ? 'COMPLETED'
+    : stage;
+}
+
 type Filter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 function includes(filter: Filter, status: RunStatus): boolean {
@@ -82,7 +96,7 @@ function RunDetail({ run, agentName, demo, binding, onChange }: {
       <div aria-label="Observed run lifecycle" style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
         {run.events.map((event, index) => (
           <span key={`${event.at}-${index}`} style={{ display: 'contents' }}>
-            <span title={`${at(event.at)} · ${event.detail}`} style={{ ...note, color: event.stage === 'HANDOFF' ? '#B79BFF' : '#9A9A9A' }}>{event.stage}</span>
+            <span title={`${at(event.at)} · ${event.detail}`} style={{ ...note, color: eventStage(run, event.stage, index) === 'HANDOFF' ? '#B79BFF' : '#9A9A9A' }}>{eventStage(run, event.stage, index)}</span>
             {index === run.events.length - 1 ? null : <span style={{ width: '18px', height: '1px', background: 'rgba(255,255,255,0.16)' }} />}
           </span>
         ))}

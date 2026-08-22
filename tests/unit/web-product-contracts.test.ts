@@ -214,6 +214,14 @@ describe('web product contracts', () => {
     expect(work).toContain("getJson<readonly AgentRunRecord[]>('/api/workspace/runs', new AbortController().signal, binding)");
   });
 
+  it('does not show a historical no-evidence health run as failed in its lifecycle', () => {
+    const work = readFileSync(new URL('../../web/src/app/routes/work.tsx', import.meta.url), 'utf8');
+    expect(work).toContain('Historical empty-workspace health records');
+    expect(work).toContain("stage === 'FAILED'");
+    expect(work).toContain("? 'COMPLETED'");
+    expect(work).toContain('eventStage(run, event.stage, index)');
+  });
+
   it('documents private MCP access with capabilities, never workspace names', () => {
     const developers = readFileSync(new URL('../../web/src/app/routes/developers.tsx', import.meta.url), 'utf8');
     expect(developers).toContain('Authorization: Bearer');

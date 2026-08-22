@@ -150,9 +150,11 @@ npm run bench:longmemeval:judge -- \
   --model gpt-4o-mini
 ```
 
-The command fails closed when `OPENAI_API_KEY` is absent and enforces a 500-call
-default budget. No such key is configured in this repository and no such call
-has been made, so there is still no official score.
+The command fails closed when `OPENAI_API_KEY` is absent, rejects duplicate or
+partial hypothesis files on the default path, and enforces a 500-call default
+budget. A partial diagnostic run must opt into `--max-calls` explicitly. No such
+key is configured in this repository and no such call has been made, so there
+is still no official score.
 
 ## The ability taxonomy
 

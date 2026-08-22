@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -34,5 +37,27 @@ describe('official LongMemEval judge contract', () => {
       referencePath: 'missing.json',
       outputPath: 'artifacts/longmemeval/test/judge.jsonl',
     })).rejects.toThrow('OPENAI_API_KEY is required');
+  });
+
+  it('refuses to label a partial run as the official 500-instance evaluation', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lacuna-longmemeval-judge-'));
+    try {
+      const dataset = join(dir, 'reference.json');
+      const hypotheses = join(dir, 'hypotheses.jsonl');
+      writeFileSync(dataset, JSON.stringify([{
+        question_id: 'q-1', question_type: 'single-session-user', question: 'Q', answer: 'A',
+      }]));
+      writeFileSync(hypotheses, JSON.stringify({ question_id: 'q-1', hypothesis: 'A' }) + '\n');
+
+      await expect(runOfficialJudge({
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        hypothesesPath: hypotheses,
+        referencePath: dataset,
+        outputPath: join(dir, 'judge.jsonl'),
+      })).rejects.toThrow('requires exactly 500 hypotheses');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

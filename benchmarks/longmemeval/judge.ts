@@ -104,6 +104,24 @@ export async function runOfficialJudge(options: JudgeOptions): Promise<{ readonl
   const hypotheses = readHypotheses(options.hypothesesPath);
   const maxCalls = options.maxCalls ?? 500;
   if (hypotheses.length > maxCalls) throw new Error(`judge call budget exceeded: ${hypotheses.length} > ${maxCalls}`);
+  const ids = new Set<string>();
+  for (const hypothesis of hypotheses) {
+    if (ids.has(hypothesis.question_id)) {
+      throw new Error(`duplicate hypothesis question_id: ${hypothesis.question_id}`);
+    }
+    ids.add(hypothesis.question_id);
+  }
+  // A default invocation is the official 500-instance evaluation. A partial
+  // file must be requested explicitly with --max-calls; otherwise a plausible
+  // accuracy number from one question is too easy to mistake for the score.
+  if (options.maxCalls === undefined) {
+    if (hypotheses.length !== 500) {
+      throw new Error(`official judge requires exactly 500 hypotheses, got ${hypotheses.length}`);
+    }
+    if (references.size !== 500 || [...references.keys()].some((id) => !ids.has(id))) {
+      throw new Error('official judge hypotheses do not match the 500-instance reference set');
+    }
+  }
   const logs: JudgeLog[] = [];
   for (const hypothesis of hypotheses) {
     const reference = references.get(hypothesis.question_id);

@@ -73,8 +73,12 @@ workspace collections, several times:
   sixteen seconds, and three minimal `app_knowledge` records with the same id
   shape and declared relations also completed.
 
-So the provider's indexer rejects these records some of the time, and the
-error text is generic: "An error occurred while processing your file. Please
+Three consecutive runs through the real `ConnectorRunner` against the live
+store on 2026-08-23 afternoon all ended `readiness_failed` at twenty-nine
+seconds with one accepted document, eight records and zero failed documents:
+the poll returned as soon as every record was terminal, and terminal was
+`errored`. So the provider's indexer rejects these records some of the time,
+and the error text is generic: "An error occurred while processing your file. Please
 try again. If the issue persists, contact support@hydradb.com."
 
 This does not affect answers. The deterministic read path fetches entity

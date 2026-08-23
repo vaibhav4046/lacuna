@@ -217,21 +217,22 @@ const RECOVER_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const CONNECTOR_SETTLEMENT_MS = 210_000;
 
 /**
- * How long the run after a public HTTPS read may take.
+ * A deadline and a cancellation are not the same thing, and only one of them
+ * can be expressed by aborting a signal.
  *
- * Separate from `HTTPS_IMPORT_DEADLINE_MS`, which is ten seconds and belongs
- * to fetching the URL. That deadline was also bounding the run, so the wait
- * for a search index was cut short at ten seconds every time, by an abort, and
- * an abort after exact receipts reads as a cancelled operation: the records
- * were durable and answerable and the receipt still said the readiness failed.
+ * The obvious fix for the ten second cut-off was to give the run its own,
+ * longer timer. It does not work: an abort after exact receipts is read by the
+ * ingest layer as a cancelled operation and throws, so a deadline still
+ * arrived as `readiness_failed`. Measured, not assumed, through the real
+ * runner against the live store: thirty seconds, one accepted document, eight
+ * records, zero failed, `readiness_failed`.
  *
- * Thirty seconds is chosen from measurement rather than taste. HydraDB reaches
- * a terminal indexing state, completed or errored, in roughly twenty to
- * twenty-five seconds, and the poll returns as soon as it does. Running out of
- * this budget is reported as an index not confirmed in time, with the records
- * still accepted, which is what actually happened.
+ * The settlement budget is the mechanism that already exists for this. The
+ * runner turns it into phase deadlines, `waitForIndexing` bounds itself by
+ * time and returns, and nothing aborts. Running out of it is then an index not
+ * confirmed, with the records accepted, which is what happened. The signal is
+ * left for what it is for: the caller going away.
  */
-const CONNECTOR_RUN_DEADLINE_MS = 30_000;
 
 const PUBLIC_READ_LIMIT = { limit: 60, windowMs: 60_000, maxKeys: 8_192 };
 const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
@@ -1449,25 +1450,15 @@ export class ApiRouter {
          * reported as an index not yet confirmed.
          */
         clearTimeout(deadline);
-        const runDeadline = setTimeout(() => {
-          deadlineExpired = true;
-          control.abort();
-        }, CONNECTOR_RUN_DEADLINE_MS);
-        runDeadline.unref?.();
-        let result;
-        try {
-          result = await runner.run(workspace, {
-            connectorId: 'https_api',
-            documents: [{
-              title: prepared.title,
-              text: prepared.text,
-              provenance: prepared.provenance,
-            }],
-            awaitSearchable: true,
-          }, { signal: control.signal });
-        } finally {
-          clearTimeout(runDeadline);
-        }
+        const result = await runner.run(workspace, {
+          connectorId: 'https_api',
+          documents: [{
+            title: prepared.title,
+            text: prepared.text,
+            provenance: prepared.provenance,
+          }],
+          awaitSearchable: true,
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS });
         if (disconnected) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),

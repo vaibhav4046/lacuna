@@ -36,7 +36,7 @@ const preview = {
 
 const baseReceipt = {
   connectorId: 'text' as const, submittedDocuments: 1, duplicateDocuments: 0,
-  acceptedDocuments: 1, searchableDocuments: 1, failedDocuments: 0,
+  acceptedDocuments: 1, searchableDocuments: 1, failedDocuments: 0, emptyDocuments: 0,
   acceptedRecords: 4, refusedRecords: 0, failure: null,
   startedAt: '2026-08-21T12:00:00.000Z', completedAt: '2026-08-21T12:00:01.000Z',
   observationWrite: 'stored' as const, indeterminateSubmission: false,

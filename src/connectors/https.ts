@@ -572,9 +572,19 @@ function decodeAndPrepare(
     text = flattenJson(parsed);
   }
   const normalized = text.replace(/\r\n?/gu, '\n').normalize('NFC');
-  if (normalized.trim() === '' || normalized.length > MAX_SOURCE_CHARS) {
-    throw new HttpsImportError('https_content_invalid');
-  }
+  if (normalized.trim() === '') throw new HttpsImportError('https_content_invalid');
+  /**
+   * Longer than the ingest cap is a size, not a defect in the content.
+   *
+   * This threw `https_content_invalid` — "text that cannot be imported safely"
+   * — for a perfectly ordinary Markdown file whose only fault was being longer
+   * than twenty thousand characters. A reader told their document is invalid
+   * has no reason to try a shorter one, and every other connector already
+   * reports `document_too_long` for exactly this case. `https_too_large` is
+   * this module's word for the same thing and already carries 413 and the
+   * sentence asking for something smaller.
+   */
+  if (normalized.length > MAX_SOURCE_CHARS) throw new HttpsImportError('https_too_large');
   const rawDigest = sha256(bytes);
   const pathDigest = sha256(canonical.pathname);
   if (!SHA256.test(rawDigest) || !SHA256.test(pathDigest)) throw new HttpsImportError('https_content_invalid');

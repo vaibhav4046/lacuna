@@ -23,7 +23,7 @@ function request(signal: AbortSignal = new AbortController().signal) {
 
 const RUN_RECEIPT = {
   connectorId: 'text', submittedDocuments: 1, duplicateDocuments: 0,
-  acceptedDocuments: 1, searchableDocuments: 1, failedDocuments: 0,
+  acceptedDocuments: 1, searchableDocuments: 1, failedDocuments: 0, emptyDocuments: 0,
   acceptedRecords: 4, refusedRecords: 0, failure: null,
   startedAt: '2026-08-21T12:00:00.000Z', completedAt: '2026-08-21T12:00:01.000Z',
   observationWrite: 'stored', indeterminateSubmission: false,
@@ -325,7 +325,7 @@ describe('browser file connector client', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       ...RUN_RECEIPT,
       connectorId: 'github', submittedDocuments: 2, acceptedDocuments: 1,
-      searchableDocuments: 1, failedDocuments: 1, refusedRecords: 1,
+      searchableDocuments: 1, failedDocuments: 1, emptyDocuments: 0, refusedRecords: 1,
       failure: 'receipt_refused', indeterminateSubmission: true,
       snapshotCommit: 'b'.repeat(40), snapshotDigest: 'c'.repeat(64),
       consideredEntries: 2, fetchedBlobs: 2, skipped: [],

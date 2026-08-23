@@ -62,6 +62,8 @@ export interface ConnectorRunReceipt {
   readonly acceptedDocuments: number;
   readonly searchableDocuments: number;
   readonly failedDocuments: number;
+  /** Read cleanly and holding no claim the extractor could justify. Not a failure. */
+  readonly emptyDocuments: number;
   readonly acceptedRecords: number;
   readonly refusedRecords: number;
   readonly failure: ConnectorFailureCode | null;
@@ -216,7 +218,7 @@ function endpointFor(id: string): string | null {
 
 const RUN_KEYS = [
   'connectorId', 'submittedDocuments', 'duplicateDocuments', 'acceptedDocuments',
-  'searchableDocuments', 'failedDocuments', 'acceptedRecords', 'refusedRecords',
+  'searchableDocuments', 'failedDocuments', 'emptyDocuments', 'acceptedRecords', 'refusedRecords',
   'failure', 'startedAt', 'completedAt', 'observationWrite', 'indeterminateSubmission',
 ] as const;
 
@@ -224,7 +226,8 @@ function decodeRun(value: unknown, connectorIds: readonly ConnectorId[]): Connec
   if (!exact(value, RUN_KEYS) || !member(value.connectorId, connectorIds)
     || !count(value.submittedDocuments) || !count(value.duplicateDocuments)
     || !count(value.acceptedDocuments) || !count(value.searchableDocuments)
-    || !count(value.failedDocuments) || !count(value.acceptedRecords) || !count(value.refusedRecords)
+    || !count(value.failedDocuments) || !count(value.emptyDocuments)
+    || !count(value.acceptedRecords) || !count(value.refusedRecords)
     || !(value.failure === null || member(value.failure, FAILURES))
     || !timestamp(value.startedAt) || !timestamp(value.completedAt)
     || !member(value.observationWrite, ['stored', 'unchanged', 'stale', 'failed'] as const)
@@ -235,6 +238,7 @@ function decodeRun(value: unknown, connectorIds: readonly ConnectorId[]): Connec
     || value.acceptedDocuments > value.submittedDocuments
     || value.duplicateDocuments > value.submittedDocuments
     || value.failedDocuments > value.submittedDocuments
+    || value.emptyDocuments > value.submittedDocuments
     || value.acceptedDocuments + value.duplicateDocuments > value.submittedDocuments
     || value.failedDocuments + value.duplicateDocuments > value.submittedDocuments
     || Date.parse(value.completedAt) < Date.parse(value.startedAt)

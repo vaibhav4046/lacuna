@@ -97,6 +97,54 @@ function tickingClock(): () => number {
 }
 
 describe('ConnectorRunner', () => {
+  it('reports a source that stated nothing as read, not as a failed parse', async () => {
+    // The bug this pins: `ingestSource` answers with the word
+    // `nothing_extracted` when the prose held no sentence the frame table
+    // could justify a claim from, and the runner turned every such word into
+    // `parse_failed`. A licence notice imported cleanly and came back as a
+    // failed document, which is what "the connectors are not working" looked
+    // like from the outside. Absence is the answer this product exists to
+    // give; reporting it as breakage teaches distrust of every other absence.
+    const runner = new ConnectorRunner({
+      store: new MemoryStore(),
+      now: tickingClock(),
+      ingest: async () => 'nothing_extracted',
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text',
+      documents: [document('Notice', 'Copyright 2026. All rights reserved.')],
+      awaitSearchable: true,
+    });
+
+    expect(result.failure).toBeNull();
+    expect(result.failedDocuments).toBe(0);
+    expect(result.emptyDocuments).toBe(1);
+    expect(result.acceptedDocuments).toBe(0);
+    expect(result.acceptedRecords).toBe(0);
+  });
+
+  it('still reports a refused input as a validation failure rather than as absence', async () => {
+    // The other half of the same seam. `text_too_long` and its siblings are
+    // refusals of the input, so they stay failures — just not parse failures,
+    // which they never were.
+    const runner = new ConnectorRunner({
+      store: new MemoryStore(),
+      now: tickingClock(),
+      ingest: async () => 'text_too_long',
+    });
+
+    const result = await runner.run(WORKSPACE, {
+      connectorId: 'text',
+      documents: [document('Long')],
+      awaitSearchable: true,
+    });
+
+    expect(result.failure).toBe('validation_failed');
+    expect(result.failedDocuments).toBe(1);
+    expect(result.emptyDocuments).toBe(0);
+  });
+
   it('reports a pre-write webhook graph cap as validation failure, never transport failure', async () => {
     const runner = new ConnectorRunner({
       store: new MemoryStore(),

@@ -370,7 +370,11 @@ describe('bounded HTTPS content preparation', () => {
     ['nul\u0000byte', 'https_content_invalid'],
     ['control\u0001byte', 'https_content_invalid'],
     ['  \r\n ', 'https_content_invalid'],
-    ['x'.repeat(20_001), 'https_content_invalid'],
+    // Over the ingest cap is a size, not invalid content. This line used to
+    // read `https_content_invalid`, which told a reader their perfectly good
+    // Markdown could not be imported safely and gave them no reason to try a
+    // shorter one. Every other connector calls this `document_too_long`.
+    ['x'.repeat(20_001), 'https_too_large'],
   ] as const)('rejects invalid UTF-8/text content %#', async (body, code) => {
     const bytes = typeof body === 'string' ? Buffer.from(body) : body;
     const requests = new RequestFixture({

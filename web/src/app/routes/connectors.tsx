@@ -60,15 +60,27 @@ export function ReceiptSummary({ receipt, reference }: { receipt: ConnectorRunRe
     <>
       <span className="connector-kicker">EXACT OPERATION RECEIPT</span>
       <span>{receipt.connectorId.toUpperCase()} · {receipt.startedAt}</span>
-      <strong>{receipt.indeterminateSubmission ? 'Submission outcome indeterminate' : fullySearchable ? 'Accepted and searchable' : receipt.acceptedDocuments > 0 ? 'Accepted; search readiness incomplete' : receipt.duplicateDocuments > 0 ? 'Already present' : 'No accepted document'}</strong>
+      <strong>{receipt.indeterminateSubmission ? 'Submission outcome indeterminate' : fullySearchable ? 'Accepted and searchable' : receipt.acceptedDocuments > 0 ? 'Accepted; search readiness incomplete' : receipt.duplicateDocuments > 0 ? 'Already present' : receipt.emptyDocuments > 0 && receipt.failedDocuments === 0 ? 'Read; no claim stated' : 'No accepted document'}</strong>
       <dl className="connector-counts">
         <div><dt>ACCEPTED</dt><dd>{receipt.acceptedDocuments}</dd></div>
         <div><dt>SEARCHABLE</dt><dd>{receipt.searchableDocuments}</dd></div>
         <div><dt>DUPLICATE</dt><dd>{receipt.duplicateDocuments}</dd></div>
+        <div><dt>NO CLAIM</dt><dd>{receipt.emptyDocuments}</dd></div>
         <div><dt>FAILED</dt><dd>{receipt.failedDocuments}</dd></div>
       </dl>
       <p>Readiness: {receiptReadiness(receipt)} · failure detail: {receipt.failure ?? 'none'} · observation: {receipt.observationWrite}</p>
       {readinessPending ? <p>Accepted documents are stored. Search indexing has not been confirmed yet; refresh Memory before retrying.</p> : null}
+      {/*
+        A source that stated nothing is a result, not a breakage.
+
+        It was counted as a failed document and reported as parse_failed, so a
+        licence file or a page of install commands came back looking like a
+        broken import. The extractor reads eleven sentence shapes and records
+        only what it can justify; a document holding none of them was read
+        correctly and had nothing in it. Saying so is the same discipline the
+        answer path already applies when it abstains.
+      */}
+      {receipt.emptyDocuments === 0 ? null : <p>{receipt.emptyDocuments} {receipt.emptyDocuments === 1 ? 'document was read and stated nothing' : 'documents were read and stated nothing'} this memory can record. Nothing failed: the extractor reads a fixed set of sentence shapes, and prose outside them produces no claim rather than a guess.</p>}
       {receipt.failedDocuments === 0 ? null : <p>{receipt.failedDocuments} submitted {receipt.failedDocuments === 1 ? 'document failed' : 'documents failed'}{receipt.searchableDocuments > 0 ? ' separately from the searchable acceptance.' : '.'}</p>}
       {reference === null ? null : <p>SAFE REFERENCE · <code>{reference}</code></p>}
     </>

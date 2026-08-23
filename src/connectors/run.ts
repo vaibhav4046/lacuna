@@ -68,6 +68,16 @@ export interface ConnectorRunResult {
   readonly acceptedDocuments: number;
   readonly searchableDocuments: number;
   readonly failedDocuments: number;
+  /**
+   * Read without trouble, and holding no claim the extractor could justify.
+   *
+   * Counted apart from `failedDocuments` because it is not a failure. The
+   * frame table reads eleven sentence shapes, so a licence notice, a changelog
+   * or a page of installation commands produces nothing, and that is the
+   * answer rather than a fault in the import. Folding it into the failure
+   * count is what made a working connector look broken.
+   */
+  readonly emptyDocuments: number;
   readonly acceptedRecords: number;
   readonly refusedRecords: number;
   readonly failure: ConnectorFailureCode | null;
@@ -98,6 +108,35 @@ interface DocumentOutcome {
   readonly failure: ConnectorFailureCode | null;
   readonly cancelled?: boolean;
   readonly indeterminate?: boolean;
+  /** The source was read and stated nothing this can record. Not a failure. */
+  readonly empty?: boolean;
+}
+
+/**
+ * What the ingest boundary said, when it answered with a word rather than a
+ * report.
+ *
+ * Every one of those words was being turned into `parse_failed`, which is
+ * wrong twice over. `nothing_extracted` is not a failure at all: the document
+ * arrived, was decoded, was read, and held no sentence the frame table could
+ * justify a claim from. Absence is the answer this product is built to give,
+ * and reporting it as a document that could not be parsed teaches a reader to
+ * distrust every other absence it reports.
+ *
+ * The rest are refusals of the input rather than of the parse, so they are
+ * `validation_failed`, which is the code the runner already uses for exactly
+ * that. Nothing here is a parse failure, so `parse_failed` no longer appears.
+ */
+function ingestRefusal(reason: IngestFailure): DocumentOutcome {
+  const empty = reason === 'nothing_extracted';
+  return {
+    accepted: false,
+    searchable: false,
+    acceptedRecords: 0,
+    refusedRecords: 0,
+    failure: empty ? null : 'validation_failed',
+    ...(empty ? { empty: true } : {}),
+  };
 }
 
 function failureCode(error: unknown): ConnectorFailureCode {
@@ -239,6 +278,7 @@ export function serializeConnectorRunResult(result: ConnectorRunResult): Connect
     acceptedDocuments: result.acceptedDocuments,
     searchableDocuments: result.searchableDocuments,
     failedDocuments: result.failedDocuments,
+    emptyDocuments: result.emptyDocuments,
     acceptedRecords: result.acceptedRecords,
     refusedRecords: result.refusedRecords,
     failure: result.failure,
@@ -300,15 +340,7 @@ export class ConnectorRunner {
             ...(options.signal === undefined ? {} : { signal: options.signal }),
             ...(deadlines === undefined ? {} : { deadlines }),
           });
-          if (typeof report === 'string') {
-            return {
-              accepted: false,
-              searchable: false,
-              acceptedRecords: 0,
-              refusedRecords: 0,
-              failure: 'parse_failed',
-            };
-          }
+          if (typeof report === 'string') return ingestRefusal(report);
           const refusedRecords = report.refused.length;
           if (isAborted(options.signal)) {
             if (report.accepted > 0) {
@@ -391,6 +423,7 @@ export class ConnectorRunner {
       outcome.failure !== null && outcome.indeterminate !== true
     )).length
       + (outcomes.length === 0 && failure !== null ? request.documents.length : 0);
+    const emptyDocuments = outcomes.filter((outcome) => outcome.empty === true).length;
     const acceptedRecords = outcomes.reduce((sum, outcome) => sum + outcome.acceptedRecords, 0);
     const refusedRecords = outcomes.reduce((sum, outcome) => sum + outcome.refusedRecords, 0);
     const indeterminateSubmission = outcomes.some((outcome) => outcome.indeterminate === true);
@@ -433,6 +466,7 @@ export class ConnectorRunner {
       acceptedDocuments,
       searchableDocuments,
       failedDocuments,
+      emptyDocuments,
       acceptedRecords,
       refusedRecords,
       failure: resultFailure,

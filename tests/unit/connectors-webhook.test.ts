@@ -114,6 +114,7 @@ function acceptedResult(overrides: Partial<ConnectorRunResult> = {}): ConnectorR
     acceptedDocuments: 1,
     searchableDocuments: 1,
     failedDocuments: 0,
+    emptyDocuments: 0,
     acceptedRecords: 4,
     refusedRecords: 0,
     failure: null,

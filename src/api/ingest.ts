@@ -617,7 +617,14 @@ async function preparedIngest(
       }
       statuses = [];
     }
-    if (statuses.some((status) => status.indexingStatus === 'failed' || status.indexingStatus === 'errored')) {
+    // A row the service cannot see yet reports `errored(FILE_NOT_FOUND)`, which
+    // is not an indexing failure. `statusOf` already refuses to call it done;
+    // this is the same rule applied to the failure decision, so a record that
+    // has not appeared is waited for rather than mourned.
+    if (statuses.some((status) => (
+      (status.indexingStatus === 'failed' || status.indexingStatus === 'errored')
+      && status.errorCode !== 'FILE_NOT_FOUND'
+    ))) {
       throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
     }
     const completed = new Set(

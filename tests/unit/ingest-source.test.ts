@@ -730,6 +730,45 @@ describe('prepared connector ingestion', () => {
     expect(result).toMatchObject({ searchable: true, indexing: 'completed' });
   });
 
+  it('keeps waiting for a record the service cannot see yet', async () => {
+    // `/context/status` answers for an id it does not know with
+    // `errored(FILE_NOT_FOUND)`, the same shape it uses for a document the
+    // indexer rejected. A record accepted moments ago is not always visible
+    // there yet, so the first poll after a write was deciding that indexing
+    // had failed. That is a wait, not a failure: with the deadline this short
+    // it ends as readiness not confirmed and the records stay accepted.
+    const notFound = new HydraCloud(
+      { baseUrl: 'https://api.example.invalid', token: 'not-a-real-token', database: 'lacuna', collection: 'public-demo' },
+      {
+        fetch: async (input, init) => {
+          const url = new URL(String(input));
+          if (init?.method === 'GET' && url.pathname.endsWith('/context/status')) {
+            const ids = url.searchParams.getAll('ids');
+            return Response.json({
+              data: { statuses: ids.map((id) => ({ id, indexing_status: 'errored', error_code: 'FILE_NOT_FOUND' })) },
+            });
+          }
+          if (init?.method === 'GET') return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+          const form = init?.body as FormData;
+          const app = form.get('app_knowledge');
+          const records = typeof app === 'string' ? (JSON.parse(app) as { id: string }[]) : [];
+          return Response.json({ data: { results: records.map((r) => ({ id: r.id, status: 'queued', error: null })) } });
+        },
+      },
+    );
+
+    const result = await ingestPreparedSource(
+      notFound,
+      workspaceCollection('not-visible-yet@example.com'),
+      prepared(),
+      { awaitSearchable: true, readiness: { timeoutMs: 30, intervalMs: 1 } },
+    );
+
+    if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
+    expect(result).toMatchObject({ searchable: false, indexing: 'accepted' });
+    expect(result.accepted).toBeGreaterThan(0);
+  });
+
   it('does not wait on the workspace index, which nothing searches', async () => {
     // Measured against a live workspace collection: every entity and session
     // record reaches `completed` inside twenty-four seconds and `lacuna:index`

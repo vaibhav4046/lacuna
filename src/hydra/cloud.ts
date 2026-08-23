@@ -430,11 +430,31 @@ export class HydraCloud {
     if (!Array.isArray(statuses)) return [];
     return statuses.map((entry): SourceStatus => {
       const indexingStatus = String(pick(entry, 'indexing_status') ?? 'unknown');
+      const errorCode = String(pick(entry, 'error_code') ?? '');
       return {
         id: String(pick(entry, 'id') ?? ''),
         indexingStatus,
-        errorCode: String(pick(entry, 'error_code') ?? ''),
-        done: TERMINAL.has(indexingStatus),
+        errorCode,
+        /**
+         * An id the service cannot see yet is not an id whose indexing failed.
+         *
+         * `/context/status` answers for an unknown id with
+         * `indexing_status: "errored", error_code: "FILE_NOT_FOUND"`, which is
+         * the same shape it uses for a document the indexer actually rejected.
+         * Confirmed against a live collection: a known record reads
+         * `completed` and an invented one reads `errored(FILE_NOT_FOUND)`.
+         *
+         * Reading that as terminal made the first poll after a write decide
+         * that indexing had failed, because a record accepted moments earlier
+         * is not always visible to this endpoint yet. That is why an import
+         * that stored eight records reported `readiness_failed` ten seconds in,
+         * long before the one record that does error had errored.
+         *
+         * So a not-found row is not done. Polling continues until the record
+         * appears or the deadline passes, and a deadline is reported as
+         * readiness not confirmed rather than as a failure.
+         */
+        done: TERMINAL.has(indexingStatus) && errorCode !== 'FILE_NOT_FOUND',
       };
     });
   }

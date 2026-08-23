@@ -1,6 +1,6 @@
 # V10 release status
 
-Checked on 2026-08-22. This is the current handoff document. V8 audit files
+Checked on 2026-08-23. This is the current handoff document. V8 audit files
 remain dated evidence; they do not grant a pass to a changed V10 build.
 
 ## Product thesis
@@ -48,17 +48,17 @@ Production: <https://lacuna-five.vercel.app>
 | Route/browser matrix | Production passed 198/198 normal-motion and 198/198 reduced-motion checks: 22 routes at nine viewports, zero console errors, exceptions, failed requests or horizontal overflow. |
 | Landing motion | The exact release passed eight local viewports, 20/20 distinct desktop stages, 7/7 priority mobile scenes, a 29/29 manifest and reduced motion 6/6. The promoted production landing was then recaptured at desktop and mobile widths. |
 | Google auth boundary | The deployed security sweep passed 16/16: Google origin, exact callback, identity-only scopes, request-bound PKCE S256 and state, nonce binding, hardened cookies, no-store redirects, bad-state refusal and Google-only hosted signup. An authorized owner browser also completed the real chooser → callback → `/app/dash` round trip and remained signed in after revisiting `/signin`. |
-| Auth origin binding candidate | `aea3ee0` adds exact canonical-origin checking for any supplied browser `Origin` on auth POSTs, before CSRF/session work; cross-origin regression and the complete auth API file pass. The candidate is pushed but awaits Vercel's next deployment quota window. |
+| Auth origin binding | `aea3ee0` adds exact canonical-origin checking for any supplied browser `Origin` on auth POSTs, before CSRF/session work; cross-origin regression and the complete auth API file pass. It is live in the promoted production rebuild. |
 | Password account | Hosted password creation is deliberately disabled because the HydraDB document boundary cannot atomically enforce a unique email. A historical 12/12 run exists for an existing password identity; it is not the current signup path. |
-| Legacy Google migration gate | Vercel Production carries a single exact-owner migration allowlist in `dpl_GWF5vaPYaRQgNkZhDrfit81KmPkE`. The live owner account's guarded link start now returns `google=already_linked` and the Settings surface confirms the account is already linked; the callback rotates the old credential epoch and removes the recovery hash only after Google verifies the same address. |
+| Legacy Google migration gate | Vercel Production carries a single exact-owner migration allowlist in `dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW`. The live owner account's guarded link start now returns `google=already_linked` and the Settings surface confirms the account is already linked; the callback rotates the old credential epoch and removes the recovery hash only after Google verifies the same address. |
 | Surface continuity | The deployed web endpoint, cloud-pointed Lacuna CLI and a Lacuna MCP process returned identical results for six outcome classes in `artifacts/continuity/one-context.json`. This is the same temporal read contract across those three surfaces, not a ChatGPT or Claude proof. |
 | ChatGPT public MCP | The ChatGPT Lacuna app called health, ask, timeline, explain, sentence read, search and fetch on the production endpoint. It resolved a temporal correction, exposed a two-source conflict, abstained on it, and returned a connector artifact. |
 | Agent runtime | Two built-in roles and two accepted production runs. The current adversarial run completed eight Researcher → Reviewer events, included both conflicting `runbook_owner` claims and quotations, reported zero unsupported claims, and made no authoritative writeback. |
-| Connector indexing boundary | Production `dpl_GWF5vaPYaRQgNkZhDrfit81KmPkE` includes the queued-status fix. Candidate `09fde47` additionally treats a readiness transport/deadline after exact receipts as accepted-pending; terminal `failed`/`errored` statuses and caller cancellation remain failures. The follow-up candidate awaits the next Vercel deployment window. |
-| Connector observation clarity candidate | `abdc5fb` renders accepted documents with readiness-only historical failures as `SYNCING` and keeps the explicit indexing caveat; 29/29 web connector tests and the web build pass. It awaits the same deployment window. |
-| Authenticated demo Ask/Voice scope candidate | `b8a17a5` aligns the signed-in sample workspace's sentence Ask and typed Voice query with the default HydraDB corpus already used by its dashboard memory. The regression reproduced `no_subject` before the patch and passed after it; the focused auth/voice/query matrix passed 126/126 with root typecheck and both web builds. The branch-head preview has no production secrets, and production promotion remains blocked by Vercel's `api-deployments-free-per-day` quota. |
-| Legacy native Voice playback compatibility | `1dbc513` handles browsers whose native `Audio.play()` returns `undefined` while retaining event-driven playback completion. Voice browser + assistant tests pass 54/54; root typecheck and web build pass. It is included in the Git-connected production deployment `dpl_GWF5vaPYaRQgNkZhDrfit81KmPkE`. |
-| Current candidate fixes | `3021f45` binds auth rate limits to the server socket rather than a client-supplied forwarded address; `e161dec` routes ordinary voice questions through the canonical authenticated read; `2e61f99` derives private Ask suggestions from the claims actually read; `a04ffb0` blocks onboarding until the HydraDB health probe is genuinely connected. Focused auth/Google/voice/workspace/onboarding tests pass 102/102, with root typecheck and web build green. |
+| Connector indexing boundary | Production `dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW` includes the queued-status fix and the readiness transport/deadline handling; terminal `failed`/`errored` statuses and caller cancellation remain failures. |
+| Connector observation clarity | `abdc5fb` renders accepted documents with readiness-only historical failures as `SYNCING` and keeps the explicit indexing caveat; 29/29 web connector tests and the web build pass. It is live in the promoted production rebuild. |
+| Authenticated demo Ask/Voice scope | `b8a17a5` aligns the signed-in sample workspace's sentence Ask and typed Voice query with the default HydraDB corpus already used by its dashboard memory. The regression reproduced `no_subject` before the patch and passed after it; the focused auth/voice/query matrix passed 126/126 with root typecheck and both web builds. The fix is live in `dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW`; a live browser check reached `/app/dash`, showed private suggestions, and completed a typed Voice query with a bounded result. |
+| Legacy native Voice playback compatibility | `1dbc513` handles browsers whose native `Audio.play()` returns `undefined` while retaining event-driven playback completion. Voice browser + assistant tests pass 54/54; root typecheck and web build pass. It is included in the promoted production rebuild `dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW`. |
+| Current fixes | `3021f45` binds auth rate limits to the server socket rather than a client-supplied forwarded address; `e161dec` routes ordinary voice questions through the canonical authenticated read; `2e61f99` derives private Ask suggestions from the claims actually read; `a04ffb0` blocks onboarding until the HydraDB health probe is genuinely connected. Focused auth/Google/voice/workspace/onboarding tests pass 102/102, with root typecheck and web build green. These fixes are live in the promoted production rebuild. |
 
 The full dated artifact ledger remains in [EVIDENCE_INDEX.md](EVIDENCE_INDEX.md).
 
@@ -73,7 +73,7 @@ alias was still refused before body processing.
 ## V10 production gate
 
 The current production deployment is the stable alias's immutable deployment
-`dpl_GWF5vaPYaRQgNkZhDrfit81KmPkE` (created 2026-08-22 19:57 UTC) with the
+`dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW` (created 2026-08-23 08:52 UTC) with the
 production-only file-preview and webhook signing keys enabled. Root and web
 typecheck/build pass; focused candidate auth, connector, agent, voice and
 ingestion suites are green. A serial all-unit run currently exits unexpectedly
@@ -100,18 +100,10 @@ rapid clicks cannot issue a second lifecycle mutation. Password-owned Google
 callbacks also explain the safe migration path directly: prove the existing
 password session first, then use Settings → Link Google; the callback still
 never auto-merges a verified address into a password account.
-They are not part of the accepted production deployment yet: Vercel rejected
-the promotion attempt on 2026-08-22 with
-`api-deployments-free-per-day` (more than 100 deployments; retry in 24 hours).
-The latest release preview is ready at
-`https://lacuna-8u78xvkn7-vaibhav4046s-projects.vercel.app`
-(`dpl_7JayEdGx8GchhbLNmYHX2k7xX1s9`), but Preview has no HydraDB, Google or
-ElevenLabs variables. Its health endpoint therefore reports an unconfigured
-context store; it must not be promoted until Vercel accepts the production
-rebuild. The stable alias remains
-`https://lacuna-ul2p6ujpv-vaibhav4046s-projects.vercel.app`
-(`dpl_GWF5vaPYaRQgNkZhDrfit81KmPkE`), aliased to
-`https://lacuna-five.vercel.app`. Stable API gates currently pass auth 3/3,
+They are now part of the accepted production deployment. Vercel promotion
+completed on 2026-08-23 after the deployment quota window reset. The stable
+alias `https://lacuna-five.vercel.app` points to
+`dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW`; its production API gates pass auth 3/3,
 Google security 16/16, demo 32/32 and voice provider 7/7.
 
 The Google callback now validates the browser-bound OAuth state before honoring

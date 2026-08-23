@@ -1,5 +1,5 @@
 date,wave,platform,asset,qualified_views,repository_visits,demo_starts,quickstart_attempts,stars,issues,forks,contributors,inbound_messages,notes
-2026-08-23,baseline,GitHub,pre-launch baseline,,,,,,,,,,
+2026-08-23,baseline,GitHub,post-merge repository baseline,,,,,1,2,0,,,PR #1 merged; profile updated; GitHub About description and topics still blank
 ,private-preview,Direct,early-user proof,,,,,,,,,,
 ,launch,LinkedIn,native proof demo,,,,,,,,,,
 ,launch,X,native clip and thread,,,,,,,,,,

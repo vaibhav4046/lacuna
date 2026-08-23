@@ -3396,3 +3396,33 @@ a new account is supposed to see.
 
 Found by using the product rather than by testing it, which is the argument for
 the browser-first loop.
+
+### D-126: the test suite reported green while sixty tests never ran
+
+`npm test` exited zero with "118 passed" for a hundred and nineteen files. A
+worker fork was being killed partway through the run; vitest reported that as
+an unhandled error, counted the file it was inside as neither passed nor
+failed, and exited zero anyway. Which file died moved between runs, so it read
+as flakiness rather than as a limit, and the first run of any session had a
+decent chance of looking clean.
+
+The cause is a heap ceiling: one fork reuses a heap across every file, and this
+suite is now large enough to reach the default. Measured at 4 GB it reports
+119 of 119 and 2315 of 2315, every time.
+
+Two changes, because the limit and the silence are different faults.
+
+The heap headroom is set in `scripts/verify-suite.ts`, which spawns vitest
+itself, rather than in `vitest.config.ts` — the config's `poolOptions` is not
+in this vitest version's types, and an option the compiler rejects is an option
+nobody can be sure was applied.
+
+The silence is fixed by not trusting the exit code. `npm run test:verified`
+compares the files vitest reported against the files on disk and fails when any
+of them is missing, whatever vitest concluded. Proven to fail: pointed at a
+directory containing one failing test it exits 1 and says so.
+
+This is the most dangerous defect found in the project, and it was not in the
+product. Every count quoted in `RELEASE_GATE.md`, in the README and in the
+video's claim map was true only when the run got lucky. They are now quoted
+from a run that verified its own completeness.

@@ -249,28 +249,29 @@ describe('the ceilings a sweep has to be able to raise', () => {
   }
 
   it('ships the production ceilings when nothing overrides them', () => {
-    // The numbers are a judgement call; that a deployment gets these when no
-    // flag is passed is not. A gate quietly running against looser limits than
-    // production would be testing a server nobody ships.
+    // The numbers are a judgement call; that a deployment gets exactly these
+    // when no flag is passed is not. A gate quietly running against looser
+    // limits than production would be testing a server nobody ships, which is
+    // how npm run parity came to be red without anyone noticing.
     expect(MCP_TOOL_LIMIT).toEqual({ limit: 30, windowMs: 60_000, maxKeys: 8_192 });
     expect(MCP_REQUEST_LIMIT).toEqual({ limit: 120, windowMs: 60_000, maxKeys: 8_192 });
   });
 
-  it('refuses a sixty-four question sweep at the production tool ceiling', async () => {
-    // This is the failure that left the three-surface parity gate red without
-    // anyone noticing: a sweep is exactly the traffic the ceiling exists to
-    // refuse, and the gate could not tell a working limiter from a broken
-    // transport. Asserted so the next reader sees a limit, not an outage.
-    const base = await serving({ toolLimit: MCP_TOOL_LIMIT, now: () => 1_000 });
-    expect(await refusals(base, 40)).toBeGreaterThan(0);
+  it('refuses a burst once the ceiling is reached', async () => {
+    // A parity sweep is exactly this traffic shape against the production
+    // ceiling, and the gate could not tell a working limiter from a broken
+    // transport. Two calls rather than thirty: the behaviour under test is the
+    // refusal, and the production number is asserted above.
+    const base = await serving({ toolLimit: { limit: 2, windowMs: 60_000, maxKeys: 8 }, now: () => 1_000 });
+    expect(await refusals(base, 4)).toBe(2);
   });
 
-  it('admits the same sweep when a caller raises the ceiling for its own process', async () => {
+  it('admits the same burst when a caller raises the ceiling for its own process', async () => {
     const base = await serving({
       toolLimit: { limit: 400, windowMs: 60_000, maxKeys: 8 },
       requestLimit: { limit: 2_000, windowMs: 60_000, maxKeys: 8 },
       now: () => 1_000,
     });
-    expect(await refusals(base, 40)).toBe(0);
+    expect(await refusals(base, 4)).toBe(0);
   });
 });

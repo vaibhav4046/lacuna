@@ -118,3 +118,4 @@ video/hyperframes-v10/CLAUDE.md
 /data/
 
 .env*
+.vitest-report.json

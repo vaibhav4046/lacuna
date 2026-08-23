@@ -319,6 +319,9 @@ interface ParserPool {
 
 const parserPools = new WeakMap<FileParserIsolationOptions, ParserPool>();
 
+/** Sink for 'error' events from a worker already torn down. See cleanup(). */
+function lateWorkerNoise(): void {}
+
 function fatalParserIsolationFailure(): never {
   process.exit(PARSER_FATAL_EXIT_CODE);
 }
@@ -452,6 +455,23 @@ async function extractIsolated(
         worker.off('messageerror', onMessageError);
         worker.off('error', onError);
         worker.off('exit', onExit);
+        /**
+         * A worker being torn down can still emit 'error': terminate() races
+         * whatever native parse work the thread is in, and the emission lands
+         * after the outcome here is already decided. An 'error' event on an
+         * emitter with no listener is an uncaught exception in THIS process,
+         * which is a crashed serverless invocation in production and was the
+         * intermittent test-runner death in CI -- the serial suite died
+         * immediately after the delayed-termination tests, mid
+         * connectors-files, every time it died at all.
+         *
+         * So the listener set never goes empty. The sink replaces the real
+         * handlers rather than accompanying them, and it swallows knowingly:
+         * by this point the request has its outcome and the fail-stop path has
+         * had its chance; a late noise event from a dying thread changes
+         * nothing it is allowed to change.
+         */
+        worker.on('error', lateWorkerNoise);
       };
       const failStop = async (): Promise<never> => {
         leaseFatal = true;

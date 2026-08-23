@@ -108,9 +108,14 @@ than a hung terminate, and under load it killed the test process in roughly one
 run in four. It is now ten seconds, with the test that proves the fail-stop
 fires injecting its own fifty. Measured: six parallel runs of that suite killed
 the process twice before and zero times after, and the full suite passes
-2,315/2,315 across 119 files. A rarer unexplained worker exit still appears in
-roughly one full run in three; it is not the file parser and its origin is not
-identified, so it is recorded here rather than claimed as resolved.
+2,315/2,315 across 119 files. The rarer worker exit that remained was
+the file parser after all, by a second path: teardown removed the 'error'
+listener from a worker whose terminate was still racing native parse work, and
+a late 'error' on a listenerless emitter is an uncaught exception -- caught
+twice in serial verbose runs dying immediately after the delayed-termination
+tests. The listener set now never goes empty. Four consecutive serial all-unit
+runs pass 2,315/2,315 with zero worker errors, where before the fix the serial
+run died in two out of two attempts.
 
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,

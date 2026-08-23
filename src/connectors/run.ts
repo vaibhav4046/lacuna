@@ -349,7 +349,11 @@ export class ConnectorRunner {
                 searchable: false,
                 acceptedRecords: report.accepted,
                 refusedRecords,
-                failure: 'readiness_failed',
+                // Records durable, index not confirmed before the deadline.
+                // `readiness_failed` is kept for an indexer that actually
+                // rejected a record; running out of time is a timeout, and the
+                // two read very differently to somebody holding a receipt.
+                failure: 'readiness_timeout',
               };
             }
             throw new IngestCancelledError();

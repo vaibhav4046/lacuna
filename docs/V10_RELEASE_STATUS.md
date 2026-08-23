@@ -60,6 +60,35 @@ Production: <https://lacuna-five.vercel.app>
 | Legacy native Voice playback compatibility | `1dbc513` handles browsers whose native `Audio.play()` returns `undefined` while retaining event-driven playback completion. Voice browser + assistant tests pass 54/54; root typecheck and web build pass. It is included in the promoted production rebuild `dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW`. |
 | Current fixes | `3021f45` binds auth rate limits to the server socket rather than a client-supplied forwarded address; `e161dec` routes ordinary voice questions through the canonical authenticated read; `2e61f99` derives private Ask suggestions from the claims actually read; `a04ffb0` blocks onboarding until the HydraDB health probe is genuinely connected. Focused auth/Google/voice/workspace/onboarding tests pass 102/102, with root typecheck and web build green. These fixes are live in the promoted production rebuild. |
 
+## HydraDB search indexing is intermittently unreliable, and imports do not depend on it
+
+Measured on 2026-08-23 by polling `/context/status` per record against live
+workspace collections, several times:
+
+- One run: every entity and session record reached `completed` in about
+  twenty-four seconds. Only `lacuna:index` failed, with `E6005`.
+- Another run, same source, fresh collection: five of six entity records
+  reached `errored (E6005)` at about twenty seconds.
+- An ordinary uploaded document in the same collection reached `completed` in
+  sixteen seconds, and three minimal `app_knowledge` records with the same id
+  shape and declared relations also completed.
+
+So the provider's indexer rejects these records some of the time, and the
+error text is generic: "An error occurred while processing your file. Please
+try again. If the issue persists, contact support@hydradb.com."
+
+This does not affect answers. The deterministic read path fetches entity
+records by id through `GET /context/inspect` and never uses the search index,
+which is why a source whose indexing errored is still answerable immediately;
+verified live by importing `docs/EXAMPLE_SOURCE.md` and answering "who owns
+invoice-relay?" from it with the exact quotation.
+
+What it affects is the search readiness line on an import receipt. The records
+are accepted and durable, and the receipt says the index was not confirmed,
+which is true. It is recorded here rather than hidden because it is a real
+dependency limitation and the honest reading is that Lacuna's search surface,
+not its answer surface, rests on it.
+
 The full dated artifact ledger remains in [EVIDENCE_INDEX.md](EVIDENCE_INDEX.md).
 
 Those accepted public run records remain readable evidence. The public preview

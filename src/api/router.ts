@@ -201,6 +201,38 @@ const RECOVER_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
  * availability rather than damage, and a per-address window is the proportionate
  * answer to both.
  */
+/**
+ * How long a snapshot import may take to settle, end to end.
+ *
+ * The GitHub and GitLab routes had no bound at all, so their wait for a search
+ * index ran to `waitForIndexing`'s own five minute default. The runner turns
+ * this into its three phase deadlines instead, the last of which bounds that
+ * wait by time rather than by cancelling it.
+ *
+ * Two hundred and ten seconds, because `ConnectorRunner.run` refuses a budget
+ * under two hundred and the platform allows two hundred and seventy. It is a
+ * ceiling rather than a wait: the poll returns the moment every record reaches
+ * a terminal state, which HydraDB reaches in about twenty-four seconds.
+ */
+const CONNECTOR_SETTLEMENT_MS = 210_000;
+
+/**
+ * How long the run after a public HTTPS read may take.
+ *
+ * Separate from `HTTPS_IMPORT_DEADLINE_MS`, which is ten seconds and belongs
+ * to fetching the URL. That deadline was also bounding the run, so the wait
+ * for a search index was cut short at ten seconds every time, by an abort, and
+ * an abort after exact receipts reads as a cancelled operation: the records
+ * were durable and answerable and the receipt still said the readiness failed.
+ *
+ * Thirty seconds is chosen from measurement rather than taste. HydraDB reaches
+ * a terminal indexing state, completed or errored, in roughly twenty to
+ * twenty-five seconds, and the poll returns as soon as it does. Running out of
+ * this budget is reported as an index not confirmed in time, with the records
+ * still accepted, which is what actually happened.
+ */
+const CONNECTOR_RUN_DEADLINE_MS = 30_000;
+
 const PUBLIC_READ_LIMIT = { limit: 60, windowMs: 60_000, maxKeys: 8_192 };
 const PUBLIC_WALK_LIMIT = { limit: 10, windowMs: 60_000, maxKeys: 8_192 };
 /** Private spend ceilings are keyed by the server-derived workspace id. */
@@ -1226,7 +1258,7 @@ export class ApiRouter {
             provenance: document.provenance,
           })),
           awaitSearchable: true,
-        }, { signal: control.signal });
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS });
         if (control.signal.aborted) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),
@@ -1311,7 +1343,7 @@ export class ApiRouter {
             provenance: document.provenance,
           })),
           awaitSearchable: true,
-        }, { signal: control.signal });
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS });
         if (control.signal.aborted) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),
@@ -1401,15 +1433,41 @@ export class ApiRouter {
           send(response, 504, { error: 'https_timeout' });
           return HANDLED;
         }
-        const result = await runner.run(workspace, {
-          connectorId: 'https_api',
-          documents: [{
-            title: prepared.title,
-            text: prepared.text,
-            provenance: prepared.provenance,
-          }],
-          awaitSearchable: true,
-        }, { signal: control.signal });
+        /**
+         * The read is done, so its deadline stops applying.
+         *
+         * `HTTPS_IMPORT_DEADLINE_MS` is ten seconds and it is sized for
+         * fetching a URL. It was also aborting the run that follows, including
+         * the wait for a search index, which HydraDB confirms in about
+         * twenty-four seconds. So every import was cut short at ten seconds, by
+         * an abort, and an abort after exact receipts is read as a cancelled
+         * operation: the records were durable and answerable and the receipt
+         * still said `readiness_failed`.
+         *
+         * The run gets the settlement budget instead, which bounds the same
+         * wait by time rather than by cancellation, so running out of it is
+         * reported as an index not yet confirmed.
+         */
+        clearTimeout(deadline);
+        const runDeadline = setTimeout(() => {
+          deadlineExpired = true;
+          control.abort();
+        }, CONNECTOR_RUN_DEADLINE_MS);
+        runDeadline.unref?.();
+        let result;
+        try {
+          result = await runner.run(workspace, {
+            connectorId: 'https_api',
+            documents: [{
+              title: prepared.title,
+              text: prepared.text,
+              provenance: prepared.provenance,
+            }],
+            awaitSearchable: true,
+          }, { signal: control.signal });
+        } finally {
+          clearTimeout(runDeadline);
+        }
         if (disconnected) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),

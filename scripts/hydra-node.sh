@@ -166,9 +166,38 @@ cmd_status() {
   fi
 }
 
+
+# Rebuild the object store, because it is derived data.
+#
+# SlateDB's local-filesystem backend does not implement a conditional put
+# (`put_opts` with `PutMode::Update`), and once the store has been restarted
+# onto a checkpoint that needs one, every write fails with a 500 while reads
+# keep working. That reads like a Lacuna bug and is not one; the node's own log
+# names it. Upstream limitation, no configuration on this side clears it.
+#
+# The recovery is cheap because ingest is a pure function of a seed: the store
+# holds nothing that the corpus generator cannot produce again. So the broken
+# store is moved aside rather than deleted, a fresh one takes its place, and
+# the caller re-ingests. Nothing is lost and the previous store stays on disk
+# for anyone who wants to look at it.
+cmd_heal() {
+  echo "rotating the store; ingest rebuilds it from the seed"
+  cmd_stop || true
+  local aside="$HYDRA_ROOT/store.broken-$(date +%s)"
+  if [ -d "$HYDRA_ROOT/store" ]; then
+    mv "$HYDRA_ROOT/store" "$aside"
+    echo "moved     $aside"
+  fi
+  mkdir -p "$HYDRA_ROOT/store"
+  cmd_start
+  echo
+  echo "now run:  npm run ingest && npm run census"
+}
+
 case "${1:-}" in
   start)  cmd_start ;;
   stop)   cmd_stop ;;
   status) cmd_status ;;
-  *)      die "usage: $0 start|stop|status" ;;
+  heal)   cmd_heal ;;
+  *)      die "usage: $0 start|stop|status|heal" ;;
 esac

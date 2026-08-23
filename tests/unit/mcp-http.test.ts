@@ -9,7 +9,7 @@ import {
 import { mintMcpCapability } from '../../src/auth/mcp-capability.js';
 import type { AppRecord, HydraCloud, IngestResult, InspectedSource } from '../../src/hydra/cloud.js';
 import { emptySubject } from '../../src/hydra/source.js';
-import { createMcpListener, type HttpOptions } from '../../src/mcp/http.js';
+import { createMcpListener, MCP_REQUEST_LIMIT, MCP_TOOL_LIMIT, type HttpOptions } from '../../src/mcp/http.js';
 import type { ToolContext } from '../../src/mcp/server.js';
 
 const CONTEXT: ToolContext = {
@@ -234,5 +234,43 @@ describe('MCP HTTP resource bounds', () => {
     const headers = { authorization: `Bearer ${capability}` };
     expect((await post(base, call, headers)).status).not.toBe(429);
     expect((await post(base, call, headers)).status).toBe(429);
+  });
+});
+
+describe('the ceilings a sweep has to be able to raise', () => {
+  /** One tool call, repeated, counting how many the server refuses. */
+  async function refusals(base: string, calls: number): Promise<number> {
+    const call = { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'lacuna_health', arguments: {} } };
+    let refused = 0;
+    for (let at = 0; at < calls; at += 1) {
+      if ((await post(base, call)).status === 429) refused += 1;
+    }
+    return refused;
+  }
+
+  it('ships the production ceilings when nothing overrides them', () => {
+    // The numbers are a judgement call; that a deployment gets these when no
+    // flag is passed is not. A gate quietly running against looser limits than
+    // production would be testing a server nobody ships.
+    expect(MCP_TOOL_LIMIT).toEqual({ limit: 30, windowMs: 60_000, maxKeys: 8_192 });
+    expect(MCP_REQUEST_LIMIT).toEqual({ limit: 120, windowMs: 60_000, maxKeys: 8_192 });
+  });
+
+  it('refuses a sixty-four question sweep at the production tool ceiling', async () => {
+    // This is the failure that left the three-surface parity gate red without
+    // anyone noticing: a sweep is exactly the traffic the ceiling exists to
+    // refuse, and the gate could not tell a working limiter from a broken
+    // transport. Asserted so the next reader sees a limit, not an outage.
+    const base = await serving({ toolLimit: MCP_TOOL_LIMIT, now: () => 1_000 });
+    expect(await refusals(base, 40)).toBeGreaterThan(0);
+  });
+
+  it('admits the same sweep when a caller raises the ceiling for its own process', async () => {
+    const base = await serving({
+      toolLimit: { limit: 400, windowMs: 60_000, maxKeys: 8 },
+      requestLimit: { limit: 2_000, windowMs: 60_000, maxKeys: 8 },
+      now: () => 1_000,
+    });
+    expect(await refusals(base, 40)).toBe(0);
   });
 });

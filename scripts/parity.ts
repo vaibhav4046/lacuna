@@ -266,7 +266,12 @@ interface Listener {
 async function startHttp(): Promise<Listener> {
   const child = spawn(
     process.execPath,
-    ['--import', 'tsx', MCP_SCRIPT, '--http', '--port', String(HTTP_PORT)],
+    // The sweep asks 64 questions in well under a minute, which is more than
+    // the production tool ceiling admits, and correctly so: that ceiling exists
+    // to refuse exactly this shape of traffic from a stranger. The gate raises
+    // it for its own child rather than the server exempting loopback, so the
+    // hardening the deployment runs is the hardening that ships.
+    ['--import', 'tsx', MCP_SCRIPT, '--http', '--port', String(HTTP_PORT), '--tool-limit', '400', '--request-limit', '2000'],
     { cwd: ROOT, env: { ...process.env, LACUNA_PROFILE: 'node' } },
   );
   const errors: string[] = [];

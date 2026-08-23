@@ -16,6 +16,8 @@ import { createMcpServer, SERVER_NAME, SERVER_VERSION, type ToolContext } from '
  *
  *   npm run mcp -- --stdio
  *   npm run mcp -- --http --port 3015
+ *   npm run mcp -- --http --port 3015 --tool-limit 400
+ *   npm run mcp -- --http --port 3015 --tool-limit 400
  *
  * stdio is the primary transport: an MCP client spawns this process and talks
  * over the pipe, which needs no port and no origin policy. The HTTP transport
@@ -42,6 +44,9 @@ const USAGE = 'usage: npm run mcp -- --stdio | npm run mcp -- --http [--port 301
 interface Options {
   readonly transport: 'stdio' | 'http';
   readonly port: number;
+  /** Undefined keeps the production ceilings in src/mcp/http.ts. */
+  readonly toolLimit: number | undefined;
+  readonly requestLimit: number | undefined;
 }
 
 function parsePort(raw: string | undefined): number {
@@ -58,6 +63,8 @@ function parsePort(raw: string | undefined): number {
 function parseArgs(argv: readonly string[]): Options {
   let transport: 'stdio' | 'http' | null = null;
   let port: string | undefined = process.env['MCP_PORT'];
+  let toolLimit: number | undefined;
+  let requestLimit: number | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? '';
@@ -71,6 +78,36 @@ function parseArgs(argv: readonly string[]): Options {
       index += 1;
     } else if (arg.startsWith('--port=')) {
       port = arg.slice('--port='.length);
+    } else if (arg === '--tool-limit' || arg.startsWith('--tool-limit=')) {
+      // Raises the per-minute tool ceiling for this process only.
+      //
+      // The default is the production constant and stays that way: a public
+      // endpoint should refuse a stranger asking sixty times a minute. A parity
+      // sweep is exactly that shape of traffic and is not a stranger, so the
+      // gate driving it says so on the command line, rather than the server
+      // quietly exempting loopback — which would mean the hardening the
+      // deployment runs was never the hardening any test exercised.
+      const raw = arg === '--tool-limit' ? argv[index + 1] : arg.slice('--tool-limit='.length);
+      if (arg === '--tool-limit') index += 1;
+      const parsed = Number(raw);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new Error(`--tool-limit needs a positive integer, got "${raw ?? ''}"
+${USAGE}`);
+      }
+      toolLimit = parsed;
+    } else if (arg === '--request-limit' || arg.startsWith('--request-limit=')) {
+      // The sibling ceiling, raised for the same reason and only together with
+      // it: a sweep that is allowed sixty-four tool calls but only a hundred
+      // and twenty requests still stops partway, which is a gate that reports
+      // a transport failure and means a rate limiter doing its job.
+      const raw = arg === '--request-limit' ? argv[index + 1] : arg.slice('--request-limit='.length);
+      if (arg === '--request-limit') index += 1;
+      const parsed = Number(raw);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new Error(`--request-limit needs a positive integer, got "${raw ?? ''}"
+${USAGE}`);
+      }
+      requestLimit = parsed;
     } else {
       throw new Error(`unrecognised argument "${arg}"\n${USAGE}`);
     }
@@ -79,7 +116,7 @@ function parseArgs(argv: readonly string[]): Options {
   if (transport === null) {
     throw new Error(`choose a transport\n${USAGE}`);
   }
-  return { transport, port: parsePort(port) };
+  return { transport, port: parsePort(port), toolLimit, requestLimit };
 }
 
 /**
@@ -148,6 +185,12 @@ async function main(): Promise<void> {
     createMcpListener({
       context,
       log: (line) => process.stderr.write(`${line}\n`),
+      ...(options.toolLimit === undefined
+        ? {}
+        : { toolLimit: { limit: options.toolLimit, windowMs: 60_000, maxKeys: 8_192 } }),
+      ...(options.requestLimit === undefined
+        ? {}
+        : { requestLimit: { limit: options.requestLimit, windowMs: 60_000, maxKeys: 8_192 } }),
     }),
   );
 

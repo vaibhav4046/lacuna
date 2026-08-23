@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { HydraCloud, IngestResult, InspectedSource, SourceStatus } from '../hydra/cloud.js';
+import { INDEXED_OK } from '../hydra/cloud.js';
 import { INDEX_ID } from '../hydra/cloud-graph.js';
 import type { BuiltGraph, IndexRecord } from '../hydra/cloud-graph.js';
 import { buildCloudGraph, entityRecordId, toAppRecords, unwrapEnvelope } from '../hydra/cloud-graph.js';
@@ -627,8 +628,14 @@ async function preparedIngest(
     ))) {
       throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
     }
+    // `graph_creation` counts as indexed because the provider's own "wait
+    // until searchable" loop stops on it: enrichment continues asynchronously
+    // after the record is queryable, and holding out for `completed` was
+    // waiting on a state that stage sometimes never reports.
     const completed = new Set(
-      statuses.filter((status) => status.indexingStatus === 'completed').map((status) => status.id),
+      statuses
+        .filter((status) => INDEXED_OK.has(status.indexingStatus))
+        .map((status) => status.id),
     );
     // Exact receipts are durable even when the provider has not finished
     // indexing by the request deadline. Preserve that accepted state so the

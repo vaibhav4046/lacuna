@@ -119,7 +119,26 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const INGEST_TIMEOUT_MS = 120_000;
 
 /** Terminal states from the status endpoint. Anything else means keep polling. */
-const TERMINAL = new Set(['completed', 'errored', 'failed']);
+/**
+ * The states a poll may stop on, taken from the provider's own contract.
+ *
+ * The published quickstart, both SDKs, is one loop titled "wait until
+ * searchable" and it breaks on `graph_creation` OR `completed`. Graph creation
+ * is asynchronous enrichment that continues after the record is queryable, so
+ * a record that reaches it has already succeeded.
+ *
+ * This set used to be `completed | errored | failed`, which is stricter than
+ * the vendor's, and the difference was the whole readiness saga: records reach
+ * `graph_creation` inside ten seconds, this kept polling for a `completed`
+ * that async enrichment sometimes never reports, and at around forty seconds
+ * it observed the enrichment stage's own `errored (E6005)` -- a state the
+ * vendor's documented client exits before ever seeing. Measured live: the
+ * records it mourned were answerable the entire time.
+ */
+const TERMINAL = new Set(['completed', 'graph_creation', 'errored', 'failed']);
+
+/** The stop-states that mean the record is searchable, per that same contract. */
+export const INDEXED_OK = new Set(['completed', 'graph_creation']);
 /** Receipt states observed in the ingest contract and exercised by every durable writer. */
 const INGEST_ACCEPTED = new Set(['queued', 'completed']);
 const INGEST_REFUSED = new Set(['errored', 'failed']);

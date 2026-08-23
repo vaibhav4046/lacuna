@@ -176,6 +176,45 @@ function statefulAdversarialCloud(options: { readonly blockReadiness?: boolean }
   };
 }
 
+/**
+ * A cloud whose indexer errors on the workspace index record and completes
+ * everything else, which is exactly what HydraDB Cloud does.
+ */
+function cloudWithErroringIndexRecord(): HydraCloud {
+  return new HydraCloud(
+    {
+      baseUrl: 'https://api.example.invalid',
+      token: 'not-a-real-token',
+      database: 'lacuna',
+      collection: 'public-demo',
+    },
+    {
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        if (init?.method === 'GET' && url.pathname.endsWith('/context/status')) {
+          const ids = url.searchParams.getAll('ids');
+          return Response.json({
+            data: {
+              statuses: ids.map((id) => (id === INDEX_ID
+                ? { id, indexing_status: 'errored', error_code: 'E6005' }
+                : { id, indexing_status: 'completed', error_code: '' })),
+            },
+          });
+        }
+        if (init?.method === 'GET') {
+          return Response.json({ error: { code: 'FILE_NOT_FOUND' } }, { status: 404 });
+        }
+        const form = init?.body as FormData;
+        const app = form.get('app_knowledge');
+        const records = typeof app === 'string' ? (JSON.parse(app) as { id: string }[]) : [];
+        return Response.json({
+          data: { results: records.map((record) => ({ id: record.id, status: 'queued', error: null })) },
+        });
+      },
+    },
+  );
+}
+
 function cloudWithIndexingStatus(indexingStatus: string): HydraCloud {
   return new HydraCloud(
     {
@@ -690,6 +729,28 @@ describe('prepared connector ingestion', () => {
 
     expect(result).toMatchObject({ searchable: true, indexing: 'completed' });
   });
+
+  it('does not wait on the workspace index, which nothing searches', async () => {
+    // Measured against a live workspace collection: every entity and session
+    // record reaches `completed` inside twenty-four seconds and `lacuna:index`
+    // sits in `graph_creation` and then errors with E6005, every time. The
+    // index is a map from subject to record id, read only by id through
+    // `/context/inspect`, and its text is JSON rather than prose.
+    //
+    // Waiting on it turned every successful import into `readiness_failed`,
+    // and worse, the errored status persists, so once a workspace had one bad
+    // index record every later import failed readiness immediately.
+    const result = await ingestPreparedSource(
+      cloudWithErroringIndexRecord(),
+      workspaceCollection('index-errors@example.com'),
+      prepared(),
+      { awaitSearchable: true, readiness: { timeoutMs: 50, intervalMs: 1 } },
+    );
+
+    if (typeof result === 'string') throw new Error(`expected a report, got ${result}`);
+    expect(result).toMatchObject({ searchable: true, indexing: 'completed' });
+  });
+
 
   it.each([
     ['failed', 'failed'],

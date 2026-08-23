@@ -570,9 +570,30 @@ async function preparedIngest(
     throw new IngestReadinessError('failed', receipts.accepted.length, receipts.refused.length);
   }
 
+  /**
+   * The records whose search index a reader can actually be waiting on.
+   *
+   * `lacuna:index` is a lookup map from subject to record id. It is written as
+   * a record because it has to be durable, and it is only ever read by id
+   * through `/context/inspect`. Nothing searches it, and its text is a JSON
+   * object rather than prose.
+   *
+   * HydraDB's graph-creation stage errors on it, every time, with E6005. The
+   * entity and session records beside it reach `completed` inside twenty-four
+   * seconds; the index sits in `graph_creation` and then errors at around
+   * forty. Measured per record against a live workspace collection, and the
+   * same collection indexes an ordinary uploaded document without complaint.
+   *
+   * Waiting on it made every successful import end in `readiness_failed`, and
+   * the errored status persists, so once a workspace held one bad index record
+   * every later import failed readiness immediately. Readiness is a question
+   * about the claims, so it is asked about the records that hold them.
+   */
+  const searchableIds = receipts.accepted.filter((id) => id !== INDEX_ID);
+
   let searchable = false;
   let indexing: 'accepted' | 'completed' = 'accepted';
-  if (options.awaitSearchable && receipts.accepted.length > 0) {
+  if (options.awaitSearchable && searchableIds.length > 0) {
     let statuses: readonly SourceStatus[];
     try {
       const readinessTimeout = options.deadlines === undefined
@@ -581,7 +602,7 @@ async function preparedIngest(
           options.readiness?.timeoutMs ?? 300_000,
           options.deadlines.readinessDeadlineMs - Date.now(),
         ));
-      statuses = await cloud.withCollection(collection).waitForIndexing(receipts.accepted, {
+      statuses = await cloud.withCollection(collection).waitForIndexing(searchableIds, {
         ...options.readiness,
         ...(readinessTimeout === undefined ? {} : { timeoutMs: readinessTimeout }),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -605,7 +626,7 @@ async function preparedIngest(
     // Exact receipts are durable even when the provider has not finished
     // indexing by the request deadline. Preserve that accepted state so the
     // connector can report a pending search index instead of a false failure.
-    if (receipts.accepted.every((id) => completed.has(id))) {
+    if (searchableIds.every((id) => completed.has(id))) {
       searchable = true;
       indexing = 'completed';
     }

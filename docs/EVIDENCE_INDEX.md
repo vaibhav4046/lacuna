@@ -322,7 +322,7 @@ because shortest path needs two known endpoints and a question arrives with one.
 | A forged `SYSTEM:` line files onto a slot no answer reads | `/demo/memory`, tests | [tests/unit/demo-api.test.ts](../tests/unit/demo-api.test.ts) | `npx vitest run tests/unit/demo-api.test.ts` | `LIVE` |
 | The frame table reads seven properties, not English | every extract response, README | the `readableProperties` field on every response | same curl | `LIVE` |
 | 500 published LongMemEval instances: 0 parse failures, 0 adapter failures, 0 ground truth leaks; coverage is also grouped by all six official question types | BENCHMARK_LONGMEMEVAL | [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/ingest-check.json) | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
-| Scoped LongMemEval personal bridge: 128 claims from 3.3M tokens (84/500 instances, 16.8% ingest coverage); no official score inferred | BENCHMARK_LONGMEMEVAL | same | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
+| Scoped LongMemEval personal bridge: 121 claims from 3.3M tokens (80/500 instances, 16% ingest coverage); no official score inferred | BENCHMARK_LONGMEMEVAL | same | `npx tsx scripts/longmemeval-ingest-check.ts` | `RECORDED` |
 | No LongMemEval score exists; the deterministic hypothesis runner and official-compatible judge are implemented but no paid judge call has been made | BENCHMARK_LONGMEMEVAL | [docs/BENCHMARK_LONGMEMEVAL.md](BENCHMARK_LONGMEMEVAL.md), `benchmarks/longmemeval/judge.ts` | `npm run bench:longmemeval:judge -- --dataset ... --hypotheses ... --out ...` | `UNAVAILABLE` |
 
 The last three rows are the ones a sceptical reader should start with. The first

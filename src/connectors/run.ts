@@ -419,8 +419,24 @@ export class ConnectorRunner {
 
     const acceptedDocuments = outcomes.filter((outcome) => outcome.accepted).length;
     const searchableDocuments = outcomes.filter((outcome) => outcome.searchable).length;
+    /**
+     * A document that was accepted is not a failed document.
+     *
+     * `readiness_failed` and `readiness_timeout` say the store took the
+     * records and did not confirm the index in time. The document itself
+     * arrived and its claims are readable, which is why `acceptedDocuments`
+     * counts it. Counting the same one submitted document as both accepted
+     * and failed produced a receipt reading "ACCEPTED 1 ... FAILED 1 ... 1
+     * submitted document failed" for an import that had just written eight
+     * records, and a reader believes the failure line.
+     *
+     * The run still carries the readiness failure code, and the receipt still
+     * has its own sentence for it, so nothing is hidden: what changes is that
+     * the failure is reported as the indexing state it is rather than as a
+     * document that did not make it.
+     */
     const failedDocuments = outcomes.filter((outcome) => (
-      outcome.failure !== null && outcome.indeterminate !== true
+      outcome.failure !== null && outcome.indeterminate !== true && !outcome.accepted
     )).length
       + (outcomes.length === 0 && failure !== null ? request.documents.length : 0);
     const emptyDocuments = outcomes.filter((outcome) => outcome.empty === true).length;

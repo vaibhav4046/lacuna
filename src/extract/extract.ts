@@ -234,6 +234,32 @@ const NOT_A_NAME_START = new Set([
 ]);
 
 /**
+ * Words a name cannot end with, which is the same rule as the one above read
+ * from the other end and was missing for exactly as long.
+ *
+ * `NOT_A_NAME_START` catches a phrase sliced at its head. Nothing caught one
+ * sliced at its tail, so "Version-1 capabilities now fail closed in production
+ * and must be reminted" put a claim in the graph whose subject was "production
+ * and": it opens on a noun, which passed, and closes on a conjunction, which
+ * nothing looked at. "users may depend on the kafka jar" did the same with a
+ * modal. A noun phrase does not end on a conjunction, a preposition, a
+ * determiner, a copula or a modal, and no name in any corpus this reads does.
+ *
+ * Found in a live workspace rather than in a fixture: an import of this
+ * project's own README left `production and policy reminted` in somebody's
+ * memory, where it would have been answered with.
+ */
+const NOT_A_NAME_END = new Set([
+  'and', 'but', 'or', 'nor', 'so', 'because', 'if', 'when', 'while', 'as', 'than', 'that',
+  'to', 'in', 'on', 'for', 'from', 'with', 'by', 'at', 'of', 'between', 'into', 'onto',
+  'over', 'under', 'about', 'across', 'through',
+  'the', 'a', 'an', 'its', 'their', 'his', 'her', 'our', 'your', 'my',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'has', 'have', 'had',
+  'may', 'might', 'can', 'could', 'should', 'would', 'will', 'shall', 'must',
+  'do', 'does', 'did',
+]);
+
+/**
  * Values that say the thing is not known or not written down.
  *
  * "The connection pool size is not documented" fills the value slot with "not
@@ -286,6 +312,7 @@ function usable(text: string): boolean {
   if (parts.length === 0 || parts.length > MAX_NAME_WORDS) return false;
   if (NOT_A_NAME_START.has(parts[0]!)) return false;
   if (RELATIVE.has(parts[0]!)) return false;
+  if (NOT_A_NAME_END.has(parts[parts.length - 1]!)) return false;
   return true;
 }
 

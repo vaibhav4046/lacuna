@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-08-22T14:35:10.486Z",
+  "measuredAt": "2026-08-23T12:00:30.351Z",
   "dataset": "data/longmemeval_oracle.json",
   "instances": 500,
   "parseFailures": [],
@@ -8,15 +8,15 @@
   "sessions": 948,
   "messages": 10960,
   "estimatedTokens": 3303216,
-  "claims": 128,
-  "instancesWithAtLeastOneClaim": 84,
-  "coverage": 16.8,
+  "claims": 121,
+  "instancesWithAtLeastOneClaim": 80,
+  "coverage": 16,
   "bySlot": {
-    "storage": 58,
-    "policy": 28,
-    "depends_on": 19,
-    "region": 10,
+    "storage": 57,
+    "policy": 27,
+    "depends_on": 18,
     "degree": 8,
+    "region": 6,
     "storage:plan": 2,
     "commute_duration": 2,
     "bedroom_color": 1
@@ -50,26 +50,26 @@
       "questionType": "multi-session",
       "ability": "multi_session_reasoning",
       "instances": 133,
-      "instancesWithClaim": 25,
-      "claims": 37,
+      "instancesWithClaim": 23,
+      "claims": 35,
       "abstentions": 12
     },
     {
       "questionType": "temporal-reasoning",
       "ability": "temporal_reasoning",
       "instances": 133,
-      "instancesWithClaim": 25,
-      "claims": 42,
+      "instancesWithClaim": 24,
+      "claims": 40,
       "abstentions": 6
     },
     {
       "questionType": "knowledge-update",
       "ability": "knowledge_updates",
       "instances": 78,
-      "instancesWithClaim": 18,
-      "claims": 30,
+      "instancesWithClaim": 17,
+      "claims": 27,
       "abstentions": 6
     }
   ],
-  "ms": 1523
+  "ms": 594
 }

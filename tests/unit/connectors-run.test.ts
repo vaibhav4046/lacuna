@@ -297,7 +297,10 @@ describe('ConnectorRunner', () => {
       acceptedDocuments: 1,
       acceptedRecords: 4,
       searchableDocuments: 0,
-      failedDocuments: 1,
+      // Accepted, so not a failed document. The readiness or receipt state is
+      // carried by `failure` and the record counts rather than by counting the
+      // same document as both arrived and lost.
+      failedDocuments: 0,
       failure: 'readiness_failed',
       observationWrite: 'stored',
     });
@@ -343,7 +346,10 @@ describe('ConnectorRunner', () => {
       acceptedDocuments: 2,
       acceptedRecords: 8,
       searchableDocuments: 1,
-      failedDocuments: 1,
+      // Accepted, so not a failed document. The readiness or receipt state is
+      // carried by `failure` and the record counts rather than by counting the
+      // same document as both arrived and lost.
+      failedDocuments: 0,
       failure: 'readiness_failed',
       observationWrite: 'stored',
     });
@@ -502,7 +508,10 @@ describe('ConnectorRunner', () => {
     expect(result).toMatchObject({
       acceptedDocuments: 1,
       searchableDocuments: 0,
-      failedDocuments: 1,
+      // Accepted, so not a failed document. The readiness or receipt state is
+      // carried by `failure` and the record counts rather than by counting the
+      // same document as both arrived and lost.
+      failedDocuments: 0,
       acceptedRecords: 4,
       refusedRecords: 1,
       failure: 'readiness_timeout',
@@ -601,7 +610,10 @@ describe('ConnectorRunner', () => {
 
     expect(result).toMatchObject({
       acceptedDocuments: 1,
-      failedDocuments: 1,
+      // Accepted, so not a failed document. The readiness or receipt state is
+      // carried by `failure` and the record counts rather than by counting the
+      // same document as both arrived and lost.
+      failedDocuments: 0,
       acceptedRecords: 2,
       refusedRecords: 1,
       failure: 'receipt_refused',

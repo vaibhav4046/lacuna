@@ -292,7 +292,7 @@ Written to [artifacts/longmemeval/ingest-check.json](../artifacts/longmemeval/in
 | read in | 1.5s |
 
 The same artifact also records coverage by the official question type, so the
-16.8% aggregate cannot hide a type-specific gap:
+16% aggregate cannot hide a type-specific gap:
 
 | question type | instances | with a claim | claims | abstentions |
 | --- | ---: | ---: | ---: | ---: |
@@ -320,7 +320,7 @@ adapter now adds a separate, high-precision personal bridge for explicit
 first-person degree, occupation, commute-duration and a few other facts; it does
 not widen the production extractor or pretend to read arbitrary English.
 Across the published oracle tier, **128 claims came out of 3.3 million tokens
-and 84/500 instances (16.8%) carried at least one**. This is ingest coverage,
+and 80/500 instances (16%) carried at least one**. This is ingest coverage,
 not answer accuracy or an official benchmark score.
 
 The frame table was written for infrastructure conversations: where a service
@@ -386,7 +386,7 @@ per run.
 | loader and adapter | written, and run over all 500 published instances with 0 failures |
 | ground truth isolation | structural, and verified against the published file rather than fixtures |
 | dataset downloaded | yes, the oracle tier |
-| claim extraction from haystack prose | scoped personal bridge plus core frames: 128 claims from 3.3M tokens (84/500 instances, 16.8% ingest coverage); no official score inferred |
+| claim extraction from haystack prose | scoped personal bridge plus core frames: 121 claims from 3.3M tokens (80/500 instances, 16% ingest coverage); no official score inferred |
 | ground truth isolation | structural, enforced by types and asserted in tests |
 | ingestion of a real haystack | adapted, not written to a store |
 | hypotheses produced | deterministic runner implemented; multi-question runs fail closed without explicit per-question graph isolation; no full store-backed run accepted |

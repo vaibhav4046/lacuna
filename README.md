@@ -169,11 +169,11 @@ Read the complete architecture in
 
 Start with these documents:
 
-- [Evidence index](docs/EVIDENCE_INDEX.md) — dated proof artifacts and commands
-- [V10 release status](docs/V10_RELEASE_STATUS.md) — what the current production build proves and what remains open
-- [LongMemEval boundary](docs/BENCHMARK_LONGMEMEVAL.md) — official dataset adapter scope without inventing an official score
-- [Benchmarks](docs/BENCHMARKS.md) — measured repository checks and their limitations
-- [Reproduction record](artifacts/repro/README.md) — fresh-clone execution evidence
+- [Evidence index](docs/EVIDENCE_INDEX.md): dated proof artifacts and commands
+- [V10 release status](docs/V10_RELEASE_STATUS.md): what the current production build proves and what remains open
+- [LongMemEval boundary](docs/BENCHMARK_LONGMEMEVAL.md): official dataset adapter scope without inventing an official score
+- [Benchmarks](docs/BENCHMARKS.md): measured repository checks and their limitations
+- [Reproduction record](artifacts/repro/README.md): fresh-clone execution evidence
 
 The generated 64-question evaluation is a deterministic repository correctness
 check. It is **not** an official LongMemEval score. Lacuna currently has no

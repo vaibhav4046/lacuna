@@ -248,6 +248,20 @@ seam fails, and filtering claims on supersession inside a client fails.
 | provenance | every screen a capture of production; the continuity scene is recorded output |
 | claim map | `docs/VIDEO_CLAIM_MAP.md` |
 
+## Two gates that were lying, now fixed
+
+`npm run parity` had been red since the V8 hardening landed: the sweep is
+exactly the traffic shape the new 30-call-per-minute ceiling exists to refuse,
+and the gate could not tell a working rate limiter from a broken transport. The
+server now takes `--tool-limit` and `--request-limit`, defaulting to the
+production constants, and the gate raises them for its own child.
+
+`npm test` exited zero while sixty tests never ran, because a worker fork was
+being killed on a heap ceiling and vitest counts a file it was inside as
+neither passed nor failed. Every count previously quoted in this file was true
+only when the run got lucky. `npm run test:verified` now checks that every file
+on disk reported, and fails when one did not. See D-126.
+
 ## Not green, and named
 
 - **Google sign in works and is the newest thing here.** Verified by signing in

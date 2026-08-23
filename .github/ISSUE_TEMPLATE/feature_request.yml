@@ -1,0 +1,53 @@
+name: Feature request
+description: Propose a scoped improvement backed by a real workflow
+title: "feat: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Lacuna prefers narrow, testable additions over broad claims. Start with the user problem and the evidence contract.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What real workflow fails or becomes unsafe today?
+      placeholder: Reviewers cannot compare two contradictory owner claims without opening each source manually.
+    validations:
+      required: true
+  - type: textarea
+    id: user
+    attributes:
+      label: Who needs this?
+      description: Name the user or integration and the frequency of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Smallest useful change
+      description: Describe the minimum behaviour, not an entire platform rewrite.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and acceptance criteria
+      description: Provide an example input, expected output, proof path and safe failure behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Lacuna boundaries
+      options:
+        - label: The proposal preserves exact provenance.
+          required: true
+        - label: The proposal defines what happens when evidence is missing or contradictory.
+          required: true
+        - label: The proposal does not turn a plan, question or untrusted instruction into an authoritative claim.
+          required: true

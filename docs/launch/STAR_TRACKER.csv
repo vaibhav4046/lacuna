@@ -1,0 +1,9 @@
+date,wave,platform,asset,qualified_views,repository_visits,demo_starts,quickstart_attempts,stars,issues,forks,contributors,inbound_messages,notes
+2026-08-23,baseline,GitHub,pre-launch baseline,,,,,,,,,,
+,private-preview,Direct,early-user proof,,,,,,,,,,
+,launch,LinkedIn,native proof demo,,,,,,,,,,
+,launch,X,native clip and thread,,,,,,,,,,
+,technical-proof,LinkedIn,architecture or failure trace,,,,,,,,,,
+,technical-proof,X,reproducible evidence thread,,,,,,,,,,
+,contributors,GitHub,scoped issues and roadmap,,,,,,,,,,
+,iteration,Cross-platform,user-requested before-after,,,,,,,,,,

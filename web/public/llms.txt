@@ -1,0 +1,23 @@
+# Lacuna
+
+> Temporal, provenance-first memory for AI agents. Lacuna tracks corrections,
+> preserves evidence, exposes unresolved conflicts and abstains when history
+> cannot support an answer.
+
+## Canonical links
+
+- Product: https://lacuna-five.vercel.app/
+- Public workspace: https://lacuna-five.vercel.app/explore
+- Judge view: https://lacuna-five.vercel.app/judge
+- Source: https://github.com/vaibhav4046/lacuna
+- Current evidence: https://github.com/vaibhav4046/lacuna/blob/main/docs/EVIDENCE_INDEX.md
+- Release boundary: https://github.com/vaibhav4046/lacuna/blob/main/docs/V10_RELEASE_STATUS.md
+- MCP setup: https://github.com/vaibhav4046/lacuna/blob/main/docs/CONNECT_CLIENTS.md
+- LongMemEval scope: https://github.com/vaibhav4046/lacuna/blob/main/docs/BENCHMARK_LONGMEMEVAL.md
+
+## Important limits
+
+- The extractor reads bounded sentence frames, not arbitrary English.
+- The generated 64-question evaluation is not an official LongMemEval score.
+- The public workspace is read-only.
+- HydraDB Cloud and self-hosted graph adapters are separate execution boundaries.

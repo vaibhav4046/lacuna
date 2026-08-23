@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/vaibhav4046/lacuna/security/advisories/new
+    about: Report authentication, credential, private-data or cross-workspace vulnerabilities privately.
+  - name: Live public workspace
+    url: https://lacuna-five.vercel.app/explore
+    about: Reproduce public read behaviour against the current synthetic workspace.

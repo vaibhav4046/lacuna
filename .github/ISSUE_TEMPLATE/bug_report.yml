@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible Lacuna failure or regression
+title: "bug: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a failure. Remove credentials, cookies, private MCP capabilities, personal data and private workspace content before submitting.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Public web workspace
+        - Authenticated web workspace
+        - CLI
+        - MCP
+        - HydraDB Cloud adapter
+        - Self-hosted HydraDB adapter
+        - Connector or file import
+        - Agent or Work flow
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe one concrete failure.
+      placeholder: The current claim was replaced, but Ask returned the superseded value.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include exact commands, input and route. Use synthetic data where possible.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour and evidence
+      description: Include error text, response shape or a redacted screenshot.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Commit, deployment or version
+      placeholder: Commit SHA, Vercel deployment ID, or branch
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version, browser/client, HydraDB profile and relevant configuration names. Do not paste secret values.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety and scope
+      options:
+        - label: I searched existing issues and pull requests.
+          required: true
+        - label: I removed secrets, private data and working exploit details.
+          required: true
+        - label: This is not a private security vulnerability. I will use the security advisory flow for those.
+          required: true

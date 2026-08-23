@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /app/
+Disallow: /signin
+Disallow: /signup
+Disallow: /oauth/
+Disallow: /mcp
+
+Sitemap: https://lacuna-five.vercel.app/sitemap.xml

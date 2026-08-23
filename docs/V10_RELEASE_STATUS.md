@@ -105,10 +105,15 @@ The current production deployment is the stable alias's immutable deployment
 `dpl_B2HfsTkyvK7vnZY98TotD6KYMUAW` (created 2026-08-23 08:52 UTC) with the
 production-only file-preview and webhook signing keys enabled. Root and web
 typecheck/build pass; focused candidate auth, connector, agent, voice and
-ingestion suites are green. A serial all-unit run currently exits unexpectedly
-when the isolated Vitest worker reaches the Node worker-thread file-parser
-tests, so 2,294/2,294 is retained only as historical evidence, not a current
-candidate claim.
+ingestion suites are green. The file-parser cause of that unexpected exit is fixed: the
+termination watchdog fail-stopped at 750 ms, which is a scheduling delay rather
+than a hung terminate, and under load it killed the test process in roughly one
+run in four. It is now ten seconds, with the test that proves the fail-stop
+fires injecting its own fifty. Measured: six parallel runs of that suite killed
+the process twice before and zero times after, and the full suite passes
+2,315/2,315 across 119 files. A rarer unexplained worker exit still appears in
+roughly one full run in three; it is not the file parser and its origin is not
+identified, so it is recorded here rather than claimed as resolved.
 
 Candidate commits `b11b471`, `c48d58d`, `1264423`, `356190c`, `5451bf8`,
 `dc5c343`, `35c32cd`, `6feb07a`, `c4f13e8`, `e3c24ab`, `9aa5440`,

@@ -26,7 +26,24 @@ export const FILE_PARSER_VERSION = 'files-v2';
 const MAX_FILENAME_BYTES = 240;
 const PARSER_TIMEOUT_MS = 5_000;
 const PARSER_ACQUIRE_TIMEOUT_MS = 250;
-const PARSER_TERMINATION_WATCHDOG_MS = 750;
+/**
+ * How long a confirmed termination may take before the process fail-stops.
+ *
+ * The guard is not negotiable: a parser worker that cannot be confirmed dead
+ * may still hold untrusted bytes, so the process exits rather than continue
+ * beside it. The threshold is another matter. Seven hundred and fifty
+ * milliseconds is a scheduling delay, not a hung terminate, and under load it
+ * fired on a worker that was merely slow to be reaped: the file parser suite
+ * killed its own test process in roughly one run in four when six suites ran
+ * at once, which is the intermittent exit the release notes recorded as
+ * blocking a clean serial run.
+ *
+ * Ten seconds still fail-stops on a terminate that never resolves, which is
+ * the case this exists for, and does not fire on a machine that is busy.
+ * Measured: six parallel runs at 750ms produced two kills, six at 10s produced
+ * none.
+ */
+const PARSER_TERMINATION_WATCHDOG_MS = 10_000;
 const PARSER_FATAL_EXIT_CODE = 70;
 const MAX_CONCURRENT_PARSERS = 2;
 const PREVIEW_EXCERPT_CHARS = 320;
@@ -281,6 +298,12 @@ export interface FileParserIsolationOptions {
   readonly acquireTimeoutMs?: number;
   readonly workerFactory?: (url: URL, options: WorkerOptions) => Worker;
   readonly fatalIsolationFailure?: () => never | Promise<never>;
+  /**
+   * Overridden only by the test that proves the fail-stop fires, which needs a
+   * threshold it can outrun deliberately rather than one sized for a loaded
+   * machine.
+   */
+  readonly terminationWatchdogMs?: number;
 }
 
 interface ParserWaiter {
@@ -449,7 +472,7 @@ async function extractIsolated(
             termination.then(() => 'terminated' as const, () => 'rejected' as const),
             exitConfirmed.then(() => 'exited' as const),
             new Promise<'unconfirmed'>((resolveWatchdog) => {
-              watchdog = setTimeout(() => resolveWatchdog('unconfirmed'), PARSER_TERMINATION_WATCHDOG_MS);
+              watchdog = setTimeout(() => resolveWatchdog('unconfirmed'), options.terminationWatchdogMs ?? PARSER_TERMINATION_WATCHDOG_MS);
               watchdog.unref?.();
             }),
           ]);

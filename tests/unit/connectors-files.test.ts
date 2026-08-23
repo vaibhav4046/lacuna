@@ -670,6 +670,9 @@ describe('bounded PDF extraction', () => {
       observedAt: OBSERVED_AT,
     }, {
       timeoutMs: 10,
+      // Its own threshold, so the assertion is about the fail-stop firing
+      // rather than about how quickly the machine reaps a worker thread.
+      terminationWatchdogMs: 50,
       fatalIsolationFailure: () => {
         fatalCalls += 1;
         throw processDeath;

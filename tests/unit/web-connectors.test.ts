@@ -10,6 +10,7 @@ import {
   ReviewedUrlWorkflow,
   WebhookLifecycleArbiter,
   canonicalGitHubReview,
+  canonicalGitLabReview,
   safeHttpsReview,
   receiptReadiness,
 } from '../../web/src/app/product-contracts.js';
@@ -146,6 +147,15 @@ describe('private connector workflow contracts', () => {
     expect(canonicalGitHubReview('https://github.com/acme--labs/atlas')).toBeNull();
     expect(canonicalGitHubReview('https://github.com/acme/.atlas')).toBe('https://github.com/acme/.atlas');
     expect(canonicalGitHubReview('https://github.com/acme/atlas')).toBe('https://github.com/acme/atlas');
+    // Mixed case is canonicalised rather than refused, which is what the
+    // server has always done. Refusing it left a reader who pasted the address
+    // GitHub itself shows with a dead end and no way to learn the fix.
+    expect(canonicalGitHubReview('https://github.com/octocat/Hello-World')).toBe('https://github.com/octocat/hello-world');
+    expect(canonicalGitHubReview('https://github.com/Acme/Atlas.git')).toBe('https://github.com/acme/atlas');
+    expect(canonicalGitLabReview('https://gitlab.com/Group/Sub/Project')).toBe('https://gitlab.com/group/sub/project');
+    // The scheme is still matched literally, so an uppercase one is not a URL
+    // this reviews.
+    expect(canonicalGitHubReview('HTTPS://github.com/acme/atlas')).toBeNull();
     expect(safeHttpsReview('https://api.example.test/data?credential=hidden')).toEqual({
       submitted: 'https://api.example.test/data?credential=hidden',
       displayed: 'https://api.example.test/data',

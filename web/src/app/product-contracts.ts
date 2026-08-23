@@ -86,25 +86,44 @@ export class FileWorkflow {
   reset(): void { this.select(null); }
 }
 
+/**
+ * The repository root this import will actually use, or null if it is not one.
+ *
+ * This used to demand lowercase and refuse anything else, while
+ * `canonicalizeGitHubRepositoryRoot` on the server accepts mixed case and
+ * lowercases it. Two grammars for one address, with the stricter one in front
+ * of the reader: pasting `https://github.com/octocat/Hello-World`, which is
+ * how GitHub itself writes that repository, was a dead end reading "enter one
+ * canonical lowercase repository root" with no way to learn that lowercasing
+ * it by hand would work.
+ *
+ * Canonicalising rather than refusing is what the word means, and it is the
+ * same single `.git` suffix the server strips. The returned string is what the
+ * review shows and what is sent, so the reader sees the identity the import
+ * will carry before confirming it.
+ */
 export function canonicalGitHubReview(value: string): string | null {
   const held = value.trim();
   const match = /^https:\/\/github\.com\/([^/]+)\/([^/]+)$/u.exec(held);
   if (match === null) return null;
-  const owner = match[1] ?? '';
-  const repository = match[2] ?? '';
+  const owner = (match[1] ?? '').toLowerCase();
+  const supplied = match[2] ?? '';
+  const repository = (supplied.toLowerCase().endsWith('.git') ? supplied.slice(0, -4) : supplied).toLowerCase();
   const ownerValid = /^(?!-)(?!.*--)[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$/u.test(owner);
   const repositoryValid = /^[a-z0-9_.-]{1,100}$/u.test(repository)
     && repository !== '.' && repository !== '..' && !repository.endsWith('.git');
-  return ownerValid && repositoryValid ? held : null;
+  return ownerValid && repositoryValid ? `https://github.com/${owner}/${repository}` : null;
 }
 
+/** The project root this import will use, lowercased exactly as the server does. */
 export function canonicalGitLabReview(value: string): string | null {
   const held = value.trim();
   const parts = held.replace(/^https:\/\/gitlab\.com\//u, '').split('/');
   if (!held.startsWith('https://gitlab.com/') || held.endsWith('/') || parts.length < 2 || parts.length > 20) return null;
   if (parts.some((part) => !/^(?!-)(?!.*--)[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/u.test(part))) return null;
-  if (parts.some((part) => part.toLowerCase() !== part) || parts.at(-1)?.endsWith('.git')) return null;
-  return held;
+  const namespace = parts.join('/').toLowerCase();
+  if (namespace.endsWith('.git')) return null;
+  return `https://gitlab.com/${namespace}`;
 }
 
 export interface SafeHttpsReview {

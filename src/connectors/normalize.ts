@@ -10,7 +10,7 @@ export const MAX_CONNECTOR_DOCUMENTS = 30;
 export const MAX_CONNECTOR_TEXT_BYTES = 4 * 1024 * 1024;
 const MAX_TITLE_CHARS = 120;
 const CONNECTOR_IDS = new Set<ConnectorId>([
-  'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+  'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack',
 ]);
 const MEDIA_TYPES = new Set<ConnectorMediaType>([
   'text/plain',
@@ -26,6 +26,7 @@ const GITHUB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'github']);
 const GITLAB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'gitlab']);
 const HTTPS_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'https']);
 const WEBHOOK_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'webhook']);
+const SLACK_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'slack']);
 const GITHUB_EVIDENCE_KEYS = new Set([
   'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
@@ -38,6 +39,13 @@ const HTTPS_EVIDENCE_KEYS = new Set([
   'schemaVersion', 'pathDigest', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
 const WEBHOOK_EVIDENCE_KEYS = new Set(['schemaVersion', 'rawDigest', 'parserVersion']);
+const SLACK_EVIDENCE_KEYS = new Set([
+  'schemaVersion', 'teamId', 'channelId', 'messageCount', 'oldestTs', 'latestTs',
+  'retrievedAt', 'rawDigest', 'parserVersion',
+]);
+/** Slack's own id grammar for teams and channels. Never a token. */
+const SLACK_ID = /^[A-Z][A-Z0-9]{4,20}$/u;
+const SLACK_TS = /^\d{6,12}\.\d{3,8}$/u;
 
 export type ConnectorMediaType =
   | 'text/plain'
@@ -56,6 +64,7 @@ export interface ConnectorProvenance {
   readonly gitlab?: GitLabConnectorEvidence;
   readonly https?: HttpsConnectorEvidence;
   readonly webhook?: WebhookConnectorEvidence;
+  readonly slack?: SlackConnectorEvidence;
 }
 
 export interface GitHubConnectorEvidence {
@@ -90,6 +99,24 @@ export interface WebhookConnectorEvidence {
   readonly schemaVersion: 1;
   readonly rawDigest: string;
   readonly parserVersion: 'webhook-v1';
+}
+
+/**
+ * What one Slack read leaves behind: which channel, when, how much, and the
+ * digest of the transcript it produced. Ids only --- the token that authorised
+ * the read has no field here on purpose, and the validation below has no slot
+ * a token-shaped string could pass through.
+ */
+export interface SlackConnectorEvidence {
+  readonly schemaVersion: 1;
+  readonly teamId: string;
+  readonly channelId: string;
+  readonly messageCount: number;
+  readonly oldestTs: string;
+  readonly latestTs: string;
+  readonly retrievedAt: string;
+  readonly rawDigest: string;
+  readonly parserVersion: 'slack-v1';
 }
 
 export interface ConnectorDocumentInput {
@@ -186,6 +213,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
   const gitlab = value['connectorId'] === 'gitlab';
   const https = value['connectorId'] === 'https_api';
   const webhook = value['connectorId'] === 'webhook';
+  const slack = value['connectorId'] === 'slack';
   const expectedKeys = github
     ? GITHUB_PROVENANCE_KEYS
     : gitlab
@@ -194,6 +222,8 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
       ? HTTPS_PROVENANCE_KEYS
       : webhook
         ? WEBHOOK_PROVENANCE_KEYS
+      : slack
+        ? SLACK_PROVENANCE_KEYS
         : PROVENANCE_KEYS;
   if (!hasExactKeys(value, expectedKeys)) {
     throw new ConnectorNormalizationError('invalid_provenance');
@@ -203,6 +233,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
   let gitlabEvidence: GitLabConnectorEvidence | undefined;
   let httpsEvidence: HttpsConnectorEvidence | undefined;
   let webhookEvidence: WebhookConnectorEvidence | undefined;
+  let slackEvidence: SlackConnectorEvidence | undefined;
   if (github) {
     const evidence = value['github'];
     if (!isRecord(evidence) || !hasExactKeys(evidence, GITHUB_EVIDENCE_KEYS)
@@ -300,6 +331,35 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
       parserVersion: 'webhook-v1',
     });
   }
+  if (slack) {
+    const evidence = value['slack'];
+    if (!isRecord(evidence) || !hasExactKeys(evidence, SLACK_EVIDENCE_KEYS)
+      || evidence['schemaVersion'] !== 1
+      || value['mediaType'] !== 'text/plain'
+      || typeof evidence['teamId'] !== 'string' || !SLACK_ID.test(evidence['teamId'])
+      || typeof evidence['channelId'] !== 'string' || !SLACK_ID.test(evidence['channelId'])
+      || typeof evidence['messageCount'] !== 'number'
+      || !Number.isInteger(evidence['messageCount']) || evidence['messageCount'] < 1
+      || evidence['messageCount'] > 10_000
+      || typeof evidence['oldestTs'] !== 'string' || !SLACK_TS.test(evidence['oldestTs'])
+      || typeof evidence['latestTs'] !== 'string' || !SLACK_TS.test(evidence['latestTs'])
+      || !canonicalInstant(evidence['retrievedAt']) || evidence['retrievedAt'] !== value['observedAt']
+      || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
+      || evidence['parserVersion'] !== 'slack-v1') {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    slackEvidence = Object.freeze({
+      schemaVersion: 1,
+      teamId: evidence['teamId'],
+      channelId: evidence['channelId'],
+      messageCount: evidence['messageCount'],
+      oldestTs: evidence['oldestTs'],
+      latestTs: evidence['latestTs'],
+      retrievedAt: evidence['retrievedAt'],
+      rawDigest: evidence['rawDigest'],
+      parserVersion: 'slack-v1',
+    });
+  }
   return Object.freeze({
     connectorId: value['connectorId'] as ConnectorId,
     sourceUrl: normalizedSourceUrl,
@@ -309,6 +369,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     ...(gitlabEvidence === undefined ? {} : { gitlab: gitlabEvidence }),
     ...(httpsEvidence === undefined ? {} : { https: httpsEvidence }),
     ...(webhookEvidence === undefined ? {} : { webhook: webhookEvidence }),
+    ...(slackEvidence === undefined ? {} : { slack: slackEvidence }),
   });
 }
 

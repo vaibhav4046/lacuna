@@ -7,6 +7,7 @@ import {
   getWebhookState,
   importFile,
   importGitHub,
+  importSlack,
   importGitLab,
   importHttps,
   issueWebhook,
@@ -384,7 +385,7 @@ export function PrivateConnectors() {
   const [webhook, setWebhook] = useState<WebhookState | null>(null);
   const [webhookNeedsRefresh, setWebhookNeedsRefresh] = useState(false);
   const [secret, setSecret] = useState<Extract<WebhookIssueResponse, { readonly created: true }> | null>(null);
-  const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook'; readonly message: string } | null>(null);
+  const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook' | 'slack'; readonly message: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   // React's disabled prop is only visible after a render. Keep the lock in a
   // ref as well so two rapid clicks cannot dispatch duplicate imports or
@@ -394,6 +395,9 @@ export function PrivateConnectors() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<FilePreviewResponse | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [slackChannel, setSlackChannel] = useState('');
+  const [slackToken, setSlackToken] = useState('');
+  const [slackReview, setSlackReview] = useState<string | null>(null);
   const [githubUrl, setGithubUrl] = useState('');
   const [githubReview, setGithubReview] = useState<string | null>(null);
   const [gitlabUrl, setGitlabUrl] = useState('');
@@ -485,11 +489,11 @@ export function PrivateConnectors() {
 
   if (session === null || context === null) return <p role="status">Checking the exact session.</p>;
 
-  const status = (id: 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook') =>
+  const status = (id: 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack') =>
     catalogue?.connectors.find((entry) => entry.id === id) ?? null;
   const currentStatus = (id: Parameters<typeof status>[0]) => catalogueState === 'ready' ? status(id) : null;
   const available = (id: Parameters<typeof status>[0]) => currentStatus(id)?.availability === 'available';
-  const problemFor = (source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook') =>
+  const problemFor = (source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook' | 'slack') =>
     problem?.source === source ? problem.message : null;
   const selectedType = selectedFile === null ? null : /\.md$/iu.test(selectedFile.name) ? 'markdown'
     : /\.(?:txt|json|csv)$/iu.test(selectedFile.name) ? 'text' : /\.pdf$/iu.test(selectedFile.name) ? 'pdf'
@@ -540,6 +544,26 @@ export function PrivateConnectors() {
       const result = await importGitHub(held, context!);
       if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: result.value.snapshotDigest });
       else if (result.kind !== 'discarded') setProblem({ source: 'github', message: outcomeMessage(result) ?? 'GitHub import was not confirmed.' });
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
+  }
+
+  async function confirmSlack() {
+    const heldChannel = slackReview;
+    const heldToken = slackToken;
+    if (heldChannel === null || heldToken === '') return;
+    if (!beginPending('slack')) return;
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'slack' });
+      // The token leaves component state before the request is even awaited:
+      // whatever happens next, nothing here still holds it.
+      setSlackReview(null); setSlackToken(''); setProblem(null);
+      const result = await importSlack(heldChannel, heldToken, context!);
+      setSlackChannel('');
+      if (result.kind === 'receipt') dispatchReceipt({ type: 'received', receipt: result.value, reference: `${result.value.channelId} · ${result.value.messageCount} messages` });
+      else if (result.kind !== 'discarded') setProblem({ source: 'slack', message: outcomeMessage(result) ?? 'Slack import was not confirmed.' });
       await refreshCatalogue();
     } finally {
       finishPending();
@@ -652,6 +676,18 @@ export function PrivateConnectors() {
           {selectedType === null ? null : <ConnectorAvailabilityNotice catalogueState={catalogueState} connector={currentStatus(selectedType)} unavailableCopy="This importer is unavailable on this deployment." />}
           <button type="button" disabled={selectedFile === null || selectedType === null || problemFor('file') !== null || !available(selectedType) || pending !== null} onClick={() => void previewSelected()}>{pending === 'file-preview' ? 'PREVIEWING…' : 'PREVIEW FILE'}</button>
           {filePreview === null ? null : <div className="connector-review"><h3>Review {filePreview.filename}</h3><p>{filePreview.excerpt}</p><dl><div><dt>CHARACTERS</dt><dd>{filePreview.characters}</dd></div><div><dt>TYPE</dt><dd>{filePreview.type.toUpperCase()}</dd></div></dl><button className="connector-primary" type="button" disabled={pending !== null || !available(filePreview.type)} onClick={() => void importSelected()}>CONFIRM ONE IMPORT</button></div>}
+        </section>
+
+        <section id="slack" className="connector-card" aria-labelledby="slack-heading" tabIndex={-1}>
+          <span className="connector-kicker">WORK · REVIEW THEN IMPORT</span><h2 id="slack-heading">Slack channel snapshot</h2>
+          <p id="slack-instructions">One bounded read of a channel your own Slack app can see: the latest page of conversation, imported as a transcript. The token authorises these requests only and is never stored. No OAuth application of ours, no events, no continuous sync.</p>
+          <ConnectorUrlField id="slack-channel" instructionsId="slack-instructions" errorId="connector-slack-error" label="CHANNEL ID" name="slack-channel-id" value={slackChannel} placeholder="C0123ABCDEF · channel details, About, Channel ID" problem={problemFor('slack')} disabled={pending !== null} onChange={(value) => { setSlackChannel(value); setSlackReview(null); setProblem((held) => held?.source === 'slack' ? null : held); }} />
+          <label className="connector-field"><span>BOT OR USER TOKEN · USED ONCE, NEVER STORED</span>
+            <input type="password" autoComplete="off" spellCheck={false} name="slack-token" value={slackToken} placeholder="xoxb-…" disabled={pending !== null} onChange={(event) => { setSlackToken(event.target.value); setSlackReview(null); }} />
+          </label>
+          <ConnectorAvailabilityNotice catalogueState={catalogueState} connector={currentStatus('slack')} unavailableCopy="Slack import is unavailable on this deployment." />
+          <button type="button" disabled={pending !== null || !available('slack')} onClick={() => { const held = slackChannel.trim().toUpperCase(); const ok = /^[CGD][A-Z0-9]{6,20}$/u.test(held) && /^xox[bpe]-[A-Za-z0-9-]{10,250}$/u.test(slackToken.trim()); setSlackReview(ok ? held : null); if (!ok) setProblem({ source: 'slack', message: 'Enter a Slack channel ID such as C0123ABCDEF and an xoxb or xoxp token.' }); }}>REVIEW CHANNEL READ</button>
+          {slackReview === null ? null : <div className="connector-review"><h3>Review one channel read</h3><p>{slackReview}</p><p>Four requests resolve one page of conversation. The token is sent to this site only and discarded after the read. It will not create a connection.</p><button className="connector-primary" type="button" disabled={pending !== null} onClick={() => void confirmSlack()}>CONFIRM ONE IMPORT</button></div>}
         </section>
 
         <section id="github" className="connector-card" aria-labelledby="github-heading" tabIndex={-1}>

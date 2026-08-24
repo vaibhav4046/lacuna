@@ -5,10 +5,10 @@ import { CONNECTOR_GROUPS, CONNECTOR_PRESENTATION } from '../../web/src/design/c
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true });
+    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true, slackImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
-      'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',
+      'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack',
     ]);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
     expect(entries.every((entry) => entry.label.trim() !== '' && entry.group.trim() !== '')).toBe(true);
@@ -16,7 +16,7 @@ describe('connector catalogue', () => {
   });
 
   it('keeps the private runtime catalogue and the UI implementation map in lockstep', () => {
-    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true });
+    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true, slackImport: true });
     const runtime = new Map(entries.map((entry) => [entry.id, entry]));
     const presentation = CONNECTOR_PRESENTATION.filter((entry) => entry.implementation === 'implemented');
     const presentationIds = presentation.flatMap((entry) => entry.serverIds);
@@ -82,8 +82,11 @@ describe('connector catalogue', () => {
       CONNECTOR_GROUPS.flatMap((group) => group.items.map((item) => [item.n, item.st] as const)),
     );
 
-    for (const name of ['Slack', 'Notion', 'Gmail', 'Linear', 'Jira', 'Confluence']) {
+    // Slack left this list the day a real importer shipped: a bounded channel
+    // snapshot with the caller's own token, no OAuth application of ours.
+    for (const name of ['Notion', 'Gmail', 'Linear', 'Jira', 'Confluence']) {
       expect(publicStates.get(name), name).toBe('PLANNED');
     }
+    expect(publicStates.get('Slack')).toBe('IMPLEMENTED');
   });
 });

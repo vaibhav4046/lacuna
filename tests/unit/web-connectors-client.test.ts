@@ -58,6 +58,11 @@ function catalogueBody(): { connectors: MutableConnectorStatus[] } {
       configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
       importedDocuments: 0, state: 'idle',
     },
+    {
+      id: 'slack', label: 'Slack', group: 'WORK', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    },
   ] as MutableConnectorStatus[] };
 }
 

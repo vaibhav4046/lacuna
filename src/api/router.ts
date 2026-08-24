@@ -74,6 +74,8 @@ import {
   GitHubImportError,
   type GitHubImporterBoundary,
 } from '../connectors/github.js';
+import { SlackImportError, type SlackImporterBoundary } from '../connectors/slack.js';
+import { ConnectorNormalizationError } from '../connectors/normalize.js';
 import {
   GitLabImportError,
   type GitLabImporterBoundary,
@@ -405,6 +407,7 @@ export interface ApiOptions {
   readonly fileConnector?: FileConnectorBoundary;
   /** Anonymous public-repository reader with a hardwired GitHub API boundary. */
   readonly githubImporter?: GitHubImporterBoundary;
+  readonly slackImporter?: SlackImporterBoundary;
   /** Anonymous public-project reader with a hardwired GitLab API boundary. */
   readonly gitlabImporter?: GitLabImporterBoundary;
   /** DNS-pinned public HTTPS reader; absent when the hardened runtime boundary is unavailable. */
@@ -647,7 +650,8 @@ function isPrivateConnectorOperation(path: string, method: string): boolean {
       || path === '/api/workspace/connectors/file/import'
       || path === '/api/workspace/connectors/github/import'
       || path === '/api/workspace/connectors/gitlab/import'
-      || path === '/api/workspace/connectors/api/import';
+      || path === '/api/workspace/connectors/api/import'
+      || path === '/api/workspace/connectors/slack/import';
   }
   return method === 'DELETE'
     && /^\/api\/workspace\/connectors\/webhook\/[A-Za-z0-9_-]{22}$/u.test(path);
@@ -800,6 +804,7 @@ export class ApiRouter {
   readonly #connectorStore: ConnectorStore | undefined;
   readonly #fileConnector: FileConnectorBoundary | undefined;
   readonly #githubImporter: GitHubImporterBoundary | undefined;
+  readonly #slackImporter: SlackImporterBoundary | undefined;
   readonly #gitlabImporter: GitLabImporterBoundary | undefined;
   readonly #httpsReader: PinnedHttpsReaderBoundary | undefined;
   readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
@@ -850,6 +855,7 @@ export class ApiRouter {
     this.#connectorStore = options.connectorStore;
     this.#fileConnector = options.fileConnector;
     this.#githubImporter = options.githubImporter;
+    this.#slackImporter = options.slackImporter;
     this.#gitlabImporter = options.gitlabImporter;
     this.#httpsReader = options.httpsReader;
     this.#connectorRunner = options.connectorRunner;
@@ -862,6 +868,7 @@ export class ApiRouter {
         webhookService: this.#webhookService !== undefined,
         fileImport: this.#fileConnector !== undefined,
         githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
+        slackImport: this.#slackImporter !== undefined && this.#connectorRunner !== undefined,
         gitlabImport: this.#gitlabImporter !== undefined && this.#connectorRunner !== undefined,
         httpsImport: this.#httpsReader !== undefined && this.#connectorRunner !== undefined,
       }));
@@ -1284,6 +1291,96 @@ export class ApiRouter {
         if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
         if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
         else send(response, 502, { error: 'github_import_failed' });
+      } finally {
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/slack/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'slack_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const importer = this.#slackImporter;
+      const runner = this.#connectorRunner;
+      if (importer === undefined || runner === undefined) {
+        send(response, 501, { error: 'slack_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 4_096);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      const keys = body === null ? [] : Object.keys(body);
+      const allowedKeys = new Set(['channel', 'token']);
+      if (body === null || typeof body['channel'] !== 'string' || typeof body['token'] !== 'string'
+        || keys.some((key) => !allowedKeys.has(key))) {
+        send(response, 422, { error: 'invalid_slack_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) control.abort();
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
+        && !response.writableEnded && !response.writableFinished) control.abort();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        // The token lives in this scope for exactly this call and is not
+        // captured by anything below it: the batch that comes back carries
+        // provenance ids and a digest, never the credential that earned them.
+        const batch = await importer.importChannel(body['channel'], body['token'], control.signal);
+        if (control.signal.aborted) return HANDLED;
+        const result = await runner.run(workspace, {
+          connectorId: 'slack',
+          documents: batch.documents.map((document) => ({
+            title: document.title,
+            text: document.text,
+            provenance: document.provenance,
+          })),
+          awaitSearchable: true,
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS, readinessTimeoutMs: BROWSER_READINESS_MS });
+        if (control.signal.aborted) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          teamId: batch.teamId,
+          channelId: batch.channelId,
+          channelName: batch.channelName,
+          messageCount: batch.messageCount,
+        });
+      } catch (error) {
+        if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
+        if (error instanceof SlackImportError) send(response, error.status, { error: error.code });
+        else if (error instanceof ConnectorNormalizationError) send(response, 422, { error: 'invalid_slack_request' });
+        else send(response, 502, { error: 'slack_import_failed' });
       } finally {
         removeRequestAbort();
         removeResponseClose();

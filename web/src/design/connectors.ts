@@ -5,7 +5,7 @@ export interface ConnectorPresentation {
   readonly key: string;
   readonly name: string;
   readonly group: 'CODE' | 'FILES' | 'DATA' | 'WORK';
-  readonly workflow: 'github' | 'gitlab' | 'file' | 'https' | 'webhook' | 'planned';
+  readonly workflow: 'github' | 'gitlab' | 'file' | 'https' | 'webhook' | 'slack' | 'planned';
   readonly serverIds: readonly ConnectorId[];
   readonly implementation: 'implemented' | 'planned';
   readonly summary: string;
@@ -22,7 +22,7 @@ export const CONNECTOR_PRESENTATION: readonly ConnectorPresentation[] = Object.f
   { key: 'webhook', name: 'Webhook', group: 'DATA', workflow: 'webhook', serverIds: ['webhook'], implementation: 'implemented', summary: 'Signed at-least-once event delivery.' },
   { key: 'linear', name: 'Linear', group: 'WORK', workflow: 'planned', serverIds: [], implementation: 'planned', summary: 'Planned.' },
   { key: 'jira', name: 'Jira', group: 'WORK', workflow: 'planned', serverIds: [], implementation: 'planned', summary: 'Planned.' },
-  { key: 'slack', name: 'Slack', group: 'WORK', workflow: 'planned', serverIds: [], implementation: 'planned', summary: 'Planned.' },
+  { key: 'slack', name: 'Slack', group: 'WORK', workflow: 'slack', serverIds: ['slack'], implementation: 'implemented', summary: 'Bounded channel snapshot with your own token.' },
   { key: 'notion', name: 'Notion', group: 'WORK', workflow: 'planned', serverIds: [], implementation: 'planned', summary: 'Planned.' },
   { key: 'gmail', name: 'Gmail', group: 'WORK', workflow: 'planned', serverIds: [], implementation: 'planned', summary: 'Planned.' },
   { key: 'confluence', name: 'Confluence', group: 'WORK', workflow: 'planned', serverIds: [], implementation: 'planned', summary: 'Planned.' },

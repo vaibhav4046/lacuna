@@ -366,6 +366,15 @@ export function connectorOutcomeMessage(result: ConnectorOutcome<unknown>): stri
     github_import_unavailable: 'GitHub import is unavailable on this deployment.',
     gitlab_import_unavailable: 'GitLab import is unavailable on this deployment.',
     https_import_unavailable: 'HTTPS import is unavailable on this deployment.',
+    slack_import_unavailable: 'Slack import is unavailable on this deployment.',
+    invalid_slack_request: 'Enter a Slack channel ID and a token. The token is used once and never stored.',
+    slack_auth_failed: 'Slack did not accept that token. Check it is current and has channels history scope.',
+    slack_channel_unreadable: 'That channel could not be read. The app must be a member and the token needs history scope.',
+    slack_unavailable: 'Slack did not answer. Try again shortly.',
+    slack_timeout: 'Slack answered too slowly for the bounded read.',
+    slack_budget_exceeded: 'That channel read exceeded the bounded import budget.',
+    slack_no_messages: 'No readable conversation messages were found in that channel page.',
+    slack_import_failed: 'The Slack import did not complete.',
   };
   return messages[result.code];
 }
@@ -376,7 +385,7 @@ export interface ConnectorReceiptPresentation {
 }
 
 export type ConnectorReceiptEvent =
-  | { readonly type: 'dispatched'; readonly connector: 'file-preview' | 'file-import' | 'github' | 'gitlab' | 'https' }
+  | { readonly type: 'dispatched'; readonly connector: 'file-preview' | 'file-import' | 'github' | 'gitlab' | 'https' | 'slack' }
   | { readonly type: 'received'; readonly receipt: ConnectorRunReceipt; readonly reference: string | null }
   | { readonly type: 'reset' };
 

@@ -1,4 +1,4 @@
-export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook';
+export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack';
 
 export type ConnectorAvailability = 'available' | 'unavailable';
 
@@ -20,9 +20,10 @@ export type ConnectorAvailabilityReason =
   | 'file_import_unavailable'
   | 'github_import_unavailable'
   | 'gitlab_import_unavailable'
-  | 'https_import_unavailable';
+  | 'https_import_unavailable'
+  | 'slack_import_unavailable';
 
-export type ConnectorGroup = 'CODE' | 'FILES' | 'DATA';
+export type ConnectorGroup = 'CODE' | 'FILES' | 'DATA' | 'WORK';
 
 export interface ConnectorDescriptor {
   readonly id: ConnectorId;

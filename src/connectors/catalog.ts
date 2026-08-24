@@ -22,6 +22,7 @@ const IMPLEMENTED: readonly Omit<ConnectorDescriptor, 'availability' | 'reason'>
   { id: 'docx', label: 'DOCX', group: 'FILES' },
   { id: 'https_api', label: 'HTTPS API', group: 'DATA' },
   { id: 'webhook', label: 'Webhook', group: 'DATA' },
+  { id: 'slack', label: 'Slack', group: 'WORK' },
 ]);
 
 export interface ConnectorCatalogueOptions {
@@ -30,6 +31,7 @@ export interface ConnectorCatalogueOptions {
   readonly githubImport?: boolean | undefined;
   readonly gitlabImport?: boolean | undefined;
   readonly httpsImport?: boolean | undefined;
+  readonly slackImport?: boolean | undefined;
 }
 
 /**
@@ -42,12 +44,14 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
   const githubConfigured = options.githubImport === true;
   const gitlabConfigured = options.gitlabImport === true;
   const httpsConfigured = options.httpsImport === true;
+  const slackConfigured = options.slackImport === true;
   return IMPLEMENTED.map((entry): ConnectorDescriptor => {
     const file = entry.group === 'FILES';
     const available = entry.id === 'webhook' ? webhookConfigured
       : entry.id === 'github' ? githubConfigured
         : entry.id === 'gitlab' ? gitlabConfigured
         : entry.id === 'https_api' ? httpsConfigured
+        : entry.id === 'slack' ? slackConfigured
         : !file || fileConfigured;
     return Object.freeze({
       ...entry,
@@ -57,6 +61,7 @@ export function catalogue(options: ConnectorCatalogueOptions = {}): readonly Con
           : entry.id === 'github' ? 'github_import_unavailable'
             : entry.id === 'gitlab' ? 'gitlab_import_unavailable'
             : entry.id === 'https_api' ? 'https_import_unavailable'
+            : entry.id === 'slack' ? 'slack_import_unavailable'
             : 'file_import_unavailable',
     });
   });

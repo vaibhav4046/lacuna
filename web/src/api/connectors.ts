@@ -1,4 +1,4 @@
-export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook';
+export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack';
 export type FileConnectorId = 'markdown' | 'text' | 'pdf' | 'docx';
 
 export type ConnectorFailureCode =
@@ -25,6 +25,9 @@ export type ConnectorRefusalCode = ConnectorFailureCode
   | 'https_upstream_failed' | 'https_tls_failed' | 'https_response_invalid'
   | 'https_type_unsupported' | 'https_too_large' | 'https_json_invalid'
   | 'https_content_invalid' | 'https_import_failed' | 'connector_state_unavailable'
+  | 'slack_import_unavailable' | 'invalid_slack_request' | 'slack_auth_failed'
+  | 'slack_channel_unreadable' | 'slack_unavailable' | 'slack_timeout'
+  | 'slack_budget_exceeded' | 'slack_no_messages' | 'slack_import_failed'
   | 'webhook_state_unavailable' | 'webhook_lifecycle_failed' | 'webhook_not_found'
   | 'invalid_webhook_request';
 
@@ -75,6 +78,14 @@ export interface ConnectorRunReceipt {
 
 export type FileImportResponse = ConnectorRunReceipt & { readonly connectorId: FileConnectorId };
 
+export interface SlackImportResponse extends ConnectorRunReceipt {
+  readonly connectorId: 'slack';
+  readonly teamId: string;
+  readonly channelId: string;
+  readonly channelName: string;
+  readonly messageCount: number;
+}
+
 export interface GitHubImportResponse extends ConnectorRunReceipt {
   readonly connectorId: 'github';
   readonly snapshotCommit: string;
@@ -102,10 +113,11 @@ export interface HttpsImportResponse extends ConnectorRunReceipt {
 export interface ConnectorStatus {
   readonly id: ConnectorId;
   readonly label: string;
-  readonly group: 'CODE' | 'FILES' | 'DATA';
+  readonly group: 'CODE' | 'FILES' | 'DATA' | 'WORK';
   readonly availability: 'available' | 'unavailable';
   readonly reason: 'signing_not_configured' | 'file_import_unavailable'
-    | 'github_import_unavailable' | 'gitlab_import_unavailable' | 'https_import_unavailable' | null;
+    | 'github_import_unavailable' | 'gitlab_import_unavailable' | 'https_import_unavailable'
+    | 'slack_import_unavailable' | null;
   readonly configuredAt: string | null;
   readonly lastAttemptAt: string | null;
   readonly lastSuccessAt: string | null;
@@ -143,7 +155,7 @@ const ID = /^[A-Za-z0-9_-]{22}$/u;
 const SECRET = /^[A-Za-z0-9_-]{43}$/u;
 const PREVIEW_TOKEN = /^[A-Za-z0-9_-]{1,2956}\.[A-Za-z0-9_-]{43}$/u;
 const SKIP_REASON = /^[a-z][a-z0-9_]{0,63}$/u;
-const IDS = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook'] as const;
+const IDS = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack'] as const;
 const FILE_IDS = ['markdown', 'text', 'pdf', 'docx'] as const;
 const MAX_RUN_DOCUMENTS = 30;
 const MAX_RUN_RECORDS = 1_000_000;
@@ -172,6 +184,9 @@ const REFUSALS: readonly ConnectorRefusalCode[] = [
   'https_content_invalid', 'https_import_failed', 'connector_state_unavailable',
   'webhook_state_unavailable', 'webhook_lifecycle_failed', 'webhook_not_found',
   'invalid_webhook_request',
+  'slack_import_unavailable', 'invalid_slack_request', 'slack_auth_failed',
+  'slack_channel_unreadable', 'slack_unavailable', 'slack_timeout',
+  'slack_budget_exceeded', 'slack_no_messages', 'slack_import_failed',
 ];
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -286,6 +301,20 @@ function runPart(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(RUN_KEYS.map((key) => [key, value[key]]));
 }
 
+const SLACK_SCOPE_ID = /^[A-Z][A-Z0-9]{4,20}$/u;
+const SLACK_NAME = /^[a-z0-9][a-z0-9._-]{0,79}$/u;
+
+function decodeSlack(value: unknown): SlackImportResponse | null {
+  if (!record(value) || !exact(value, [...RUN_KEYS, 'teamId', 'channelId', 'channelName', 'messageCount'])
+    || decodeRun(runPart(value), ['slack']) === null
+    || typeof value.teamId !== 'string' || !SLACK_SCOPE_ID.test(value.teamId)
+    || typeof value.channelId !== 'string' || !SLACK_SCOPE_ID.test(value.channelId)
+    || typeof value.channelName !== 'string'
+    || !(SLACK_NAME.test(value.channelName) || SLACK_SCOPE_ID.test(value.channelName))
+    || !count(value.messageCount) || value.messageCount < 1 || value.messageCount > 10_000) return null;
+  return value as unknown as SlackImportResponse;
+}
+
 function decodeGitHub(value: unknown): GitHubImportResponse | null {
   if (!record(value) || !exact(value, [...RUN_KEYS, 'snapshotCommit', 'snapshotDigest', 'consideredEntries', 'fetchedBlobs', 'skipped'])
     || decodeRun(runPart(value), ['github']) === null
@@ -320,6 +349,7 @@ const CATALOGUE_SHAPE: Readonly<Record<ConnectorId, readonly [string, ConnectorS
   github: ['GitHub', 'CODE'], gitlab: ['GitLab', 'CODE'], markdown: ['Markdown', 'FILES'], text: ['Text', 'FILES'],
   pdf: ['PDF', 'FILES'], docx: ['DOCX', 'FILES'], https_api: ['HTTPS API', 'DATA'],
   webhook: ['Webhook', 'DATA'],
+  slack: ['Slack', 'WORK'],
 };
 
 const UNAVAILABLE_REASON: Readonly<Record<ConnectorId, NonNullable<ConnectorStatus['reason']>>> = {
@@ -331,6 +361,7 @@ const UNAVAILABLE_REASON: Readonly<Record<ConnectorId, NonNullable<ConnectorStat
   docx: 'file_import_unavailable',
   https_api: 'https_import_unavailable',
   webhook: 'signing_not_configured',
+  slack: 'slack_import_unavailable',
 };
 
 function decodeCatalogue(value: unknown): ConnectorCatalogue | null {
@@ -528,6 +559,22 @@ export function importFile(file: File, previewToken: string, context: ConnectorM
       const decoded = decodeFileImport(value);
       return decoded !== null && decoded.connectorId === fileTypeForName(file.name) ? decoded : null;
     },
+  });
+}
+
+/**
+ * One Slack channel read. The token rides in this request body over TLS to our
+ * own origin and no further: the server uses it for the four Slack calls and
+ * holds it in one function scope. Nothing client-side retains it either --- the
+ * form clears the field the moment the request is dispatched.
+ */
+export function importSlack(channel: string, token: string, context: ConnectorMutationContext): Promise<ConnectorOutcome<SlackImportResponse>> {
+  return oneRequest({
+    path: '/api/workspace/connectors/slack/import', signal: context.signal,
+    timeoutMs: IMPORT_TIMEOUT_MS,
+    init: { method: 'POST', credentials: 'same-origin', headers: mutationHeaders(context, true), body: JSON.stringify({ channel, token }) },
+    successfulStatus: (status) => status === 200,
+    decode: (value) => decodeSlack(value),
   });
 }
 

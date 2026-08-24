@@ -2,6 +2,7 @@
 .env*
 .claude
 docs
+tests
 media
 video
 *.md

@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - automation/fix-public-scheduler-source-20260824
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -16,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -49,16 +53,14 @@ jobs:
           api.write_text(source, encoding='utf-8')
 
           Path('src/agent/source-scope.ts').write_text("""/**
-           * The public product workspace is a logical name, not a Hydra collection.
+           * Whether an agent workspace reads through the deployment's configured
+           * base Hydra collection instead of opening a private collection.
            *
-           * The deployed base CloudClient is already scoped to the configured public
-           * collection (currently `backend`). Passing the logical workspace name
-           * `public` to `withCollection` silently opens a different empty collection,
-           * which made scheduled Context Health report an empty workspace while the
-           * public Memory screen held real claims.
-           *
-           * `null` remains the compatibility spelling for the same base collection.
-           * Private workspaces are opaque collection handles and stay tenant-scoped.
+           * `public` is a logical product workspace name. The deployed base client
+           * is already scoped to the real public collection (`backend` today), so
+           * calling `withCollection('public')` silently opens a different empty
+           * collection. `null` remains the compatibility spelling for the same
+           * base source; opaque private workspace handles stay tenant-scoped.
            */
           export function usesBaseAgentCollection(workspace: string | null): workspace is null | 'public' {
             return workspace === null || workspace === 'public';
@@ -102,6 +104,7 @@ jobs:
       - name: Web build
         run: npm run build
       - name: Commit verified patch to branch
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           git config user.name 'lacuna-automation'
@@ -112,4 +115,4 @@ jobs:
             exit 0
           fi
           git commit -m 'fix(agent): read public schedules from base Hydra collection'
-          git push origin HEAD:automation/fix-public-scheduler-source-20260824
+          git push origin HEAD:${{ github.head_ref }}

@@ -126,7 +126,15 @@ export interface WebhookRevokeResponse { readonly revoked: true }
 const CATALOGUE_TIMEOUT_MS = 15_000;
 const FILE_PREVIEW_TIMEOUT_MS = 30_000;
 const IMPORT_TIMEOUT_MS = 60_000;
-const HTTPS_IMPORT_TIMEOUT_MS = 30_000;
+/**
+ * Thirty seconds was sized for a server that gave up at ten. Now that the
+ * server correctly waits for search readiness -- seven to eighteen seconds
+ * measured, longer when the store is slow -- a thirty second client budget
+ * aborted its own import at exactly the moment the work started succeeding,
+ * which is the same fetch-deadline-strangles-the-run defect the server had,
+ * reproduced faithfully in the client. Same budget as the other imports.
+ */
+const HTTPS_IMPORT_TIMEOUT_MS = IMPORT_TIMEOUT_MS;
 const WEBHOOK_LIFECYCLE_TIMEOUT_MS = 35_000;
 const BINDING = /^[0-9a-f]{64}$/u;
 const SHA1 = /^[0-9a-f]{40}$/u;

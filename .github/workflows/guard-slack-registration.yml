@@ -1,0 +1,163 @@
+name: Slack shared registration guard
+
+on:
+  push:
+    branches:
+      - guard/slack-shared-registration
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[guard-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply the minimal shared registration fix and regression
+        shell: python
+        run: |
+          from pathlib import Path
+
+          old = "'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',"
+          new = "'github', 'gitlab', 'slack', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook',"
+          for name in ('src/connectors/run.ts', 'src/connectors/store.ts'):
+              path = Path(name)
+              text = path.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f'{name}: expected one connector registration list, found {text.count(old)}')
+              path.write_text(text.replace(old, new))
+
+          test = r'''import { describe, expect, it } from 'vitest';
+
+          import type { IngestPreparedReport } from '../../src/api/ingest.js';
+          import type { ConnectorDocumentInput } from '../../src/connectors/normalize.js';
+          import { ConnectorRunner } from '../../src/connectors/run.js';
+          import { CloudConnectorStore } from '../../src/connectors/store.js';
+          import type { ConnectorObservation, ConnectorStore } from '../../src/connectors/types.js';
+          import type { AppRecord, HydraCloud, IngestResult, InspectedSource } from '../../src/hydra/cloud.js';
+
+          const WORKSPACE = `lacuna-ws-${'a'.repeat(32)}`;
+          const OBSERVATION: ConnectorObservation = {
+            configuredAt: null,
+            lastAttemptAt: '2026-08-24T15:30:00.000Z',
+            lastSuccessAt: '2026-08-24T15:30:00.000Z',
+            lastFailure: null,
+            importedDocuments: 1,
+          };
+
+          const SLACK_DOCUMENT: ConnectorDocumentInput = {
+            title: 'Slack #platform',
+            text: '[2026-08-24T15:00:00.000Z] Dana: ledger-fanout is stored in Postgres.',
+            provenance: {
+              connectorId: 'slack',
+              sourceUrl: 'https://app.slack.com/client/T0AAAA1BC/C0123ABCDEF',
+              mediaType: 'text/plain',
+              observedAt: '2026-08-24T15:30:00.000Z',
+              slack: {
+                schemaVersion: 1,
+                teamId: 'T0AAAA1BC',
+                channelId: 'C0123ABCDEF',
+                messageCount: 1,
+                oldestTs: '1756000100.000100',
+                latestTs: '1756000100.000100',
+                retrievedAt: '2026-08-24T15:30:00.000Z',
+                rawDigest: 'a'.repeat(64),
+                parserVersion: 'slack-v1',
+              },
+            },
+          };
+
+          function ingestReport(sourceKey: string): IngestPreparedReport {
+            return {
+              sourceKey,
+              collection: WORKSPACE,
+              turns: 1,
+              claims: 1,
+              entities: 1,
+              accepted: 4,
+              refused: [],
+              ms: 1,
+              truncated: false,
+              searchable: true,
+              indexing: 'completed',
+            };
+          }
+
+          class MemoryStore implements ConnectorStore {
+            writes = 0;
+            async get() { return {}; }
+            async put(_workspace: string, id: 'slack', next: ConnectorObservation) {
+              expect(id).toBe('slack');
+              expect(next.lastFailure).toBeNull();
+              this.writes += 1;
+              return 'stored' as const;
+            }
+          }
+
+          class RecordCloud {
+            readonly records = new Map<string, string>();
+            async ingestApp(records: readonly AppRecord[], collection: string): Promise<readonly IngestResult[]> {
+              for (const record of records) {
+                this.records.set(`${collection}:${record.id}`, JSON.stringify({ content: { text: record.text } }));
+              }
+              return records.map((record) => ({ id: record.id, filename: record.title, status: 'completed', error: null }));
+            }
+            async inspect(id: string, _timeoutMs: number, collection: string): Promise<InspectedSource | null> {
+              const envelope = this.records.get(`${collection}:${id}`);
+              return envelope === undefined ? null : { id, envelope, latencyMs: 1 };
+            }
+          }
+
+          describe('Slack shared connector registration', () => {
+            it('lets the shared runner accept a Slack document instead of throwing invalid connector request', async () => {
+              const store = new MemoryStore();
+              const runner = new ConnectorRunner({
+                store,
+                ingest: async (prepared) => ingestReport(prepared.sourceKey),
+                now: () => Date.parse('2026-08-24T15:30:00.000Z'),
+              });
+              const result = await runner.run(WORKSPACE, {
+                connectorId: 'slack',
+                documents: [SLACK_DOCUMENT],
+                awaitSearchable: true,
+              });
+              expect(result.failure).toBeNull();
+              expect(result.acceptedDocuments).toBe(1);
+              expect(store.writes).toBe(1);
+            });
+
+            it('persists Slack observations in the shared connector-state store', async () => {
+              const cloud = new RecordCloud();
+              const store = new CloudConnectorStore(cloud as unknown as HydraCloud, {
+                readbackTimeoutMs: 0,
+                pollIntervalMs: 0,
+              });
+              await expect(store.put(WORKSPACE, 'slack', OBSERVATION)).resolves.toBe('stored');
+              await expect(store.get(WORKSPACE)).resolves.toEqual({ slack: OBSERVATION });
+            });
+          });
+          '''
+          Path('tests/unit/connectors-slack-registration.test.ts').write_text('\n'.join(line[10:] if line.startswith('          ') else line for line in test.splitlines()) + '\n')
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Focused connector regressions
+        run: npx vitest run tests/unit/connectors-slack-registration.test.ts tests/unit/connectors-slack.test.ts tests/unit/connectors-run.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-catalog.test.ts
+      - name: Web build
+        run: npm run build
+      - name: Commit verified patch and remove one-shot workflow
+        run: |
+          rm .github/workflows/guard-slack-registration.yml
+          git config user.name 'lacuna-guard'
+          git config user.email 'actions@users.noreply.github.com'
+          git add src/connectors/run.ts src/connectors/store.ts tests/unit/connectors-slack-registration.test.ts .github/workflows/guard-slack-registration.yml
+          git commit -m 'fix(connectors): register Slack in shared runner and state store [guard-applied]'
+          git push origin HEAD:guard/slack-shared-registration

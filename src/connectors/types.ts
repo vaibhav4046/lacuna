@@ -1,4 +1,5 @@
-export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack';
+export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack'
+  | 'notion' | 'jira' | 'confluence' | 'gmail';
 
 export type ConnectorAvailability = 'available' | 'unavailable';
 
@@ -21,7 +22,8 @@ export type ConnectorAvailabilityReason =
   | 'github_import_unavailable'
   | 'gitlab_import_unavailable'
   | 'https_import_unavailable'
-  | 'slack_import_unavailable';
+  | 'slack_import_unavailable'
+  | 'work_import_unavailable';
 
 export type ConnectorGroup = 'CODE' | 'FILES' | 'DATA' | 'WORK';
 

@@ -375,6 +375,15 @@ export function connectorOutcomeMessage(result: ConnectorOutcome<unknown>): stri
     slack_budget_exceeded: 'That channel read exceeded the bounded import budget.',
     slack_no_messages: 'No readable conversation messages were found in that channel page.',
     slack_import_failed: 'The Slack import did not complete.',
+    work_import_unavailable: 'Work-tool imports are unavailable on this deployment.',
+    invalid_work_request: 'Check the item reference and the credential. The credential is used once and never stored.',
+    work_auth_failed: 'That credential was not accepted. Check it is current and has read access.',
+    work_item_unreadable: 'That item could not be read. The credential needs access to it.',
+    work_unavailable: 'The tool did not answer. Try again shortly.',
+    work_timeout: 'The tool answered too slowly for the bounded read.',
+    work_budget_exceeded: 'That read exceeded the bounded import budget.',
+    work_no_text: 'No readable prose was found in that item.',
+    work_import_failed: 'The import did not complete.',
   };
   return messages[result.code];
 }
@@ -385,7 +394,7 @@ export interface ConnectorReceiptPresentation {
 }
 
 export type ConnectorReceiptEvent =
-  | { readonly type: 'dispatched'; readonly connector: 'file-preview' | 'file-import' | 'github' | 'gitlab' | 'https' | 'slack' }
+  | { readonly type: 'dispatched'; readonly connector: 'file-preview' | 'file-import' | 'github' | 'gitlab' | 'https' | 'slack' | 'work' }
   | { readonly type: 'received'; readonly receipt: ConnectorRunReceipt; readonly reference: string | null }
   | { readonly type: 'reset' };
 

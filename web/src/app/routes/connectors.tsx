@@ -8,6 +8,9 @@ import {
   importFile,
   importGitHub,
   importSlack,
+  importWork,
+  type WorkImportRequest,
+  type WorkSourceId,
   importGitLab,
   importHttps,
   issueWebhook,
@@ -385,7 +388,7 @@ export function PrivateConnectors() {
   const [webhook, setWebhook] = useState<WebhookState | null>(null);
   const [webhookNeedsRefresh, setWebhookNeedsRefresh] = useState(false);
   const [secret, setSecret] = useState<Extract<WebhookIssueResponse, { readonly created: true }> | null>(null);
-  const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook' | 'slack'; readonly message: string } | null>(null);
+  const [problem, setProblem] = useState<{ readonly source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook' | 'slack' | 'work'; readonly message: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   // React's disabled prop is only visible after a render. Keep the lock in a
   // ref as well so two rapid clicks cannot dispatch duplicate imports or
@@ -398,6 +401,12 @@ export function PrivateConnectors() {
   const [slackChannel, setSlackChannel] = useState('');
   const [slackToken, setSlackToken] = useState('');
   const [slackReview, setSlackReview] = useState<string | null>(null);
+  const [workSource, setWorkSource] = useState<WorkSourceId>('notion');
+  const [workRef, setWorkRef] = useState('');
+  const [workSite, setWorkSite] = useState('');
+  const [workEmail, setWorkEmail] = useState('');
+  const [workToken, setWorkToken] = useState('');
+  const [workReview, setWorkReview] = useState<WorkImportRequest | null>(null);
   const [githubUrl, setGithubUrl] = useState('');
   const [githubReview, setGithubReview] = useState<string | null>(null);
   const [gitlabUrl, setGitlabUrl] = useState('');
@@ -489,11 +498,11 @@ export function PrivateConnectors() {
 
   if (session === null || context === null) return <p role="status">Checking the exact session.</p>;
 
-  const status = (id: 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack') =>
+  const status = (id: 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack' | WorkSourceId) =>
     catalogue?.connectors.find((entry) => entry.id === id) ?? null;
   const currentStatus = (id: Parameters<typeof status>[0]) => catalogueState === 'ready' ? status(id) : null;
   const available = (id: Parameters<typeof status>[0]) => currentStatus(id)?.availability === 'available';
-  const problemFor = (source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook' | 'slack') =>
+  const problemFor = (source: 'catalogue' | 'file' | 'github' | 'gitlab' | 'https' | 'webhook' | 'slack' | 'work') =>
     problem?.source === source ? problem.message : null;
   const selectedType = selectedFile === null ? null : /\.md$/iu.test(selectedFile.name) ? 'markdown'
     : /\.(?:txt|json|csv)$/iu.test(selectedFile.name) ? 'text' : /\.pdf$/iu.test(selectedFile.name) ? 'pdf'
@@ -548,6 +557,60 @@ export function PrivateConnectors() {
     } finally {
       finishPending();
     }
+  }
+
+
+  async function confirmWork() {
+    const held = workReview;
+    if (held === null) return;
+    if (!beginPending('work')) return;
+    try {
+      dispatchReceipt({ type: 'dispatched', connector: 'work' });
+      // The credential leaves component state before the request is even
+      // awaited: whatever happens next, nothing here still holds it.
+      setWorkReview(null); setWorkToken(''); setProblem(null);
+      const result = await importWork(held, context!);
+      setWorkRef('');
+      if (result.kind === 'receipt') {
+        dispatchReceipt({ type: 'received', receipt: result.value, reference: `${result.value.resourceRef} · ${result.value.itemCount} items` });
+      } else if (result.kind !== 'discarded') {
+        setProblem({ source: 'work', message: outcomeMessage(result) ?? 'The import was not confirmed.' });
+      }
+      await refreshCatalogue();
+    } finally {
+      finishPending();
+    }
+  }
+
+  /**
+   * The reviewed request, or null when the paste is not yet well formed. The
+   * grammars mirror the server's exactly, so a refusal here is the same
+   * refusal the server would make --- one round trip earlier.
+   */
+  function buildWorkRequest(): WorkImportRequest | null {
+    const token = workToken.trim();
+    const reference = workRef.trim();
+    const site = workSite.trim().toLowerCase();
+    const email = workEmail.trim();
+    const atlassian = /^[a-z0-9][a-z0-9-]{1,60}$/u.test(site)
+      && /^[^\s@]{1,64}@[^\s@]{1,190}\.[A-Za-z]{2,24}$/u.test(email)
+      && /^[A-Za-z0-9_=+/.-]{20,700}$/u.test(token);
+    if (workSource === 'notion') {
+      const found = /[0-9a-fA-F]{32}/u.exec(reference.replace(/-/gu, ''));
+      if (found === null || !/^(?:ntn_|secret_)[A-Za-z0-9]{20,120}$/u.test(token)) return null;
+      return { source: 'notion', page: found[0].toLowerCase(), token };
+    }
+    if (workSource === 'jira') {
+      const issue = reference.toUpperCase();
+      if (!atlassian || !/^[A-Z][A-Z0-9]{1,9}-\d{1,7}$/u.test(issue)) return null;
+      return { source: 'jira', site, email, token, issue };
+    }
+    if (workSource === 'confluence') {
+      if (!atlassian || !/^\d{1,19}$/u.test(reference)) return null;
+      return { source: 'confluence', site, email, token, page: reference };
+    }
+    if (!/^[0-9a-f]{1,20}$/u.test(reference) || !/^ya29\.[A-Za-z0-9_.-]{20,2000}$/u.test(token)) return null;
+    return { source: 'gmail', thread: reference, token };
   }
 
   async function confirmSlack() {
@@ -678,6 +741,53 @@ export function PrivateConnectors() {
           {filePreview === null ? null : <div className="connector-review"><h3>Review {filePreview.filename}</h3><p>{filePreview.excerpt}</p><dl><div><dt>CHARACTERS</dt><dd>{filePreview.characters}</dd></div><div><dt>TYPE</dt><dd>{filePreview.type.toUpperCase()}</dd></div></dl><button className="connector-primary" type="button" disabled={pending !== null || !available(filePreview.type)} onClick={() => void importSelected()}>CONFIRM ONE IMPORT</button></div>}
         </section>
 
+        <section id="work" className="connector-card" aria-labelledby="work-heading" tabIndex={-1}>
+          <span className="connector-kicker">WORK · REVIEW THEN IMPORT</span><h2 id="work-heading">Work tool snapshot</h2>
+          <p id="work-instructions">One bounded read of a single item your own credential can already see, imported as prose. The credential authorises these requests only and is never stored. No OAuth application of ours, no webhooks, no continuous sync.</p>
+          <div className="connector-choice" role="radiogroup" aria-label="Work source">
+            {WORK_SOURCES.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                role="radio"
+                aria-checked={workSource === entry.id}
+                className={workSource === entry.id ? 'connector-chip connector-chip-on' : 'connector-chip'}
+                disabled={pending !== null}
+                onClick={() => { setWorkSource(entry.id); setWorkReview(null); setWorkRef(''); setProblem((held) => held?.source === 'work' ? null : held); }}
+              >{entry.name}</button>
+            ))}
+          </div>
+          <ConnectorUrlField
+            id="work-reference"
+            instructionsId="work-instructions"
+            errorId="connector-work-error"
+            label={WORK_FIELD[workSource].label}
+            name="work-reference"
+            value={workRef}
+            placeholder={WORK_FIELD[workSource].placeholder}
+            problem={problemFor('work')}
+            disabled={pending !== null}
+            onChange={(value) => { setWorkRef(value); setWorkReview(null); setProblem((held) => held?.source === 'work' ? null : held); }}
+          />
+          {workSource === 'jira' || workSource === 'confluence' ? (
+            <>
+              <label className="connector-secret"><span>ATLASSIAN SITE</span>
+                <input type="text" autoComplete="off" spellCheck={false} name="work-site" value={workSite} placeholder="your-team · from your-team.atlassian.net" disabled={pending !== null} onChange={(event) => { setWorkSite(event.target.value); setWorkReview(null); }} />
+              </label>
+              <label className="connector-secret"><span>ACCOUNT EMAIL</span>
+                <input type="email" autoComplete="off" spellCheck={false} name="work-email" value={workEmail} placeholder="you@example.com" disabled={pending !== null} onChange={(event) => { setWorkEmail(event.target.value); setWorkReview(null); }} />
+              </label>
+            </>
+          ) : null}
+          <label className="connector-secret"><span>{WORK_FIELD[workSource].secret}</span>
+            <input type="password" autoComplete="off" spellCheck={false} name="work-token" value={workToken} placeholder={WORK_FIELD[workSource].tokenHint} disabled={pending !== null} onChange={(event) => { setWorkToken(event.target.value); setWorkReview(null); }} />
+          </label>
+          <p className="connector-hint">{WORK_FIELD[workSource].help}</p>
+          <ConnectorAvailabilityNotice catalogueState={catalogueState} connector={currentStatus(workSource)} unavailableCopy="Work-tool imports are unavailable on this deployment." />
+          <button type="button" disabled={pending !== null || !available(workSource)} onClick={() => { const built = buildWorkRequest(); setWorkReview(built); if (built === null) setProblem({ source: 'work', message: WORK_FIELD[workSource].refusal }); }}>REVIEW ONE READ</button>
+          {workReview === null ? null : <div className="connector-review"><h3>Review one item read</h3><p>{workReview.source === 'notion' ? workReview.page : workReview.source === 'jira' ? workReview.issue : workReview.source === 'confluence' ? workReview.page : workReview.thread}</p><p>A small fixed number of requests resolve one item. The credential is sent to this site only and discarded after the read. It will not create a connection.</p><button className="connector-primary" type="button" disabled={pending !== null} onClick={() => void confirmWork()}>CONFIRM ONE IMPORT</button></div>}
+        </section>
+
         <section id="slack" className="connector-card" aria-labelledby="slack-heading" tabIndex={-1}>
           <span className="connector-kicker">WORK · REVIEW THEN IMPORT</span><h2 id="slack-heading">Slack channel snapshot</h2>
           <p id="slack-instructions">One bounded read of a channel your own Slack app can see: the latest page of conversation, imported as a transcript. The token authorises these requests only and is never stored. No OAuth application of ours, no events, no continuous sync.</p>
@@ -757,6 +867,57 @@ function ConnectorAnchorFocus() {
   }, [hash]);
   return null;
 }
+
+
+/** The four reviewed work-tool reads, and what each one asks the reader for. */
+const WORK_SOURCES: readonly { readonly id: WorkSourceId; readonly name: string }[] = [
+  { id: 'notion', name: 'Notion' },
+  { id: 'jira', name: 'Jira' },
+  { id: 'confluence', name: 'Confluence' },
+  { id: 'gmail', name: 'Gmail' },
+];
+
+const WORK_FIELD: Readonly<Record<WorkSourceId, {
+  readonly label: string;
+  readonly placeholder: string;
+  readonly secret: string;
+  readonly tokenHint: string;
+  readonly help: string;
+  readonly refusal: string;
+}>> = {
+  notion: {
+    label: 'PAGE ID OR URL',
+    placeholder: 'notion.so/Ledger-rollout-0123… · or the bare id',
+    secret: 'INTERNAL INTEGRATION TOKEN · USED ONCE, NEVER STORED',
+    tokenHint: 'ntn_…',
+    help: 'Create an internal integration at notion.so/my-integrations, then share the page with it. Read access is enough.',
+    refusal: 'Enter a Notion page id or URL and an ntn_ integration token.',
+  },
+  jira: {
+    label: 'ISSUE KEY',
+    placeholder: 'AUTH-412',
+    secret: 'API TOKEN · USED ONCE, NEVER STORED',
+    tokenHint: 'API token from id.atlassian.com',
+    help: 'Create an API token at id.atlassian.com/manage-profile/security/api-tokens. It pairs with your account email.',
+    refusal: 'Enter an issue key such as AUTH-412, your site, your account email, and an API token.',
+  },
+  confluence: {
+    label: 'PAGE ID',
+    placeholder: '65601 · the numeric id in the page URL',
+    secret: 'API TOKEN · USED ONCE, NEVER STORED',
+    tokenHint: 'API token from id.atlassian.com',
+    help: 'The same Atlassian API token as Jira. The page id is the number in /pages/<id>/ in the page URL.',
+    refusal: 'Enter a numeric page id, your site, your account email, and an API token.',
+  },
+  gmail: {
+    label: 'THREAD ID',
+    placeholder: '18f2a9c4bb01 · the id after #inbox/ in the URL',
+    secret: 'OAUTH ACCESS TOKEN · SHORT LIVED, NEVER STORED',
+    tokenHint: 'ya29.…',
+    help: 'Gmail issues no long-lived token, so this takes a short-lived OAuth access token from the Google OAuth Playground with the gmail.readonly scope. It expires in about an hour, which is the point.',
+    refusal: 'Enter a Gmail thread id and a ya29 access token with the gmail.readonly scope.',
+  },
+};
 
 export function ConnectorsRoute() {
   const scope = useScope();

@@ -90,7 +90,8 @@ record(
 
 const publicConnectors = await json<{ connectors: readonly Record<string, unknown>[] }>('/api/explore/connectors');
 const connectorRows = publicConnectors.body?.connectors ?? [];
-const expectedConnectorIds = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack'];
+const expectedConnectorIds = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack',
+  'notion', 'jira', 'confluence', 'gmail'];
 record(
   publicConnectors.status === 200
     && connectorRows.length === expectedConnectorIds.length

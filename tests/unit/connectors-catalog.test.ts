@@ -5,10 +5,11 @@ import { CONNECTOR_GROUPS, CONNECTOR_PRESENTATION } from '../../web/src/design/c
 
 describe('connector catalogue', () => {
   it('publishes each implemented connector exactly once with a usable label and group', () => {
-    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true, slackImport: true });
+    const entries = catalogue({ webhookService: true, fileImport: true, githubImport: true, gitlabImport: true, httpsImport: true, slackImport: true, workImport: true });
 
     expect(entries.map((entry) => entry.id)).toEqual([
       'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack',
+      'notion', 'jira', 'confluence', 'gmail',
     ]);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
     expect(entries.every((entry) => entry.label.trim() !== '' && entry.group.trim() !== '')).toBe(true);
@@ -82,11 +83,13 @@ describe('connector catalogue', () => {
       CONNECTOR_GROUPS.flatMap((group) => group.items.map((item) => [item.n, item.st] as const)),
     );
 
-    // Slack left this list the day a real importer shipped: a bounded channel
-    // snapshot with the caller's own token, no OAuth application of ours.
-    for (const name of ['Notion', 'Gmail', 'Linear', 'Jira', 'Confluence']) {
-      expect(publicStates.get(name), name).toBe('PLANNED');
+    // Slack left this list the day a real importer shipped, and Notion, Jira,
+    // Confluence and Gmail followed it: one bounded read of one item with the
+    // caller's own credential, no OAuth application of ours. Linear stays
+    // here because it still has no adapter, and a word must be earned.
+    expect(publicStates.get('Linear'), 'Linear').toBe('PLANNED');
+    for (const name of ['Slack', 'Notion', 'Jira', 'Confluence', 'Gmail']) {
+      expect(publicStates.get(name), name).toBe('IMPLEMENTED');
     }
-    expect(publicStates.get('Slack')).toBe('IMPLEMENTED');
   });
 });

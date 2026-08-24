@@ -1,4 +1,5 @@
-export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack';
+export type ConnectorId = 'github' | 'gitlab' | 'markdown' | 'text' | 'pdf' | 'docx' | 'https_api' | 'webhook' | 'slack'
+  | 'notion' | 'jira' | 'confluence' | 'gmail';
 export type FileConnectorId = 'markdown' | 'text' | 'pdf' | 'docx';
 
 export type ConnectorFailureCode =
@@ -28,6 +29,9 @@ export type ConnectorRefusalCode = ConnectorFailureCode
   | 'slack_import_unavailable' | 'invalid_slack_request' | 'slack_auth_failed'
   | 'slack_channel_unreadable' | 'slack_unavailable' | 'slack_timeout'
   | 'slack_budget_exceeded' | 'slack_no_messages' | 'slack_import_failed'
+  | 'work_import_unavailable' | 'invalid_work_request' | 'work_auth_failed'
+  | 'work_item_unreadable' | 'work_unavailable' | 'work_timeout'
+  | 'work_budget_exceeded' | 'work_no_text' | 'work_import_failed'
   | 'webhook_state_unavailable' | 'webhook_lifecycle_failed' | 'webhook_not_found'
   | 'invalid_webhook_request';
 
@@ -78,6 +82,35 @@ export interface ConnectorRunReceipt {
 
 export type FileImportResponse = ConnectorRunReceipt & { readonly connectorId: FileConnectorId };
 
+
+export type WorkSourceId = 'notion' | 'jira' | 'confluence' | 'gmail';
+
+export type WorkImportRequest =
+  | { readonly source: 'notion'; readonly page: string; readonly token: string }
+  | {
+    readonly source: 'jira';
+    readonly site: string;
+    readonly email: string;
+    readonly token: string;
+    readonly issue: string;
+  }
+  | {
+    readonly source: 'confluence';
+    readonly site: string;
+    readonly email: string;
+    readonly token: string;
+    readonly page: string;
+  }
+  | { readonly source: 'gmail'; readonly thread: string; readonly token: string };
+
+export interface WorkImportResponse extends ConnectorRunReceipt {
+  readonly connectorId: WorkSourceId;
+  readonly source: WorkSourceId;
+  readonly resourceRef: string;
+  readonly title: string;
+  readonly itemCount: number;
+}
+
 export interface SlackImportResponse extends ConnectorRunReceipt {
   readonly connectorId: 'slack';
   readonly teamId: string;
@@ -117,7 +150,7 @@ export interface ConnectorStatus {
   readonly availability: 'available' | 'unavailable';
   readonly reason: 'signing_not_configured' | 'file_import_unavailable'
     | 'github_import_unavailable' | 'gitlab_import_unavailable' | 'https_import_unavailable'
-    | 'slack_import_unavailable' | null;
+    | 'slack_import_unavailable' | 'work_import_unavailable' | null;
   readonly configuredAt: string | null;
   readonly lastAttemptAt: string | null;
   readonly lastSuccessAt: string | null;
@@ -155,7 +188,8 @@ const ID = /^[A-Za-z0-9_-]{22}$/u;
 const SECRET = /^[A-Za-z0-9_-]{43}$/u;
 const PREVIEW_TOKEN = /^[A-Za-z0-9_-]{1,2956}\.[A-Za-z0-9_-]{43}$/u;
 const SKIP_REASON = /^[a-z][a-z0-9_]{0,63}$/u;
-const IDS = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack'] as const;
+const IDS = ['github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack',
+  'notion', 'jira', 'confluence', 'gmail'] as const;
 const FILE_IDS = ['markdown', 'text', 'pdf', 'docx'] as const;
 const MAX_RUN_DOCUMENTS = 30;
 const MAX_RUN_RECORDS = 1_000_000;
@@ -187,6 +221,9 @@ const REFUSALS: readonly ConnectorRefusalCode[] = [
   'slack_import_unavailable', 'invalid_slack_request', 'slack_auth_failed',
   'slack_channel_unreadable', 'slack_unavailable', 'slack_timeout',
   'slack_budget_exceeded', 'slack_no_messages', 'slack_import_failed',
+  'work_import_unavailable', 'invalid_work_request', 'work_auth_failed',
+  'work_item_unreadable', 'work_unavailable', 'work_timeout',
+  'work_budget_exceeded', 'work_no_text', 'work_import_failed',
 ];
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -315,6 +352,24 @@ function decodeSlack(value: unknown): SlackImportResponse | null {
   return value as unknown as SlackImportResponse;
 }
 
+
+/**
+ * The union of the four work sources' own id grammars, mirroring the server.
+ * A credential of any of them matches no branch.
+ */
+const WORK_REF = /^(?:[0-9a-f]{32}|[A-Z][A-Z0-9]{1,9}-\d{1,7}|\d{1,19}|[0-9a-f]{1,20})$/u;
+const WORK_SOURCES = ['notion', 'jira', 'confluence', 'gmail'] as const;
+
+function decodeWork(value: unknown): WorkImportResponse | null {
+  if (!record(value) || !exact(value, [...RUN_KEYS, 'source', 'resourceRef', 'title', 'itemCount'])
+    || !member(value.source, WORK_SOURCES)
+    || decodeRun(runPart(value), [value.source]) === null
+    || typeof value.resourceRef !== 'string' || !WORK_REF.test(value.resourceRef)
+    || typeof value.title !== 'string' || value.title.length > 120
+    || !count(value.itemCount) || value.itemCount < 1 || value.itemCount > 10_000) return null;
+  return value as unknown as WorkImportResponse;
+}
+
 function decodeGitHub(value: unknown): GitHubImportResponse | null {
   if (!record(value) || !exact(value, [...RUN_KEYS, 'snapshotCommit', 'snapshotDigest', 'consideredEntries', 'fetchedBlobs', 'skipped'])
     || decodeRun(runPart(value), ['github']) === null
@@ -350,6 +405,8 @@ const CATALOGUE_SHAPE: Readonly<Record<ConnectorId, readonly [string, ConnectorS
   pdf: ['PDF', 'FILES'], docx: ['DOCX', 'FILES'], https_api: ['HTTPS API', 'DATA'],
   webhook: ['Webhook', 'DATA'],
   slack: ['Slack', 'WORK'],
+  notion: ['Notion', 'WORK'], jira: ['Jira', 'WORK'],
+  confluence: ['Confluence', 'WORK'], gmail: ['Gmail', 'WORK'],
 };
 
 const UNAVAILABLE_REASON: Readonly<Record<ConnectorId, NonNullable<ConnectorStatus['reason']>>> = {
@@ -362,6 +419,10 @@ const UNAVAILABLE_REASON: Readonly<Record<ConnectorId, NonNullable<ConnectorStat
   https_api: 'https_import_unavailable',
   webhook: 'signing_not_configured',
   slack: 'slack_import_unavailable',
+  notion: 'work_import_unavailable',
+  jira: 'work_import_unavailable',
+  confluence: 'work_import_unavailable',
+  gmail: 'work_import_unavailable',
 };
 
 function decodeCatalogue(value: unknown): ConnectorCatalogue | null {
@@ -575,6 +636,26 @@ export function importSlack(channel: string, token: string, context: ConnectorMu
     init: { method: 'POST', credentials: 'same-origin', headers: mutationHeaders(context, true), body: JSON.stringify({ channel, token }) },
     successfulStatus: (status) => status === 200,
     decode: (value) => decodeSlack(value),
+  });
+}
+
+
+/**
+ * One reviewed work-tool read. The credential rides in this request body over
+ * TLS to our own origin and no further: the server uses it for the bounded
+ * calls and holds it in one function scope. Nothing client-side retains it
+ * either --- the form clears the field the moment the request is dispatched.
+ */
+export function importWork(
+  input: WorkImportRequest,
+  context: ConnectorMutationContext,
+): Promise<ConnectorOutcome<WorkImportResponse>> {
+  return oneRequest({
+    path: '/api/workspace/connectors/work/import', signal: context.signal,
+    timeoutMs: IMPORT_TIMEOUT_MS,
+    init: { method: 'POST', credentials: 'same-origin', headers: mutationHeaders(context, true), body: JSON.stringify(input) },
+    successfulStatus: (status) => status === 200,
+    decode: (value) => decodeWork(value),
   });
 }
 

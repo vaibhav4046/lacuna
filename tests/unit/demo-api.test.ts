@@ -116,7 +116,7 @@ describe('the demo workspace without a session', () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.connectors).toHaveLength(9);
+    expect(body.connectors).toHaveLength(13);
     for (const connector of body.connectors) {
       expect(Object.keys(connector).sort()).toEqual(['availability', 'group', 'id', 'label', 'reason']);
       expect(connector['id']).not.toBe('');

@@ -63,6 +63,26 @@ function catalogueBody(): { connectors: MutableConnectorStatus[] } {
       configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
       importedDocuments: 0, state: 'idle',
     },
+    {
+      id: 'notion', label: 'Notion', group: 'WORK', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    },
+    {
+      id: 'jira', label: 'Jira', group: 'WORK', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    },
+    {
+      id: 'confluence', label: 'Confluence', group: 'WORK', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    },
+    {
+      id: 'gmail', label: 'Gmail', group: 'WORK', availability: 'available', reason: null,
+      configuredAt: null, lastAttemptAt: null, lastSuccessAt: null, lastFailure: null,
+      importedDocuments: 0, state: 'idle',
+    },
   ] as MutableConnectorStatus[] };
 }
 

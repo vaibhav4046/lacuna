@@ -75,6 +75,11 @@ import {
   type GitHubImporterBoundary,
 } from '../connectors/github.js';
 import { SlackImportError, type SlackImporterBoundary } from '../connectors/slack.js';
+import {
+  WorkImportError,
+  type WorkImportInput,
+  type WorkImporterBoundary,
+} from '../connectors/work-source.js';
 import { ConnectorNormalizationError } from '../connectors/normalize.js';
 import {
   GitLabImportError,
@@ -408,6 +413,7 @@ export interface ApiOptions {
   /** Anonymous public-repository reader with a hardwired GitHub API boundary. */
   readonly githubImporter?: GitHubImporterBoundary;
   readonly slackImporter?: SlackImporterBoundary;
+  readonly workImporter?: WorkImporterBoundary;
   /** Anonymous public-project reader with a hardwired GitLab API boundary. */
   readonly gitlabImporter?: GitLabImporterBoundary;
   /** DNS-pinned public HTTPS reader; absent when the hardened runtime boundary is unavailable. */
@@ -651,7 +657,8 @@ function isPrivateConnectorOperation(path: string, method: string): boolean {
       || path === '/api/workspace/connectors/github/import'
       || path === '/api/workspace/connectors/gitlab/import'
       || path === '/api/workspace/connectors/api/import'
-      || path === '/api/workspace/connectors/slack/import';
+      || path === '/api/workspace/connectors/slack/import'
+      || path === '/api/workspace/connectors/work/import';
   }
   return method === 'DELETE'
     && /^\/api\/workspace\/connectors\/webhook\/[A-Za-z0-9_-]{22}$/u.test(path);
@@ -805,6 +812,7 @@ export class ApiRouter {
   readonly #fileConnector: FileConnectorBoundary | undefined;
   readonly #githubImporter: GitHubImporterBoundary | undefined;
   readonly #slackImporter: SlackImporterBoundary | undefined;
+  readonly #workImporter: WorkImporterBoundary | undefined;
   readonly #gitlabImporter: GitLabImporterBoundary | undefined;
   readonly #httpsReader: PinnedHttpsReaderBoundary | undefined;
   readonly #connectorRunner: Pick<ConnectorRunner, 'run'> | undefined;
@@ -856,6 +864,7 @@ export class ApiRouter {
     this.#fileConnector = options.fileConnector;
     this.#githubImporter = options.githubImporter;
     this.#slackImporter = options.slackImporter;
+    this.#workImporter = options.workImporter;
     this.#gitlabImporter = options.gitlabImporter;
     this.#httpsReader = options.httpsReader;
     this.#connectorRunner = options.connectorRunner;
@@ -869,6 +878,7 @@ export class ApiRouter {
         fileImport: this.#fileConnector !== undefined,
         githubImport: this.#githubImporter !== undefined && this.#connectorRunner !== undefined,
         slackImport: this.#slackImporter !== undefined && this.#connectorRunner !== undefined,
+        workImport: this.#workImporter !== undefined && this.#connectorRunner !== undefined,
         gitlabImport: this.#gitlabImporter !== undefined && this.#connectorRunner !== undefined,
         httpsImport: this.#httpsReader !== undefined && this.#connectorRunner !== undefined,
       }));
@@ -1291,6 +1301,100 @@ export class ApiRouter {
         if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
         if (error instanceof GitHubImportError) send(response, error.status, { error: error.code });
         else send(response, 502, { error: 'github_import_failed' });
+      } finally {
+        removeRequestAbort();
+        removeResponseClose();
+        removeSocketClose();
+      }
+      return HANDLED;
+    }
+
+    if (path === '/api/workspace/connectors/work/import' && method === 'POST') {
+      if (this.#siteOrigin === undefined) {
+        send(response, 501, { error: 'work_import_unavailable' });
+        return HANDLED;
+      }
+      if (!exactVoiceOrigin(firstHeader(request.headers.origin), this.#siteOrigin)) {
+        send(response, 403, { error: 'permission' });
+        return HANDLED;
+      }
+      if (!csrfOk(request, cookies)) {
+        send(response, 403, { error: 'csrf' }, this.#csrfCookie(cookies));
+        return HANDLED;
+      }
+      const account = await this.#accountFor(cookies);
+      if (account === null) {
+        send(response, 401, { error: 'session' });
+        return HANDLED;
+      }
+      const importer = this.#workImporter;
+      const runner = this.#connectorRunner;
+      if (importer === undefined || runner === undefined) {
+        send(response, 501, { error: 'work_import_unavailable' });
+        return HANDLED;
+      }
+      let body: Record<string, unknown> | null;
+      try {
+        body = await readJsonBody(request, 8_192);
+      } catch (error) {
+        send(response, error instanceof BodyTooLarge ? 413 : 400, { error: 'body' });
+        return HANDLED;
+      }
+      // One route, four sources: the body is a closed union and each source's
+      // field set is exact, so no field of one source can ride along on
+      // another's request.
+      const input = workImportInput(body);
+      if (input === null) {
+        send(response, 422, { error: 'invalid_work_request' });
+        return HANDLED;
+      }
+      const workspace = workspaceCollection(account.email);
+      const budget = this.#privateIngestLimit.check(workspace, this.#now());
+      if (!budget.allowed) {
+        sendRateLimited(response, budget.retryAfterSeconds, 'workspace_ingest_budget');
+        return HANDLED;
+      }
+      const control = new AbortController();
+      const abortIfPremature = () => {
+        if (!response.writableEnded && !response.writableFinished) control.abort();
+      };
+      const removeRequestAbort = onLifecycleEvent(request, 'aborted', abortIfPremature);
+      const removeResponseClose = onLifecycleEvent(response, 'close', abortIfPremature);
+      const removeSocketClose = onRequestSocketClose(request, abortIfPremature);
+      if ((response.destroyed || requestSocketDestroyed(request))
+        && !response.writableEnded && !response.writableFinished) control.abort();
+      try {
+        if (control.signal.aborted) return HANDLED;
+        // The credential lives in this scope for exactly this call: the batch
+        // that comes back carries an item id and a digest, never the token that
+        // earned them.
+        const batch = await importer.importWork(input, control.signal);
+        if (control.signal.aborted) return HANDLED;
+        const result = await runner.run(workspace, {
+          connectorId: input.source,
+          documents: batch.documents.map((document) => ({
+            title: document.title,
+            text: document.text,
+            provenance: document.provenance,
+          })),
+          awaitSearchable: true,
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS, readinessTimeoutMs: BROWSER_READINESS_MS });
+        if (control.signal.aborted) return HANDLED;
+        send(response, 200, {
+          ...serializeConnectorRunResult(result),
+          source: batch.source,
+          resourceRef: batch.resourceRef,
+          title: batch.title,
+          itemCount: batch.itemCount,
+        });
+      } catch (error) {
+        if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
+        if (error instanceof WorkImportError) send(response, error.status, { error: error.code });
+        else if (error instanceof ConnectorNormalizationError) send(response, 422, { error: 'invalid_work_request' });
+        else {
+          console.error(`[work] unmapped ${error instanceof Error ? `${error.name}: ${error.message.slice(0, 120)}` : 'unknown'}`);
+          send(response, 502, { error: 'work_import_failed' });
+        }
       } finally {
         removeRequestAbort();
         removeResponseClose();
@@ -3604,4 +3708,22 @@ let decoyHash: Promise<string> | null = null;
 function decoy(): Promise<string> {
   decoyHash ??= hashPassword(randomBytes(32).toString('base64url'));
   return decoyHash;
+}
+
+/** The exact field set each work source accepts, and nothing else. */
+const WORK_FIELDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  notion: ['source', 'page', 'token'],
+  jira: ['source', 'site', 'email', 'token', 'issue'],
+  confluence: ['source', 'site', 'email', 'token', 'page'],
+  gmail: ['source', 'thread', 'token'],
+});
+
+function workImportInput(body: Record<string, unknown> | null): WorkImportInput | null {
+  if (body === null) return null;
+  const source = body['source'];
+  if (typeof source !== 'string' || !Object.prototype.hasOwnProperty.call(WORK_FIELDS, source)) return null;
+  const fields = WORK_FIELDS[source] ?? [];
+  const keys = Object.keys(body);
+  if (keys.length !== fields.length || fields.some((field) => typeof body[field] !== 'string')) return null;
+  return body as unknown as WorkImportInput;
 }

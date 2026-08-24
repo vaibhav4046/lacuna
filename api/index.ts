@@ -53,6 +53,7 @@ import { ConnectorRunner } from '../src/connectors/run.js';
 import { FileConnectorService } from '../src/connectors/files.js';
 import { GitHubImporter } from '../src/connectors/github.js';
 import { SlackImporter } from '../src/connectors/slack.js';
+import { WorkImporter } from '../src/connectors/work-source.js';
 import { GitLabImporter } from '../src/connectors/gitlab.js';
 import { PinnedHttpsReader } from '../src/connectors/https.js';
 import { FilePreviewTokenService, previewSigningKey } from '../src/connectors/preview-token.js';
@@ -153,6 +154,7 @@ const connectorRunner = cloud === null || connectorStore === null ? null : new C
 });
 const githubImporter = connectorRunner === null ? null : new GitHubImporter();
 const slackImporter = connectorRunner === null ? null : new SlackImporter();
+const workImporter = connectorRunner === null ? null : new WorkImporter();
 const gitlabImporter = connectorRunner === null ? null : new GitLabImporter();
 const httpsReader = connectorRunner === null ? null : new PinnedHttpsReader();
 const fileConnector = connectorRunner === null || filePreviewKey === null ? null : new FileConnectorService({
@@ -243,6 +245,7 @@ const api = new ApiRouter({
     ? {}
     : { githubImporter, gitlabImporter, httpsReader, connectorRunner }),
   ...(slackImporter === null ? {} : { slackImporter }),
+  ...(workImporter === null ? {} : { workImporter }),
   ...(webhookService === null ? {} : { webhookService }),
   connectorCatalog: () => catalogue({
     webhookService: webhookService !== null,
@@ -251,6 +254,7 @@ const api = new ApiRouter({
     gitlabImport: gitlabImporter !== null && connectorRunner !== null,
     httpsImport: httpsReader !== null && connectorRunner !== null,
     slackImport: slackImporter !== null && connectorRunner !== null,
+    workImport: workImporter !== null && connectorRunner !== null,
   }),
   secure: true,
   health: cloudHealth,

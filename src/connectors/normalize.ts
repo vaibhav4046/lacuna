@@ -11,7 +11,10 @@ export const MAX_CONNECTOR_TEXT_BYTES = 4 * 1024 * 1024;
 const MAX_TITLE_CHARS = 120;
 const CONNECTOR_IDS = new Set<ConnectorId>([
   'github', 'gitlab', 'markdown', 'text', 'pdf', 'docx', 'https_api', 'webhook', 'slack',
+  'notion', 'jira', 'confluence', 'gmail',
 ]);
+/** The reviewed work-tool reads, which share one evidence shape. */
+const DOCUMENT_IDS = new Set<ConnectorId>(['notion', 'jira', 'confluence', 'gmail']);
 const MEDIA_TYPES = new Set<ConnectorMediaType>([
   'text/plain',
   'text/markdown',
@@ -27,6 +30,7 @@ const GITLAB_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'gitlab']);
 const HTTPS_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'https']);
 const WEBHOOK_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'webhook']);
 const SLACK_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'slack']);
+const DOCUMENT_PROVENANCE_KEYS = new Set([...PROVENANCE_KEYS, 'document']);
 const GITHUB_EVIDENCE_KEYS = new Set([
   'repositoryUrl', 'commitSha', 'path', 'blobSha', 'retrievedAt', 'rawDigest', 'parserVersion',
 ]);
@@ -46,6 +50,17 @@ const SLACK_EVIDENCE_KEYS = new Set([
 /** Slack's own id grammar for teams and channels. Never a token. */
 const SLACK_ID = /^[A-Z][A-Z0-9]{4,20}$/u;
 const SLACK_TS = /^\d{6,12}\.\d{3,8}$/u;
+const DOCUMENT_EVIDENCE_KEYS = new Set([
+  'schemaVersion', 'resourceRef', 'itemCount', 'retrievedAt', 'rawDigest', 'parserVersion',
+]);
+/**
+ * The union of the four work sources' own id grammars: a Notion page, a Jira
+ * issue key, a Confluence page number, a Gmail thread id. No credential of any
+ * of those providers can match any branch, which is what keeps a token out of
+ * the evidence by construction rather than by careful handling.
+ */
+const DOCUMENT_REF = /^(?:[0-9a-f]{32}|[A-Z][A-Z0-9]{1,9}-\d{1,7}|\d{1,19}|[0-9a-f]{1,20})$/u;
+const DOCUMENT_PARSERS = new Set(['notion-v1', 'jira-v1', 'confluence-v1', 'gmail-v1']);
 
 export type ConnectorMediaType =
   | 'text/plain'
@@ -65,6 +80,7 @@ export interface ConnectorProvenance {
   readonly https?: HttpsConnectorEvidence;
   readonly webhook?: WebhookConnectorEvidence;
   readonly slack?: SlackConnectorEvidence;
+  readonly document?: DocumentConnectorEvidence;
 }
 
 export interface GitHubConnectorEvidence {
@@ -117,6 +133,22 @@ export interface SlackConnectorEvidence {
   readonly retrievedAt: string;
   readonly rawDigest: string;
   readonly parserVersion: 'slack-v1';
+}
+
+/**
+ * What one reviewed work-tool read leaves behind: which item, when, how much of
+ * it, and the digest of the prose it produced. The four sources share this
+ * shape because the facts are genuinely the same; only `parserVersion` says
+ * which tool answered. As with Slack, there is no slot here a credential could
+ * pass through.
+ */
+export interface DocumentConnectorEvidence {
+  readonly schemaVersion: 1;
+  readonly resourceRef: string;
+  readonly itemCount: number;
+  readonly retrievedAt: string;
+  readonly rawDigest: string;
+  readonly parserVersion: 'notion-v1' | 'jira-v1' | 'confluence-v1' | 'gmail-v1';
 }
 
 export interface ConnectorDocumentInput {
@@ -214,6 +246,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
   const https = value['connectorId'] === 'https_api';
   const webhook = value['connectorId'] === 'webhook';
   const slack = value['connectorId'] === 'slack';
+  const document = DOCUMENT_IDS.has(value['connectorId'] as ConnectorId);
   const expectedKeys = github
     ? GITHUB_PROVENANCE_KEYS
     : gitlab
@@ -224,6 +257,8 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
         ? WEBHOOK_PROVENANCE_KEYS
       : slack
         ? SLACK_PROVENANCE_KEYS
+      : document
+        ? DOCUMENT_PROVENANCE_KEYS
         : PROVENANCE_KEYS;
   if (!hasExactKeys(value, expectedKeys)) {
     throw new ConnectorNormalizationError('invalid_provenance');
@@ -234,6 +269,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
   let httpsEvidence: HttpsConnectorEvidence | undefined;
   let webhookEvidence: WebhookConnectorEvidence | undefined;
   let slackEvidence: SlackConnectorEvidence | undefined;
+  let documentEvidence: DocumentConnectorEvidence | undefined;
   if (github) {
     const evidence = value['github'];
     if (!isRecord(evidence) || !hasExactKeys(evidence, GITHUB_EVIDENCE_KEYS)
@@ -360,6 +396,31 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
       parserVersion: 'slack-v1',
     });
   }
+  if (document) {
+    const evidence = value['document'];
+    if (!isRecord(evidence) || !hasExactKeys(evidence, DOCUMENT_EVIDENCE_KEYS)
+      || evidence['schemaVersion'] !== 1
+      || value['mediaType'] !== 'text/plain'
+      || typeof evidence['resourceRef'] !== 'string' || !DOCUMENT_REF.test(evidence['resourceRef'])
+      || typeof evidence['itemCount'] !== 'number'
+      || !Number.isInteger(evidence['itemCount']) || evidence['itemCount'] < 1
+      || evidence['itemCount'] > 10_000
+      || !canonicalInstant(evidence['retrievedAt']) || evidence['retrievedAt'] !== value['observedAt']
+      || typeof evidence['rawDigest'] !== 'string' || !SHA256.test(evidence['rawDigest'])
+      || typeof evidence['parserVersion'] !== 'string'
+      || !DOCUMENT_PARSERS.has(evidence['parserVersion'])
+      || evidence['parserVersion'] !== `${value['connectorId'] as string}-v1`) {
+      throw new ConnectorNormalizationError('invalid_provenance');
+    }
+    documentEvidence = Object.freeze({
+      schemaVersion: 1,
+      resourceRef: evidence['resourceRef'],
+      itemCount: evidence['itemCount'],
+      retrievedAt: evidence['retrievedAt'],
+      rawDigest: evidence['rawDigest'],
+      parserVersion: evidence['parserVersion'] as DocumentConnectorEvidence['parserVersion'],
+    });
+  }
   return Object.freeze({
     connectorId: value['connectorId'] as ConnectorId,
     sourceUrl: normalizedSourceUrl,
@@ -370,6 +431,7 @@ function normalizeProvenance(value: unknown): ConnectorProvenance {
     ...(httpsEvidence === undefined ? {} : { https: httpsEvidence }),
     ...(webhookEvidence === undefined ? {} : { webhook: webhookEvidence }),
     ...(slackEvidence === undefined ? {} : { slack: slackEvidence }),
+    ...(documentEvidence === undefined ? {} : { document: documentEvidence }),
   });
 }
 

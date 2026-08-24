@@ -1,0 +1,115 @@
+name: Verify public scheduler source fix
+
+on:
+  push:
+    branches:
+      - automation/fix-public-scheduler-source-20260824
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install root dependencies
+        run: npm ci
+      - name: Install web dependencies
+        run: npm --prefix web ci
+      - name: Apply scoped source fix and regression
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          api = Path('api/index.ts')
+          source = api.read_text(encoding='utf-8')
+
+          import_anchor = "import { builtInAgents } from '../src/agent/registry.js';\n"
+          import_line = "import { usesBaseAgentCollection } from '../src/agent/source-scope.js';\n"
+          if import_line not in source:
+              if import_anchor not in source:
+                  raise SystemExit('agent registry import anchor moved')
+              source = source.replace(import_anchor, import_anchor + import_line, 1)
+
+          old = "source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),"
+          new = "source: new CloudSource(usesBaseAgentCollection(collection) ? cloud : cloud.withCollection(collection)),"
+          if new not in source:
+              if old not in source:
+                  raise SystemExit('agent CloudSource construction moved')
+              source = source.replace(old, new, 1)
+          api.write_text(source, encoding='utf-8')
+
+          Path('src/agent/source-scope.ts').write_text("""/**
+           * The public product workspace is a logical name, not a Hydra collection.
+           *
+           * The deployed base CloudClient is already scoped to the configured public
+           * collection (currently `backend`). Passing the logical workspace name
+           * `public` to `withCollection` silently opens a different empty collection,
+           * which made scheduled Context Health report an empty workspace while the
+           * public Memory screen held real claims.
+           *
+           * `null` remains the compatibility spelling for the same base collection.
+           * Private workspaces are opaque collection handles and stay tenant-scoped.
+           */
+          export function usesBaseAgentCollection(workspace: string | null): workspace is null | 'public' {
+            return workspace === null || workspace === 'public';
+          }
+          """, encoding='utf-8')
+
+          Path('tests/unit/agent-public-source.test.ts').write_text("""import { readFileSync } from 'node:fs';
+          import { resolve } from 'node:path';
+          import { fileURLToPath } from 'node:url';
+
+          import { describe, expect, it } from 'vitest';
+
+          import { usesBaseAgentCollection } from '../../src/agent/source-scope.js';
+
+          const ROOT = resolve(fileURLToPath(new URL('../../', import.meta.url)));
+
+          describe('agent workspace source scoping', () => {
+            it('maps the logical public workspace to the configured base Hydra collection', () => {
+              expect(usesBaseAgentCollection(null)).toBe(true);
+              expect(usesBaseAgentCollection('public')).toBe(true);
+              expect(usesBaseAgentCollection('a3f8cc0deed84502b118729f18848bb3')).toBe(false);
+            });
+
+            it('wires the Vercel agent boundary through the public-workspace guard', () => {
+              const entry = readFileSync(resolve(ROOT, 'api/index.ts'), 'utf8');
+              expect(entry).toContain(
+                'source: new CloudSource(usesBaseAgentCollection(collection) ? cloud : cloud.withCollection(collection)),'
+              );
+            });
+          });
+          """, encoding='utf-8')
+          PY
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Targeted scheduler and agent regressions
+        run: npx vitest run tests/unit/agent-public-source.test.ts tests/unit/scheduler-runtime.test.ts tests/unit/agent-run.test.ts tests/unit/architecture.test.ts
+      - name: Verified full unit suite
+        run: npm run test:verified
+      - name: Contract suite
+        run: npm run test:contract
+      - name: Web build
+        run: npm run build
+      - name: Commit verified patch to branch
+        shell: bash
+        run: |
+          git config user.name 'lacuna-automation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add api/index.ts src/agent/source-scope.ts tests/unit/agent-public-source.test.ts
+          if git diff --cached --quiet; then
+            echo 'Verified patch already committed.'
+            exit 0
+          fi
+          git commit -m 'fix(agent): read public schedules from base Hydra collection'
+          git push origin HEAD:automation/fix-public-scheduler-source-20260824

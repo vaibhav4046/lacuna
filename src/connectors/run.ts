@@ -51,6 +51,19 @@ export interface ConnectorRunRequest {
 export interface ConnectorRunOptions {
   readonly signal?: AbortSignal;
   readonly settlementDeadlineMs?: number;
+  /**
+   * Caps the wait for search indexing, inside the settlement budget.
+   *
+   * The settlement phases size the whole operation; this sizes one honest
+   * sentence. A browser client has its own request budget, and a readiness
+   * wait allowed to run to the settlement's 180-second phase answered after
+   * the browser had given up, so the reader saw "the response was lost"
+   * instead of the truthful "accepted, index not confirmed". Found against a
+   * workspace whose records the provider's queue had permanently wedged in
+   * `queued`: the wait is bounded either way, but only a bound inside the
+   * client's own lets the receipt arrive.
+   */
+  readonly readinessTimeoutMs?: number;
 }
 
 export class ConnectorRunCancelledError extends Error {
@@ -339,6 +352,7 @@ export class ConnectorRunner {
             awaitSearchable: request.awaitSearchable,
             ...(options.signal === undefined ? {} : { signal: options.signal }),
             ...(deadlines === undefined ? {} : { deadlines }),
+            ...(options.readinessTimeoutMs === undefined ? {} : { readiness: { timeoutMs: options.readinessTimeoutMs } }),
           });
           if (typeof report === 'string') return ingestRefusal(report);
           const refusedRecords = report.refused.length;

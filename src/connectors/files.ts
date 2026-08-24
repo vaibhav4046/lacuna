@@ -323,6 +323,11 @@ const parserPools = new WeakMap<FileParserIsolationOptions, ParserPool>();
 function lateWorkerNoise(): void {}
 
 function fatalParserIsolationFailure(): never {
+  // The one legitimate console write in this module: the next thing that
+  // happens is the process ends, and a fail-stop that says nothing is
+  // indistinguishable from a crash when someone reads the dead invocation's
+  // logs -- which is exactly how this path hid inside CI worker exits.
+  console.error('[lacuna] parser isolation fail-stop: worker termination unconfirmed');
   process.exit(PARSER_FATAL_EXIT_CODE);
 }
 

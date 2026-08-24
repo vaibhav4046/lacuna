@@ -217,6 +217,17 @@ const RECOVER_LIMIT = { limit: 6, windowMs: 60_000, maxKeys: 4_096 };
 const CONNECTOR_SETTLEMENT_MS = 210_000;
 
 /**
+ * The readiness wait for a browser-driven import, chosen against the client.
+ *
+ * The web client allows sixty seconds per import. Indexing confirms in seven
+ * to eighteen measured; twenty-five covers a slow day and still leaves the
+ * fetch, the write and the transit inside the client's budget, so the honest
+ * receipt -- accepted, confirmed or not -- always reaches the screen instead
+ * of an abort. The settlement budget still bounds everything else.
+ */
+const BROWSER_READINESS_MS = 25_000;
+
+/**
  * A deadline and a cancellation are not the same thing, and only one of them
  * can be expressed by aborting a signal.
  *
@@ -1259,7 +1270,7 @@ export class ApiRouter {
             provenance: document.provenance,
           })),
           awaitSearchable: true,
-        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS });
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS, readinessTimeoutMs: BROWSER_READINESS_MS });
         if (control.signal.aborted) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),
@@ -1344,7 +1355,7 @@ export class ApiRouter {
             provenance: document.provenance,
           })),
           awaitSearchable: true,
-        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS });
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS, readinessTimeoutMs: BROWSER_READINESS_MS });
         if (control.signal.aborted) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),
@@ -1458,7 +1469,7 @@ export class ApiRouter {
             provenance: prepared.provenance,
           }],
           awaitSearchable: true,
-        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS });
+        }, { signal: control.signal, settlementDeadlineMs: this.#now() + CONNECTOR_SETTLEMENT_MS, readinessTimeoutMs: BROWSER_READINESS_MS });
         if (disconnected) return HANDLED;
         send(response, 200, {
           ...serializeConnectorRunResult(result),

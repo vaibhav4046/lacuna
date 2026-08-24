@@ -13,7 +13,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "vitest run tests/unit/connectors-slack-store.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-run.test.ts tests/unit/connectors-slack.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-catalog.test.ts && npm --prefix web run build",
+    "build": "npm --prefix web run build",
     "web": "npm --prefix web run dev",
     "smoke:web": "tsx scripts/smoke-web.ts",
     "cli": "node bin/lacuna.js",

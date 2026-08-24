@@ -103,32 +103,21 @@ export interface SlackImporterOptions {
 function fetchTransport(): SlackTransport {
   return {
     async request(request) {
+      // `redirect: 'manual'` rather than `'error'`: a redirect on a valid API
+      // call should be treated as an unavailable response, not a raw TypeError
+      // that escapes into the generic catch. And the body is read with
+      // arrayBuffer rather than a manual stream reader, because a serverless
+      // fetch does not always expose `response.body` as a web stream, and a
+      // null there was another way this fell to a bare 502.
       const response = await fetch(request.url, {
         method: request.method,
         headers: request.headers,
-        redirect: 'error',
+        redirect: 'manual',
         signal: request.signal,
       });
-      const body = response.body;
-      if (body === null) return { status: response.status, body: new Uint8Array(0) };
-      const reader = body.getReader();
-      const chunks: Uint8Array[] = [];
-      let total = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value === undefined) continue;
-        total += value.byteLength;
-        if (total > request.maxResponseBytes) {
-          await reader.cancel();
-          throw new SlackImportError('slack_budget_exceeded');
-        }
-        chunks.push(value);
-      }
-      const joined = new Uint8Array(total);
-      let at = 0;
-      for (const chunk of chunks) { joined.set(chunk, at); at += chunk.byteLength; }
-      return { status: response.status, body: joined };
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > request.maxResponseBytes) throw new SlackImportError('slack_budget_exceeded');
+      return { status: response.status, body: new Uint8Array(buffer) };
     },
   };
 }

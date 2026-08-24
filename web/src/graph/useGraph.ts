@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getJson, useLoaded, type Loaded } from '../api/client';
 import { useScope } from '../api/scope';
+import { useSession } from '../api/session';
 import type { GraphEdge, GraphEnvelope, GraphMode, GraphNode } from './types';
 
 interface GraphLoad {
@@ -43,8 +44,24 @@ function merge(first: GraphEnvelope, rest: readonly GraphEnvelope[]): GraphEnvel
 /** Fetch the first bounded page, then append cursor pages only on request. */
 export function useGraph(mode: GraphMode, limit = 120): GraphLoad {
   const scope = useScope();
+  const { loaded: session } = useSession();
+  /**
+   * The session binding, because `useLoaded` deliberately refuses to fetch a
+   * workspace path without one.
+   *
+   * That refusal is right: a workspace read sent before the binding exists is
+   * a guaranteed 401. But this hook never passed the binding at all, so on
+   * every signed-in visit the guard held forever and the Graph screen showed
+   * RETRIEVING MEMORY FIELD until the reader gave up. The endpoint was fine --
+   * answered in under two seconds when asked by hand -- and the public
+   * `/explore` scope worked, which is exactly why the break survived: every
+   * audit sweeps the public routes.
+   */
+  const sessionBinding = session.state === 'ready' && session.value.signedIn
+    ? session.value.session.binding
+    : undefined;
   const path = `${scope.base}/graph?mode=${mode}&limit=${limit}`;
-  const first = useLoaded<GraphEnvelope>(path);
+  const first = useLoaded<GraphEnvelope>(path, sessionBinding);
   const [rest, setRest] = useState<readonly GraphEnvelope[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
@@ -66,11 +83,11 @@ export function useGraph(mode: GraphMode, limit = 120): GraphLoad {
     const cursor = encodeURIComponent(loaded.value.page.nextCursor);
     setLoadingMore(true);
     setMoreFailed(false);
-    getJson<GraphEnvelope>(`${scope.base}/graph?mode=${mode}&limit=${limit}&cursor=${cursor}`, control.signal).then(
+    getJson<GraphEnvelope>(`${scope.base}/graph?mode=${mode}&limit=${limit}&cursor=${cursor}`, control.signal, sessionBinding).then(
       (next) => setRest((current) => [...current, next]),
       () => setMoreFailed(true),
     ).finally(() => setLoadingMore(false));
-  }, [limit, loaded, loadingMore, mode, scope.base]);
+  }, [limit, loaded, loadingMore, mode, scope.base, sessionBinding]);
 
   return { loaded, loadingMore, moreFailed, loadMore };
 }

@@ -412,6 +412,14 @@ summary:focus-visible {
 .connector-card .connector-primary,
 .connector-modal .connector-primary { border-color:#8052ff; background:#8052ff; color:#fff; }
 .connector-card .connector-danger { border-color:rgba(255,184,41,.65); color:#ffcc69; }
+/* The work-source switcher. The chips inherit the card button rule; what they
+   add is a selected state, because which source you are about to read from is
+   the one thing the card must never leave ambiguous. */
+.connector-choice { display:flex; flex-wrap:wrap; gap:8px; }
+.connector-card .connector-chip { min-height:38px; padding:8px 14px; border-radius:999px; color:#9a9a9a; transition:border-color .15s ease, color .15s ease, background .15s ease; }
+.connector-card .connector-chip:hover:not(:disabled) { border-color:rgba(255,255,255,.34); color:#ececec; }
+.connector-card .connector-chip-on { border-color:#8052ff; background:rgba(128,82,255,.16); color:#fff; }
+.connector-hint { margin:0; color:#8a8a8a; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .connector-review,
 .connector-confirm { min-width:0; display:grid; gap:10px; padding:14px; border:1px solid rgba(128,82,255,.35); border-radius:9px; background:rgba(128,82,255,.045); }
 .connector-review h3,

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 D:/project/lacuna
+
+
+ Test Files  4 passed (4)
+      Tests  77 passed (77)
+   Start at  21:10:30
+   Duration  30.32s (transform 654ms, setup 0ms, import 2.74s, tests 26.53s, environment 0ms)
+

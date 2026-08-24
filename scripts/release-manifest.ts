@@ -24,7 +24,7 @@ import { buildPlan } from '../src/ingest/plan.js';
 
 const OUT = 'artifacts/release/current.json';
 const PRODUCTION = 'https://lacuna-five.vercel.app';
-const VERIFICATION = 'artifacts/verification/2026-08-19';
+const VERIFICATION = 'artifacts/verification/2026-08-24';
 
 function git(...args: readonly string[]): string {
   try {
@@ -197,7 +197,7 @@ const manifest = {
     googleAuth: 'configured and verified',
     slackAuth: 'not built',
     githubAuth: 'not built',
-    ingestion: 'one path, signed in, paste a transcript',
+    ingestion: 'signed in: paste a transcript, or one of thirteen reviewed connector imports',
     voice: 'not configured, and the screen says so',
     passwordReset: 'not configured, and the page says so',
   },

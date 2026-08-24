@@ -505,7 +505,7 @@
     },
     {
       "id": "connector-catalogue",
-      "claim": "The public catalogue exposes eight redacted connector descriptors. Private workflows are implemented for one-off file ingestion, public GitHub and GitLab snapshot imports, public HTTPS/API import, and signed bounded webhook delivery; workspace observations remain authenticated.",
+      "claim": "The public catalogue exposes thirteen redacted connector descriptors. Private workflows are implemented for one-off file ingestion, public GitHub and GitLab snapshot imports, public HTTPS/API import, signed bounded webhook delivery, and reviewed per-request-credential reads of Slack, Notion, Jira, Confluence and Gmail; workspace observations remain authenticated.",
       "capability": "PARTIAL",
       "data": "LIVE",
       "measured": {
@@ -517,16 +517,16 @@
           "PDF",
           "DOCX",
           "HTTPS API",
-          "Webhook"
+          "Webhook",
+          "Slack",
+          "Notion",
+          "Jira",
+          "Confluence",
+          "Gmail"
         ],
         "unavailable_in_current_deployment": [],
         "planned": [
           "Linear",
-          "Jira",
-          "Slack",
-          "Notion",
-          "Gmail",
-          "Confluence",
           "Database source"
         ],
         "connected": [],
@@ -541,7 +541,7 @@
         "tests/unit/demo-api.test.ts"
       ],
       "reproduce": "npm run smoke:demo -- https://lacuna-five.vercel.app && npx vitest run tests/unit/connectors-api.test.ts tests/unit/demo-api.test.ts --maxWorkers=1",
-      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF, and the webhook secret is revealed only once. Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify are not implemented."
+      "caveat": "Available means the workflow is implemented and deployment-supported; it does not mean a user's workspace is connected or syncing. Private imports still require sign-in and CSRF, the webhook secret is revealed only once, and the work-tool reads use the caller's own credential once and store nothing. Linear, Database source and Spotify are not implemented."
     },
     {
       "id": "package-session-blast-request",

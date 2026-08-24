@@ -420,6 +420,13 @@ summary:focus-visible {
 .connector-card .connector-chip:hover:not(:disabled) { border-color:rgba(255,255,255,.34); color:#ececec; }
 .connector-card .connector-chip-on { border-color:#8052ff; background:rgba(128,82,255,.16); color:#fff; }
 .connector-hint { margin:0; color:#8a8a8a; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* The native file input ships its own grey OS button, which is the one control
+   on the page the theme did not reach. Restating the card's button language on
+   ::file-selector-button keeps the picker native while making it ours. */
+.connector-card input[type="file"] { padding:8px; color:#9a9a9a; font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.connector-card input[type="file"]::file-selector-button { min-height:32px; margin-right:12px; padding:6px 14px; border:1px solid rgba(255,255,255,.18); border-radius:8px; background:transparent; color:#bdbdbd; cursor:pointer; font:10px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.12em; text-transform:uppercase; transition:border-color .15s ease, color .15s ease; }
+.connector-card input[type="file"]::file-selector-button:hover { border-color:rgba(255,255,255,.34); color:#ececec; }
+.connector-card input[type="file"]:disabled::file-selector-button { cursor:not-allowed; opacity:.45; }
 .connector-review,
 .connector-confirm { min-width:0; display:grid; gap:10px; padding:14px; border:1px solid rgba(128,82,255,.35); border-radius:9px; background:rgba(128,82,255,.045); }
 .connector-review h3,

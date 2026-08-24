@@ -1380,7 +1380,13 @@ export class ApiRouter {
         if (control.signal.aborted || error instanceof ConnectorRunCancelledError) return HANDLED;
         if (error instanceof SlackImportError) send(response, error.status, { error: error.code });
         else if (error instanceof ConnectorNormalizationError) send(response, 422, { error: 'invalid_slack_request' });
-        else send(response, 502, { error: 'slack_import_failed' });
+        else {
+          // The generic fall-through logs the error's shape server-side so an
+          // unmapped failure is diagnosable from the trace without ever putting
+          // a provider message or a token-bearing request on the wire.
+          console.error(`[slack] unmapped ${error instanceof Error ? `${error.name}: ${error.message.slice(0, 120)}` : 'unknown'}`);
+          send(response, 502, { error: 'slack_import_failed' });
+        }
       } finally {
         removeRequestAbort();
         removeResponseClose();

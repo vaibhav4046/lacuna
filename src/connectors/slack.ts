@@ -194,26 +194,36 @@ export class SlackImporter implements SlackImporterBoundary {
     }
 
     const startedAt = this.#now();
-    const deadline = AbortSignal.any([signal, AbortSignal.timeout(this.#deadlineMs)]);
+    // The GitHub importer's deadline shape, not AbortSignal.any: a caller-relayed
+    // AbortController with a setTimeout, because the composed-signal helpers are
+    // not uniformly present across serverless runtimes and a missing one throws
+    // an unmapped error that surfaces as a bare 502.
+    const control = new AbortController();
+    let deadlineExpired = false;
+    const relayAbort = () => control.abort();
+    if (signal.aborted) relayAbort();
+    else signal.addEventListener('abort', relayAbort, { once: true });
+    const deadline = setTimeout(() => { deadlineExpired = true; control.abort(); }, this.#deadlineMs);
+    deadline.unref?.();
     let requests = 0;
 
     const call = async (method: string, params: Readonly<Record<string, string>>): Promise<Record<string, unknown>> => {
       requests += 1;
       if (requests > DEFAULT_MAX_REQUESTS) throw new SlackImportError('slack_budget_exceeded');
       const query = new URLSearchParams(params);
+      if (control.signal.aborted) throw new SlackImportError(deadlineExpired ? 'slack_timeout' : 'slack_unavailable');
       let response: SlackTransportResponse;
       try {
         response = await this.#transport.request({
           url: `${SLACK_API_ORIGIN}/${method}?${query.toString()}`,
           method: 'GET',
           headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Lacuna-Connector/1.0' },
-          signal: deadline,
+          signal: control.signal,
           maxResponseBytes: RESPONSE_BYTES,
         });
       } catch (error) {
         if (error instanceof SlackImportError) throw error;
-        if (signal.aborted) throw error;
-        throw new SlackImportError(deadline.aborted ? 'slack_timeout' : 'slack_unavailable');
+        throw new SlackImportError(deadlineExpired ? 'slack_timeout' : 'slack_unavailable');
       }
       if (response.status === 429) throw new SlackImportError('slack_unavailable');
       if (response.status !== 200) throw new SlackImportError('slack_unavailable');
@@ -305,6 +315,7 @@ export class SlackImporter implements SlackImporterBoundary {
       },
     };
 
+    clearTimeout(deadline);
     const batch = prepareConnectorBatch([document]);
     return {
       ...batch,

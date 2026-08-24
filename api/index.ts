@@ -325,7 +325,8 @@ const api = new ApiRouter({
   // a proof that HydraDB extracted relations from the transcripts, not a
   // browsable index of them.
   ...(cloud === null ? {} : {
-    relations: async (): Promise<readonly ServiceRelation[]> => normaliseRelations(await cloud.relations(24)),
+    relations: async (collection?: string): Promise<readonly ServiceRelation[]> =>
+      normaliseRelations(await (collection === undefined ? cloud : cloud.withCollection(collection)).relations(24)),
   }),
   // The same graph, walked for one subject. `/query` with graph_context asked
   // for returns the paths the store reached rather than the edges it holds,

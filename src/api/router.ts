@@ -506,7 +506,7 @@ export interface ApiOptions {
    * node has no equivalent endpoint, and a deployment without it says so on the
    * screen instead of showing an empty table.
    */
-  readonly relations?: () => Promise<readonly ServiceRelation[]>;
+  readonly relations?: (collection?: string) => Promise<readonly ServiceRelation[]>;
   /**
    * The store's own graph, walked for one subject rather than listed.
    *
@@ -514,7 +514,7 @@ export interface ApiOptions {
    * them for a question and hand back the paths it reached, which is the thing
    * a list cannot demonstrate. Injected and optional for the same reasons.
    */
-  readonly expansion?: (subject: string) => Promise<readonly ServiceRelation[]>;
+  readonly expansion?: (subject: string, collection?: string) => Promise<readonly ServiceRelation[]>;
   /**
    * Google sign in, when the deployment has been given a client.
    *
@@ -825,7 +825,7 @@ export class ApiRouter {
   readonly #evaluations: readonly EvalRow[] | undefined;
   readonly #continuity: Readonly<Record<string, unknown>> | undefined;
   readonly #longmemeval: Readonly<Record<string, unknown>> | undefined;
-  readonly #relations: (() => Promise<readonly ServiceRelation[]>) | undefined;
+  readonly #relations: ((collection?: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #expansion: ((subject: string) => Promise<readonly ServiceRelation[]>) | undefined;
   readonly #google: GoogleConfig | undefined;
   readonly #legacyGoogleMigrationEmail: string | undefined;
@@ -2187,6 +2187,64 @@ export class ApiRouter {
 
       if (part === 'evaluations') {
         send(response, 200, this.#evaluations ?? []);
+        return HANDLED;
+      }
+
+      /**
+       * The three parts the Evaluations and HydraDB screens ask for in every
+       * scope, previously served only under `/api/explore/`.
+       *
+       * Both screens render for signed-in readers, so each signed-in visit made
+       * these requests and each one got `404 route`: the screens degraded to
+       * their failed panels and the product looked broken exactly where it was
+       * showing off. The recorded LongMemEval run is a repository artifact and
+       * scope makes no difference to it. Relations are HydraDB's own extracted
+       * edges, and for a signed-in reader the edges that exist are the ones in
+       * their workspace collection, so the store is asked about that collection
+       * rather than the public one.
+       *
+       * Expansion stays explore-only on purpose: it walks a corpus-specific
+       * corrected claim chosen from the shipped inventory, and no equivalent
+       * anchor exists in an arbitrary workspace. The HydraDB screen already
+       * treats an absent walk as a stated absence rather than an error.
+       */
+      if (part === 'longmemeval') {
+        const recorded = this.#longmemeval;
+        if (recorded === undefined) {
+          send(response, 200, { available: false, reason: 'no recorded run ships with this build' });
+          return HANDLED;
+        }
+        send(response, 200, { available: true, ...recorded });
+        return HANDLED;
+      }
+
+      if (part === 'relations') {
+        const account = await this.#accountFor(cookies);
+        if (account === null) {
+          send(response, 401, { error: 'session' });
+          return HANDLED;
+        }
+        if (this.#relations === undefined) {
+          send(response, 200, { available: false, reason: 'this deployment has no relations endpoint', relations: [] });
+          return HANDLED;
+        }
+        try {
+          const started = Date.now();
+          const relations = await this.#relations(workspaceCollection(account.email));
+          send(response, 200, { available: true, ms: Date.now() - started, relations });
+        } catch {
+          send(response, 200, { available: false, reason: 'the store did not answer', relations: [] });
+        }
+        return HANDLED;
+      }
+
+      if (part === 'expansion') {
+        send(response, 200, {
+          available: false,
+          reason: 'the graph walk demonstrates a corpus-specific correction and runs on the public workspace',
+          subject: null,
+          relations: [],
+        });
         return HANDLED;
       }
 

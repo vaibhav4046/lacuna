@@ -37,6 +37,7 @@ import { createSnapshotHandler } from '../src/snapshot/serve.js';
 import { ingestPreparedSource, ingestSource } from '../src/api/ingest.js';
 import { runAgents } from '../src/agent/run.js';
 import { builtInAgents } from '../src/agent/registry.js';
+import { usesBaseAgentCollection } from '../src/agent/source-scope.js';
 import { CloudAgentRuntimeStore, FileAgentRuntimeStore } from '../src/agent/store.js';
 import { CloudScheduleStore, FileScheduleStore } from '../src/scheduler/store.js';
 import { dailyContextHealthSchedule } from '../src/scheduler/dispatcher.js';
@@ -283,7 +284,7 @@ const api = new ApiRouter({
       // type remains at the injected boundary for compatibility, but anonymous
       // public run creation is refused before this function can be called.
       agent: (collection: string | null, task: string, run = {}) => runAgents({
-        source: new CloudSource(collection === null ? cloud : cloud.withCollection(collection)),
+        source: new CloudSource(usesBaseAgentCollection(collection) ? cloud : cloud.withCollection(collection)),
         provider: agentProvider,
         model: AGENT_MODEL,
         workspace: collection ?? 'public',

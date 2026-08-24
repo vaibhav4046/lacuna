@@ -730,7 +730,10 @@ describe('ConnectorRunner', () => {
       ingest: async (_workspace, prepared) => { ingests += 1; return report(prepared.sourceKey); },
     });
     const invalid = [
-      { connectorId: 'slack', documents: [document('wrong-id')], awaitSearchable: true },
+      // 'slack' is a real connector now, so the unknown-id case uses one that
+      // is not. This line asserting 'slack' invalid is exactly what rejected
+      // every live Slack run until the runner's own id set learned it.
+      { connectorId: 'discord', documents: [document('wrong-id')], awaitSearchable: true },
       { connectorId: 'text', documents: [document('wrong-ready')], awaitSearchable: 'true' },
       { connectorId: 'text', documents: [document('extra')], awaitSearchable: true, providerBody: 'secret' },
     ];
@@ -740,6 +743,16 @@ describe('ConnectorRunner', () => {
     }
     expect(reads).toBe(0);
     expect(ingests).toBe(0);
+
+    // And the id set the runner validates against must include every connector
+    // the router can dispatch, slack included, or the run is refused before it
+    // starts. This is the assertion that was missing.
+    const slackResult = await runner.run(WORKSPACE, {
+      connectorId: 'slack',
+      documents: [document('slack-ok')],
+      awaitSearchable: true,
+    });
+    expect(slackResult.connectorId).toBe('slack');
   });
 
   it('rejects a prepared document above the extractor limit before the ingest boundary', async () => {

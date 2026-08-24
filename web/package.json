@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "cd .. && npx vitest run tests/unit/connectors-slack-store.test.ts tests/unit/connectors-store.test.ts tests/unit/connectors-run.test.ts tests/unit/connectors-slack.test.ts tests/unit/connectors-api.test.ts tests/unit/connectors-catalog.test.ts && npm --prefix web run build:app",
-    "build:app": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

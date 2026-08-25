@@ -8,7 +8,7 @@ Everything below was read from variable names in gitignored files and from
 availability column is the result of a live call where one was possible, made
 without printing the key.
 
-Last inventory: 2026-08-22.
+Last inventory: 2026-08-25.
 
 ## What exists
 
@@ -31,7 +31,21 @@ Last inventory: 2026-08-22.
 | --- | --- | --- |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | AVAILABLE on Vercel Production | The stable production alias passes OAuth start, PKCE/state/nonce and malformed-callback security probes; a fresh human identity round trip remains owner-operated evidence, and legacy unbound records fail closed. |
 | Supabase project URL and keys | MISSING | Nothing today. Accounts are durable in HydraDB Cloud already, so the Supabase path described in the earlier plan is not on the critical path and starting it now would replace a working, tested auth store with an untested one. |
-| A provider account credential for third-party sync | MISSING | GitHub and GitLab public snapshot, HTTPS/API, file import and webhook workflows are enabled without user provider credentials; Linear, Jira, Slack, Notion, Gmail, Confluence, Database source and Spotify remain planned. |
+| A provider account credential for third-party sync | NOT HELD BY DESIGN | Nothing. GitHub and GitLab public snapshot, HTTPS/API, file import and webhook workflows need no user provider credential at all. Slack, Notion, Jira, Confluence and Gmail do need one, but Lacuna never holds it: the caller pastes their own for a single reviewed read, it travels as a header on that one request, and it is written nowhere afterwards, so this deployment has nothing to rotate for them. Linear, Database source and Spotify remain planned. |
+
+## Connector credentials are the caller's to rotate
+
+The five reviewed work connectors take a credential the caller pastes: a Slack
+bot token, a Notion integration token, an Atlassian API token, or a Google
+OAuth access token. None of them is stored, logged, or written into provenance,
+and the evidence schema has no field one could pass through, so there is no
+Lacuna-side rotation step for any of them.
+
+That also means rotation is not something this project can do on the caller's
+behalf. If one of those values is exposed, it is revoked at the provider:
+Slack under OAuth and Permissions, Notion under My integrations, Atlassian
+under Manage API tokens. The Gmail path deliberately takes a short-lived
+access token, which expires on its own within about an hour.
 
 ## One secret to rotate, and why
 

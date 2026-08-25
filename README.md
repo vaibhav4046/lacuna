@@ -132,7 +132,7 @@ A local client can spawn the stdio server:
 }
 ```
 
-Exact ChatGPT, Claude, Claude Code, REST and CLI instructions are in
+Exact ChatGPT, Claude, Claude Code, Cursor, Grok Bot, REST and CLI instructions are in
 [CONNECT_CLIENTS.md](docs/CONNECT_CLIENTS.md). Named-client instructions are not
 claims that every client has completed an external verification run; the
 release-status document records what has actually been proven.

@@ -56,3 +56,42 @@ html, body {
   letter-spacing: 0.2em;
   color: #5E5E5E;
 }
+
+/*
+ * The boot shell: the brand and the headline, at the position the real hero
+ * puts them, painted from this same stylesheet before any script runs.
+ *
+ * Measured before it existed: the page was pure black for 1646ms on a fast
+ * connection and 4563ms on a throttled one, because #root was empty and every
+ * pixel waited on the bundle. Black for four seconds does not read as loading,
+ * it reads as broken, and someone screenshotting it is right to file that.
+ *
+ * Only the brand is painted. The hero enters on a deliberate stagger, so
+ * drawing its words here would mean showing them, having React clear them, and
+ * fading them back in. A wordmark that simply stays put is the honest thing to
+ * show while the rest is still arriving.
+ */
+.boot-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+.boot-brand {
+  position: absolute;
+  top: 24px;
+  left: clamp(20px, 3.8vw, 72px);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.boot-brand-mark {
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(128, 82, 255, 0.22);
+  border-radius: 9px;
+  background: rgba(128, 82, 255, 0.1);
+}

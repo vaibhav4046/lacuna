@@ -49,7 +49,18 @@
 </script>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <!-- The first paint, replaced the moment React mounts. createRoot clears
+       the container on its first render, so this is a handoff rather than
+       something to tear down. Without it the page is pure black for as long
+       as the bundle takes to arrive and run, which reads as broken. Only the
+       brand is here: the hero enters on a deliberate stagger, and painting
+       its words early would mean showing them, clearing them, and fading
+       them back in. -->
+  <div class="boot-shell" aria-hidden="true">
+    <div class="boot-brand"><span class="boot-brand-mark"></span>Lacuna</div>
+  </div>
+</div>
 <noscript>
   <div class="boot-recovery">
     <h1>Lacuna needs JavaScript.</h1>

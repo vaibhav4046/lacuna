@@ -38,6 +38,7 @@
     "ingest:cloud": "tsx scripts/ingest-cloud.ts",
     "parity:cloud": "tsx scripts/cloud-parity.ts",
     "smoke:demo": "tsx scripts/smoke-demo.ts",
+    "smoke:mcp": "tsx scripts/smoke-mcp.ts",
     "continuity": "tsx scripts/continuity.ts",
     "smoke:auth": "tsx scripts/smoke-auth.ts",
     "smoke:google": "tsx scripts/smoke-google-auth.ts",

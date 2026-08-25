@@ -1,0 +1,29 @@
+
+> lacuna@0.0.0 smoke:mcp
+> tsx scripts/smoke-mcp.ts https://lacuna-five.vercel.app
+
+MCP surface, against https://lacuna-five.vercel.app
+
+PASS  handshake agrees the protocol version         2025-06-18
+PASS  server identifies itself                      lacuna
+PASS  server advertises tools                       capabilities.tools
+PASS  the published catalog is exactly seven tools  fetch, lacuna_ask, lacuna_explain, lacuna_health, lacuna_read_question, lacuna_timeline, search
+PASS  no write, reset, delete or schedule tool      none published
+PASS  lacuna_ask publishes an input schema          object
+PASS  lacuna_explain publishes an input schema      object
+PASS  lacuna_timeline publishes an input schema     object
+PASS  lacuna_read_question publishes an input schemaobject
+PASS  search publishes an input schema              object
+PASS  fetch publishes an input schema               object
+PASS  lacuna_health publishes an input schema       object
+PASS  lacuna_health reports a reachable store       reachable, no error
+PASS  lacuna_ask settles a question the graph answersanswered with a value
+PASS  lacuna_explain returns evidence, not reasoningevidence with quotes
+PASS  lacuna_timeline walks a revised pair          claims returned
+PASS  lacuna_read_question takes a sentence         answered
+PASS  search returns results                        results returned
+PASS  fetch retrieves what search found             Meridian
+PASS  an unpublished tool is refused                lacuna_write
+PASS  a call missing a required argument is refused lacuna_ask without predicate
+
+21 of 21 gates passed against https://lacuna-five.vercel.app

@@ -1,0 +1,40 @@
+
+> lacuna@0.0.0 smoke:demo
+> tsx scripts/smoke-demo.ts https://lacuna-five.vercel.app
+
+Demo surface, against https://lacuna-five.vercel.app
+
+PASS  /api/demo/summary answers                     200
+PASS  /api/demo/changes answers                     200
+PASS  /api/demo/conflicts answers                   200
+PASS  /api/demo/connections answers                 200
+PASS  /api/demo/runs answers                        200
+PASS  /api/demo/health answers                      200
+PASS  /api/demo/memory answers                      200
+PASS  /api/demo/categories answers                  200
+PASS  /api/demo/questions answers                   200
+PASS  /api/demo/hops answers                        200
+PASS  /api/demo/agents answers                      200
+PASS  /api/demo/tools answers                       200
+PASS  /api/demo/evaluations answers                 200
+PASS  /api/demo/models answers                      200
+PASS  /api/demo/model answers                       200
+PASS  the demo workspace holds the corpus           174 rows
+PASS  public connector catalogue is complete and redacted200 13 entries
+PASS  public agent catalogue exposes both bounded roles2 roles · RESEARCHER,REVIEWER
+PASS  the demo workspace refuses writes             404
+PASS  ask token-forge · depends_on                  ANSWERED 187ms live
+PASS  ask Foxglove · beta_partner                   ANSWERED 131ms live
+PASS  ask billing-gate · runbook_owner              CONFLICT 232ms live
+PASS  ask Lowbank · launch_date                     NO_EVIDENCE 180ms live
+PASS  ask Foxglove · pool_size                      NO_EVIDENCE 114ms live
+PASS  a two hop question is answered and cited      ANSWERED Daniel Okafor 286ms
+PASS  the questions reach more than one outcome     ANSWERED, CONFLICT, NO_EVIDENCE
+PASS  health reports a working context store        200
+PASS  health carries a measured round trip          database ready for ingestion in 52ms
+PASS  /judge is served                              200
+PASS  /demo/dash is served                          200
+PASS  /demo/ask is served                           200
+PASS  /demo/hydra is served                         200
+
+32 of 32 gates passed against https://lacuna-five.vercel.app

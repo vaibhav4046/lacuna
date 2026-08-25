@@ -8,30 +8,9 @@ request failed: RetrievalDecodeError: entity name matched 2 nodes, expected at m
 request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
 request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
 request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
-⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
 
-Vitest caught 1 unhandled error during the test run.
-This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
-
-⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
-Error: [vitest-pool]: Worker forks emitted error.
- ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.BK8pd4xc.js:3459:21
- ❯ EventEmitter.emit node:events:508:28
- ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.BK8pd4xc.js:3025:22
- ❯ ChildProcess.emit node:events:508:28
- ❯ Process.ChildProcess._handle.onexit node:internal/child_process:294:12
-
-Caused by: Error: Worker exited unexpectedly
- ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.BK8pd4xc.js:3023:33
- ❯ ChildProcess.emit node:events:508:28
- ❯ Process.ChildProcess._handle.onexit node:internal/child_process:294:12
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-
- Test Files  123 passed (124)
-      Tests  2298 passed (2361)
-     Errors  1 error
-   Start at  07:29:20
-   Duration  94.53s (transform 6.66s, setup 0ms, import 19.41s, tests 47.28s, environment 11ms)
+ Test Files  124 passed (124)
+      Tests  2361 passed (2361)
+   Start at  07:32:48
+   Duration  90.46s (transform 5.41s, setup 0ms, import 17.65s, tests 46.94s, environment 11ms)
 

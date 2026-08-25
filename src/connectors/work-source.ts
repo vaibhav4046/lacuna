@@ -195,9 +195,21 @@ function htmlText(html: string): string {
     .replace(/\n{3,}/gu, '\n\n');
 }
 
+/** The base64url alphabet, and nothing else. */
+const BASE64URL = /^[A-Za-z0-9_-]*={0,2}$/u;
+
 function base64UrlText(data: string): string {
+  // Node's base64 decoder silently discards characters outside the alphabet
+  // rather than refusing, so a corrupt or hostile body decodes to plausible
+  // looking bytes instead of failing. Ingesting that would put mojibake into
+  // the graph as though a person had written it, which is worse than importing
+  // nothing. The alphabet is checked first, then the bytes are decoded
+  // strictly, so anything that is not genuinely UTF-8 text yields nothing.
+  const compact = data.replace(/[\r\n]/gu, '');
+  if (!BASE64URL.test(compact)) return '';
   try {
-    return Buffer.from(data.replace(/-/gu, '+').replace(/_/gu, '/'), 'base64').toString('utf8');
+    const bytes = Buffer.from(compact.replace(/-/gu, '+').replace(/_/gu, '/'), 'base64');
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
     return '';
   }

@@ -14,7 +14,7 @@ anything the plan did not write.
 
 | File | Command | Result | Exit |
 |---|---|---|---|
-| `unit.txt` | `npx vitest run tests/unit` | 2347 passed, 123 files | 0 |
+| `unit.txt` | `npx vitest run tests/unit` | 2361 passed, 124 files | 0 |
 | `contract.txt` | `npx vitest run tests/contract` | 77 passed, 4 files | 0 |
 | `typecheck.txt` | `npx tsc --noEmit` | no output | 0 |
 | `census.txt` | `npm run census` | graph matches the plan exactly | 0 |

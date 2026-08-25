@@ -75,6 +75,38 @@ current project.
 Anthropic's Claude Code MCP reference:
 <https://docs.anthropic.com/en/docs/claude-code/mcp>
 
+## Cursor, and Grok Bot
+
+Grok Bot is a Cursor build, so both read the same file and neither needs a key.
+This repository ships it at `.cursor/mcp.json`, which means opening this folder
+is the whole setup:
+
+```json
+{
+  "mcpServers": {
+    "lacuna": {
+      "url": "https://lacuna-five.vercel.app/mcp"
+    }
+  }
+}
+```
+
+To use Lacuna from any other folder, copy that file into that project's
+`.cursor/mcp.json`, or add the same entry through Customize > MCPs in the app.
+Restart the app, then confirm the seven tools are listed before relying on them.
+
+What this gives the assistant is the public read-only catalog below and nothing
+else: it can ask what a value is, ask how that answer was reached, walk the
+history of a pair, and search the corpus. It cannot write, reset, delete or
+schedule anything, because no such tool is published. An agent that reports
+"updated Lacuna" is reporting something it could not have done.
+
+Two habits make the answers worth trusting. Prefer `lacuna_explain` over
+`lacuna_ask` when the answer will be repeated to someone else, because it
+returns the resolution and the evidence rather than the value alone. And treat
+an abstention as a result: Lacuna abstains when a pair is contested or was taken
+back, and the reason it gives is the useful part.
+
 ## Any Streamable HTTP MCP client
 
 The public endpoint is `POST /mcp`. Send JSON-RPC and accept both JSON and SSE:

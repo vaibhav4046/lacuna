@@ -37,7 +37,7 @@ export function Hero() {
               letterSpacing: '0.26em',
               textTransform: 'uppercase',
               color: '#9A9A9A',
-              animation: 'heroIn 0.6s ease 0.05s both',
+              animation: 'heroIn 0.42s ease 0.03s both',
             }}
           >
             Context for long-running agents
@@ -51,7 +51,7 @@ export function Hero() {
               letterSpacing: '-0.045em',
               margin: 0,
               color: '#FFFFFF',
-              animation: 'heroIn 0.7s ease 0.2s both',
+              animation: 'heroIn 0.45s ease 0.1s both',
             }}
           >
             Memory that knows<br />what changed.
@@ -66,7 +66,7 @@ export function Hero() {
               margin: '4px 0 0',
               maxWidth: '51ch',
               textWrap: 'pretty',
-              animation: 'heroIn 0.7s ease 0.55s both',
+              animation: 'heroIn 0.45s ease 0.3s both',
             }}
           >
             Lacuna gives every AI tool the same shared memory. It remembers what changed, shows where each answer came from, flags disagreements, and says when it does not have enough information.
@@ -79,7 +79,7 @@ export function Hero() {
               gap: '26px',
               marginTop: '8px',
               flexWrap: 'wrap',
-              animation: 'heroIn 0.7s ease 0.8s both',
+              animation: 'heroIn 0.45s ease 0.44s both',
             }}
           >
             <button
@@ -109,7 +109,7 @@ export function Hero() {
               textTransform: 'uppercase',
               color: '#8A8A8A',
               marginTop: '14px',
-              animation: 'heroIn 0.7s ease 1s both',
+              animation: 'heroIn 0.45s ease 0.56s both',
             }}
           >
             Built on HydraDB · evidence stays attached

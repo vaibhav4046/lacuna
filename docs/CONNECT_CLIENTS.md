@@ -85,6 +85,7 @@ is the whole setup:
 {
   "mcpServers": {
     "lacuna": {
+      "type": "http",
       "url": "https://lacuna-five.vercel.app/mcp"
     }
   }

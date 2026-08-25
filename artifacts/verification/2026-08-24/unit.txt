@@ -9,8 +9,8 @@ request failed: HydraQueryError: HydraDB returned 403: principal bearer principa
 request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
 request failed: HydraQueryError: HydraDB returned 403: principal bearer principal is not authorized to read graph scope tenant-b/graphs/default
 
- Test Files  125 passed (125)
-      Tests  2376 passed (2376)
-   Start at  10:27:12
-   Duration  85.59s (transform 2.65s, setup 0ms, import 14.05s, tests 45.68s, environment 10ms)
+ Test Files  126 passed (126)
+      Tests  2386 passed (2386)
+   Start at  11:05:14
+   Duration  95.60s (transform 2.88s, setup 0ms, import 15.69s, tests 49.16s, environment 12ms)
 

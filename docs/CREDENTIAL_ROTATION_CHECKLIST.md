@@ -19,6 +19,7 @@ Last inventory: 2026-08-25.
 | `HYDRA_TOKEN`, `HYDRA_HTTP_URL`, `HYDRA_DATABASE`, `HYDRA_COLLECTION` | Vercel, Production environment | AVAILABLE, encrypted at rest | the deployed function |
 | `LACUNA_ACCOUNTS_DIR`, `LACUNA_SECURE_COOKIES` | Vercel, Production environment | AVAILABLE | durable accounts |
 | `GROQ_API_KEY` | `.env.local`, `.env.deploy` | AVAILABLE, the provider answered 200 | the model router, one real provider |
+| `PERPLEXITY_API_KEY` | not set anywhere | MISSING | nothing. The provider slot is wired and tested; setting the key on Vercel Production is the whole step. Perplexity publishes no `/models` read, so it is listed as configured and unprobed rather than probed and called failed. |
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | historical local/deploy files, if still present | NOT INSTALLED on Vercel Production | final narration and product voice remain blocked until the owner supplies and later rotates the server-only values |
 | `LACUNA_FILE_PREVIEW_KEY`, `LACUNA_WEBHOOK_KEY` | Vercel, Production environment | AVAILABLE, encrypted at rest | enables the signed file preview/import token and signed webhook lifecycle; values are server-only and never shown in the catalogue |
 | `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` | `.env.deploy` | present, not exercised this run | optional model providers in the router |

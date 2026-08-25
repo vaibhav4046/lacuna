@@ -72,6 +72,23 @@ export function configured(env: Record<string, string | undefined>): readonly Pr
   return out;
 }
 
+/**
+ * Providers that do not answer `/models` in the OpenAI shape.
+ *
+ * Probing these through this adapter reports FAILED for a key that is
+ * perfectly good, which is worse than saying nothing: it tells the owner their
+ * credential is broken when the endpoint simply is not there. Reporting them
+ * as connected would be a state nobody checked. So they are carried through as
+ * configured with nothing measured.
+ *
+ * Checked on 2026-08-25: `api.perplexity.ai/models` answers 404 while
+ * `api.perplexity.ai/chat/completions` answers 401, so the key is not the
+ * thing failing. Perplexity publishes no free catalogue read, and the only
+ * endpoint that would answer bills per call, so probing it on every Models
+ * load would spend the owner's credit to learn what a 401 already says.
+ */
+const NOT_OPENAI_ON_MODELS = new Set(['anthropic', 'perplexity']);
+
 /** One row per model an endpoint really reported, capped so the table stays a table. */
 const MAX_MODELS_PER_PROVIDER = 6;
 
@@ -83,10 +100,7 @@ export async function modelRows(
   if (providers.length === 0) return [];
 
   const probes = await Promise.all(providers.map(async (config): Promise<readonly [ProviderConfig, ProviderHealth]> => {
-    // Anthropic does not answer /models in this shape. Reporting it as failed
-    // would be wrong and reporting it as connected would be unchecked, so it
-    // is carried through as configured with nothing measured.
-    if (config.name === 'anthropic') {
+    if (NOT_OPENAI_ON_MODELS.has(config.name)) {
       return [config, { state: 'NOT CONFIGURED', latencyMs: null, models: [], detail: 'not probed through this adapter' }];
     }
     return [config, await probe(config, options)];

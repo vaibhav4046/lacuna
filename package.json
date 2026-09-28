@@ -48,6 +48,7 @@
     "capture:motion": "tsx scripts/capture-browser-motion.ts",
     "copy:lint": "tsx scripts/copy-lint.ts",
     "audit:landing": "tsx scripts/landing-visual-audit.ts",
+    "audit:discovery": "tsx scripts/audit-discovery.ts",
     "soak": "tsx scripts/soak.ts",
     "audit:routes": "tsx scripts/route-audit.ts",
     "node:heal": "bash -c \"wsl.exe -e bash -lc 'cd /mnt/d/project/lacuna && bash scripts/hydra-node.sh heal' && npm run ingest && npm run census\"",

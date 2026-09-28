@@ -49,6 +49,13 @@ Build the web application:
 npm run build
 ```
 
+Audit the checked-in public documentation and discovery metadata without
+making network requests:
+
+```bash
+npm run audit:discovery
+```
+
 Run the checked-in snapshot without a HydraDB token:
 
 ```bash

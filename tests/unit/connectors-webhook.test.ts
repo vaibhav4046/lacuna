@@ -240,14 +240,14 @@ describe('webhook master key and sealed registry', () => {
       created: true,
       endpointId: ENDPOINT_ID,
       endpoint: `${SITE_ORIGIN}/api/connectors/webhook/${ENDPOINT_ID}`,
-      secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg',
+      secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg', // gitleaks:allow (test fixture)
       configuredAt: '2026-08-21T12:00:00.000Z',
     });
     expect(store.operations).toEqual(['get-index', 'put-endpoint', 'get-endpoint', 'put-index', 'get-index']);
     const endpoint = store.endpoints.get(ENDPOINT_ID);
     expect(endpoint).toEqual({
       version: 1,
-      keyFingerprint: '630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd',
+      keyFingerprint: '630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd', // gitleaks:allow (test fixture)
       endpointId: ENDPOINT_ID,
       ownerDigest: 'f43c26212e343f46ffc900b6bd99a8de93f6d0560b54c815548242ce7987bec8',
       workspaceCiphertext: '7Zb0Rz_QvrwZXI-a2dRmrGV2_1IEqahSQU1957IkQoCh4X0C1SnAoxQf',

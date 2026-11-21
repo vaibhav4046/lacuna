@@ -636,7 +636,7 @@ beforeEach(async () => {
           created: true,
           endpointId: 'AAECAwQFBgcICQoLDA0ODw',
           endpoint: `${SITE_ORIGIN}/api/connectors/webhook/AAECAwQFBgcICQoLDA0ODw`,
-          secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg',
+          secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg', // gitleaks:allow (test fixture)
           configuredAt: '2026-08-21T12:00:00.000Z',
         };
       },
@@ -745,7 +745,7 @@ describe('signed webhook lifecycle and public receiver API', () => {
     expect(issuedBody).toMatchObject({
       created: true,
       endpointId: 'AAECAwQFBgcICQoLDA0ODw',
-      secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg',
+      secret: '27e9t3M2kZ2lz84-0mVTJK_jPdVacNum1AjckK__LCg', // gitleaks:allow (test fixture)
     });
     expect(JSON.stringify(issuedBody)).not.toMatch(/workspace|collection|ownerDigest|Cipher/u);
 

@@ -54,7 +54,7 @@ describe('ElevenLabs request builders', () => {
 
 describe('ElevenLabs response guards', () => {
   it('accepts an opaque bounded token and rejects malformed token JSON', () => {
-    expect(readSingleUseToken({ token: 'sutkn_12345678' })).toBe('sutkn_12345678');
+    expect(readSingleUseToken({ token: 'sutkn_12345678' })).toBe('sutkn_12345678'); // gitleaks:allow (test fixture)
     expect(readSingleUseToken({ token: '' })).toBeNull();
     expect(readSingleUseToken({ token: 'bad token' })).toBeNull();
     expect(readSingleUseToken({ token: 7 })).toBeNull();

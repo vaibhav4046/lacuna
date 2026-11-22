@@ -137,6 +137,23 @@ Exact ChatGPT, Claude, Claude Code, Cursor, Grok Bot, REST and CLI instructions 
 claims that every client has completed an external verification run; the
 release-status document records what has actually been proven.
 
+## Use with LangChain
+
+[`langchain-lacuna`](https://github.com/vaibhav4046/langchain-lacuna) wraps the `lacuna_ask` tool
+for LangChain and LangGraph: a `BaseRetriever` that returns one document per quotation with its
+provenance (claim, span, session, message, timestamp, standing, superseded claims) and returns no
+documents when Lacuna abstains, plus a LangGraph agent that answers with citations and abstains with
+Lacuna's reason code instead of letting the model guess.
+
+```python
+from langchain_lacuna import LacunaClient, LacunaRetriever
+
+async with LacunaClient.snapshot("path/to/lacuna") as lacuna:
+    docs = await LacunaRetriever(client=lacuna).ainvoke("Bellwether | beta_partner")
+```
+
+Its CI runs this repository's MCP server over the checked-in graph snapshot, at a pinned commit.
+
 ## Architecture
 
 ```mermaid

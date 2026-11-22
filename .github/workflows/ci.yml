@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      # The root typecheck and several unit tests import web/src, so the web
+      # workspace's dependencies (React, Vite) are installed too.
+      - run: npm ci
+      - run: npm --prefix web ci
+      - run: npm run typecheck
+      # Unit tests only. tests/contract needs a running HydraDB node and is
+      # intentionally not run here; see docs/INGEST.md.
+      - run: npm test
+      - run: npm run build

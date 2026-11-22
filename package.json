@@ -27,6 +27,7 @@
     "bench:longmemeval:verify": "tsx scripts/longmemeval-verify.ts",
     "bench:longmemeval:judge": "tsx scripts/longmemeval-judge.ts",
     "eval": "tsx scripts/evaluate.ts",
+    "eval:claim-verifier": "tsx scripts/eval-claim-verifier.ts",
     "snapshot": "tsx scripts/export-snapshot.ts",
     "snapshot:verify": "tsx scripts/verify-snapshot.ts",
     "serve:snapshot": "tsx scripts/serve-snapshot.ts",

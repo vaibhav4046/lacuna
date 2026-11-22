@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-11-22T00:01:10.666Z",
+  "ranAt": "2026-11-22T01:24:58.849Z",
   "set": "artifacts/eval/claim-support-pairs.json",
   "lexical": {
     "n": 106,
@@ -27,6 +27,30 @@
     }
   },
   "reranker": {
-    "skipped": "LACUNA_RERANKER_URL is not set"
+    "url": "http://127.0.0.1:8765",
+    "threshold": 0.5,
+    "n": 106,
+    "accuracy": 0.849,
+    "precision": 0.795,
+    "recall": 0.833,
+    "f1": 0.814,
+    "confusion": {
+      "tp": 35,
+      "fp": 9,
+      "tn": 55,
+      "fn": 7
+    },
+    "accuracyByKind": {
+      "positive": "23/28",
+      "positive_reformatted": "6/6",
+      "superseded_as_current": "8/8",
+      "superseded_both_lines": "2/8",
+      "positive_original_quote": "6/8",
+      "retracted_as_current": "5/6",
+      "contradicted_other_side": "5/6",
+      "wrong_value": "19/19",
+      "other_subject_same_value": "7/8",
+      "other_subject": "9/9"
+    }
   }
 }

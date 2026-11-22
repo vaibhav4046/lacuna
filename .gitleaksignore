@@ -1,0 +1,7 @@
+# Synthetic test fixtures already in history (fake webhook secret, fake token).
+# The current tree marks the same lines with `gitleaks:allow`.
+d782b564972ccda7fa861e718e252d75103265e9:tests/unit/connectors-api.test.ts:generic-api-key:570
+d782b564972ccda7fa861e718e252d75103265e9:tests/unit/connectors-api.test.ts:generic-api-key:632
+d782b564972ccda7fa861e718e252d75103265e9:tests/unit/connectors-webhook.test.ts:generic-api-key:242
+d782b564972ccda7fa861e718e252d75103265e9:tests/unit/connectors-webhook.test.ts:generic-api-key:249
+a67048b05012a5cf7ccce6fc53f2b7a08b2a70b8:tests/unit/voice-api.test.ts:generic-api-key:55

@@ -7,27 +7,57 @@
 <p align="center"><strong>Memory that knows what changed, what remains true, and what was never known.</strong></p>
 
 <p align="center">
-  <a href="https://lacuna-five.vercel.app/explore"><strong>Try the live workspace</strong></a>
+  <a href="https://github.com/vaibhav4046/lacuna/actions/workflows/ci.yml"><img src="https://github.com/vaibhav4046/lacuna/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
+</p>
+
+<p align="center">
+  <a href="https://lacuna-five.vercel.app/explore"><strong>Live workspace</strong></a>
   · <a href="#quickstart">Quickstart</a>
   · <a href="docs/EVIDENCE_INDEX.md">Evidence</a>
   · <a href="docs/MCP.md">MCP</a>
   · <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-![Lacuna social preview](web/public/social.png)
+Lacuna is a temporal, provenance-first memory layer for AI agents: every claim
+stays tied to the sentence it came from, corrections supersede instead of
+overwrite, conflicts stay visible, and the resolver abstains with a typed reason
+when the evidence cannot support an answer.
 
-Lacuna is a temporal, provenance-first memory layer for AI agents, built on
-[HydraDB](https://github.com/hydra-db/hydradb). It keeps every claim tied to the
-sentence it came from, preserves corrections instead of silently overwriting
-history, exposes unresolved conflicts, and abstains when the evidence cannot
-support an answer.
+![Lacuna public workspace dashboard](docs/assets/lacuna-explore.png)
 
-It was built for **Hack Hydra 2026, Track 03: Memory and Context Retrieval**.
-The project is open source under Apache-2.0.
+<sub>The public read-only workspace at
+<a href="https://lacuna-five.vercel.app/explore">lacuna-five.vercel.app/explore</a>,
+captured 2026-11-21 at 1440x900. The page loads, but its HydraDB Cloud backend
+currently answers <code>402 FREE_PLAN_DEPRECATED</code> (see the
+<code>HYDRADB FAILED</code> badge), so live questions return
+<code>SYSTEM_ERROR</code>. The offline snapshot server in the
+<a href="#quickstart">Quickstart</a> needs no service.</sub>
+
+### What this demonstrates
+
+- **A typed answer-or-abstain contract for agent memory.** The resolver in
+  [`src/retrieval/`](src/retrieval) walks `SUPERSEDES` and conflict relations
+  and returns either an answer with its evidence span or one of five abstention
+  reasons (`never_stated`, `retracted`, `contradicted`, `unconnected`,
+  `out_of_scope`, defined in [`src/model/abstention.ts`](src/model/abstention.ts)).
+- **One read contract behind four surfaces.** The same retrieval code serves the
+  HTTP API ([`src/api/`](src/api)), a CLI ([`src/cli/`](src/cli)), a React web
+  app ([`web/`](web)) and an MCP server over stdio and Streamable HTTP
+  ([`src/mcp/`](src/mcp)).
+- **A retrieval eval harness with real baselines.** [`src/bench/`](src/bench)
+  scores Lacuna against BM25, local-embedding vector, hybrid, 2-hop and recency
+  retrievers on the same generated corpus and gold questions, counting
+  unsupported answers separately from accuracy (see [Results](#results)).
+
+It was built for **Hack Hydra 2026, Track 03: Memory and Context Retrieval**,
+on [HydraDB](https://github.com/hydra-db/hydradb).
 
 ## Try the failure cases first
 
-The public workspace is read-only and requires no account:
+These four questions cover the outcomes that matter. Ask them in the
+[live workspace](https://lacuna-five.vercel.app/explore) once its backend is
+back, or locally with `npm run serve:snapshot`:
 
 | Ask | What Lacuna should show |
 | --- | --- |
@@ -35,9 +65,6 @@ The public workspace is read-only and requires no account:
 | `who is the runbook owner for billing-gate?` | Two conflicting sources and a refusal to choose silently |
 | `when does Lowbank launch?` | A statement that was later withdrawn |
 | `what is the connection pool size for Foxglove?` | That nobody ever stated it |
-
-Open the [live workspace](https://lacuna-five.vercel.app/explore) or the
-[six-outcome judge view](https://lacuna-five.vercel.app/judge).
 
 ## Why another memory layer?
 
@@ -78,15 +105,20 @@ boundary and all current caveats live in
 
 This path uses the checked-in HydraDB response snapshot. It is the quickest way
 to inspect the product and run the tests without a token or external service.
+Node.js 20.11 or newer; no API key is needed for any step in this block.
 
 ```bash
 git clone https://github.com/vaibhav4046/lacuna.git
 cd lacuna
 npm ci
-npm test
+npm --prefix web ci   # the root typecheck and some unit tests import web/src
 npm run typecheck
+npm test              # unit tests; tests/contract needs a live HydraDB node
 npm run serve:snapshot
 ```
+
+These are the same commands CI runs ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)),
+plus `npm run build` for the web bundle.
 
 Open <http://127.0.0.1:3015>.
 
@@ -141,18 +173,17 @@ release-status document records what has actually been proven.
 
 ```mermaid
 flowchart LR
-    A[Sources and transcripts] --> B[Bounded extractor]
-    B --> C[Immutable claims + evidence spans]
-    C --> D[HydraDB persistence]
-    D --> E[Temporal and relationship resolver]
-    E --> F[Answer + proof path]
-    E --> G[Typed abstention]
-    F --> H[Web]
-    F --> I[CLI]
-    F --> J[MCP]
-    G --> H
-    G --> I
-    G --> J
+    SRC["src/connectors<br/>GitHub, GitLab, Slack, files, HTTPS"] -->|src/api/ingest.ts| EXT["src/extract<br/>bounded sentence frames"]
+    EXT --> ING["src/ingest<br/>claims + evidence spans"]
+    CORPUS["src/corpus<br/>seeded demo transcripts"] --> ING
+    ING --> HYD["src/hydra<br/>Cloud and self-hosted adapters"]
+    HYD --> RET["src/retrieval<br/>temporal resolver + typed abstention"]
+    SNAP["src/snapshot<br/>recorded replies, offline"] --> RET
+    RET --> API["src/api + src/server<br/>HTTP, Vercel api/index.ts"]
+    RET --> CLI["src/cli<br/>bin/lacuna.js"]
+    RET --> MCP["src/mcp<br/>stdio + Streamable HTTP"]
+    RET --> AGT["src/agent<br/>Researcher, Reviewer runs"]
+    API --> WEB["web/<br/>React + Vite"]
 ```
 
 The production Cloud adapter and the self-hosted graph adapter do real but
@@ -164,6 +195,30 @@ separate evidence boundaries.
 Read the complete architecture in
 [ARCHITECTURE_FINAL.md](docs/ARCHITECTURE_FINAL.md) and its invariants in
 [ARCHITECTURE_INVARIANTS.md](docs/ARCHITECTURE_INVARIANTS.md).
+
+## Results
+
+Lacuna against flat retrieval baselines on the generated demo corpus (seed
+`lacuna-demo-v1`, 5,246 messages, 64 gold questions, 51 configurations). Best
+configuration of each approach, copied from the committed raw output in
+[artifacts/bench/report.txt](artifacts/bench/report.txt):
+
+| system | correct | false answers | abstention F1 | mean context tokens |
+| --- | --- | --- | --- | --- |
+| lacuna | 64/64 | 0 | 1.000 | 18 |
+| hybrid+2hop@50 +conflict | 63/64 | 0 | 1.000 | 1843 |
+| lexical@20 +conflict | 48/64 | 0 | 0.889 | 516 |
+| hybrid@20 +conflict | 48/64 | 0 | 0.889 | 529 |
+| vector@50 +conflict | 47/64 | 0 | 0.889 | 1311 |
+| recency@50 +conflict | 46/64 | 0 | 0.877 | 1029 |
+
+Reproduce with `npm run bench` against a local HydraDB node loaded by
+`npm run ingest` (see [Run the full self-hosted stack](#run-the-full-self-hosted-stack)).
+Caveats: the corpus and questions are generated by this repository and written
+in the sentence frames the extractor reads, so this measures the resolver's
+temporal and abstention policy, not open-domain extraction. Latency is left out
+because it depends on the machine; it is in the raw report. Details are in
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Evidence, not benchmark theatre
 
@@ -181,6 +236,7 @@ official LongMemEval answer/judge score.
 
 ## Honest limits
 
+- As of 2026-11-21 the hosted deployment's HydraDB Cloud account returns `402 FREE_PLAN_DEPRECATED`, so live web and REST answers return `SYSTEM_ERROR` and MCP `lacuna_ask` returns a graph read error until the backend plan is restored. The snapshot server and the self-hosted stack are unaffected.
 - The production extractor reads a bounded set of sentence frames, not arbitrary English.
 - A sentence outside those frames produces no claim rather than a guess.
 - The public preview is read-only; authenticated workspace writes have separate auth and CSRF boundaries.

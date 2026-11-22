@@ -1,0 +1,970 @@
+{
+  "about": [
+    "Claim-support pairs for measuring the optional reranker claim verifier against a no-model baseline.",
+    "Built by scripts/build-claim-support-pairs.ts from the seeded demo corpus (src/corpus, seed lacuna-demo-v1): its gold answers and evidence-span annotations.",
+    "Labels follow the construction rule in each row's kind and were then read row by row to confirm them. Hand-checked, not crowd-labelled, and small: treat differences of a few rows as noise.",
+    "The passage is a single quote (or two adjacent quotes for superseded_both_lines) judged in isolation, without the standing the resolver attaches."
+  ],
+  "seed": "lacuna-demo-v1",
+  "counts": {
+    "total": 106,
+    "supported": 42,
+    "not_supported": 64
+  },
+  "rows": [
+    {
+      "id": "csp-001",
+      "claim": "Meridian launches on 25 July 2026.",
+      "value": "25 July 2026",
+      "passage": "Meridian is scheduled to launch on 25 July 2026.",
+      "label": "supported",
+      "source": "q-stable-01 Meridian::launch_date::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-002",
+      "claim": "Ostara is hosted in Singapore.",
+      "value": "Singapore",
+      "passage": "Ostara runs in Singapore.",
+      "label": "supported",
+      "source": "q-stable-02 Ostara::region::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-003",
+      "claim": "Vireo migrates during the weekend of 16 October 2025.",
+      "value": "the weekend of 16 October 2025",
+      "passage": "The migration window for Vireo is the weekend of 16 October 2025.",
+      "label": "supported",
+      "source": "q-stable-03 Vireo::migration_window::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-004",
+      "claim": "Cindermark's beta partner is Stonecrop.",
+      "value": "Stonecrop",
+      "passage": "The beta partner for Cindermark is Stonecrop.",
+      "label": "supported",
+      "source": "q-stable-04 Cindermark::beta_partner::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-005",
+      "claim": "Halcyon is billed to budget code BC-7365.",
+      "value": "BC-7365",
+      "passage": "Halcyon bills to BC-7365.",
+      "label": "supported",
+      "source": "q-stable-05 Halcyon::budget_code::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-006",
+      "claim": "Larkspur's beta partner is Northfold.",
+      "value": "Northfold",
+      "passage": "The beta partner for Larkspur is Northfold.",
+      "label": "supported",
+      "source": "q-stable-06 Larkspur::beta_partner::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-007",
+      "claim": "Ninebark migrates during the weekend of 28 February 2025.",
+      "value": "the weekend of 28 February 2025",
+      "passage": "The migration window for Ninebark is the weekend of 28 February 2025.",
+      "label": "supported",
+      "source": "q-stable-07 Ninebark::migration_window::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-008",
+      "claim": "Quillon is hosted in Frankfurt.",
+      "value": "Frankfurt",
+      "passage": "Quillon runs in Frankfurt.",
+      "label": "supported",
+      "source": "q-stable-08 Quillon::region::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-009",
+      "claim": "Saltmarsh is billed to budget code BC-2337.",
+      "value": "BC-2337",
+      "passage": "Saltmarsh bills to BC-2337.",
+      "label": "supported",
+      "source": "q-stable-09 Saltmarsh::budget_code::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-010",
+      "claim": "Thornfield is billed to budget code BC-7665.",
+      "value": "BC-7665",
+      "passage": "Thornfield bills to BC-7665.",
+      "label": "supported",
+      "source": "q-stable-10 Thornfield::budget_code::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-011",
+      "claim": "Wrenfield is owned by Mei Lin Chow.",
+      "value": "Mei Lin Chow",
+      "passage": "Wrenfield is owned by Mei Lin Chow.",
+      "label": "supported",
+      "source": "q-stable-11 Wrenfield::owner::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-012",
+      "claim": "Ashgrove launches on 14 November 2025.",
+      "value": "14 November 2025",
+      "passage": "Ashgrove is scheduled to launch on 14 November 2025.",
+      "label": "supported",
+      "source": "q-stable-12 Ashgrove::launch_date::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-013",
+      "claim": "Bellwether's beta partner is Halverd.",
+      "value": "Halverd",
+      "passage": "Correction on Bellwether: the beta partner is now Halverd.",
+      "label": "supported",
+      "source": "q-revised-01 Bellwether::beta_partner::3",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-014",
+      "claim": "Coppice is owned by Priya Raman.",
+      "value": "Priya Raman",
+      "passage": "Correction on Coppice: ownership moved to Priya Raman.",
+      "label": "supported",
+      "source": "q-revised-02 Coppice::owner::3",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-015",
+      "claim": "Dovetail launches on 11 December 2025.",
+      "value": "11 December 2025",
+      "passage": "Correction on Dovetail: the launch moved to 11 December 2025.",
+      "label": "supported",
+      "source": "q-revised-03 Dovetail::launch_date::2",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-016",
+      "claim": "Everstone migrates during the weekend of 3 January 2026.",
+      "value": "the weekend of 3 January 2026",
+      "passage": "Correction on Everstone: the migration window is now the weekend of 3 January 2026.",
+      "label": "supported",
+      "source": "q-revised-04 Everstone::migration_window::2",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-017",
+      "claim": "Foxglove's beta partner is Stonecrop.",
+      "value": "Stonecrop",
+      "passage": "Correction on Foxglove: the beta partner is now Stonecrop.",
+      "label": "supported",
+      "source": "q-revised-05 Foxglove::beta_partner::2",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-018",
+      "claim": "Gallowtree is billed to budget code BC-2688.",
+      "value": "BC-2688",
+      "passage": "Correction on Gallowtree: it bills to BC-2688 from now on.",
+      "label": "supported",
+      "source": "q-revised-06 Gallowtree::budget_code::2",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-019",
+      "claim": "Harrowfield is billed to budget code BC-6228.",
+      "value": "BC-6228",
+      "passage": "Correction on Harrowfield: it bills to BC-6228 from now on.",
+      "label": "supported",
+      "source": "q-revised-07 Harrowfield::budget_code::2",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-020",
+      "claim": "Inkwell's beta partner is Ironwick.",
+      "value": "Ironwick",
+      "passage": "Correction on Inkwell: the beta partner is now Ironwick.",
+      "label": "supported",
+      "source": "q-revised-08 Inkwell::beta_partner::2",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-021",
+      "claim": "Farah Haddad is our contact at Northfold.",
+      "value": "Farah Haddad",
+      "passage": "Our contact at Northfold is Farah Haddad.",
+      "label": "supported",
+      "source": "q-multi_hop-01 Northfold::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-022",
+      "claim": "Hiroshi Tanabe is our contact at Baycross.",
+      "value": "Hiroshi Tanabe",
+      "passage": "Our contact at Baycross is Hiroshi Tanabe.",
+      "label": "supported",
+      "source": "q-multi_hop-02 Baycross::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-023",
+      "claim": "Priya Raman is our contact at Emberline.",
+      "value": "Priya Raman",
+      "passage": "Our contact at Emberline is Priya Raman.",
+      "label": "supported",
+      "source": "q-multi_hop-03 Emberline::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-024",
+      "claim": "Daniel Okafor is our contact at Grovewell.",
+      "value": "Daniel Okafor",
+      "passage": "Our contact at Grovewell is Daniel Okafor.",
+      "label": "supported",
+      "source": "q-multi_hop-04 Grovewell::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-025",
+      "claim": "Yara Bekele is our contact at Halverd.",
+      "value": "Yara Bekele",
+      "passage": "Our contact at Halverd is Yara Bekele.",
+      "label": "supported",
+      "source": "q-multi_hop-05 Halverd::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-026",
+      "claim": "Tomas Herrera is our contact at Ironwick.",
+      "value": "Tomas Herrera",
+      "passage": "Our contact at Ironwick is Tomas Herrera.",
+      "label": "supported",
+      "source": "q-multi_hop-06 Ironwick::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-027",
+      "claim": "Lucas Duarte is our contact at Kingsloe.",
+      "value": "Lucas Duarte",
+      "passage": "Our contact at Kingsloe is Lucas Duarte.",
+      "label": "supported",
+      "source": "q-multi_hop-07 Kingsloe::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-028",
+      "claim": "Anneke Vos is our contact at Lathefield.",
+      "value": "Anneke Vos",
+      "passage": "Our contact at Lathefield is Anneke Vos.",
+      "label": "supported",
+      "source": "q-multi_hop-08 Lathefield::contact::1",
+      "kind": "positive"
+    },
+    {
+      "id": "csp-029",
+      "claim": "Meridian launches on July 25, 2026.",
+      "value": "July 25, 2026",
+      "passage": "Meridian is scheduled to launch on 25 July 2026.",
+      "label": "supported",
+      "source": "q-stable-01 Meridian::launch_date::1",
+      "kind": "positive_reformatted"
+    },
+    {
+      "id": "csp-030",
+      "claim": "Vireo migrates during the weekend of October 16, 2025.",
+      "value": "the weekend of October 16, 2025",
+      "passage": "The migration window for Vireo is the weekend of 16 October 2025.",
+      "label": "supported",
+      "source": "q-stable-03 Vireo::migration_window::1",
+      "kind": "positive_reformatted"
+    },
+    {
+      "id": "csp-031",
+      "claim": "Ninebark migrates during the weekend of February 28, 2025.",
+      "value": "the weekend of February 28, 2025",
+      "passage": "The migration window for Ninebark is the weekend of 28 February 2025.",
+      "label": "supported",
+      "source": "q-stable-07 Ninebark::migration_window::1",
+      "kind": "positive_reformatted"
+    },
+    {
+      "id": "csp-032",
+      "claim": "Ashgrove launches on November 14, 2025.",
+      "value": "November 14, 2025",
+      "passage": "Ashgrove is scheduled to launch on 14 November 2025.",
+      "label": "supported",
+      "source": "q-stable-12 Ashgrove::launch_date::1",
+      "kind": "positive_reformatted"
+    },
+    {
+      "id": "csp-033",
+      "claim": "Dovetail launches on December 11, 2025.",
+      "value": "December 11, 2025",
+      "passage": "Correction on Dovetail: the launch moved to 11 December 2025.",
+      "label": "supported",
+      "source": "q-revised-03 Dovetail::launch_date::2",
+      "kind": "positive_reformatted"
+    },
+    {
+      "id": "csp-034",
+      "claim": "Everstone migrates during the weekend of January 3, 2026.",
+      "value": "the weekend of January 3, 2026",
+      "passage": "Correction on Everstone: the migration window is now the weekend of 3 January 2026.",
+      "label": "supported",
+      "source": "q-revised-04 Everstone::migration_window::2",
+      "kind": "positive_reformatted"
+    },
+    {
+      "id": "csp-035",
+      "claim": "Bellwether's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "Correction on Bellwether: the beta partner is now Halverd.",
+      "label": "not_supported",
+      "source": "q-revised-01 Bellwether::beta_partner::2 vs Bellwether::beta_partner::3",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-036",
+      "claim": "Bellwether's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "Correction on Bellwether: the beta partner is now Millbrace. Correction on Bellwether: the beta partner is now Halverd.",
+      "label": "not_supported",
+      "source": "q-revised-01 Bellwether::beta_partner::2+Bellwether::beta_partner::3",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-037",
+      "claim": "Bellwether's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "Correction on Bellwether: the beta partner is now Millbrace.",
+      "label": "supported",
+      "source": "q-revised-01 Bellwether::beta_partner::2",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-038",
+      "claim": "Coppice is owned by Mei Lin Chow.",
+      "value": "Mei Lin Chow",
+      "passage": "Correction on Coppice: ownership moved to Priya Raman.",
+      "label": "not_supported",
+      "source": "q-revised-02 Coppice::owner::2 vs Coppice::owner::3",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-039",
+      "claim": "Coppice is owned by Mei Lin Chow.",
+      "value": "Mei Lin Chow",
+      "passage": "Correction on Coppice: ownership moved to Mei Lin Chow. Correction on Coppice: ownership moved to Priya Raman.",
+      "label": "not_supported",
+      "source": "q-revised-02 Coppice::owner::2+Coppice::owner::3",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-040",
+      "claim": "Coppice is owned by Mei Lin Chow.",
+      "value": "Mei Lin Chow",
+      "passage": "Correction on Coppice: ownership moved to Mei Lin Chow.",
+      "label": "supported",
+      "source": "q-revised-02 Coppice::owner::2",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-041",
+      "claim": "Dovetail launches on 8 March 2025.",
+      "value": "8 March 2025",
+      "passage": "Correction on Dovetail: the launch moved to 11 December 2025.",
+      "label": "not_supported",
+      "source": "q-revised-03 Dovetail::launch_date::1 vs Dovetail::launch_date::2",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-042",
+      "claim": "Dovetail launches on 8 March 2025.",
+      "value": "8 March 2025",
+      "passage": "Dovetail is scheduled to launch on 8 March 2025. Correction on Dovetail: the launch moved to 11 December 2025.",
+      "label": "not_supported",
+      "source": "q-revised-03 Dovetail::launch_date::1+Dovetail::launch_date::2",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-043",
+      "claim": "Dovetail launches on 8 March 2025.",
+      "value": "8 March 2025",
+      "passage": "Dovetail is scheduled to launch on 8 March 2025.",
+      "label": "supported",
+      "source": "q-revised-03 Dovetail::launch_date::1",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-044",
+      "claim": "Everstone migrates during the weekend of 16 August 2025.",
+      "value": "the weekend of 16 August 2025",
+      "passage": "Correction on Everstone: the migration window is now the weekend of 3 January 2026.",
+      "label": "not_supported",
+      "source": "q-revised-04 Everstone::migration_window::1 vs Everstone::migration_window::2",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-045",
+      "claim": "Everstone migrates during the weekend of 16 August 2025.",
+      "value": "the weekend of 16 August 2025",
+      "passage": "The migration window for Everstone is the weekend of 16 August 2025. Correction on Everstone: the migration window is now the weekend of 3 January 2026.",
+      "label": "not_supported",
+      "source": "q-revised-04 Everstone::migration_window::1+Everstone::migration_window::2",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-046",
+      "claim": "Everstone migrates during the weekend of 16 August 2025.",
+      "value": "the weekend of 16 August 2025",
+      "passage": "The migration window for Everstone is the weekend of 16 August 2025.",
+      "label": "supported",
+      "source": "q-revised-04 Everstone::migration_window::1",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-047",
+      "claim": "Foxglove's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "Correction on Foxglove: the beta partner is now Stonecrop.",
+      "label": "not_supported",
+      "source": "q-revised-05 Foxglove::beta_partner::1 vs Foxglove::beta_partner::2",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-048",
+      "claim": "Foxglove's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "The beta partner for Foxglove is Millbrace. Correction on Foxglove: the beta partner is now Stonecrop.",
+      "label": "not_supported",
+      "source": "q-revised-05 Foxglove::beta_partner::1+Foxglove::beta_partner::2",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-049",
+      "claim": "Foxglove's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "The beta partner for Foxglove is Millbrace.",
+      "label": "supported",
+      "source": "q-revised-05 Foxglove::beta_partner::1",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-050",
+      "claim": "Gallowtree is billed to budget code BC-9610.",
+      "value": "BC-9610",
+      "passage": "Correction on Gallowtree: it bills to BC-2688 from now on.",
+      "label": "not_supported",
+      "source": "q-revised-06 Gallowtree::budget_code::1 vs Gallowtree::budget_code::2",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-051",
+      "claim": "Gallowtree is billed to budget code BC-9610.",
+      "value": "BC-9610",
+      "passage": "Gallowtree bills to BC-9610. Correction on Gallowtree: it bills to BC-2688 from now on.",
+      "label": "not_supported",
+      "source": "q-revised-06 Gallowtree::budget_code::1+Gallowtree::budget_code::2",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-052",
+      "claim": "Gallowtree is billed to budget code BC-9610.",
+      "value": "BC-9610",
+      "passage": "Gallowtree bills to BC-9610.",
+      "label": "supported",
+      "source": "q-revised-06 Gallowtree::budget_code::1",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-053",
+      "claim": "Harrowfield is billed to budget code BC-1003.",
+      "value": "BC-1003",
+      "passage": "Correction on Harrowfield: it bills to BC-6228 from now on.",
+      "label": "not_supported",
+      "source": "q-revised-07 Harrowfield::budget_code::1 vs Harrowfield::budget_code::2",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-054",
+      "claim": "Harrowfield is billed to budget code BC-1003.",
+      "value": "BC-1003",
+      "passage": "Harrowfield bills to BC-1003. Correction on Harrowfield: it bills to BC-6228 from now on.",
+      "label": "not_supported",
+      "source": "q-revised-07 Harrowfield::budget_code::1+Harrowfield::budget_code::2",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-055",
+      "claim": "Harrowfield is billed to budget code BC-1003.",
+      "value": "BC-1003",
+      "passage": "Harrowfield bills to BC-1003.",
+      "label": "supported",
+      "source": "q-revised-07 Harrowfield::budget_code::1",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-056",
+      "claim": "Inkwell's beta partner is Northfold.",
+      "value": "Northfold",
+      "passage": "Correction on Inkwell: the beta partner is now Ironwick.",
+      "label": "not_supported",
+      "source": "q-revised-08 Inkwell::beta_partner::1 vs Inkwell::beta_partner::2",
+      "kind": "superseded_as_current"
+    },
+    {
+      "id": "csp-057",
+      "claim": "Inkwell's beta partner is Northfold.",
+      "value": "Northfold",
+      "passage": "The beta partner for Inkwell is Northfold. Correction on Inkwell: the beta partner is now Ironwick.",
+      "label": "not_supported",
+      "source": "q-revised-08 Inkwell::beta_partner::1+Inkwell::beta_partner::2",
+      "kind": "superseded_both_lines"
+    },
+    {
+      "id": "csp-058",
+      "claim": "Inkwell's beta partner is Northfold.",
+      "value": "Northfold",
+      "passage": "The beta partner for Inkwell is Northfold.",
+      "label": "supported",
+      "source": "q-revised-08 Inkwell::beta_partner::1",
+      "kind": "positive_original_quote"
+    },
+    {
+      "id": "csp-059",
+      "claim": "Junco launches on 13 May 2026.",
+      "value": "13 May 2026",
+      "passage": "We have pulled the launch date for Junco and there is no date on it now.",
+      "label": "not_supported",
+      "source": "q-retracted-01 Junco::launch_date::1 vs Junco::launch_date::2",
+      "kind": "retracted_as_current"
+    },
+    {
+      "id": "csp-060",
+      "claim": "Kestrel's beta partner is Rushmere.",
+      "value": "Rushmere",
+      "passage": "We dropped the beta partner for Kestrel and have not signed another.",
+      "label": "not_supported",
+      "source": "q-retracted-02 Kestrel::beta_partner::1 vs Kestrel::beta_partner::2",
+      "kind": "retracted_as_current"
+    },
+    {
+      "id": "csp-061",
+      "claim": "Lowbank launches on 13 November 2026.",
+      "value": "13 November 2026",
+      "passage": "We have pulled the launch date for Lowbank and there is no date on it now.",
+      "label": "not_supported",
+      "source": "q-retracted-03 Lowbank::launch_date::1 vs Lowbank::launch_date::2",
+      "kind": "retracted_as_current"
+    },
+    {
+      "id": "csp-062",
+      "claim": "Marrowdale is owned by Priya Raman.",
+      "value": "Priya Raman",
+      "passage": "Ownership of Marrowdale was handed back and nobody holds it now.",
+      "label": "not_supported",
+      "source": "q-retracted-04 Marrowdale::owner::1 vs Marrowdale::owner::2",
+      "kind": "retracted_as_current"
+    },
+    {
+      "id": "csp-063",
+      "claim": "ledger-api is currently paused.",
+      "value": "paused",
+      "passage": "We stopped tracking a status on ledger-api.",
+      "label": "not_supported",
+      "source": "q-retracted-05 ledger-api::status::1 vs ledger-api::status::2",
+      "kind": "retracted_as_current"
+    },
+    {
+      "id": "csp-064",
+      "claim": "ingest-worker is owned by Hiroshi Tanabe.",
+      "value": "Hiroshi Tanabe",
+      "passage": "Ownership of ingest-worker was handed back and nobody holds it now.",
+      "label": "not_supported",
+      "source": "q-retracted-06 ingest-worker::owner::1 vs ingest-worker::owner::2",
+      "kind": "retracted_as_current"
+    },
+    {
+      "id": "csp-065",
+      "claim": "notify-relay is billed to budget code BC-9699.",
+      "value": "BC-9699",
+      "passage": "notify-relay bills to BC-6530.",
+      "label": "not_supported",
+      "source": "q-contradicted-01 notify-relay::budget_code::1 vs notify-relay::budget_code::2",
+      "kind": "contradicted_other_side"
+    },
+    {
+      "id": "csp-066",
+      "claim": "The on-call rotation for tenant-router lasts 14 days.",
+      "value": "14 days",
+      "passage": "On-call for tenant-router runs 7 days.",
+      "label": "not_supported",
+      "source": "q-contradicted-02 tenant-router::on_call_length::1 vs tenant-router::on_call_length::2",
+      "kind": "contradicted_other_side"
+    },
+    {
+      "id": "csp-067",
+      "claim": "audit-sink is currently paused.",
+      "value": "paused",
+      "passage": "audit-sink is in review right now.",
+      "label": "not_supported",
+      "source": "q-contradicted-03 audit-sink::status::1 vs audit-sink::status::2",
+      "kind": "contradicted_other_side"
+    },
+    {
+      "id": "csp-068",
+      "claim": "media-thumbs migrates during the weekend of 9 February 2026.",
+      "value": "the weekend of 9 February 2026",
+      "passage": "The migration window for media-thumbs is the weekend of 1 April 2025.",
+      "label": "not_supported",
+      "source": "q-contradicted-04 media-thumbs::migration_window::1 vs media-thumbs::migration_window::2",
+      "kind": "contradicted_other_side"
+    },
+    {
+      "id": "csp-069",
+      "claim": "search-shard is hosted in Frankfurt.",
+      "value": "Frankfurt",
+      "passage": "search-shard runs in Toronto.",
+      "label": "not_supported",
+      "source": "q-contradicted-05 search-shard::region::1 vs search-shard::region::2",
+      "kind": "contradicted_other_side"
+    },
+    {
+      "id": "csp-070",
+      "claim": "Rasmus Berg maintains the billing-gate runbook.",
+      "value": "Rasmus Berg",
+      "passage": "The runbook for billing-gate is maintained by Priya Raman.",
+      "label": "not_supported",
+      "source": "q-contradicted-06 billing-gate::runbook_owner::1 vs billing-gate::runbook_owner::2",
+      "kind": "contradicted_other_side"
+    },
+    {
+      "id": "csp-071",
+      "claim": "Meridian launches on 14 November 2025.",
+      "value": "14 November 2025",
+      "passage": "Meridian is scheduled to launch on 25 July 2026.",
+      "label": "not_supported",
+      "source": "q-stable-01 Meridian::launch_date::1 with value of Ashgrove::launch_date::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-072",
+      "claim": "Ostara is hosted in Frankfurt.",
+      "value": "Frankfurt",
+      "passage": "Ostara runs in Singapore.",
+      "label": "not_supported",
+      "source": "q-stable-02 Ostara::region::1 with value of Quillon::region::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-073",
+      "claim": "Vireo migrates during the weekend of 28 February 2025.",
+      "value": "the weekend of 28 February 2025",
+      "passage": "The migration window for Vireo is the weekend of 16 October 2025.",
+      "label": "not_supported",
+      "source": "q-stable-03 Vireo::migration_window::1 with value of Ninebark::migration_window::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-074",
+      "claim": "Cindermark's beta partner is Northfold.",
+      "value": "Northfold",
+      "passage": "The beta partner for Cindermark is Stonecrop.",
+      "label": "not_supported",
+      "source": "q-stable-04 Cindermark::beta_partner::1 with value of Larkspur::beta_partner::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-075",
+      "claim": "Halcyon is billed to budget code BC-2337.",
+      "value": "BC-2337",
+      "passage": "Halcyon bills to BC-7365.",
+      "label": "not_supported",
+      "source": "q-stable-05 Halcyon::budget_code::1 with value of Saltmarsh::budget_code::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-076",
+      "claim": "Larkspur's beta partner is Stonecrop.",
+      "value": "Stonecrop",
+      "passage": "The beta partner for Larkspur is Northfold.",
+      "label": "not_supported",
+      "source": "q-stable-06 Larkspur::beta_partner::1 with value of Cindermark::beta_partner::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-077",
+      "claim": "Ninebark migrates during the weekend of 16 October 2025.",
+      "value": "the weekend of 16 October 2025",
+      "passage": "The migration window for Ninebark is the weekend of 28 February 2025.",
+      "label": "not_supported",
+      "source": "q-stable-07 Ninebark::migration_window::1 with value of Vireo::migration_window::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-078",
+      "claim": "Quillon is hosted in Singapore.",
+      "value": "Singapore",
+      "passage": "Quillon runs in Frankfurt.",
+      "label": "not_supported",
+      "source": "q-stable-08 Quillon::region::1 with value of Ostara::region::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-079",
+      "claim": "Saltmarsh is billed to budget code BC-7665.",
+      "value": "BC-7665",
+      "passage": "Saltmarsh bills to BC-2337.",
+      "label": "not_supported",
+      "source": "q-stable-09 Saltmarsh::budget_code::1 with value of Thornfield::budget_code::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-080",
+      "claim": "Thornfield is billed to budget code BC-7365.",
+      "value": "BC-7365",
+      "passage": "Thornfield bills to BC-7665.",
+      "label": "not_supported",
+      "source": "q-stable-10 Thornfield::budget_code::1 with value of Halcyon::budget_code::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-081",
+      "claim": "Ashgrove launches on 25 July 2026.",
+      "value": "25 July 2026",
+      "passage": "Ashgrove is scheduled to launch on 14 November 2025.",
+      "label": "not_supported",
+      "source": "q-stable-12 Ashgrove::launch_date::1 with value of Meridian::launch_date::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-082",
+      "claim": "Hiroshi Tanabe is our contact at Northfold.",
+      "value": "Hiroshi Tanabe",
+      "passage": "Our contact at Northfold is Farah Haddad.",
+      "label": "not_supported",
+      "source": "q-multi_hop-01 Northfold::contact::1 with value of Baycross::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-083",
+      "claim": "Priya Raman is our contact at Baycross.",
+      "value": "Priya Raman",
+      "passage": "Our contact at Baycross is Hiroshi Tanabe.",
+      "label": "not_supported",
+      "source": "q-multi_hop-02 Baycross::contact::1 with value of Emberline::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-084",
+      "claim": "Daniel Okafor is our contact at Emberline.",
+      "value": "Daniel Okafor",
+      "passage": "Our contact at Emberline is Priya Raman.",
+      "label": "not_supported",
+      "source": "q-multi_hop-03 Emberline::contact::1 with value of Grovewell::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-085",
+      "claim": "Yara Bekele is our contact at Grovewell.",
+      "value": "Yara Bekele",
+      "passage": "Our contact at Grovewell is Daniel Okafor.",
+      "label": "not_supported",
+      "source": "q-multi_hop-04 Grovewell::contact::1 with value of Halverd::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-086",
+      "claim": "Tomas Herrera is our contact at Halverd.",
+      "value": "Tomas Herrera",
+      "passage": "Our contact at Halverd is Yara Bekele.",
+      "label": "not_supported",
+      "source": "q-multi_hop-05 Halverd::contact::1 with value of Ironwick::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-087",
+      "claim": "Lucas Duarte is our contact at Ironwick.",
+      "value": "Lucas Duarte",
+      "passage": "Our contact at Ironwick is Tomas Herrera.",
+      "label": "not_supported",
+      "source": "q-multi_hop-06 Ironwick::contact::1 with value of Kingsloe::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-088",
+      "claim": "Anneke Vos is our contact at Kingsloe.",
+      "value": "Anneke Vos",
+      "passage": "Our contact at Kingsloe is Lucas Duarte.",
+      "label": "not_supported",
+      "source": "q-multi_hop-07 Kingsloe::contact::1 with value of Lathefield::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-089",
+      "claim": "Farah Haddad is our contact at Lathefield.",
+      "value": "Farah Haddad",
+      "passage": "Our contact at Lathefield is Anneke Vos.",
+      "label": "not_supported",
+      "source": "q-multi_hop-08 Lathefield::contact::1 with value of Northfold::contact::1",
+      "kind": "wrong_value"
+    },
+    {
+      "id": "csp-090",
+      "claim": "Foxglove's beta partner is Stonecrop.",
+      "value": "Stonecrop",
+      "passage": "The beta partner for Cindermark is Stonecrop.",
+      "label": "not_supported",
+      "source": "Cindermark::beta_partner::1",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-091",
+      "claim": "Cindermark's beta partner is Stonecrop.",
+      "value": "Stonecrop",
+      "passage": "Correction on Foxglove: the beta partner is now Stonecrop.",
+      "label": "not_supported",
+      "source": "Foxglove::beta_partner::2",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-092",
+      "claim": "Larkspur's beta partner is Northfold.",
+      "value": "Northfold",
+      "passage": "The beta partner for Inkwell is Northfold.",
+      "label": "not_supported",
+      "source": "Inkwell::beta_partner::1",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-093",
+      "claim": "Wrenfield is owned by Mei Lin Chow.",
+      "value": "Mei Lin Chow",
+      "passage": "Correction on Coppice: ownership moved to Mei Lin Chow.",
+      "label": "not_supported",
+      "source": "Coppice::owner::2",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-094",
+      "claim": "Coppice is owned by Priya Raman.",
+      "value": "Priya Raman",
+      "passage": "Marrowdale is owned by Priya Raman.",
+      "label": "not_supported",
+      "source": "Marrowdale::owner::1",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-095",
+      "claim": "Quillon is hosted in Frankfurt.",
+      "value": "Frankfurt",
+      "passage": "search-shard runs in Frankfurt.",
+      "label": "not_supported",
+      "source": "search-shard::region::1",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-096",
+      "claim": "Bellwether's beta partner is Millbrace.",
+      "value": "Millbrace",
+      "passage": "The beta partner for Foxglove is Millbrace.",
+      "label": "not_supported",
+      "source": "Foxglove::beta_partner::1",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-097",
+      "claim": "Ostara is hosted in Frankfurt.",
+      "value": "Frankfurt",
+      "passage": "Quillon runs in Frankfurt.",
+      "label": "not_supported",
+      "source": "Quillon::region::1",
+      "kind": "other_subject_same_value"
+    },
+    {
+      "id": "csp-098",
+      "claim": "Meridian launches on 25 July 2026.",
+      "value": "25 July 2026",
+      "passage": "Ashgrove is scheduled to launch on 14 November 2025.",
+      "label": "not_supported",
+      "source": "q-stable-01 Meridian::launch_date::1 vs Ashgrove::launch_date::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-099",
+      "claim": "Vireo migrates during the weekend of 16 October 2025.",
+      "value": "the weekend of 16 October 2025",
+      "passage": "The migration window for Ninebark is the weekend of 28 February 2025.",
+      "label": "not_supported",
+      "source": "q-stable-03 Vireo::migration_window::1 vs Ninebark::migration_window::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-100",
+      "claim": "Halcyon is billed to budget code BC-7365.",
+      "value": "BC-7365",
+      "passage": "Saltmarsh bills to BC-2337.",
+      "label": "not_supported",
+      "source": "q-stable-05 Halcyon::budget_code::1 vs Saltmarsh::budget_code::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-101",
+      "claim": "Ninebark migrates during the weekend of 28 February 2025.",
+      "value": "the weekend of 28 February 2025",
+      "passage": "The migration window for Vireo is the weekend of 16 October 2025.",
+      "label": "not_supported",
+      "source": "q-stable-07 Ninebark::migration_window::1 vs Vireo::migration_window::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-102",
+      "claim": "Saltmarsh is billed to budget code BC-2337.",
+      "value": "BC-2337",
+      "passage": "Halcyon bills to BC-7365.",
+      "label": "not_supported",
+      "source": "q-stable-09 Saltmarsh::budget_code::1 vs Halcyon::budget_code::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-103",
+      "claim": "Farah Haddad is our contact at Northfold.",
+      "value": "Farah Haddad",
+      "passage": "Our contact at Baycross is Hiroshi Tanabe.",
+      "label": "not_supported",
+      "source": "q-multi_hop-01 Northfold::contact::1 vs Baycross::contact::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-104",
+      "claim": "Priya Raman is our contact at Emberline.",
+      "value": "Priya Raman",
+      "passage": "Our contact at Northfold is Farah Haddad.",
+      "label": "not_supported",
+      "source": "q-multi_hop-03 Emberline::contact::1 vs Northfold::contact::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-105",
+      "claim": "Yara Bekele is our contact at Halverd.",
+      "value": "Yara Bekele",
+      "passage": "Our contact at Northfold is Farah Haddad.",
+      "label": "not_supported",
+      "source": "q-multi_hop-05 Halverd::contact::1 vs Northfold::contact::1",
+      "kind": "other_subject"
+    },
+    {
+      "id": "csp-106",
+      "claim": "Lucas Duarte is our contact at Kingsloe.",
+      "value": "Lucas Duarte",
+      "passage": "Our contact at Northfold is Farah Haddad.",
+      "label": "not_supported",
+      "source": "q-multi_hop-07 Kingsloe::contact::1 vs Northfold::contact::1",
+      "kind": "other_subject"
+    }
+  ]
+}

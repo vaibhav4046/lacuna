@@ -12,6 +12,7 @@ import {
   type AgentRuntimeStore,
 } from './store.js';
 import { completedToolEvent } from './tools.js';
+import { evidencePassages, mergeVerdict, rerankerConfig, verifyDraft } from './verifier.js';
 import {
   AGENTS,
   DEFAULT_AGENT_BUDGETS,
@@ -217,6 +218,10 @@ export interface RunOptions {
   readonly kind?: 'TASK' | 'CONTEXT_HEALTH';
   readonly attempt?: number;
   readonly retryOf?: string | null;
+  /** Read for LACUNA_RERANKER_URL and LACUNA_RERANKER_THRESHOLD. Defaults to process.env. */
+  readonly env?: Readonly<Record<string, string | undefined>>;
+  /** Transport for the optional claim verifier sidecar. Defaults to global fetch. */
+  readonly rerankerFetch?: FetchLike;
 }
 
 class CancelledDuringRun extends Error {
@@ -542,6 +547,27 @@ export async function runAgents(options: RunOptions): Promise<AgentRun> {
       return run;
     }
 
+    const reranker = rerankerConfig(options.env ?? process.env);
+    let verifierTrace = run.trace;
+    if (reranker !== null) {
+      let detail: string;
+      if ('invalid' in reranker) {
+        detail = `claim verifier skipped: ${reranker.invalid}`;
+      } else {
+        const outcome = await verifyDraft(reranker, draft, evidencePassages(compiled.pack), {
+          timeoutMs: Math.max(1, Math.min(5_000, deadline - now())),
+          ...(options.rerankerFetch === undefined ? {} : { fetch: options.rerankerFetch }),
+        });
+        if (outcome.status === 'ok') {
+          verdict = mergeVerdict(verdict, outcome.judgement);
+          detail = `claim verifier scored ${outcome.pairs} pair(s): ${outcome.judgement.unsupported.length} of ${outcome.judgement.supported.length + outcome.judgement.unsupported.length} sentence(s) unsupported`;
+        } else {
+          detail = `claim verifier ${outcome.status}: ${outcome.detail}; Reviewer verdict kept unchanged`;
+        }
+      }
+      verifierTrace = [...run.trace, { at: iso(now()), kind: 'TOOL', detail }];
+    }
+
     await transition('COMPLETED', verdict.approved
       ? 'Reviewer approved every material claim'
       : `Reviewer rejected ${verdict.unsupported.length} unsupported claim(s)`, {
@@ -551,6 +577,7 @@ export async function runAgents(options: RunOptions): Promise<AgentRun> {
       verdict,
       supportedClaims: verdict.supported,
       timings: { ...run.timings, researcherMs, reviewerMs },
+      trace: verifierTrace,
     }, reviewerMs);
     return run;
   } catch (error) {

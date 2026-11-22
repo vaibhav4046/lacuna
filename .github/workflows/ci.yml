@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # package.json engines asks for >=20.11.0; 22 is the current LTS that satisfies it.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      - run: npm ci
+      # Some unit tests import web/ modules, which resolve react from web/node_modules.
+      - run: npm --prefix web ci
+      # Unit tests only. The contract suite needs a live HydraDB node.
+      - run: npm test
